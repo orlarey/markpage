@@ -1,0 +1,198 @@
+export type PageSize = 'A3' | 'A4' | 'A5' | 'B5' | 'LETTER' | 'LEGAL';
+
+export const PAGE_SIZES: PageSize[] = [
+  'A4',
+  'A5',
+  'A3',
+  'B5',
+  'LETTER',
+  'LEGAL',
+];
+
+export const PAGE_SIZE_LABELS: Record<PageSize, string> = {
+  A4: 'A4',
+  A5: 'A5',
+  A3: 'A3',
+  B5: 'B5',
+  LETTER: 'Letter',
+  LEGAL: 'Legal',
+};
+
+export type PageNumberPosition =
+  | 'none'
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
+  'none',
+  'top-left',
+  'top-center',
+  'top-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+];
+
+export interface TextStyle {
+  fontSize: number; // pt
+  color: string; // #rrggbb
+}
+
+export interface PageNumberStyle {
+  fontSize: number;
+  italics: boolean;
+  color: string;
+}
+
+export interface Margins {
+  top: number; // mm
+  bottom: number; // mm
+  left: number; // mm
+  right: number; // mm
+}
+
+export interface MetadataField {
+  text: string;
+  show: boolean;
+  bold: boolean;
+}
+
+export type DateMode = 'none' | 'today' | 'custom';
+
+export interface DateSetting {
+  mode: DateMode;
+  custom: string;
+}
+
+export interface PdfSettings {
+  pageSize: PageSize;
+  margins: Margins;
+  justify: boolean;
+  lineHeight: number;
+  author: MetadataField;
+  organization: MetadataField;
+  date: DateSetting;
+  styles: {
+    h1: TextStyle;
+    h2: TextStyle;
+    h3: TextStyle;
+    h4: TextStyle;
+    body: TextStyle;
+  };
+  pageNumber: {
+    position: PageNumberPosition;
+    style: PageNumberStyle;
+  };
+}
+
+export const DEFAULT_SETTINGS: PdfSettings = {
+  pageSize: 'A4',
+  margins: { top: 25, bottom: 25, left: 25, right: 25 },
+  justify: true,
+  lineHeight: 1.3,
+  author: { text: '', show: false, bold: false },
+  organization: { text: '', show: false, bold: false },
+  date: { mode: 'none', custom: '' },
+  styles: {
+    h1: { fontSize: 24, color: '#1f2328' },
+    h2: { fontSize: 20, color: '#1f2328' },
+    h3: { fontSize: 16, color: '#1f2328' },
+    h4: { fontSize: 14, color: '#1f2328' },
+    body: { fontSize: 11, color: '#1f2328' },
+  },
+  pageNumber: {
+    position: 'bottom-center',
+    style: { fontSize: 9, italics: false, color: '#57606a' },
+  },
+};
+
+const KEY = 'md2pdf:settings';
+
+export function loadSettings(): PdfSettings {
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return DEFAULT_SETTINGS;
+  try {
+    const parsed = JSON.parse(raw);
+    return mergeWithDefaults(parsed);
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
+
+export function saveSettings(s: PdfSettings): void {
+  localStorage.setItem(KEY, JSON.stringify(s));
+}
+
+// Tolerant merge: any missing field falls back to its default. Lets us add
+// new fields later without breaking persisted settings from older versions.
+function mergeWithDefaults(input: unknown): PdfSettings {
+  const d = DEFAULT_SETTINGS;
+  if (!input || typeof input !== 'object') return d;
+  const obj = input as Partial<PdfSettings>;
+  const merge = <T>(def: T, partial: Partial<T> | undefined): T =>
+    partial ? { ...def, ...partial } : def;
+  return {
+    pageSize: obj.pageSize ?? d.pageSize,
+    margins: merge(d.margins, obj.margins),
+    justify: obj.justify ?? d.justify,
+    lineHeight: obj.lineHeight ?? d.lineHeight,
+    author: merge(d.author, obj.author),
+    organization: merge(d.organization, obj.organization),
+    date: merge(d.date, obj.date),
+    styles: {
+      h1: merge(d.styles.h1, obj.styles?.h1),
+      h2: merge(d.styles.h2, obj.styles?.h2),
+      h3: merge(d.styles.h3, obj.styles?.h3),
+      h4: merge(d.styles.h4, obj.styles?.h4),
+      body: merge(d.styles.body, obj.styles?.body),
+    },
+    pageNumber: {
+      position: obj.pageNumber?.position ?? d.pageNumber.position,
+      style: merge(d.pageNumber.style, obj.pageNumber?.style),
+    },
+  };
+}
+
+// 1 mm = 1/25.4 in × 72 pt/in.
+export const MM_TO_PT = 72 / 25.4;
+
+export function mmToPt(mm: number): number {
+  return mm * MM_TO_PT;
+}
+
+const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+
+export function formatDate(d: DateSetting): string | null {
+  if (d.mode === 'none') return null;
+  if (d.mode === 'today') return dateFormatter.format(new Date());
+  const trimmed = d.custom.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+export interface MetadataLine {
+  text: string;
+  bold: boolean;
+}
+
+// Returns the centered metadata lines (author, organization, date) that
+// should appear in the title block, in display order. Each entry is already
+// trimmed and non-empty.
+export function metadataLines(s: PdfSettings): MetadataLine[] {
+  const lines: MetadataLine[] = [];
+  if (s.author.show && s.author.text.trim() !== '') {
+    lines.push({ text: s.author.text.trim(), bold: s.author.bold });
+  }
+  if (s.organization.show && s.organization.text.trim() !== '') {
+    lines.push({
+      text: s.organization.text.trim(),
+      bold: s.organization.bold,
+    });
+  }
+  const d = formatDate(s.date);
+  if (d) lines.push({ text: d, bold: false });
+  return lines;
+}
