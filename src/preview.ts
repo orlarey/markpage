@@ -33,6 +33,39 @@ export function applyPreviewMetadata(
   }
 }
 
+// Stamps each top-level block in the preview with `data-line="N"` (0-indexed
+// source line of the corresponding markdown token), so the scroll-sync code
+// can interpolate between blocks. Skips our own injected metadata block,
+// which has no source counterpart.
+export function annotateSourceLines(
+  target: HTMLElement,
+  source: string,
+): void {
+  const tokens = marked.lexer(source);
+  const elements = Array.from(target.children).filter(
+    (el): el is HTMLElement =>
+      el instanceof HTMLElement && !el.classList.contains('preview-metadata'),
+  );
+  let elementIndex = 0;
+  let line = 0;
+  for (const tok of tokens) {
+    if (tok.type !== 'space' && tok.type !== 'html') {
+      const el = elements[elementIndex];
+      if (el) el.dataset.line = String(line);
+      elementIndex += 1;
+    }
+    line += countNewlines(tok.raw);
+  }
+}
+
+function countNewlines(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    if (s.codePointAt(i) === 10) n += 1;
+  }
+  return n;
+}
+
 const PREVIEW_STYLE_ID = 'md2pdf-preview-styles';
 
 // Mirrors a subset of the PDF settings into the HTML preview so the user can

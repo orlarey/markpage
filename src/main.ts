@@ -5,6 +5,9 @@ import '@fontsource/roboto-condensed/400.css';
 import '@fontsource/roboto-condensed/500.css';
 import '@fontsource/roboto-condensed/400-italic.css';
 import '@fontsource/roboto-condensed/500-italic.css';
+// Roboto Mono powers the inline `code` and code blocks in the HTML preview,
+// matching the monospace font we register in pdfmake.
+import '@fontsource/roboto-mono/400.css';
 
 import './style.css';
 import { createEditor } from './editor';
@@ -13,7 +16,9 @@ import {
   debounce,
   applyPreviewStyles,
   applyPreviewMetadata,
+  annotateSourceLines,
 } from './preview';
+import { setupScrollSync } from './scroll-sync';
 import { markdownToDocDefinition } from './pdf/convert';
 import { downloadPdf } from './pdf/maker';
 import { mountToolbar } from './ui/toolbar';
@@ -76,6 +81,7 @@ function bootstrap(): void {
   const updatePreview = (source: string) => {
     renderPreview(previewEl, source);
     applyPreviewMetadata(previewEl, state.settings);
+    annotateSourceLines(previewEl, source);
   };
   const debouncedSave = debounce((source: string) => saveDoc(source), 200);
 
@@ -88,6 +94,7 @@ function bootstrap(): void {
 
   mountEditorToolbar(editorToolbarEl, editor.view);
   attachEditorContextMenu(editor.view.dom, editor.view);
+  setupScrollSync(editor.view, previewEl);
 
   updatePreview(initialDoc);
 

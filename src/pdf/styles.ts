@@ -69,12 +69,12 @@ export function buildStyleDictionary(s: PdfSettings): StyleDictionary {
       margin: [0, 0, 0, 2],
     },
     code: {
-      font: 'Courier',
+      font: 'Mono',
       fontSize: Math.max(8, s.styles.body.fontSize - 1),
       background: '#f6f8fa',
     },
     codeBlock: {
-      font: 'Courier',
+      font: 'Mono',
       fontSize: Math.max(8, s.styles.body.fontSize - 1),
       margin: [0, 0, 0, 6],
       preserveLeadingSpaces: true,

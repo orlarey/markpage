@@ -9,6 +9,7 @@ import regularUrl from '@expo-google-fonts/roboto-condensed/400Regular/RobotoCon
 import mediumUrl from '@expo-google-fonts/roboto-condensed/500Medium/RobotoCondensed_500Medium.ttf?url';
 import italicUrl from '@expo-google-fonts/roboto-condensed/400Regular_Italic/RobotoCondensed_400Regular_Italic.ttf?url';
 import mediumItalicUrl from '@expo-google-fonts/roboto-condensed/500Medium_Italic/RobotoCondensed_500Medium_Italic.ttf?url';
+import monoRegularUrl from '@expo-google-fonts/roboto-mono/400Regular/RobotoMono_400Regular.ttf?url';
 
 interface PdfMakeRuntime {
   vfs: Record<string, string>;
@@ -38,11 +39,12 @@ let fontsReady: Promise<void> | null = null;
 
 function ensureFontsReady(): Promise<void> {
   fontsReady ??= (async () => {
-    const [reg, med, ital, medItal] = await Promise.all([
+    const [reg, med, ital, medItal, mono] = await Promise.all([
       fetchAsBase64(regularUrl),
       fetchAsBase64(mediumUrl),
       fetchAsBase64(italicUrl),
       fetchAsBase64(mediumItalicUrl),
+      fetchAsBase64(monoRegularUrl),
     ]);
     const m = pdfMake as unknown as PdfMakeRuntime;
     m.vfs = {
@@ -50,15 +52,25 @@ function ensureFontsReady(): Promise<void> {
       'RobotoCondensed-Medium.ttf': med,
       'RobotoCondensed-Italic.ttf': ital,
       'RobotoCondensed-MediumItalic.ttf': medItal,
+      'RobotoMono-Regular.ttf': mono,
     };
     // Override the default "Roboto" family so existing styles (which use
-    // bold/italics) automatically pick up the condensed variants.
+    // bold/italics) automatically pick up the condensed variants. We also
+    // register a "Mono" family used by the code / codeBlock styles. Code in
+    // Markdown rarely needs bold or italic, so all four entries point to the
+    // same Regular TTF — keeps the bundle smaller.
     m.fonts = {
       Roboto: {
         normal: 'RobotoCondensed-Regular.ttf',
         bold: 'RobotoCondensed-Medium.ttf',
         italics: 'RobotoCondensed-Italic.ttf',
         bolditalics: 'RobotoCondensed-MediumItalic.ttf',
+      },
+      Mono: {
+        normal: 'RobotoMono-Regular.ttf',
+        bold: 'RobotoMono-Regular.ttf',
+        italics: 'RobotoMono-Regular.ttf',
+        bolditalics: 'RobotoMono-Regular.ttf',
       },
     };
   })();
