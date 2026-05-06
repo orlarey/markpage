@@ -19,6 +19,7 @@ import {
   annotateSourceLines,
 } from './preview';
 import { setupScrollSync } from './scroll-sync';
+import { importFile } from './import';
 import { markdownToDocDefinition } from './pdf/convert';
 import { downloadPdf } from './pdf/maker';
 import { mountToolbar } from './ui/toolbar';
@@ -59,6 +60,22 @@ function ensureFilename(name: string): string {
   const trimmed = name.trim();
   if (trimmed === '') return DEFAULT_FILENAME;
   return /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`;
+}
+
+// Derives the .md filename for "Enregistrer" from the current PDF filename
+// (the user manages a single base name in the toolbar's filename input).
+function mdFilenameFrom(pdfName: string): string {
+  return pdfName.replace(/\.pdf$/i, '') + '.md';
+}
+
+function downloadMarkdown(content: string, filename: string): void {
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function bootstrap(): void {
@@ -105,20 +122,41 @@ function bootstrap(): void {
     applyPreviewMetadata(previewEl, s);
   };
 
-  const renderToolbar = () => {
-    mountToolbar(toolbarEl, {
-      initialFilename: state.filename,
-      onFilenameChange(name) {
-        state.filename = name;
-        saveFilename(name);
-      },
-      onLoad(content, baseName) {
+  const handleOpen = (file: File): void => {
+    const current = editor.getValue();
+    const dirty = current.trim() !== '' && current !== DEFAULT_DOC;
+    if (dirty) {
+      const ok = globalThis.confirm(
+        'Le contenu actuel sera remplacé. Continuer ?',
+      );
+      if (!ok) return;
+    }
+    importFile(file)
+      .then(({ content, baseName }) => {
         editor.setValue(content);
         saveDoc(content);
         updatePreview(content);
         state.filename = ensureFilename(baseName);
         saveFilename(state.filename);
         renderToolbar();
+      })
+      .catch((err: unknown) => {
+        console.error('Import failed', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        globalThis.alert(`Échec de l'import : ${msg}`);
+      });
+  };
+
+  const renderToolbar = (): void => {
+    mountToolbar(toolbarEl, {
+      initialFilename: state.filename,
+      onFilenameChange(name) {
+        state.filename = name;
+        saveFilename(name);
+      },
+      onOpen: handleOpen,
+      onSave() {
+        downloadMarkdown(editor.getValue(), mdFilenameFrom(state.filename));
       },
       onDownload() {
         const source = editor.getValue();

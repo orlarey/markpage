@@ -1,5 +1,8 @@
+import { ACCEPT_ATTRIBUTE } from '../import';
+
 export interface ToolbarHandlers {
-  onLoad(content: string, filename: string): void;
+  onOpen(file: File): void;
+  onSave(): void;
   onDownload(): void;
   onFilenameChange(name: string): void;
   onSettings(): void;
@@ -12,24 +15,27 @@ export function mountToolbar(
 ): void {
   parent.innerHTML = '';
 
-  const loadBtn = document.createElement('button');
-  loadBtn.type = 'button';
-  loadBtn.textContent = 'Ouvrir .md';
-
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
-  fileInput.accept = '.md,.markdown,text/markdown';
+  fileInput.accept = ACCEPT_ATTRIBUTE;
   fileInput.style.display = 'none';
-
-  loadBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', async () => {
+  fileInput.addEventListener('change', () => {
     const file = fileInput.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    const baseName = file.name.replace(/\.(md|markdown)$/i, '');
-    handlers.onLoad(text, baseName);
+    if (file) handlers.onOpen(file);
     fileInput.value = '';
   });
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.textContent = 'Ouvrir';
+  openBtn.title = 'Ouvrir un document (.md, .txt, .html, .docx)';
+  openBtn.addEventListener('click', () => fileInput.click());
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.textContent = 'Enregistrer';
+  saveBtn.title = 'Enregistrer le document Markdown (.md)';
+  saveBtn.addEventListener('click', () => handlers.onSave());
 
   const downloadBtn = document.createElement('button');
   downloadBtn.type = 'button';
@@ -46,7 +52,6 @@ export function mountToolbar(
   filenameInput.addEventListener('input', () => {
     handlers.onFilenameChange(filenameInput.value);
   });
-
   filenameLabel.appendChild(filenameInput);
 
   const settingsBtn = document.createElement('button');
@@ -56,7 +61,7 @@ export function mountToolbar(
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(loadBtn);
+  left.append(openBtn, saveBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
