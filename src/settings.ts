@@ -91,18 +91,18 @@ export interface PdfSettings {
 
 export const DEFAULT_SETTINGS: PdfSettings = {
   pageSize: 'A4',
-  margins: { top: 25, bottom: 25, left: 25, right: 25 },
+  margins: { top: 25, bottom: 25, left: 35, right: 35 },
   justify: true,
-  lineHeight: 1.3,
-  author: { text: '', show: false, bold: false },
-  organization: { text: '', show: false, bold: false },
-  date: { mode: 'none', custom: '' },
+  lineHeight: 1.25,
+  author: { text: 'Prénom Nom', show: true, bold: true },
+  organization: { text: 'Mon organisation', show: true, bold: true },
+  date: { mode: 'today', custom: '' },
   styles: {
-    h1: { fontSize: 24, color: '#1f2328' },
-    h2: { fontSize: 20, color: '#1f2328' },
-    h3: { fontSize: 16, color: '#1f2328' },
-    h4: { fontSize: 14, color: '#1f2328' },
-    body: { fontSize: 11, color: '#1f2328' },
+    h1: { fontSize: 24, color: '#09438b' },
+    h2: { fontSize: 20, color: '#09438b' },
+    h3: { fontSize: 16, color: '#09438b' },
+    h4: { fontSize: 14, color: '#09438b' },
+    body: { fontSize: 11, color: '#000000' },
   },
   pageNumber: {
     position: 'bottom-center',

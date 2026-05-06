@@ -93,18 +93,120 @@ body,
 
 #editor-pane {
   border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-#editor-pane .cm-editor {
+#editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+  flex-shrink: 0;
+}
+
+#editor-toolbar button {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+  min-width: 1.8rem;
+}
+
+#editor-toolbar button:hover {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+#editor-toolbar button.tb-bold {
+  font-weight: 500;
+}
+
+#editor-toolbar button.tb-italic {
+  font-style: italic;
+}
+
+#editor-toolbar button.tb-code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+#editor-toolbar .heading-select {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  font: inherit;
+  cursor: pointer;
+}
+
+#editor-toolbar .editor-toolbar-sep {
+  width: 1px;
+  height: 1.2rem;
+  background: var(--border);
+  margin: 0 0.25rem;
+}
+
+#editor-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+#editor-content .cm-editor {
   height: 100%;
 }
 
 /* Editor content uses the same Roboto stack as the preview, since the input
    is prose rather than code. */
-#editor-pane .cm-content,
-#editor-pane .cm-gutters {
+#editor-content .cm-content,
+#editor-content .cm-gutters {
   font-family: var(--font-sans);
   font-size: 14px;
+}
+
+/* ---- Editor context menu ---------------------------------------------- */
+
+.editor-context-menu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  padding: 0.25rem;
+  min-width: 12rem;
+  font: inherit;
+}
+
+.cm-context-item {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.7rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font: inherit;
+  color: var(--text);
+}
+
+.cm-context-item:hover {
+  background: var(--bg-alt);
+}
+
+.cm-context-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0.25rem 0;
 }
 
 #preview-pane {

@@ -183,12 +183,17 @@ interface PdfSettings {
 
 ### 8.3. Valeurs par défaut
 
-| Réglage              | Valeur                                 |
-| -------------------- | -------------------------------------- |
-| Format               | A4                                     |
-| Marges               | 25 mm partout                          |
-| h1 / h2 / h3 / h4    | 24 / 20 / 16 / 14 pt, couleur #1f2328  |
-| Texte normal         | 11 pt, couleur #1f2328                 |
+| Réglage              | Valeur                                  |
+| -------------------- | --------------------------------------- |
+| Format               | A4                                      |
+| Marges               | haut/bas 25 mm, gauche/droite 35 mm     |
+| Justifier le texte   | activé                                  |
+| Interligne           | 1.25                                    |
+| Auteur               | « Prénom Nom », affiché, gras           |
+| Organisation         | « Mon organisation », affichée, grasse  |
+| Date                 | Date du jour                            |
+| h1 / h2 / h3 / h4    | 24 / 20 / 16 / 14 pt, couleur #09438b   |
+| Texte normal         | 11 pt, couleur #000000                  |
 | Numéro de page       | bas centre, 9 pt, non italique, #57606a |
 
 ## 9. À décider plus tard
