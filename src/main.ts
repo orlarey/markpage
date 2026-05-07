@@ -27,6 +27,7 @@ import {
   expandRefsToInlineDataUrls,
   extractDataUrlsToStore,
   gcUnusedImages,
+  refifyImageUrls,
 } from './image';
 import { markdownToDocDefinition } from './pdf/convert';
 import { downloadPdf } from './pdf/maker';
@@ -182,11 +183,15 @@ function bootstrap(): void {
       onOpen: handleOpen,
       onSave() {
         const source = editor.getValue();
-        // Inline every image as a data URL so the .md is portable, then
-        // GC any IDB entries the doc no longer references.
         void (async () => {
           try {
-            const expanded = await expandRefsToDataUrls(source);
+            // refify first so inline `![](img://...)` becomes `![][img-1]`
+            // with the definition appended at the end of the document.
+            // expand then swaps the `img://...` urls in those defs for the
+            // matching data URLs, giving a portable .md with all the heavy
+            // base64 grouped at the bottom.
+            const refified = refifyImageUrls(source);
+            const expanded = await expandRefsToDataUrls(refified);
             await gcUnusedImages(source);
             downloadMarkdown(expanded, mdFilenameFrom(state.filename));
           } catch (err) {

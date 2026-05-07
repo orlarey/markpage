@@ -85,6 +85,10 @@ function hasTransparency(
 
 // ---- insertion --------------------------------------------------------
 
+// Inserts the processed image inline at the cursor. The actual binary lives
+// in IndexedDB; the markdown only carries an opaque `img://uuid` URL —
+// short enough that we don't need the reference-style indirection any more
+// (it was useful when the URL was a multi-megabyte data: URL).
 async function insertImageAtCursor(
   view: EditorView,
   blob: Blob,
@@ -93,37 +97,21 @@ async function insertImageAtCursor(
   await putImage(id, blob);
 
   const { state } = view;
-  const docText = state.doc.toString();
-  const docEnd = state.doc.length;
-  const label = nextImageLabel(docText);
-
   const range = state.selection.main;
   const line = state.doc.lineAt(range.from);
   const before = state.doc.sliceString(line.from, range.from);
   const after = state.doc.sliceString(range.to, line.to);
   const prefix = before.trim() === '' ? '' : '\n\n';
   const suffix = after.trim() === '' ? '' : '\n\n';
-  const cursorInsert = `${prefix}![][${label}]${suffix}`;
+  const insert = `${prefix}![](${URL_SCHEME}${id})${suffix}`;
+  // Caret lands inside the alt-text brackets so the user can type a label.
   const altPos = range.from + prefix.length + 2;
-  const defInsert = `\n\n[${label}]: ${URL_SCHEME}${id}\n`;
 
   view.dispatch({
-    changes: [
-      { from: range.from, to: range.to, insert: cursorInsert },
-      { from: docEnd, insert: defInsert },
-    ],
+    changes: { from: range.from, to: range.to, insert },
     selection: EditorSelection.cursor(altPos),
   });
   view.focus();
-}
-
-function nextImageLabel(docText: string): string {
-  let max = 0;
-  for (const m of docText.matchAll(/\[img-(\d+)\]/g)) {
-    const n = Number(m[1]);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return `img-${max + 1}`;
 }
 
 async function handleImageFile(file: File, view: EditorView): Promise<void> {
@@ -368,29 +356,110 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 // ---- import / GC ------------------------------------------------------
 
 // Walks an imported document, hoists every inline data URL into IndexedDB,
-// and replaces it with an `img://id` reference. Returns the rewritten text.
-// This is what migrates the legacy inline format on `Open`.
+// and replaces it with an `img://id` reference. Then inlines any reference-
+// style image use whose target became an `img://` URL — the split form was
+// useful for hiding multi-megabyte data URLs, but with our short opaque
+// scheme it just adds noise to the editor.
 export async function extractDataUrlsToStore(text: string): Promise<string> {
   const matches = [...text.matchAll(new RegExp(DATA_URL_RE_PATTERN, 'g'))];
-  if (matches.length === 0) return text;
-  const replacements = new Map<string, string>();
-  for (const m of matches) {
-    const dataUrl = m[0];
-    if (replacements.has(dataUrl)) continue;
-    try {
-      const blob = await dataUrlToBlob(dataUrl);
-      const id = crypto.randomUUID();
-      await putImage(id, blob);
-      replacements.set(dataUrl, `${URL_SCHEME}${id}`);
-    } catch (err) {
-      console.error('Failed to import inline image', err);
+  let result = text;
+  if (matches.length > 0) {
+    const replacements = new Map<string, string>();
+    for (const m of matches) {
+      const dataUrl = m[0];
+      if (replacements.has(dataUrl)) continue;
+      try {
+        const blob = await dataUrlToBlob(dataUrl);
+        const id = crypto.randomUUID();
+        await putImage(id, blob);
+        replacements.set(dataUrl, `${URL_SCHEME}${id}`);
+      } catch (err) {
+        console.error('Failed to import inline image', err);
+      }
+    }
+    for (const [dataUrl, ref] of replacements) {
+      result = result.split(dataUrl).join(ref);
     }
   }
-  let result = text;
-  for (const [dataUrl, ref] of replacements) {
-    result = result.split(dataUrl).join(ref);
+  return inlineImageRefs(result);
+}
+
+const REF_DEF_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:[ \t]*(\S+)[ \t]*$/gm;
+const REF_USE_RE = /!\[([^\]]*)\]\[([^\]\n]+)\]/g;
+
+// Converts every reference-style image use whose URL is `img://...` into the
+// equivalent inline form `![alt](img://...)`, then strips the now-redundant
+// `[label]: img://...` definition lines. Regular link refs and non-image
+// definitions are left untouched.
+function inlineImageRefs(text: string): string {
+  const labelToUrl = new Map<string, string>();
+  for (const m of text.matchAll(REF_DEF_RE)) {
+    labelToUrl.set(m[1].toLowerCase().trim(), m[2]);
   }
-  return result;
+  if (labelToUrl.size === 0) return text;
+  let out = text.replaceAll(REF_USE_RE, (full, alt: string, label: string) => {
+    const url = labelToUrl.get(label.toLowerCase().trim());
+    return url?.startsWith(URL_SCHEME) ? `![${alt}](${url})` : full;
+  });
+  out = out.replaceAll(
+    new RegExp(
+      String.raw`^[ \t]{0,3}\[[^\]\n]+\]:[ \t]*${URL_SCHEME}\S+[ \t]*\n?`,
+      'gm',
+    ),
+    '',
+  );
+  return out;
+}
+
+// The inverse of inlineImageRefs: collects every `![alt](img://uuid)` use,
+// generates fresh `img-N` labels (avoiding collisions with existing
+// definitions), rewrites each use as `![alt][label]`, and appends one
+// `[label]: img://uuid` definition per unique URL at the very end of the
+// document. Used at save time so the .md file keeps the body readable
+// (the data URLs end up grouped at the bottom after expandRefsToDataUrls).
+export function refifyImageUrls(text: string): string {
+  const inlineRe = new RegExp(
+    String.raw`!\[([^\]]*)\]\((${URL_SCHEME}[a-f0-9-]+)\)`,
+    'g',
+  );
+  const occurrences = [...text.matchAll(inlineRe)];
+  if (occurrences.length === 0) return text;
+
+  const existingLabels = new Set<string>();
+  for (const m of text.matchAll(REF_DEF_RE)) {
+    existingLabels.add(m[1].toLowerCase().trim());
+  }
+
+  const urlToLabel = new Map<string, string>();
+  let counter = 1;
+  for (const m of occurrences) {
+    const url = m[2];
+    if (urlToLabel.has(url)) continue;
+    let label: string;
+    do {
+      label = `img-${counter}`;
+      counter += 1;
+    } while (existingLabels.has(label));
+    existingLabels.add(label);
+    urlToLabel.set(url, label);
+  }
+
+  let out = text.replaceAll(inlineRe, (full, alt: string, url: string) => {
+    const label = urlToLabel.get(url);
+    return label ? `![${alt}][${label}]` : full;
+  });
+
+  const defs = [...urlToLabel.entries()]
+    .map(([url, label]) => `[${label}]: ${url}`)
+    .join('\n');
+  out += `${trailingSeparator(out)}${defs}\n`;
+  return out;
+}
+
+function trailingSeparator(text: string): string {
+  if (text.endsWith('\n\n')) return '';
+  if (text.endsWith('\n')) return '\n';
+  return '\n\n';
 }
 
 // Removes IDB entries whose ids no longer appear in `text`. Also revokes
