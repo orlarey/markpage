@@ -120,6 +120,14 @@ body,
   font-size: 14px;
 }
 
+#editor-pane .cm-gutters {
+  user-select: none;
+}
+
+#editor-pane .cm-lineNumbers .cm-gutterElement {
+  cursor: pointer;
+}
+
 /* ---- Editor context menu ---------------------------------------------- */
 
 .editor-context-menu {

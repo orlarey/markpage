@@ -14,10 +14,11 @@ import {
 const MENU_ID = 'style-menu';
 
 // Right-click anywhere in the editor pane to open the same menu, anchored at
-// the click position. We move the cursor to the click position before
-// opening, otherwise the menu reflects the *previous* cursor's state — since
-// preventing the default contextmenu also prevents the browser's usual
-// caret-on-right-click behaviour.
+// the click position. We reposition the cursor so the menu reflects the
+// click's context — but only if the click falls *outside* any existing
+// non-empty selection, otherwise the user's selection would be lost just by
+// asking for the menu (e.g. selecting a line via the gutter then right
+// clicking on it to format).
 export function attachStyleContextMenu(
   editorEl: HTMLElement,
   view: EditorView,
@@ -25,7 +26,9 @@ export function attachStyleContextMenu(
   editorEl.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
-    if (pos !== null) {
+    const sel = view.state.selection.main;
+    const insideSelection = !sel.empty && pos !== null && pos >= sel.from && pos <= sel.to;
+    if (pos !== null && !insideSelection) {
       view.dispatch({ selection: { anchor: pos } });
     }
     openStyleMenu(view, e.clientX, e.clientY);

@@ -1,4 +1,8 @@
-import { EditorSelection, type Line } from '@codemirror/state';
+import {
+  EditorSelection,
+  type EditorState,
+  type Line,
+} from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
@@ -94,15 +98,15 @@ export function toggleBlockquote(view: EditorView): void {
 }
 
 export function toggleBold(view: EditorView): void {
-  toggleWrap(view, '**', 'gras');
+  toggleWrap(view, '**');
 }
 
 export function toggleItalic(view: EditorView): void {
-  toggleWrap(view, '*', 'italique');
+  toggleWrap(view, '*');
 }
 
 export function toggleInlineCode(view: EditorView): void {
-  toggleWrap(view, '`', 'code');
+  toggleWrap(view, '`');
 }
 
 export function insertLink(view: EditorView): void {
@@ -176,49 +180,94 @@ function uniqueLines(view: EditorView): Line[] {
   return [...seen.values()].sort((a, b) => a.from - b.from);
 }
 
-// Wraps each selection range with `marker` (e.g. '**' for bold). On empty
-// ranges, inserts `marker + placeholder + marker` and selects the
-// placeholder so the user can type to replace it. On already-wrapped text,
-// removes the wrapping (toggle off).
-function toggleWrap(
-  view: EditorView,
-  marker: string,
-  placeholder: string,
-): void {
-  const { state } = view;
-  const transaction = state.changeByRange((range) => {
-    if (range.empty) {
-      const insert = `${marker}${placeholder}${marker}`;
-      const selStart = range.from + marker.length;
-      return {
-        changes: { from: range.from, insert },
-        range: EditorSelection.range(selStart, selStart + placeholder.length),
-      };
+// Markdown structural prefixes we want emphasis to skip over: ATX headings,
+// bullet/numbered list markers, and blockquote markers.
+const STRUCTURAL_PREFIX_RE =
+  /^(?:#{1,6}\s+|[-*+]\s+|\d+\.\s+|>\s+)/;
+
+interface WrapSegment {
+  from: number;
+  to: number;
+}
+
+const LEADING_WS_RE = /^\s*/;
+const TRAILING_WS_RE = /\s*$/;
+
+// Builds a wrap-able segment from the intersection of a single line with the
+// active range. Skips empty / whitespace-only intersections, trims leading
+// and trailing whitespace, and steps over any Markdown structural prefix on
+// the line if (and only if) the segment starts at the beginning of the line.
+function lineSegment(
+  state: EditorState,
+  lineNum: number,
+  rangeFrom: number,
+  rangeTo: number,
+): WrapSegment | null {
+  const line = state.doc.line(lineNum);
+  const lineFrom = Math.max(line.from, rangeFrom);
+  const lineTo = Math.min(line.to, rangeTo);
+  if (lineFrom >= lineTo) return null;
+  const slice = state.sliceDoc(lineFrom, lineTo);
+  const leading = LEADING_WS_RE.exec(slice)?.[0].length ?? 0;
+  const trailing = TRAILING_WS_RE.exec(slice)?.[0].length ?? 0;
+  let segFrom = lineFrom + leading;
+  const segTo = lineTo - trailing;
+  if (segFrom >= segTo) return null;
+  if (segFrom === line.from) {
+    const prefix = STRUCTURAL_PREFIX_RE.exec(line.text);
+    if (prefix) {
+      const prefixEnd = line.from + prefix[0].length;
+      if (prefixEnd < segTo) segFrom = prefixEnd;
     }
-    const text = state.sliceDoc(range.from, range.to);
-    if (
+  }
+  return segFrom < segTo ? { from: segFrom, to: segTo } : null;
+}
+
+// Decomposes the current selection into wrap-able segments, one per line
+// that the selection intersects. Returns segments in document order.
+function wrapSegments(state: EditorState): WrapSegment[] {
+  const segments: WrapSegment[] = [];
+  for (const range of state.selection.ranges) {
+    if (range.empty) continue;
+    const startLine = state.doc.lineAt(range.from).number;
+    const endLine = state.doc.lineAt(range.to).number;
+    for (let n = startLine; n <= endLine; n += 1) {
+      const seg = lineSegment(state, n, range.from, range.to);
+      if (seg) segments.push(seg);
+    }
+  }
+  return segments;
+}
+
+// Wraps each selection segment with `marker` (e.g. '**' for bold). On already-
+// wrapped segments (text starts and ends with the marker), removes the
+// wrapping. The toggle is global: if every segment is currently wrapped we
+// unwrap them all, otherwise we wrap them all. Empty selections are no-ops.
+function toggleWrap(view: EditorView, marker: string): void {
+  const { state } = view;
+  const segments = wrapSegments(state);
+  if (segments.length === 0) return;
+
+  const allWrapped = segments.every((seg) => {
+    const text = state.sliceDoc(seg.from, seg.to);
+    return (
       text.length >= marker.length * 2 &&
       text.startsWith(marker) &&
       text.endsWith(marker)
-    ) {
-      const inner = text.slice(marker.length, text.length - marker.length);
-      return {
-        changes: { from: range.from, to: range.to, insert: inner },
-        range: EditorSelection.range(range.from, range.from + inner.length),
-      };
-    }
+    );
+  });
+
+  const changes = segments.map((seg) => {
+    const text = state.sliceDoc(seg.from, seg.to);
     return {
-      changes: {
-        from: range.from,
-        to: range.to,
-        insert: `${marker}${text}${marker}`,
-      },
-      range: EditorSelection.range(
-        range.from + marker.length,
-        range.from + marker.length + text.length,
-      ),
+      from: seg.from,
+      to: seg.to,
+      insert: allWrapped
+        ? text.slice(marker.length, text.length - marker.length)
+        : `${marker}${text}${marker}`,
     };
   });
-  view.dispatch(transaction);
+
+  view.dispatch({ changes });
   view.focus();
 }
