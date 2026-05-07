@@ -140,19 +140,84 @@ async function handleImageFile(file: File, view: EditorView): Promise<void> {
   }
 }
 
+// Resolves an `<img>` URL out of the various MIME types a browser may put on
+// the DataTransfer when dragging from a web page. We try `text/html` first
+// because dragging a rendered <img> often carries the actual image URL there
+// even when `text/uri-list` only points to the page that hosted it.
+function extractImageUrlFromDataTransfer(
+  dt: DataTransfer | null,
+): string | null {
+  if (!dt) return null;
+
+  const html = dt.getData('text/html');
+  if (html) {
+    const m = /<img[^>]+src\s*=\s*["']([^"']+)["']/i.exec(html);
+    if (m) return m[1];
+  }
+
+  const uriList = dt.getData('text/uri-list');
+  if (uriList) {
+    const first = uriList
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l !== '' && !l.startsWith('#'));
+    if (first) return first;
+  }
+
+  const plain = dt.getData('text/plain').trim();
+  if (/^https?:\/\//i.test(plain)) return plain;
+
+  return null;
+}
+
+async function handleImageUrl(url: string, view: EditorView): Promise<void> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.startsWith('image/')) {
+      throw new Error(
+        `L'URL ne pointe pas sur une image (type : ${contentType || 'inconnu'}).`,
+      );
+    }
+    const blob = await response.blob();
+    const file = new File([blob], 'web-image', { type: blob.type });
+    await handleImageFile(file, view);
+  } catch (err) {
+    console.error('Failed to fetch dropped URL', url, err);
+    globalThis.alert(
+      `Impossible de récupérer cette image depuis le web :\n${
+        err instanceof Error ? err.message : String(err)
+      }\n\n` +
+        "Beaucoup de sites (Google Photos, etc.) bloquent l'accès direct aux images. " +
+        "Téléchargez l'image localement, puis glissez-déposez-la depuis votre disque.",
+    );
+  }
+}
+
 export function attachImageHandlers(view: EditorView): void {
   view.dom.addEventListener(
     'drop',
     (e) => {
       const file = e.dataTransfer?.files?.[0];
-      if (!file?.type.startsWith('image/')) return;
+      const imageFile = file?.type.startsWith('image/') ? file : null;
+      const webUrl = imageFile
+        ? null
+        : extractImageUrlFromDataTransfer(e.dataTransfer);
+      if (!imageFile && !webUrl) return;
       e.preventDefault();
       e.stopPropagation();
       const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
       if (pos !== null) {
         view.dispatch({ selection: EditorSelection.cursor(pos) });
       }
-      void handleImageFile(file, view);
+      if (imageFile) {
+        void handleImageFile(imageFile, view);
+      } else if (webUrl) {
+        void handleImageUrl(webUrl, view);
+      }
     },
     true,
   );
