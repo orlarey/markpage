@@ -82,7 +82,6 @@ export function buildStyleDictionary(s: PdfSettings): StyleDictionary {
       preserveLeadingSpaces: true,
     },
     blockquote: {
-      italics: true,
       fontSize: s.styles.quote.fontSize,
       color: s.styles.quote.color,
     },

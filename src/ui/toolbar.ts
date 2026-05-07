@@ -74,7 +74,13 @@ export function mountToolbar(
 
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
-  settingsBtn.textContent = 'Réglages';
+  settingsBtn.className = 'menu-trigger';
+  settingsBtn.title = 'Ouvrir le panneau de réglages';
+  const settingsLabel = document.createTextNode('Réglages');
+  const settingsCaret = document.createElement('span');
+  settingsCaret.className = 'menu-caret';
+  settingsCaret.textContent = '▾';
+  settingsBtn.append(settingsLabel, settingsCaret);
   settingsBtn.addEventListener('click', () => handlers.onSettings());
 
   const left = document.createElement('div');
