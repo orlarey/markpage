@@ -18,6 +18,7 @@ import {
   applyPreviewStyles,
   applyPreviewMetadata,
   annotateSourceLines,
+  renderMermaidBlocks,
 } from './preview';
 import { setupScrollSync } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
@@ -99,13 +100,19 @@ function bootstrap(): void {
   const updatePreview = (source: string): void => {
     const myReq = ++previewReqId;
     expandRefsToBlobUrls(source)
-      .then((resolved) => {
+      .then(async (resolved) => {
         if (myReq !== previewReqId) return;
         renderPreview(previewEl, resolved);
         applyPreviewMetadata(previewEl, state.settings);
         // annotateSourceLines walks the *original* source so scroll-sync
         // line numbers match what the user typed in the editor.
         annotateSourceLines(previewEl, source);
+        // Mermaid runs last so the data-line annotations are already on
+        // the <pre> blocks it replaces (renderMermaidBlocks copies them
+        // onto the SVG wrappers). Bail out if the user typed something
+        // newer in the meantime.
+        await renderMermaidBlocks(previewEl);
+        if (myReq !== previewReqId) return;
       })
       .catch((err: unknown) => {
         console.error('Preview render failed', err);
@@ -196,7 +203,7 @@ function bootstrap(): void {
     void (async () => {
       try {
         const expanded = await expandRefsToInlineDataUrls(source);
-        const doc = markdownToDocDefinition(expanded, state.settings);
+        const doc = await markdownToDocDefinition(expanded, state.settings);
         await downloadPdf(doc, ensureFilename(state.filename));
       } catch (err) {
         console.error('PDF export failed', err);

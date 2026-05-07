@@ -93,6 +93,18 @@ export interface PdfSettings {
     position: PageNumberPosition;
     style: PageNumberStyle;
   };
+  // Maximum upscaling factor applied to mermaid diagrams in the PDF. The
+  // diagram is scaled up to this factor, but never beyond the width and
+  // height bounds defined below.
+  mermaidMaxScale: number;
+  // Maximum width allowed for a mermaid diagram, as a fraction of the
+  // content (text) width of a page. 1.0 lets the diagram fill the column.
+  mermaidMaxWidthPct: number;
+  // Maximum height allowed for a mermaid diagram, as a fraction of the
+  // content (text) height of a page. Caps tall diagrams so they don't
+  // dominate or exceed a full page, which would otherwise force a page
+  // break before the diagram and leave the previous page half-empty.
+  mermaidMaxHeightPct: number;
 }
 
 export const DEFAULT_SETTINGS: PdfSettings = {
@@ -116,6 +128,9 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     position: 'bottom-center',
     style: { fontSize: 9, italics: false, color: '#57606a' },
   },
+  mermaidMaxScale: 2,
+  mermaidMaxWidthPct: 1,
+  mermaidMaxHeightPct: 0.7,
 };
 
 const KEY = 'md2pdf:settings';
@@ -164,6 +179,9 @@ function mergeWithDefaults(input: unknown): PdfSettings {
       position: obj.pageNumber?.position ?? d.pageNumber.position,
       style: merge(d.pageNumber.style, obj.pageNumber?.style),
     },
+    mermaidMaxScale: obj.mermaidMaxScale ?? d.mermaidMaxScale,
+    mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
+    mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
   };
 }
 

@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings } from './settings';
+import { renderMermaid } from './mermaid';
 
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
@@ -64,6 +65,43 @@ function countNewlines(s: string): number {
     if (s.codePointAt(i) === 10) n += 1;
   }
   return n;
+}
+
+// Walks the rendered preview, finds every ```mermaid code block, renders it
+// to SVG via the lazy-loaded mermaid library, and swaps the <pre> for a
+// <div> holding the SVG. Errors are shown as a red-bordered block with the
+// source still visible so the user can see what they typed.
+export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
+  const codes = Array.from(
+    target.querySelectorAll<HTMLElement>('code.language-mermaid'),
+  );
+  if (codes.length === 0) return;
+  await Promise.all(
+    codes.map(async (code) => {
+      const pre = code.parentElement;
+      if (!pre) return;
+      const source = code.textContent ?? '';
+      const result = await renderMermaid(source);
+      // Preserve the `data-line` attribute so scroll-sync still works after
+      // the swap.
+      const dataLine = pre.dataset.line;
+      const wrapper = document.createElement('div');
+      if (dataLine !== undefined) wrapper.dataset.line = dataLine;
+      if (result.ok) {
+        wrapper.className = 'mermaid-block';
+        wrapper.innerHTML = result.svg;
+      } else {
+        wrapper.className = 'mermaid-error';
+        const msg = document.createElement('div');
+        msg.className = 'mermaid-error-msg';
+        msg.textContent = `Erreur Mermaid : ${result.error}`;
+        const sourcePre = document.createElement('pre');
+        sourcePre.textContent = source;
+        wrapper.append(msg, sourcePre);
+      }
+      pre.replaceWith(wrapper);
+    }),
+  );
 }
 
 const PREVIEW_STYLE_ID = 'md2pdf-preview-styles';

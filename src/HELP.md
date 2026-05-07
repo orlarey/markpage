@@ -170,6 +170,25 @@ Tout texte placé entre trois accents graves (```) est affiché
 dans une police à largeur fixe, sur fond gris.
 ```
 
+## Diagrammes Mermaid
+
+Vous pouvez insérer des diagrammes en utilisant la syntaxe
+[Mermaid](https://mermaid.js.org/) à l'intérieur d'un bloc de code dont
+le langage est `mermaid` :
+
+```mermaid
+graph LR
+  A[Idée] --> B[Brouillon]
+  B --> C[Document final]
+  C --> D[PDF]
+```
+
+Diagrammes reconnus : `graph` / `flowchart`, `sequenceDiagram`,
+`classDiagram`, `stateDiagram`, `gantt`, `pie`, `mindmap`, etc.
+
+Le diagramme est rendu en **SVG** dans l'aperçu **et** dans le PDF
+(qualité vectorielle, sans pixellisation à l'impression).
+
 ## Pour aller plus loin
 
 md2pdf reconnaît la plupart des conventions Markdown classiques :
@@ -179,6 +198,7 @@ md2pdf reconnaît la plupart des conventions Markdown classiques :
 - Images de référence
 - Tableaux comme celui ci-dessus
 - Lignes horizontales (trois tirets sur une ligne)
+- Diagrammes Mermaid (voir ci-dessus)
 
 ---
 

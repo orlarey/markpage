@@ -6,6 +6,7 @@ import {
   type PageSize,
   type PdfSettings,
 } from '../settings';
+import { renderMermaid } from '../mermaid';
 import { buildBaseDocDefinition } from './styles';
 
 // Page dimensions in pt, matching pdfmake's internal table. Used to figure
@@ -22,6 +23,11 @@ const PAGE_SIZE_PT: Record<PageSize, [number, number]> = {
 function contentWidthPt(s: PdfSettings): number {
   const [pw] = PAGE_SIZE_PT[s.pageSize];
   return pw - mmToPt(s.margins.left) - mmToPt(s.margins.right);
+}
+
+function contentHeightPt(s: PdfSettings): number {
+  const [, ph] = PAGE_SIZE_PT[s.pageSize];
+  return ph - mmToPt(s.margins.top) - mmToPt(s.margins.bottom);
 }
 
 // Adjusts inter-block margins for a sequence of blocks that all came from
@@ -85,14 +91,18 @@ interface InlineStyle {
   style?: string;
 }
 
-export function markdownToDocDefinition(
+export async function markdownToDocDefinition(
   source: string,
   settings: PdfSettings,
-): TDocumentDefinitions {
+): Promise<TDocumentDefinitions> {
   // Trailing whitespace (extra blank lines) is the single most common cause
   // of pdfmake emitting an empty trailing page, so we drop it before lexing.
   const tokens = marked.lexer(source.replace(/\s+$/u, ''));
-  const content = tokensToContent(tokens, settings);
+  // Pre-render every ```mermaid block to SVG (async). The token walker
+  // below is synchronous and just looks each one up by source string.
+  const mermaidSvgs = await preRenderMermaidBlocks(tokens);
+  const content = tokensToContent(tokens, settings, mermaidSvgs);
+  // (mermaidSvgs is also threaded through nested tokensToContent calls.)
   insertMetadataBlock(content, tokens, settings);
   clearTrailingMargin(content);
   return {
@@ -100,6 +110,254 @@ export function markdownToDocDefinition(
     ...buildPageNumber(settings),
     content,
   };
+}
+
+interface RenderedMermaid {
+  svg: string;
+  width: number;
+  height: number;
+}
+
+// Walks the token tree, finds every code block tagged `mermaid`, and renders
+// each unique source to SVG in parallel. Returns a Map keyed by source so a
+// single source shared between blocks renders once. Each entry carries the
+// SVG plus its intrinsic dimensions, so the caller can size the pdfmake
+// block exactly (using fit:[…] reserves the full box even if the diagram is
+// smaller, which pushes content to the next page).
+async function preRenderMermaidBlocks(
+  tokens: Token[],
+): Promise<Map<string, RenderedMermaid>> {
+  const sources = new Set<string>();
+  collectMermaidSources(tokens, sources);
+  const map = new Map<string, RenderedMermaid>();
+  await Promise.all(
+    [...sources].map(async (src) => {
+      const result = await renderMermaid(src);
+      if (result.ok) map.set(src, sanitiseSvgForPdfmake(result.svg));
+    }),
+  );
+  return map;
+}
+
+// Mermaid puts all of its colouring (box fills, text colour, stroke widths)
+// in a single <style> block with class-based selectors. pdfmake's SVG
+// engine (svg-to-pdfkit) doesn't resolve CSS selectors, so without this
+// step every rect ends up black-on-black. We render the SVG into a hidden
+// DOM container so the browser's CSS engine applies the rules, then copy
+// the computed presentation values onto each element as SVG attributes
+// (pdfmake is more reliable with attributes than with inline style="..."),
+// and drop the now-redundant <style> blocks plus a few constructs pdfmake
+// can't parse.
+function sanitiseSvgForPdfmake(svg: string): RenderedMermaid {
+  // Drop @import upfront (textually) so it can't fire during DOMParser load.
+  const stripped = svg.replaceAll(/@import[^;]*;?/gi, '');
+
+  const container = document.createElement('div');
+  container.style.cssText =
+    'position:absolute;left:-99999px;top:0;visibility:hidden;pointer-events:none';
+  container.innerHTML = stripped;
+  document.body.appendChild(container);
+  try {
+    const root = container.querySelector('svg');
+    if (!root) return { svg: stripped, width: 800, height: 600 };
+    // Convert <foreignObject> labels (mermaid uses these for node text even
+    // when htmlLabels:false is requested) to native SVG <text> first, while
+    // the layout box dimensions are still on the FO. Then drop any FO that
+    // didn't have extractable text.
+    foreignObjectsToText(root);
+    for (const fo of root.querySelectorAll('foreignObject')) fo.remove();
+    inlineComputedStyles(root);
+    scrubInvalidDasharrays(root);
+    forceRegisteredFont(root);
+    for (const styleEl of root.querySelectorAll('style')) styleEl.remove();
+    // Crop the SVG to the actual painted extent. Mermaid often sets
+    // width="100%" or a height that pads the content with empty space, so
+    // both the layout box pdfmake reserves AND what gets drawn inside it
+    // become wrong. getBBox returns the real ink box — we resize the SVG
+    // viewport (and its width/height attrs) to match.
+    const { width, height } = cropSvgToContent(root);
+    return {
+      svg: new XMLSerializer().serializeToString(root),
+      width,
+      height,
+    };
+  } finally {
+    container.remove();
+  }
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Crops the SVG to the actual extent of its painted content (via
+// `getBBox`) and rewrites width/height/viewBox to match. Mermaid's own
+// width/height attributes often pad the content with empty space (e.g.
+// `width="100%"`, or a height calculated for a container that is not
+// ours), which makes pdfmake reserve the wrong layout box AND draw the
+// diagram in only one corner of it. getBBox is the canonical "ink box"
+// the browser computed during rendering; we trust it.
+function cropSvgToContent(svg: SVGElement): {
+  width: number;
+  height: number;
+} {
+  try {
+    const bbox = (svg as unknown as SVGGraphicsElement).getBBox();
+    if (bbox.width > 0 && bbox.height > 0) {
+      // Pad slightly so stroke widths on the border of the diagram aren't
+      // clipped (a 1px stroke centred on x=0 needs x=-0.5 visible).
+      const pad = 2;
+      const x = bbox.x - pad;
+      const y = bbox.y - pad;
+      const w = bbox.width + pad * 2;
+      const h = bbox.height + pad * 2;
+      svg.setAttribute('viewBox', `${x} ${y} ${w} ${h}`);
+      svg.setAttribute('width', String(w));
+      svg.setAttribute('height', String(h));
+      return { width: w, height: h };
+    }
+  } catch {
+    // getBBox can throw if the element is not in the rendering tree; fall
+    // through to the attribute/viewBox heuristic.
+  }
+  // Fallback: trust attributes (rejecting percentages) and viewBox.
+  const wAttr = svg.getAttribute('width') ?? '';
+  const hAttr = svg.getAttribute('height') ?? '';
+  const px = (s: string) => (s.endsWith('%') ? Number.NaN : Number.parseFloat(s));
+  let w = Number.isFinite(px(wAttr)) && px(wAttr) > 0 ? px(wAttr) : 0;
+  let h = Number.isFinite(px(hAttr)) && px(hAttr) > 0 ? px(hAttr) : 0;
+  if (!w || !h) {
+    const vb = svg.getAttribute('viewBox');
+    if (vb) {
+      const parts = vb.split(/[\s,]+/).map((s) => Number.parseFloat(s));
+      if (parts.length === 4) {
+        if (!w && parts[2] && parts[2] > 0) w = parts[2];
+        if (!h && parts[3] && parts[3] > 0) h = parts[3];
+      }
+    }
+  }
+  return { width: w || 800, height: h || 600 };
+}
+
+// Replaces each <foreignObject> with an SVG <text> that contains the same
+// (collapsed) text content, positioned at the FO's centre with
+// text-anchor="middle". Vertical centering is approximated by shifting the
+// baseline down by ~0.35em from the box centre — close enough for the
+// short single-line labels mermaid emits for nodes and edges.
+function foreignObjectsToText(svg: SVGElement): void {
+  const fos = [...svg.querySelectorAll('foreignObject')];
+  for (const fo of fos) {
+    const raw = fo.textContent ?? '';
+    const text = raw.replaceAll(/\s+/g, ' ').trim();
+    if (!text) continue;
+    const x = Number.parseFloat(fo.getAttribute('x') ?? '0') || 0;
+    const y = Number.parseFloat(fo.getAttribute('y') ?? '0') || 0;
+    const w = Number.parseFloat(fo.getAttribute('width') ?? '0') || 0;
+    const h = Number.parseFloat(fo.getAttribute('height') ?? '0') || 0;
+    const fontSize = 14;
+    const cx = x + w / 2;
+    const cy = y + h / 2 + fontSize * 0.35;
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('x', String(cx));
+    t.setAttribute('y', String(cy));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-family', 'Roboto');
+    t.setAttribute('font-size', String(fontSize));
+    t.setAttribute('fill', '#333');
+    t.textContent = text;
+    fo.replaceWith(t);
+  }
+}
+
+// pdfmake only paints text whose font is registered. Mermaid's neutral theme
+// asks for `"trebuchet ms", verdana, …` — none of which we ship — so the
+// labels would render blank. Override every text-bearing element to use
+// "Roboto" (our embedded Roboto Condensed).
+function forceRegisteredFont(svg: SVGElement): void {
+  for (const el of svg.querySelectorAll<SVGElement>('text, tspan')) {
+    el.setAttribute('font-family', 'Roboto');
+    el.style.removeProperty('font-family');
+  }
+}
+
+// Mermaid sets `stroke-dasharray="1 0"` (or similar) directly on the arrow
+// marker path inside <defs>. PDFKit's `dash()` rejects any zero component,
+// so strip those values everywhere — both the SVG attribute form and the
+// inline-style form — and let the line render solid.
+function scrubInvalidDasharrays(svg: SVGElement): void {
+  for (const el of svg.querySelectorAll<SVGElement>('*')) {
+    const attrVal = el.getAttribute('stroke-dasharray');
+    if (attrVal && !isValidDasharray(attrVal)) {
+      el.removeAttribute('stroke-dasharray');
+    }
+    const inline = el.style.strokeDasharray;
+    if (inline && !isValidDasharray(inline)) {
+      el.style.removeProperty('stroke-dasharray');
+    }
+  }
+}
+
+// SVG presentation attributes pdfmake honours. We copy each from the
+// element's computed style only when the attribute isn't already set, so
+// existing inline values win (mermaid does set some of these directly,
+// e.g. on arrow markers).
+const SVG_PRESENTATION_ATTRS = [
+  'fill',
+  'fill-opacity',
+  'stroke',
+  'stroke-width',
+  'stroke-opacity',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'stroke-dasharray',
+  'opacity',
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'text-anchor',
+] as const;
+
+function inlineComputedStyles(svg: SVGElement): void {
+  for (const el of svg.querySelectorAll<SVGElement>('*')) {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'style' || tag === 'defs') continue;
+    const computed = globalThis.getComputedStyle(el);
+    for (const attr of SVG_PRESENTATION_ATTRS) {
+      if (el.hasAttribute(attr)) continue;
+      const value = computed.getPropertyValue(attr).trim();
+      if (!value) continue;
+      // PDFKit (pdfmake's backend) rejects any stroke-dasharray with a 0
+      // component ("lengths must be numeric and greater than zero"). The
+      // browser often returns "1 0" or "0" for solid strokes — skip them
+      // so the line just renders solid.
+      if (attr === 'stroke-dasharray' && !isValidDasharray(value)) continue;
+      el.setAttribute(attr, value);
+    }
+  }
+}
+
+function isValidDasharray(value: string): boolean {
+  if (value === 'none' || value === '0') return false;
+  const parts = value.split(/[\s,]+/).filter(Boolean);
+  if (parts.length === 0) return false;
+  return parts.every((p) => {
+    const n = Number.parseFloat(p);
+    return Number.isFinite(n) && n > 0;
+  });
+}
+
+function collectMermaidSources(tokens: Token[], out: Set<string>): void {
+  for (const tok of tokens) {
+    if (tok.type === 'code' && (tok as Tokens.Code).lang === 'mermaid') {
+      out.add((tok as Tokens.Code).text);
+    }
+    const nested = (tok as { tokens?: Token[] }).tokens;
+    if (nested) collectMermaidSources(nested, out);
+    if (tok.type === 'list') {
+      for (const item of (tok as Tokens.List).items) {
+        collectMermaidSources(item.tokens ?? [], out);
+      }
+    }
+  }
 }
 
 // Resets the bottom margin of the very last block so the page break logic
@@ -188,10 +446,14 @@ function buildPageNumber(
   return vSide === 'top' ? { header: renderer } : { footer: renderer };
 }
 
-function tokensToContent(tokens: Token[], settings: PdfSettings): Content[] {
+function tokensToContent(
+  tokens: Token[],
+  settings: PdfSettings,
+  mermaidSvgs: Map<string, RenderedMermaid>,
+): Content[] {
   const out: Content[] = [];
   for (const tok of tokens) {
-    const node = tokenToContent(tok, settings);
+    const node = tokenToContent(tok, settings, mermaidSvgs);
     if (node === null) continue;
     if (Array.isArray(node)) out.push(...node);
     else out.push(node);
@@ -202,6 +464,7 @@ function tokensToContent(tokens: Token[], settings: PdfSettings): Content[] {
 function tokenToContent(
   tok: Token,
   settings: PdfSettings,
+  mermaidSvgs: Map<string, RenderedMermaid>,
 ): Content | Content[] | null {
   switch (tok.type) {
     case 'space':
@@ -269,12 +532,54 @@ function tokenToContent(
 
     case 'code': {
       const c = tok as Tokens.Code;
+      if (c.lang === 'mermaid') {
+        const entry = mermaidSvgs.get(c.text);
+        if (entry) {
+          const maxW = contentWidthPt(settings) * settings.mermaidMaxWidthPct;
+          const maxH = contentHeightPt(settings) * settings.mermaidMaxHeightPct;
+          // scale = min(a, maxW/w, maxH/h): upscale up to `mermaidMaxScale`
+          // but never beyond either bound. Equivalent to picking f ∈ [0,1]
+          // such that f·a·w ≤ maxW and f·a·h ≤ maxH, then scale = f·a.
+          const scale = Math.min(
+            settings.mermaidMaxScale,
+            maxW / entry.width,
+            maxH / entry.height,
+          );
+          const w = entry.width * scale;
+          const h = entry.height * scale;
+          // Wrap the SVG in a borderless 3-column table: empty `*` on each
+          // side, fixed-width SVG cell in the middle. Two reasons for the
+          // table dance:
+          //   1. A bare `{svg, width, height}` makes pdfmake's layout
+          //      reserve more vertical space than it draws and force a
+          //      page break before fairly small diagrams.
+          //   2. `alignment: 'center'` is ignored on a top-level block —
+          //      the `*` star columns are how you actually centre a
+          //      narrower element on the page in pdfmake.
+          return {
+            table: {
+              widths: ['*', w, '*'],
+              body: [
+                [
+                  { text: '' },
+                  { svg: entry.svg, width: w, height: h },
+                  { text: '' },
+                ],
+              ],
+            },
+            layout: 'noBorders',
+            margin: [0, 6, 0, 6] as [number, number, number, number],
+          };
+        }
+        // Render failed: fall back to showing the source as a code block
+        // so the user notices and can fix the syntax.
+      }
       return { text: decodeEntities(c.text), style: 'codeBlock' };
     }
 
     case 'blockquote': {
       const b = tok as Tokens.Blockquote;
-      const inner = tokensToContent(b.tokens ?? [], settings);
+      const inner = tokensToContent(b.tokens ?? [], settings, mermaidSvgs);
       // Wrap the quote in a 1-cell table so we can paint a left bar via a
       // custom layout. pdfmake doesn't support per-element borders outside
       // of tables.
@@ -296,7 +601,9 @@ function tokenToContent(
 
     case 'list': {
       const l = tok as Tokens.List;
-      const items = l.items.map((item) => listItemToContent(item, settings));
+      const items = l.items.map((item) =>
+        listItemToContent(item, settings, mermaidSvgs),
+      );
       return l.ordered ? { ol: items } : { ul: items };
     }
 
@@ -337,8 +644,9 @@ function tokenToContent(
 function listItemToContent(
   item: Tokens.ListItem,
   settings: PdfSettings,
+  mermaidSvgs: Map<string, RenderedMermaid>,
 ): Content {
-  const blocks = tokensToContent(item.tokens ?? [], settings);
+  const blocks = tokensToContent(item.tokens ?? [], settings, mermaidSvgs);
   if (blocks.length === 0) return '';
   if (blocks.length === 1) return blocks[0]!;
   return { stack: blocks };

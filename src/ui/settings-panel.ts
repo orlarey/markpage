@@ -208,6 +208,41 @@ export function openSettingsPanel(handlers: SettingsPanelHandlers): void {
           current.pageNumber.position === 'none',
         ),
       ]),
+      section('Diagrammes Mermaid', [
+        numberField(
+          'Agrandissement max.',
+          current.mermaidMaxScale,
+          1,
+          4,
+          (v) => {
+            current.mermaidMaxScale = v;
+            emit();
+          },
+          { step: 0.1 },
+        ),
+        numberField(
+          'Largeur max. (% du texte)',
+          Math.round(current.mermaidMaxWidthPct * 100),
+          10,
+          100,
+          (v) => {
+            current.mermaidMaxWidthPct = v / 100;
+            emit();
+          },
+          { step: 5 },
+        ),
+        numberField(
+          'Hauteur max. (% du texte)',
+          Math.round(current.mermaidMaxHeightPct * 100),
+          10,
+          100,
+          (v) => {
+            current.mermaidMaxHeightPct = v / 100;
+            emit();
+          },
+          { step: 5 },
+        ),
+      ]),
     );
 
     const footer = document.createElement('footer');
