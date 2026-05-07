@@ -223,11 +223,20 @@ function lineSegment(
   return segFrom < segTo ? { from: segFrom, to: segTo } : null;
 }
 
-// Decomposes the current selection into wrap-able segments, one per line
-// that the selection intersects. Returns segments in document order.
-function wrapSegments(state: EditorState): WrapSegment[] {
+interface RangeLike {
+  from: number;
+  to: number;
+  empty: boolean;
+}
+
+// Decomposes the given ranges into wrap-able segments, one per line that
+// each range intersects. Returns segments in document order.
+function buildSegments(
+  state: EditorState,
+  ranges: readonly RangeLike[],
+): WrapSegment[] {
   const segments: WrapSegment[] = [];
-  for (const range of state.selection.ranges) {
+  for (const range of ranges) {
     if (range.empty) continue;
     const startLine = state.doc.lineAt(range.from).number;
     const endLine = state.doc.lineAt(range.to).number;
@@ -239,13 +248,57 @@ function wrapSegments(state: EditorState): WrapSegment[] {
   return segments;
 }
 
-// Wraps each selection segment with `marker` (e.g. '**' for bold). On already-
-// wrapped segments (text starts and ends with the marker), removes the
-// wrapping. The toggle is global: if every segment is currently wrapped we
-// unwrap them all, otherwise we wrap them all. Empty selections are no-ops.
+// Lezer node names for each emphasis marker in the @codemirror/lang-markdown
+// grammar. When a cursor sits inside one of these nodes and the user toggles
+// the corresponding format, we expand the cursor to cover the whole span so
+// the toggle-off path kicks in.
+const NODE_FOR_MARKER: Record<string, string | undefined> = {
+  '**': 'StrongEmphasis',
+  '*': 'Emphasis',
+  '`': 'InlineCode',
+};
+
+function findEnclosingNode(
+  state: EditorState,
+  pos: number,
+  nodeName: string,
+): SyntaxNode | null {
+  const tree = syntaxTree(state);
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(pos, -1);
+    node !== null;
+    node = node.parent
+  ) {
+    if (node.name === nodeName) return node;
+  }
+  return null;
+}
+
+// If a cursor is empty AND sits inside an emphasis node matching `marker`,
+// returns a range that covers the whole node (markers included). Otherwise
+// returns the range unchanged.
+function expandCursor(
+  state: EditorState,
+  range: RangeLike,
+  marker: string,
+): RangeLike {
+  if (!range.empty) return range;
+  const nodeName = NODE_FOR_MARKER[marker];
+  if (!nodeName) return range;
+  const node = findEnclosingNode(state, range.from, nodeName);
+  return node ? { from: node.from, to: node.to, empty: false } : range;
+}
+
+// Wraps each selection segment with `marker` (e.g. '**' for bold). Empty
+// cursors that happen to be inside a matching emphasis node are first
+// expanded to cover the whole node, so toggling Bold while the caret is
+// inside **bold** removes the emphasis. The toggle is global: if every
+// segment is currently wrapped we unwrap them all, otherwise we wrap them
+// all. Truly empty cursors (with no enclosing emphasis) are no-ops.
 function toggleWrap(view: EditorView, marker: string): void {
   const { state } = view;
-  const segments = wrapSegments(state);
+  const ranges = state.selection.ranges.map((r) => expandCursor(state, r, marker));
+  const segments = buildSegments(state, ranges);
   if (segments.length === 0) return;
 
   const allWrapped = segments.every((seg) => {
