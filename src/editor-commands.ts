@@ -1,5 +1,7 @@
 import { EditorSelection, type Line } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+import { syntaxTree } from '@codemirror/language';
+import type { SyntaxNode } from '@lezer/common';
 
 const HEADING_PREFIX_RE = /^(#{1,6})\s+/;
 const BULLET_PREFIX_RE = /^[-*]\s+/;
@@ -7,6 +9,57 @@ const NUMBERED_PREFIX_RE = /^\d+\.\s+/;
 const QUOTE_PREFIX_RE = /^>\s+/;
 
 export type HeadingLevel = 0 | 1 | 2 | 3 | 4;
+
+export interface SelectionState {
+  heading: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  bold: boolean;
+  italic: boolean;
+  code: boolean;
+  bullet: boolean;
+  numbered: boolean;
+  quote: boolean;
+}
+
+// Inspects the cursor position to report which Markdown formats are
+// currently in effect. Block-level marks (heading, list, quote) are read
+// from the line's source text; inline marks (bold, italic, inline code) are
+// resolved through the Lezer syntax tree, so they're detected even when
+// nothing is selected — as long as the cursor sits inside the span.
+export function getSelectionState(view: EditorView): SelectionState {
+  const { state } = view;
+  const pos = state.selection.main.head;
+  const line = state.doc.lineAt(pos);
+  const text = line.text;
+
+  const headingMatch = HEADING_PREFIX_RE.exec(text);
+  const heading = (
+    headingMatch ? Math.min(headingMatch[1]!.length, 6) : 0
+  ) as SelectionState['heading'];
+
+  let bold = false;
+  let italic = false;
+  let code = false;
+  const tree = syntaxTree(state);
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(pos, -1);
+    node !== null;
+    node = node.parent
+  ) {
+    if (node.name === 'StrongEmphasis') bold = true;
+    else if (node.name === 'Emphasis') italic = true;
+    else if (node.name === 'InlineCode') code = true;
+  }
+
+  return {
+    heading,
+    bold,
+    italic,
+    code,
+    bullet: BULLET_PREFIX_RE.test(text),
+    numbered: NUMBERED_PREFIX_RE.test(text),
+    quote: QUOTE_PREFIX_RE.test(text),
+  };
+}
 
 export function setHeading(view: EditorView, level: HeadingLevel): void {
   transformLines(view, (line) => {
@@ -53,7 +106,7 @@ export function toggleInlineCode(view: EditorView): void {
 }
 
 export function insertLink(view: EditorView): void {
-  const url = window.prompt('URL du lien :', 'https://');
+  const url = globalThis.prompt('URL du lien :', 'https://');
   if (url === null || url.trim() === '') return;
   const { state } = view;
   const range = state.selection.main;

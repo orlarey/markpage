@@ -23,8 +23,7 @@ import { importFile } from './import';
 import { markdownToDocDefinition } from './pdf/convert';
 import { downloadPdf } from './pdf/maker';
 import { mountToolbar } from './ui/toolbar';
-import { mountEditorToolbar } from './ui/editor-toolbar';
-import { attachEditorContextMenu } from './ui/editor-context-menu';
+import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
 import {
   loadDoc,
@@ -80,12 +79,7 @@ function downloadMarkdown(content: string, filename: string): void {
 
 function bootstrap(): void {
   const toolbarEl = document.getElementById('toolbar') as HTMLElement;
-  const editorToolbarEl = document.getElementById(
-    'editor-toolbar',
-  ) as HTMLElement;
-  const editorContentEl = document.getElementById(
-    'editor-content',
-  ) as HTMLElement;
+  const editorEl = document.getElementById('editor-pane') as HTMLElement;
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 
   const state = {
@@ -104,13 +98,12 @@ function bootstrap(): void {
 
   applyPreviewStyles(state.settings);
 
-  const editor = createEditor(editorContentEl, initialDoc, (doc) => {
+  const editor = createEditor(editorEl, initialDoc, (doc) => {
     updatePreview(doc);
     debouncedSave(doc);
   });
 
-  mountEditorToolbar(editorToolbarEl, editor.view);
-  attachEditorContextMenu(editor.view.dom, editor.view);
+  attachStyleContextMenu(editor.view.dom, editor.view);
   setupScrollSync(editor.view, previewEl);
 
   updatePreview(initialDoc);
@@ -157,6 +150,9 @@ function bootstrap(): void {
       onOpen: handleOpen,
       onSave() {
         downloadMarkdown(editor.getValue(), mdFilenameFrom(state.filename));
+      },
+      onStyle(anchor) {
+        openStyleMenu(editor.view, anchor.x, anchor.y);
       },
       onDownload() {
         const source = editor.getValue();

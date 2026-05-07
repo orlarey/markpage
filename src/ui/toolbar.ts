@@ -3,6 +3,7 @@ import { ACCEPT_ATTRIBUTE } from '../import';
 export interface ToolbarHandlers {
   onOpen(file: File): void;
   onSave(): void;
+  onStyle(anchor: { x: number; y: number }): void;
   onDownload(): void;
   onFilenameChange(name: string): void;
   onSettings(): void;
@@ -37,6 +38,23 @@ export function mountToolbar(
   saveBtn.title = 'Enregistrer le document Markdown (.md)';
   saveBtn.addEventListener('click', () => handlers.onSave());
 
+  const styleBtn = document.createElement('button');
+  styleBtn.type = 'button';
+  styleBtn.className = 'menu-trigger';
+  styleBtn.title = 'Mise en forme (titres, gras, listes…)';
+  const styleLabel = document.createTextNode('Style');
+  const styleCaret = document.createElement('span');
+  styleCaret.className = 'menu-caret';
+  styleCaret.textContent = '▾';
+  styleBtn.append(styleLabel, styleCaret);
+  // Don't steal focus from the editor — keeps the cursor / selection alive
+  // so the menu commands operate on the user's intended target.
+  styleBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  styleBtn.addEventListener('click', () => {
+    const rect = styleBtn.getBoundingClientRect();
+    handlers.onStyle({ x: rect.left, y: rect.bottom + 4 });
+  });
+
   const downloadBtn = document.createElement('button');
   downloadBtn.type = 'button';
   downloadBtn.textContent = 'Exporter .pdf';
@@ -61,7 +79,7 @@ export function mountToolbar(
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(openBtn, saveBtn);
+  left.append(openBtn, saveBtn, styleBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';

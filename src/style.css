@@ -79,6 +79,18 @@ body,
   font: inherit;
 }
 
+#toolbar button.menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+#toolbar .menu-caret {
+  font-size: 0.8em;
+  opacity: 0.6;
+  line-height: 1;
+}
+
 #panes {
   flex: 1;
   display: grid;
@@ -94,81 +106,16 @@ body,
 
 #editor-pane {
   border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
-#editor-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  padding: 0.35rem 0.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-alt);
-  flex-shrink: 0;
-}
-
-#editor-toolbar button {
-  padding: 0.25rem 0.55rem;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 5px;
-  cursor: pointer;
-  font: inherit;
-  color: var(--text);
-  min-width: 1.8rem;
-}
-
-#editor-toolbar button:hover {
-  background: var(--bg);
-  border-color: var(--border);
-}
-
-#editor-toolbar button.tb-bold {
-  font-weight: 500;
-}
-
-#editor-toolbar button.tb-italic {
-  font-style: italic;
-}
-
-#editor-toolbar button.tb-code {
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
-
-#editor-toolbar .heading-select {
-  padding: 0.25rem 0.4rem;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--bg);
-  font: inherit;
-  cursor: pointer;
-}
-
-#editor-toolbar .editor-toolbar-sep {
-  width: 1px;
-  height: 1.2rem;
-  background: var(--border);
-  margin: 0 0.25rem;
-}
-
-#editor-content {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-#editor-content .cm-editor {
+#editor-pane .cm-editor {
   height: 100%;
 }
 
 /* Editor content uses the same Roboto stack as the preview, since the input
    is prose rather than code. */
-#editor-content .cm-content,
-#editor-content .cm-gutters {
+#editor-pane .cm-content,
+#editor-pane .cm-gutters {
   font-family: var(--font-sans);
   font-size: 14px;
 }
@@ -188,7 +135,9 @@ body,
 }
 
 .cm-context-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: 100%;
   padding: 0.35rem 0.7rem;
   border: none;
@@ -202,6 +151,23 @@ body,
 
 .cm-context-item:hover {
   background: var(--bg-alt);
+}
+
+.cm-context-check {
+  flex-shrink: 0;
+  width: 0.9em;
+  text-align: center;
+  visibility: hidden;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.cm-context-item.active .cm-context-check {
+  visibility: visible;
+}
+
+.cm-context-item.active .cm-context-label {
+  font-weight: 500;
 }
 
 .cm-context-sep {

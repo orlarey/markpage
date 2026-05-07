@@ -4,11 +4,13 @@ import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 
-// Replace CodeMirror's default heading styling: keep the bold weight (matched
-// to Roboto Medium 500, the family's "bold" everywhere else in the app), but
-// drop the underline that the default highlight style adds.
+// Custom highlight style: render Markdown emphasis the way the prose actually
+// looks — bold for **strong**, italic for *emphasis*, with the surrounding
+// `*` / `**` markers dimmed so they read as typographic punctuation rather
+// than visual noise. Headings keep their weight (matched to Roboto Medium
+// 500, our "bold" everywhere else) but drop the default underline.
 const headingStyle = { fontWeight: '500', textDecoration: 'none' };
-const headingHighlight = HighlightStyle.define([
+const editorHighlight = HighlightStyle.define([
   { tag: tags.heading, ...headingStyle },
   { tag: tags.heading1, ...headingStyle },
   { tag: tags.heading2, ...headingStyle },
@@ -16,6 +18,9 @@ const headingHighlight = HighlightStyle.define([
   { tag: tags.heading4, ...headingStyle },
   { tag: tags.heading5, ...headingStyle },
   { tag: tags.heading6, ...headingStyle },
+  { tag: tags.strong, fontWeight: '500' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.processingInstruction, opacity: '0.5' },
 ]);
 
 export interface Editor {
@@ -37,7 +42,7 @@ export function createEditor(
         basicSetup,
         markdown(),
         EditorView.lineWrapping,
-        syntaxHighlighting(headingHighlight),
+        syntaxHighlighting(editorHighlight),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());
