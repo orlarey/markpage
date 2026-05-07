@@ -248,6 +248,13 @@ body,
   color: var(--accent);
 }
 
+#preview-pane img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.6em auto;
+}
+
 .preview-metadata {
   text-align: center;
   margin: 0 0 1.5rem;

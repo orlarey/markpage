@@ -1,7 +1,28 @@
 import { marked, type Token, type Tokens } from 'marked';
 import type { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
-import { metadataLines, mmToPt, type PdfSettings } from '../settings';
+import {
+  metadataLines,
+  mmToPt,
+  type PageSize,
+  type PdfSettings,
+} from '../settings';
 import { buildBaseDocDefinition } from './styles';
+
+// Page dimensions in pt, matching pdfmake's internal table. Used to figure
+// out the maximum width an image is allowed to take in the body content.
+const PAGE_SIZE_PT: Record<PageSize, [number, number]> = {
+  A3: [841.89, 1190.55],
+  A4: [595.28, 841.89],
+  A5: [419.53, 595.28],
+  B5: [498.9, 708.66],
+  LETTER: [612, 792],
+  LEGAL: [612, 1008],
+};
+
+function contentWidthPt(s: PdfSettings): number {
+  const [pw] = PAGE_SIZE_PT[s.pageSize];
+  return pw - mmToPt(s.margins.left) - mmToPt(s.margins.right);
+}
 
 // Inline content as accepted by pdfmake's `text` field: a string, a styled run,
 // or an array of those.
@@ -161,7 +182,30 @@ function tokenToContent(
 
     case 'paragraph': {
       const p = tok as Tokens.Paragraph;
-      return { text: renderInline(p.tokens ?? []), style: 'paragraph' };
+      const inlineTokens = p.tokens ?? [];
+      // Pure image-only paragraphs (one or more images, possibly separated
+      // by whitespace) are rendered as centred image blocks. pdfmake doesn't
+      // support truly inline images, so anything mixing text and images
+      // falls back to text-only rendering and the images are dropped.
+      const onlyImages =
+        inlineTokens.length > 0 &&
+        inlineTokens.every(
+          (t) =>
+            t.type === 'image' ||
+            (t.type === 'text' && /^\s*$/.test((t as Tokens.Text).text)),
+        );
+      if (onlyImages) {
+        const cw = contentWidthPt(settings);
+        return inlineTokens
+          .filter((t): t is Tokens.Image => t.type === 'image')
+          .map((img) => ({
+            image: img.href,
+            fit: [cw, cw * 3] as [number, number],
+            alignment: 'center' as const,
+            margin: [0, 6, 0, 6] as [number, number, number, number],
+          }));
+      }
+      return { text: renderInline(inlineTokens), style: 'paragraph' };
     }
 
     case 'code': {

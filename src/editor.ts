@@ -3,6 +3,7 @@ import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+import { attachImageHandlers } from './image';
 
 // Selecting whole lines from the gutter: clicking a line number selects that
 // line's content; dragging extends the selection over the range. We
@@ -109,6 +110,7 @@ export function createEditor(
   });
 
   attachGutterSelection(view);
+  attachImageHandlers(view);
 
   return {
     view,

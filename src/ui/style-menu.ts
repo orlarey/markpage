@@ -10,6 +10,7 @@ import {
   toggleItalic,
   toggleNumberedList,
 } from '../editor-commands';
+import { pickAndInsertImage } from '../image';
 
 const MENU_ID = 'style-menu';
 
@@ -116,6 +117,7 @@ export function openStyleMenu(
     item('Citation', () => toggleBlockquote(view), sel.quote),
     sep(),
     item('Insérer un lien…', () => insertLink(view)),
+    item('Insérer une image…', () => pickAndInsertImage(view)),
   );
 
   document.body.appendChild(menu);
