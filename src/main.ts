@@ -20,6 +20,13 @@ import {
 } from './preview';
 import { setupScrollSync } from './scroll-sync';
 import { importFile } from './import';
+import {
+  expandRefsToBlobUrls,
+  expandRefsToDataUrls,
+  expandRefsToInlineDataUrls,
+  extractDataUrlsToStore,
+  gcUnusedImages,
+} from './image';
 import { markdownToDocDefinition } from './pdf/convert';
 import { downloadPdf } from './pdf/maker';
 import { mountToolbar } from './ui/toolbar';
@@ -89,10 +96,24 @@ function bootstrap(): void {
 
   const initialDoc = loadDoc() ?? DEFAULT_DOC;
 
-  const updatePreview = (source: string) => {
-    renderPreview(previewEl, source);
-    applyPreviewMetadata(previewEl, state.settings);
-    annotateSourceLines(previewEl, source);
+  // Resolving `img://id` refs touches IndexedDB, so updatePreview is async.
+  // We only render the latest call's output (previewReqId) to avoid an in-
+  // flight resolve overwriting a more recent one when typing fast.
+  let previewReqId = 0;
+  const updatePreview = (source: string): void => {
+    const myReq = ++previewReqId;
+    expandRefsToBlobUrls(source)
+      .then((resolved) => {
+        if (myReq !== previewReqId) return;
+        renderPreview(previewEl, resolved);
+        applyPreviewMetadata(previewEl, state.settings);
+        // annotateSourceLines walks the *original* source so scroll-sync
+        // line numbers match what the user typed in the editor.
+        annotateSourceLines(previewEl, source);
+      })
+      .catch((err: unknown) => {
+        console.error('Preview render failed', err);
+      });
   };
   const debouncedSave = debounce((source: string) => saveDoc(source), 200);
 
@@ -125,10 +146,13 @@ function bootstrap(): void {
       if (!ok) return;
     }
     importFile(file)
-      .then(({ content, baseName }) => {
-        editor.setValue(content);
-        saveDoc(content);
-        updatePreview(content);
+      .then(async ({ content, baseName }) => {
+        // Hoist any inline data URLs into IndexedDB and replace them with
+        // short `img://id` refs. Keeps the editor doc readable.
+        const cleaned = await extractDataUrlsToStore(content);
+        editor.setValue(cleaned);
+        saveDoc(cleaned);
+        updatePreview(cleaned);
         state.filename = ensureFilename(baseName);
         saveFilename(state.filename);
         renderToolbar();
@@ -149,17 +173,33 @@ function bootstrap(): void {
       },
       onOpen: handleOpen,
       onSave() {
-        downloadMarkdown(editor.getValue(), mdFilenameFrom(state.filename));
+        const source = editor.getValue();
+        // Inline every image as a data URL so the .md is portable, then
+        // GC any IDB entries the doc no longer references.
+        void (async () => {
+          try {
+            const expanded = await expandRefsToDataUrls(source);
+            await gcUnusedImages(source);
+            downloadMarkdown(expanded, mdFilenameFrom(state.filename));
+          } catch (err) {
+            console.error('Save failed', err);
+          }
+        })();
       },
       onStyle(anchor) {
         openStyleMenu(editor.view, anchor.x, anchor.y);
       },
       onDownload() {
         const source = editor.getValue();
-        const doc = markdownToDocDefinition(source, state.settings);
-        downloadPdf(doc, ensureFilename(state.filename)).catch((err) => {
-          console.error('PDF export failed', err);
-        });
+        void (async () => {
+          try {
+            const expanded = await expandRefsToInlineDataUrls(source);
+            const doc = markdownToDocDefinition(expanded, state.settings);
+            await downloadPdf(doc, ensureFilename(state.filename));
+          } catch (err) {
+            console.error('PDF export failed', err);
+          }
+        })();
       },
       onSettings() {
         openSettingsPanel({

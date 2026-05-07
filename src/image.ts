@@ -1,16 +1,34 @@
-// Inserts images into the Markdown source as base64 data URLs, after a
-// downscale + re-encode pass so users (who typically paste straight from
-// Google Photos / a phone screenshot) don't end up with a multi-megabyte
-// .md file. The output is portable: the .md remains self-contained and
-// renders correctly anywhere, no asset tracking needed.
+// Image insertion pipeline. During editing, the markdown source carries only
+// short `img://uuid` references; the actual binary lives in IndexedDB. We
+// expand to data URLs (for PDF / save) or blob URLs (for preview) on the
+// fly. This keeps the editor responsive even with many embedded images.
 
 import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+import {
+  deleteImage,
+  getAllIds,
+  getImage,
+  putImage,
+} from './image-store';
 
 const MAX_DIMENSION = 2000;
 const JPEG_QUALITY = 0.85;
+const URL_SCHEME = 'img://';
+// Forward slashes don't need escaping inside a string fed to `new RegExp()`,
+// only inside a regex literal. Keeping the patterns as plain strings avoids
+// the noisy `\\/`.
+const URL_RE_PATTERN = 'img://([a-f0-9-]+)';
+const DATA_URL_RE_PATTERN = 'data:image/[^;,]+;base64,[A-Za-z0-9+/=]+';
 
-async function processImage(file: File): Promise<string> {
+// Cache of object URLs handed out to the preview, keyed by the same id we
+// use in IndexedDB. Lets us re-use URLs across renders without recreating
+// them on every keystroke.
+const blobUrlCache = new Map<string, string>();
+
+// ---- image processing -------------------------------------------------
+
+async function processImageToBlob(file: File): Promise<Blob> {
   const img = await loadImage(file);
   const scale = Math.min(
     1,
@@ -24,11 +42,17 @@ async function processImage(file: File): Promise<string> {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context not available');
   ctx.drawImage(img, 0, 0, w, h);
-  // Keep PNG only when the source actually carries transparency. Opaque PNGs
-  // (typical screenshots) are converted to JPEG, which is dramatically
-  // smaller for that kind of content.
   const keepPng = file.type === 'image/png' && hasTransparency(ctx, w, h);
-  return canvas.toDataURL(keepPng ? 'image/png' : 'image/jpeg', JPEG_QUALITY);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob failed'));
+      },
+      keepPng ? 'image/png' : 'image/jpeg',
+      JPEG_QUALITY,
+    );
+  });
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {
@@ -59,19 +83,20 @@ function hasTransparency(
   return false;
 }
 
-// Inserts a Markdown image as a reference-style link: a short `![][img-N]` at
-// the cursor and the matching `[img-N]: data:...` definition appended at the
-// end of the document. This keeps the body of the .md readable instead of
-// being cluttered with multi-kilobyte data URLs inline.
-function insertImageAtCursor(view: EditorView, dataUrl: string): void {
+// ---- insertion --------------------------------------------------------
+
+async function insertImageAtCursor(
+  view: EditorView,
+  blob: Blob,
+): Promise<void> {
+  const id = crypto.randomUUID();
+  await putImage(id, blob);
+
   const { state } = view;
   const docText = state.doc.toString();
   const docEnd = state.doc.length;
   const label = nextImageLabel(docText);
 
-  // The reference at the cursor — wrapped in blank lines if the cursor isn't
-  // already on an empty line, so marked sees the image as a paragraph and
-  // the PDF renders it as a block.
   const range = state.selection.main;
   const line = state.doc.lineAt(range.from);
   const before = state.doc.sliceString(line.from, range.from);
@@ -79,12 +104,8 @@ function insertImageAtCursor(view: EditorView, dataUrl: string): void {
   const prefix = before.trim() === '' ? '' : '\n\n';
   const suffix = after.trim() === '' ? '' : '\n\n';
   const cursorInsert = `${prefix}![][${label}]${suffix}`;
-  // Caret lands inside the alt-text brackets so the user can type a label.
   const altPos = range.from + prefix.length + 2;
-
-  // The reference definition. Always prefix with two newlines: works for
-  // empty docs, gives a blank line otherwise (markdown collapses extras).
-  const defInsert = `\n\n[${label}]: ${dataUrl}\n`;
+  const defInsert = `\n\n[${label}]: ${URL_SCHEME}${id}\n`;
 
   view.dispatch({
     changes: [
@@ -96,13 +117,9 @@ function insertImageAtCursor(view: EditorView, dataUrl: string): void {
   view.focus();
 }
 
-// Picks the next free `img-N` label by scanning the existing document for
-// references and definitions that follow our naming convention.
 function nextImageLabel(docText: string): string {
-  const re = /\[img-(\d+)\]/g;
   let max = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(docText)) !== null) {
+  for (const m of docText.matchAll(/\[img-(\d+)\]/g)) {
     const n = Number(m[1]);
     if (Number.isFinite(n) && n > max) max = n;
   }
@@ -111,8 +128,8 @@ function nextImageLabel(docText: string): string {
 
 async function handleImageFile(file: File, view: EditorView): Promise<void> {
   try {
-    const dataUrl = await processImage(file);
-    insertImageAtCursor(view, dataUrl);
+    const blob = await processImageToBlob(file);
+    await insertImageAtCursor(view, blob);
   } catch (err) {
     console.error('Image insertion failed', err);
     globalThis.alert(
@@ -123,9 +140,6 @@ async function handleImageFile(file: File, view: EditorView): Promise<void> {
   }
 }
 
-// Drag-and-drop and paste of image files anywhere in the editor pane.
-// Listeners are registered in capture phase so we beat CodeMirror's own
-// default text-handling for pastes and drops.
 export function attachImageHandlers(view: EditorView): void {
   view.dom.addEventListener(
     'drop',
@@ -161,7 +175,6 @@ export function attachImageHandlers(view: EditorView): void {
   );
 }
 
-// Opens a native file picker, then inserts the chosen image.
 export function pickAndInsertImage(view: EditorView): void {
   const input = document.createElement('input');
   input.type = 'file';
@@ -174,4 +187,160 @@ export function pickAndInsertImage(view: EditorView): void {
     if (file) void handleImageFile(file, view);
   });
   input.click();
+}
+
+// ---- ref resolution ---------------------------------------------------
+
+function collectRefIds(text: string): Set<string> {
+  const ids = new Set<string>();
+  for (const m of text.matchAll(new RegExp(URL_RE_PATTERN, 'g'))) {
+    ids.add(m[1]);
+  }
+  return ids;
+}
+
+// Replaces `img://id` URLs with short-lived blob URLs for the HTML preview.
+// Uses the in-memory cache to avoid recreating URLs on every keystroke.
+export async function expandRefsToBlobUrls(text: string): Promise<string> {
+  const ids = collectRefIds(text);
+  if (ids.size === 0) return text;
+  await Promise.all(
+    [...ids].map(async (id) => {
+      if (blobUrlCache.has(id)) return;
+      const blob = await getImage(id);
+      if (blob) blobUrlCache.set(id, URL.createObjectURL(blob));
+    }),
+  );
+  return text.replaceAll(
+    new RegExp(URL_RE_PATTERN, 'g'),
+    (full, id: string) => blobUrlCache.get(id) ?? full,
+  );
+}
+
+// Replaces `img://id` URLs with full base64 data URLs. Reference definitions
+// are kept in place so the .md remains in nice ref-style form, just with
+// portable data URLs instead of opaque ids. Used at save time.
+export async function expandRefsToDataUrls(text: string): Promise<string> {
+  const ids = collectRefIds(text);
+  if (ids.size === 0) return text;
+  const map = new Map<string, string>();
+  await Promise.all(
+    [...ids].map(async (id) => {
+      const blob = await getImage(id);
+      if (blob) map.set(id, await blobToDataUrl(blob));
+    }),
+  );
+  return text.replaceAll(
+    new RegExp(URL_RE_PATTERN, 'g'),
+    (full, id: string) => map.get(id) ?? full,
+  );
+}
+
+// Produces a fully-inline form of the document with every image url turned
+// into a base64 data URL. Used as the input to PDF generation, where we
+// don't want to depend on marked's reference resolution.
+export async function expandRefsToInlineDataUrls(text: string): Promise<string> {
+  // 1. Replace every `img://id` URL — inline OR inside a definition — with
+  // the matching data URL. Handles both new-style ref docs *and* old-style
+  // inline-image docs that came in via extractDataUrlsToStore.
+  let out = await expandRefsToDataUrls(text);
+
+  // 2. Inline reference-style uses so the PDF token walker sees `![alt](url)`
+  // directly. We don't strip the definitions afterwards: marked treats
+  // unused defs as inert link entries, and keeping them avoids breaking any
+  // intentional non-image references the user may have written.
+  const defRe = /^[ \t]{0,3}\[([^\]\n]+)\]:[ \t]*(\S+)[ \t]*$/gm;
+  const labelToUrl = new Map<string, string>();
+  for (const m of out.matchAll(defRe)) {
+    labelToUrl.set(m[1].toLowerCase().trim(), m[2]);
+  }
+  if (labelToUrl.size > 0) {
+    out = out.replaceAll(
+      /!\[([^\]]*)\]\[([^\]\n]+)\]/g,
+      (full, alt: string, label: string) => {
+        const url = labelToUrl.get(label.toLowerCase().trim());
+        return url ? `![${alt}](${url})` : full;
+      },
+    );
+    out = out.replaceAll(
+      /(?<!!)\[([^\]]+)\]\[([^\]\n]+)\]/g,
+      (full, txt: string, label: string) => {
+        const url = labelToUrl.get(label.toLowerCase().trim());
+        return url ? `[${txt}](${url})` : full;
+      },
+    );
+  }
+
+  // 3. Sanity check: warn if any unresolved `img://` urls slipped through —
+  // means the IDB blob is missing for those ids, the PDF would render a
+  // blank where the image should be.
+  const unresolved = collectRefIds(out);
+  if (unresolved.size > 0) {
+    console.warn(
+      'Some image refs could not be resolved — missing IDB blobs:',
+      [...unresolved],
+    );
+  }
+
+  return out;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () =>
+      reject(reader.error ?? new Error('FileReader failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
+
+// ---- import / GC ------------------------------------------------------
+
+// Walks an imported document, hoists every inline data URL into IndexedDB,
+// and replaces it with an `img://id` reference. Returns the rewritten text.
+// This is what migrates the legacy inline format on `Open`.
+export async function extractDataUrlsToStore(text: string): Promise<string> {
+  const matches = [...text.matchAll(new RegExp(DATA_URL_RE_PATTERN, 'g'))];
+  if (matches.length === 0) return text;
+  const replacements = new Map<string, string>();
+  for (const m of matches) {
+    const dataUrl = m[0];
+    if (replacements.has(dataUrl)) continue;
+    try {
+      const blob = await dataUrlToBlob(dataUrl);
+      const id = crypto.randomUUID();
+      await putImage(id, blob);
+      replacements.set(dataUrl, `${URL_SCHEME}${id}`);
+    } catch (err) {
+      console.error('Failed to import inline image', err);
+    }
+  }
+  let result = text;
+  for (const [dataUrl, ref] of replacements) {
+    result = result.split(dataUrl).join(ref);
+  }
+  return result;
+}
+
+// Removes IDB entries whose ids no longer appear in `text`. Also revokes
+// the cached blob URLs for those ids. Called at every save so the store
+// stays bounded.
+export async function gcUnusedImages(text: string): Promise<void> {
+  const referenced = collectRefIds(text);
+  const all = await getAllIds();
+  for (const id of all) {
+    if (referenced.has(id)) continue;
+    await deleteImage(id);
+    const url = blobUrlCache.get(id);
+    if (url) {
+      URL.revokeObjectURL(url);
+      blobUrlCache.delete(id);
+    }
+  }
 }

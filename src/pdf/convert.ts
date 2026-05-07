@@ -183,29 +183,35 @@ function tokenToContent(
     case 'paragraph': {
       const p = tok as Tokens.Paragraph;
       const inlineTokens = p.tokens ?? [];
-      // Pure image-only paragraphs (one or more images, possibly separated
-      // by whitespace) are rendered as centred image blocks. pdfmake doesn't
-      // support truly inline images, so anything mixing text and images
-      // falls back to text-only rendering and the images are dropped.
-      const onlyImages =
-        inlineTokens.length > 0 &&
-        inlineTokens.every(
-          (t) =>
-            t.type === 'image' ||
-            (t.type === 'text' && /^\s*$/.test((t as Tokens.Text).text)),
-        );
-      if (onlyImages) {
-        const cw = contentWidthPt(settings);
-        return inlineTokens
-          .filter((t): t is Tokens.Image => t.type === 'image')
-          .map((img) => ({
-            image: img.href,
-            fit: [cw, cw * 3] as [number, number],
-            alignment: 'center' as const,
-            margin: [0, 6, 0, 6] as [number, number, number, number],
-          }));
+      // pdfmake has no real inline-image support, so we extract every image
+      // token from the paragraph and emit each as its own centred block.
+      // Whatever non-image content is left becomes a regular paragraph.
+      const images = inlineTokens.filter(
+        (t): t is Tokens.Image => t.type === 'image',
+      );
+      const nonImages = inlineTokens.filter((t) => t.type !== 'image');
+      const cw = contentWidthPt(settings);
+      const imageBlocks: Content[] = images.map((img) => ({
+        image: img.href,
+        fit: [cw, cw * 3] as [number, number],
+        alignment: 'center' as const,
+        margin: [0, 6, 0, 6] as [number, number, number, number],
+      }));
+      const remainingHasText = nonImages.some(
+        (t) =>
+          !(t.type === 'text' && /^\s*$/.test((t as Tokens.Text).text)),
+      );
+      if (imageBlocks.length === 0) {
+        return { text: renderInline(inlineTokens), style: 'paragraph' };
       }
-      return { text: renderInline(inlineTokens), style: 'paragraph' };
+      if (!remainingHasText) {
+        return imageBlocks;
+      }
+      // Mixed paragraph: emit the text first, then the images below it.
+      return [
+        { text: renderInline(nonImages), style: 'paragraph' },
+        ...imageBlocks,
+      ];
     }
 
     case 'code': {
