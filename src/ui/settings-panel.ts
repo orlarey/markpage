@@ -139,6 +139,33 @@ export function openSettingsPanel(handlers: SettingsPanelHandlers): void {
           current.styles.body = s;
           emit();
         }),
+        styleRow('Code', current.styles.code, (s) => {
+          current.styles.code = s;
+          emit();
+        }),
+        styleRow(
+          'Citation',
+          {
+            fontSize: current.styles.quote.fontSize,
+            color: current.styles.quote.color,
+          },
+          (s) => {
+            current.styles.quote = {
+              ...current.styles.quote,
+              fontSize: s.fontSize,
+              color: s.color,
+            };
+            emit();
+          },
+        ),
+        colorField(
+          'Barre de citation',
+          current.styles.quote.barColor,
+          (v) => {
+            current.styles.quote.barColor = v;
+            emit();
+          },
+        ),
       ]),
       section('Numéro de page', [
         selectField<PageNumberPosition>(

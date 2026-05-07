@@ -42,6 +42,10 @@ export interface TextStyle {
   color: string; // #rrggbb
 }
 
+export interface QuoteStyle extends TextStyle {
+  barColor: string; // #rrggbb — the vertical bar at the left of a blockquote
+}
+
 export interface PageNumberStyle {
   fontSize: number;
   italics: boolean;
@@ -82,6 +86,8 @@ export interface PdfSettings {
     h3: TextStyle;
     h4: TextStyle;
     body: TextStyle;
+    code: TextStyle;
+    quote: QuoteStyle;
   };
   pageNumber: {
     position: PageNumberPosition;
@@ -103,6 +109,8 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     h3: { fontSize: 16, color: '#09438b' },
     h4: { fontSize: 14, color: '#09438b' },
     body: { fontSize: 11, color: '#000000' },
+    code: { fontSize: 10, color: '#1f2328' },
+    quote: { fontSize: 11, color: '#57606a', barColor: '#d0d7de' },
   },
   pageNumber: {
     position: 'bottom-center',
@@ -149,6 +157,8 @@ function mergeWithDefaults(input: unknown): PdfSettings {
       h3: merge(d.styles.h3, obj.styles?.h3),
       h4: merge(d.styles.h4, obj.styles?.h4),
       body: merge(d.styles.body, obj.styles?.body),
+      code: merge(d.styles.code, obj.styles?.code),
+      quote: merge(d.styles.quote, obj.styles?.quote),
     },
     pageNumber: {
       position: obj.pageNumber?.position ?? d.pageNumber.position,

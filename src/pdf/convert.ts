@@ -34,7 +34,7 @@ export function markdownToDocDefinition(
   // Trailing whitespace (extra blank lines) is the single most common cause
   // of pdfmake emitting an empty trailing page, so we drop it before lexing.
   const tokens = marked.lexer(source.replace(/\s+$/u, ''));
-  const content = tokensToContent(tokens);
+  const content = tokensToContent(tokens, settings);
   insertMetadataBlock(content, tokens, settings);
   clearTrailingMargin(content);
   return {
@@ -130,10 +130,10 @@ function buildPageNumber(
   return vSide === 'top' ? { header: renderer } : { footer: renderer };
 }
 
-function tokensToContent(tokens: Token[]): Content[] {
+function tokensToContent(tokens: Token[], settings: PdfSettings): Content[] {
   const out: Content[] = [];
   for (const tok of tokens) {
-    const node = tokenToContent(tok);
+    const node = tokenToContent(tok, settings);
     if (node === null) continue;
     if (Array.isArray(node)) out.push(...node);
     else out.push(node);
@@ -141,7 +141,10 @@ function tokensToContent(tokens: Token[]): Content[] {
   return out;
 }
 
-function tokenToContent(tok: Token): Content | Content[] | null {
+function tokenToContent(
+  tok: Token,
+  settings: PdfSettings,
+): Content | Content[] | null {
   switch (tok.type) {
     case 'space':
       return null;
@@ -168,13 +171,29 @@ function tokenToContent(tok: Token): Content | Content[] | null {
 
     case 'blockquote': {
       const b = tok as Tokens.Blockquote;
-      const inner = tokensToContent(b.tokens ?? []);
-      return { stack: inner, style: 'blockquote' };
+      const inner = tokensToContent(b.tokens ?? [], settings);
+      // Wrap the quote in a 1-cell table so we can paint a left bar via a
+      // custom layout. pdfmake doesn't support per-element borders outside
+      // of tables.
+      const barColor = settings.styles.quote.barColor;
+      return {
+        table: { widths: ['*'], body: [[{ stack: inner, style: 'blockquote' }]] },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: (i: number) => (i === 0 ? 3 : 0),
+          vLineColor: () => barColor,
+          paddingLeft: () => 11,
+          paddingRight: () => 0,
+          paddingTop: () => 0,
+          paddingBottom: () => 0,
+        },
+        margin: [0, 0, 0, 6],
+      };
     }
 
     case 'list': {
       const l = tok as Tokens.List;
-      const items = l.items.map((item) => listItemToContent(item));
+      const items = l.items.map((item) => listItemToContent(item, settings));
       return l.ordered ? { ol: items } : { ul: items };
     }
 
@@ -212,8 +231,11 @@ function tokenToContent(tok: Token): Content | Content[] | null {
   }
 }
 
-function listItemToContent(item: Tokens.ListItem): Content {
-  const blocks = tokensToContent(item.tokens ?? []);
+function listItemToContent(
+  item: Tokens.ListItem,
+  settings: PdfSettings,
+): Content {
+  const blocks = tokensToContent(item.tokens ?? [], settings);
   if (blocks.length === 0) return '';
   if (blocks.length === 1) return blocks[0]!;
   return { stack: blocks };

@@ -70,19 +70,21 @@ export function buildStyleDictionary(s: PdfSettings): StyleDictionary {
     },
     code: {
       font: 'Mono',
-      fontSize: Math.max(8, s.styles.body.fontSize - 1),
+      fontSize: s.styles.code.fontSize,
+      color: s.styles.code.color,
       background: '#f6f8fa',
     },
     codeBlock: {
       font: 'Mono',
-      fontSize: Math.max(8, s.styles.body.fontSize - 1),
+      fontSize: s.styles.code.fontSize,
+      color: s.styles.code.color,
       margin: [0, 0, 0, 6],
       preserveLeadingSpaces: true,
     },
     blockquote: {
       italics: true,
-      color: '#57606a',
-      margin: [12, 0, 0, 6],
+      fontSize: s.styles.quote.fontSize,
+      color: s.styles.quote.color,
     },
     link: {
       color: '#0969da',

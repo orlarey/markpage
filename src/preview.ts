@@ -89,6 +89,12 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
     #preview-pane h5,
     #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
+    #preview-pane code { font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
+    #preview-pane blockquote {
+      font-size: ${s.quote.fontSize}pt;
+      color: ${s.quote.color};
+      border-left-color: ${s.quote.barColor};
+    }
     #preview-pane p,
     #preview-pane li,
     #preview-pane blockquote { text-align: ${align}; }
