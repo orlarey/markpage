@@ -24,6 +24,43 @@ function contentWidthPt(s: PdfSettings): number {
   return pw - mmToPt(s.margins.left) - mmToPt(s.margins.right);
 }
 
+// Adjusts inter-block margins for a sequence of blocks that all came from
+// the SAME source paragraph (image + caption, caption + image, etc.):
+//   - a single image standing alone gets the standard breathing room above
+//     and below, matching its previous solo-paragraph behaviour;
+//   - in a multi-block sequence, all internal gaps go to 0 and only the
+//     last block keeps a regular paragraph-style bottom margin so the
+//     spacing to the next source paragraph stays normal.
+function tightenBlocks(blocks: Content[]): void {
+  if (blocks.length === 0) return;
+  if (blocks.length === 1) {
+    const sole = blocks[0] as {
+      image?: string;
+      margin?: [number, number, number, number];
+    };
+    if (sole.image !== undefined) sole.margin = [0, 6, 0, 6];
+    return;
+  }
+  for (let i = 0; i < blocks.length; i += 1) {
+    const isLast = i === blocks.length - 1;
+    const b = blocks[i] as {
+      image?: string;
+      style?: string;
+      margin?: [number, number, number, number];
+    };
+    if (b.image !== undefined) {
+      // Image blocks set their own margin explicitly. Internal images go
+      // tight; the last image keeps a paragraph-style bottom margin.
+      b.margin = isLast ? [0, 0, 0, 6] : [0, 0, 0, 0];
+    } else if (b.style === 'paragraph' && !isLast) {
+      // Text blocks default to the 'paragraph' style margin (0, 0, 0, 6);
+      // override to 0 for non-last blocks so they sit tight against the
+      // following image.
+      b.margin = [0, 0, 0, 0];
+    }
+  }
+}
+
 // Inline content as accepted by pdfmake's `text` field: a string, a styled run,
 // or an array of those.
 type InlineRun = string | { text: string | InlineRun[]; [k: string]: unknown };
@@ -183,35 +220,51 @@ function tokenToContent(
     case 'paragraph': {
       const p = tok as Tokens.Paragraph;
       const inlineTokens = p.tokens ?? [];
-      // pdfmake has no real inline-image support, so we extract every image
-      // token from the paragraph and emit each as its own centred block.
-      // Whatever non-image content is left becomes a regular paragraph.
-      const images = inlineTokens.filter(
-        (t): t is Tokens.Image => t.type === 'image',
-      );
-      const nonImages = inlineTokens.filter((t) => t.type !== 'image');
+      // pdfmake has no real inline-image support, so we walk the paragraph
+      // tokens in source order and split into text runs and image blocks.
+      // Walking in order preserves the user's "image then caption"
+      // (or "caption then image") layout.
       const cw = contentWidthPt(settings);
-      const imageBlocks: Content[] = images.map((img) => ({
-        image: img.href,
-        fit: [cw, cw * 3] as [number, number],
-        alignment: 'center' as const,
-        margin: [0, 6, 0, 6] as [number, number, number, number],
-      }));
-      const remainingHasText = nonImages.some(
-        (t) =>
-          !(t.type === 'text' && /^\s*$/.test((t as Tokens.Text).text)),
-      );
-      if (imageBlocks.length === 0) {
+      const blocks: Content[] = [];
+      let textBuf: Token[] = [];
+
+      const flushText = () => {
+        if (textBuf.length === 0) return;
+        const hasContent = textBuf.some(
+          (t) =>
+            !(t.type === 'text' && /^\s*$/.test((t as Tokens.Text).text)),
+        );
+        if (hasContent) {
+          blocks.push({ text: renderInline(textBuf), style: 'paragraph' });
+        }
+        textBuf = [];
+      };
+
+      for (const t of inlineTokens) {
+        if (t.type === 'image') {
+          flushText();
+          const img = t as Tokens.Image;
+          blocks.push({
+            image: img.href,
+            fit: [cw, cw * 3] as [number, number],
+            alignment: 'center' as const,
+            // Initial margin; tightened or expanded below depending on
+            // whether this image is alone in its paragraph or part of a
+            // mixed run.
+            margin: [0, 0, 0, 0] as [number, number, number, number],
+          });
+        } else {
+          textBuf.push(t);
+        }
+      }
+      flushText();
+
+      if (blocks.length === 0) {
         return { text: renderInline(inlineTokens), style: 'paragraph' };
       }
-      if (!remainingHasText) {
-        return imageBlocks;
-      }
-      // Mixed paragraph: emit the text first, then the images below it.
-      return [
-        { text: renderInline(nonImages), style: 'paragraph' },
-        ...imageBlocks,
-      ];
+
+      tightenBlocks(blocks);
+      return blocks.length === 1 ? blocks[0] : blocks;
     }
 
     case 'code': {
@@ -356,6 +409,14 @@ function inlineTokenToRun(
 }
 
 function applyStyle(text: string, style: InlineStyle): InlineRun {
+  // Soft line breaks within a paragraph (a bare `\n` inside the text-token
+  // value) should render as spaces — that's how Markdown renders them in
+  // HTML. pdfmake would otherwise treat the `\n` as a forced line break
+  // and insert a blank line of vertical space the user didn't ask for.
+  // Code spans are exempt: their content may legitimately contain a `\n`.
+  if (style.style !== 'code') {
+    text = text.replaceAll('\n', ' ');
+  }
   const segments = splitByFont(text);
   const hasStyle = !!(
     style.bold ||
