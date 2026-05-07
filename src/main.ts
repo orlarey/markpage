@@ -20,7 +20,7 @@ import {
   annotateSourceLines,
 } from './preview';
 import { setupScrollSync } from './scroll-sync';
-import { importFile } from './import';
+import { ACCEPT_ATTRIBUTE, importFile } from './import';
 import {
   expandRefsToBlobUrls,
   expandRefsToDataUrls,
@@ -34,6 +34,8 @@ import { downloadPdf } from './pdf/maker';
 import { mountToolbar } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
+import { openHelpModal } from './ui/help-modal';
+import helpMd from './HELP.md?raw';
 import {
   loadDoc,
   loadFilename,
@@ -42,25 +44,10 @@ import {
 } from './storage';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
 
-const DEFAULT_DOC = `# md2pdf
-
-Un convertisseur **Markdown → PDF** entièrement côté client.
-
-## Fonctionnalités du MVP
-
-- Titres, paragraphes
-- *italique*, **gras**, \`code inline\`
-- Listes à puces et numérotées
-- Citations, blocs de code, liens
-
-> Édite ce texte à gauche, puis clique sur **Exporter .pdf**.
-
-\`\`\`
-console.log('Hello, world!');
-\`\`\`
-
-[Documentation pdfmake](https://pdfmake.github.io/docs/)
-`;
+// First-run document is the bundled HELP.md tutorial. The user can edit
+// or erase it; once a doc lives in localStorage, that one wins on reopen
+// and HELP stays accessible only via the Aide button.
+const DEFAULT_DOC = helpMd;
 
 const DEFAULT_FILENAME = 'document.pdf';
 
@@ -173,6 +160,61 @@ function bootstrap(): void {
       });
   };
 
+  // Open dialog: creates a transient <input type=file>, lets the user pick a
+  // file, hands it off to handleOpen. Used both by the toolbar's "Ouvrir"
+  // button and by the Cmd/Ctrl+O shortcut so they share one entry point.
+  const triggerOpenDialog = (): void => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = ACCEPT_ATTRIBUTE;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (file) handleOpen(file);
+    });
+    input.click();
+  };
+
+  const triggerSave = (): void => {
+    const source = editor.getValue();
+    void (async () => {
+      try {
+        const refified = refifyImageUrls(source);
+        const expanded = await expandRefsToDataUrls(refified);
+        await gcUnusedImages(source);
+        downloadMarkdown(expanded, mdFilenameFrom(state.filename));
+      } catch (err) {
+        console.error('Save failed', err);
+      }
+    })();
+  };
+
+  const triggerDownload = (): void => {
+    const source = editor.getValue();
+    void (async () => {
+      try {
+        const expanded = await expandRefsToInlineDataUrls(source);
+        const doc = markdownToDocDefinition(expanded, state.settings);
+        await downloadPdf(doc, ensureFilename(state.filename));
+      } catch (err) {
+        console.error('PDF export failed', err);
+      }
+    })();
+  };
+
+  const triggerSettings = (): void => {
+    openSettingsPanel({
+      getSettings: () => state.settings,
+      onChange: handleSettingsChange,
+    });
+  };
+
+  const triggerHelp = (): void => {
+    openHelpModal(helpMd);
+  };
+
   const renderToolbar = (): void => {
     mountToolbar(toolbarEl, {
       initialFilename: state.filename,
@@ -180,48 +222,46 @@ function bootstrap(): void {
         state.filename = name;
         saveFilename(name);
       },
-      onOpen: handleOpen,
-      onSave() {
-        const source = editor.getValue();
-        void (async () => {
-          try {
-            // refify first so inline `![](img://...)` becomes `![][img-1]`
-            // with the definition appended at the end of the document.
-            // expand then swaps the `img://...` urls in those defs for the
-            // matching data URLs, giving a portable .md with all the heavy
-            // base64 grouped at the bottom.
-            const refified = refifyImageUrls(source);
-            const expanded = await expandRefsToDataUrls(refified);
-            await gcUnusedImages(source);
-            downloadMarkdown(expanded, mdFilenameFrom(state.filename));
-          } catch (err) {
-            console.error('Save failed', err);
-          }
-        })();
-      },
+      onOpen: triggerOpenDialog,
+      onSave: triggerSave,
       onStyle(anchor) {
         openStyleMenu(editor.view, anchor.x, anchor.y);
       },
-      onDownload() {
-        const source = editor.getValue();
-        void (async () => {
-          try {
-            const expanded = await expandRefsToInlineDataUrls(source);
-            const doc = markdownToDocDefinition(expanded, state.settings);
-            await downloadPdf(doc, ensureFilename(state.filename));
-          } catch (err) {
-            console.error('PDF export failed', err);
-          }
-        })();
-      },
-      onSettings() {
-        openSettingsPanel({
-          getSettings: () => state.settings,
-          onChange: handleSettingsChange,
-        });
-      },
+      onHelp: triggerHelp,
+      onDownload: triggerDownload,
+      onSettings: triggerSettings,
     });
   };
+
+  // Application-level keyboard shortcuts. The format shortcuts (Cmd+B,
+  // Cmd+I, …) are bound at the editor level inside src/editor.ts so they
+  // only fire when the editor has focus. The shortcuts here are global and
+  // independent of focus, so Cmd+S works even when the user is in the
+  // filename input or the settings panel.
+  const onAppKeydown = (e: KeyboardEvent): void => {
+    if (e.defaultPrevented) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || e.shiftKey || e.altKey) return;
+    switch (e.key.toLowerCase()) {
+      case 's':
+        e.preventDefault();
+        triggerSave();
+        break;
+      case 'o':
+        e.preventDefault();
+        triggerOpenDialog();
+        break;
+      case 'p':
+        e.preventDefault();
+        triggerDownload();
+        break;
+      case ',':
+        e.preventDefault();
+        triggerSettings();
+        break;
+    }
+  };
+  globalThis.addEventListener('keydown', onAppKeydown);
 
   renderToolbar();
 }

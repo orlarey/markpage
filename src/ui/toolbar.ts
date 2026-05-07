@@ -1,9 +1,8 @@
-import { ACCEPT_ATTRIBUTE } from '../import';
-
 export interface ToolbarHandlers {
-  onOpen(file: File): void;
+  onOpen(): void;
   onSave(): void;
   onStyle(anchor: { x: number; y: number }): void;
+  onHelp(): void;
   onDownload(): void;
   onFilenameChange(name: string): void;
   onSettings(): void;
@@ -16,26 +15,16 @@ export function mountToolbar(
 ): void {
   parent.innerHTML = '';
 
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = ACCEPT_ATTRIBUTE;
-  fileInput.style.display = 'none';
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    if (file) handlers.onOpen(file);
-    fileInput.value = '';
-  });
-
   const openBtn = document.createElement('button');
   openBtn.type = 'button';
   openBtn.textContent = 'Ouvrir';
-  openBtn.title = 'Ouvrir un document (.md, .txt, .html, .docx)';
-  openBtn.addEventListener('click', () => fileInput.click());
+  openBtn.title = 'Ouvrir un document (Ctrl+O / Cmd+O)';
+  openBtn.addEventListener('click', () => handlers.onOpen());
 
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.textContent = 'Enregistrer';
-  saveBtn.title = 'Enregistrer le document Markdown (.md)';
+  saveBtn.title = 'Enregistrer le document Markdown (Ctrl+S / Cmd+S)';
   saveBtn.addEventListener('click', () => handlers.onSave());
 
   const styleBtn = document.createElement('button');
@@ -55,9 +44,17 @@ export function mountToolbar(
     handlers.onStyle({ x: rect.left, y: rect.bottom + 4 });
   });
 
+  const helpBtn = document.createElement('button');
+  helpBtn.type = 'button';
+  helpBtn.className = 'help-btn';
+  helpBtn.textContent = 'Aide';
+  helpBtn.title = 'Ouvrir le tutoriel';
+  helpBtn.addEventListener('click', () => handlers.onHelp());
+
   const downloadBtn = document.createElement('button');
   downloadBtn.type = 'button';
   downloadBtn.textContent = 'Exporter .pdf';
+  downloadBtn.title = 'Exporter en PDF (Ctrl+P / Cmd+P)';
   downloadBtn.addEventListener('click', () => handlers.onDownload());
 
   const filenameLabel = document.createElement('label');
@@ -75,7 +72,7 @@ export function mountToolbar(
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
   settingsBtn.className = 'menu-trigger';
-  settingsBtn.title = 'Ouvrir le panneau de réglages';
+  settingsBtn.title = 'Ouvrir le panneau de réglages (Ctrl+, / Cmd+,)';
   const settingsLabel = document.createTextNode('Réglages');
   const settingsCaret = document.createElement('span');
   settingsCaret.className = 'menu-caret';
@@ -93,7 +90,7 @@ export function mountToolbar(
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(downloadBtn, settingsBtn);
+  right.append(helpBtn, downloadBtn, settingsBtn);
 
-  parent.append(left, center, right, fileInput);
+  parent.append(left, center, right);
 }

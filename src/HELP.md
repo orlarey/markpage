@@ -1,0 +1,191 @@
+# Bienvenue dans md2pdf
+
+**md2pdf** est un éditeur de texte qui produit des PDF prêts à imprimer
+ou à partager. Vous écrivez à gauche, vous voyez le résultat formaté à
+droite, et vous cliquez sur **Exporter .pdf** quand c'est prêt.
+
+Vous lisez actuellement ce tutoriel **dans l'éditeur**. C'est juste un
+document parmi d'autres : modifiez-le librement, enregistrez votre
+travail, ou repartez d'une page blanche en effaçant tout.
+
+À tout moment, le bouton **Aide** (en haut à droite, sur fond jaune)
+rouvre cette page d'aide originale, sans toucher à votre document.
+
+## Écrire du texte
+
+md2pdf utilise la notation **Markdown**. C'est une convention très
+simple : la mise en forme s'écrit avec quelques caractères du texte
+courant, qui sont reconnus tels quels au moment du rendu.
+
+Par exemple, si vous tapez :
+
+```
+Mon texte est **important** et un peu *nuancé*.
+```
+
+…alors le rendu (à droite) montre :
+
+> Mon texte est **important** et un peu *nuancé*.
+
+C'est la philosophie centrale de Markdown : **les caractères que vous
+tapez sont l'instruction de mise en forme**. Rien de caché, rien à
+apprendre par cœur — vous pouvez à tout moment regarder à gauche pour
+voir « comment c'est fait ».
+
+Tout ce que ce logiciel sait afficher peut s'écrire **uniquement avec
+le clavier**, sans jamais ouvrir un menu ni utiliser un raccourci. Les
+boutons et les raccourcis ne sont que des **accélérateurs** : ils
+insèrent les caractères à votre place.
+
+### La syntaxe Markdown en bref
+
+| Vous tapez… | Vous obtenez… |
+|---|---|
+| `**gras**` | **gras** |
+| `*italique*` | *italique* |
+| `` `code` `` | `code` |
+| `[lien](https://exemple.fr)` | [lien](https://exemple.fr) |
+| `# Titre 1` (en début de ligne) | titre niveau 1 |
+| `## Titre 2`, `### Titre 3`, `#### Titre 4` | sous-titres |
+| `- élément` (en début de ligne) | • élément (liste à puces) |
+| `1. élément` | 1. élément (liste numérotée) |
+| `> texte` | citation indentée |
+| `---` (sur une ligne seule) | ligne horizontale |
+| `![](image)` | une image |
+
+Les **titres**, **listes** et **citations** sont des « blocs ». Ils
+doivent être placés en début de ligne pour être reconnus.
+
+Le **premier `# Titre 1`** du document, placé tout en haut, joue le
+rôle de **titre principal du document** : il est automatiquement
+centré dans le PDF, et c'est juste en dessous que s'affichent l'auteur,
+l'organisation et la date (si vous les renseignez dans **Réglages**).
+Vos sections internes utilisent donc plutôt `## Titre 2` ou
+`### Titre 3`.
+
+### Si vous préférez ne pas taper les caractères
+
+Si la syntaxe vous semble fastidieuse, utilisez les **raccourcis
+clavier** comme dans Word — ils insèrent les caractères pour vous.
+Sélectionnez d'abord le texte, puis :
+
+| Pour faire… | Tapez… |
+|---|---|
+| **Gras** | `Cmd/Ctrl` + `B` |
+| *Italique* | `Cmd/Ctrl` + `I` |
+| `Code en ligne` | `Cmd/Ctrl` + `E` |
+| Lien hypertexte | `Cmd/Ctrl` + `K` |
+| Texte normal (retirer titre) | `Cmd/Ctrl` + `0` |
+| Titres 1 à 4 | `Cmd/Ctrl` + `1` à `4` |
+| Liste à puces | `Cmd/Ctrl` + `Maj` + `L` |
+| Liste numérotée | `Cmd/Ctrl` + `Maj` + `O` |
+| Citation | `Cmd/Ctrl` + `Maj` + `Q` |
+
+Le bouton **Style** dans la barre d'outils (et le **clic-droit** dans
+l'éditeur) ouvrent un menu qui propose les mêmes commandes, avec une
+**coche** sur les formats déjà actifs autour du curseur.
+
+### Astuce : sélectionner une ligne entière
+
+Cliquez sur le **numéro de ligne** dans la marge gauche pour
+sélectionner toute la ligne d'un coup. Glissez pour en sélectionner
+plusieurs.
+
+## Insérer une image
+
+Trois moyens, au choix :
+
+1. **Glisser-déposer** une image depuis votre Bureau ou un dossier
+   directement dans l'éditeur.
+2. **Coller** une capture d'écran (`Cmd/Ctrl` + `V` après l'avoir
+   capturée).
+3. Bouton **Style** → *« Insérer une image… »*, ou raccourci
+   `Cmd/Ctrl` + `Alt` + `I`.
+
+Les photos sont automatiquement **redimensionnées et compressées** (max
+2000 pixels de côté) pour que votre document reste léger sans perte
+visible de qualité.
+
+Vous pouvez aussi glisser une image directement depuis une page web,
+mais beaucoup de sites bloquent l'accès direct (Google Photos par
+exemple) ; dans ce cas, téléchargez l'image localement d'abord.
+
+## Sauvegarder, ouvrir, exporter
+
+| Bouton | Raccourci | Effet |
+|---|---|---|
+| **Ouvrir** | `Cmd/Ctrl` + `O` | Charge un fichier `.md`, `.txt`, `.html` ou `.docx` (Word) |
+| **Enregistrer** | `Cmd/Ctrl` + `S` | Télécharge votre document au format Markdown (`.md`) |
+| **Exporter .pdf** | `Cmd/Ctrl` + `P` | Produit le PDF final, prêt à imprimer ou envoyer |
+| **Réglages** | `Cmd/Ctrl` + `,` | Personnalise le rendu PDF |
+
+Le format **Markdown** (`.md`) est un format texte ouvert, lisible
+partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
+il l'ouvrira dans n'importe quel éditeur de texte.
+
+Votre travail est **automatiquement sauvegardé** dans le navigateur, donc
+si vous fermez l'onglet par accident, tout est récupéré à la prochaine
+ouverture.
+
+## Personnaliser le rendu PDF
+
+Le bouton **Réglages** ouvre un panneau qui permet de configurer le PDF
+sans toucher au contenu :
+
+- **Auteur, organisation, date** affichés sous le titre principal
+- **Format de page** (A4, A5, Letter…)
+- **Marges** en millimètres
+- **Justification** du texte
+- **Interligne**
+- **Tailles et couleurs** des titres (h1 à h4) et du corps
+- **Style du code** (taille et couleur)
+- **Style de la citation** (taille, couleur du texte, couleur de la
+  barre verticale)
+- **Numéro de page** : position, taille, couleur, italique
+
+Les réglages sont **mémorisés entre vos sessions**. Le bouton
+*Réinitialiser* en bas du panneau revient aux valeurs par défaut.
+
+## Quelques détails utiles
+
+### Page de titre
+
+Le **premier titre niveau 1** (`# Mon titre`) du document est
+automatiquement centré et fait office de titre général. Les
+informations *Auteur / Organisation / Date* s'affichent juste en
+dessous, centrées également.
+
+### Caractères spéciaux et symboles
+
+Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
+symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
+dans le PDF.
+
+### Bloc de code
+
+Pour insérer du code :
+
+```
+Tout texte placé entre trois accents graves (```) est affiché
+dans une police à largeur fixe, sur fond gris.
+```
+
+## Pour aller plus loin
+
+md2pdf reconnaît la plupart des conventions Markdown classiques :
+
+- Texte **gras** ou *italique*, ***les deux***
+- Liens : `[texte du lien](https://exemple.fr)`
+- Images de référence
+- Tableaux comme celui ci-dessus
+- Lignes horizontales (trois tirets sur une ligne)
+
+---
+
+C'est tout pour le tour rapide. Vous pouvez maintenant :
+
+- Effacer ce contenu et commencer à rédiger votre propre document
+- L'enregistrer pour le retrouver plus tard
+- Cliquer sur **Aide** à droite à tout moment pour revoir ce tutoriel
+
+Bonne écriture.

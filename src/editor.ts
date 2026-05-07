@@ -1,9 +1,47 @@
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Prec } from '@codemirror/state';
+import { keymap } from '@codemirror/view';
 import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import { attachImageHandlers } from './image';
+import { attachImageHandlers, pickAndInsertImage } from './image';
+import {
+  insertLink,
+  setHeading,
+  toggleBlockquote,
+  toggleBold,
+  toggleBulletList,
+  toggleInlineCode,
+  toggleItalic,
+  toggleNumberedList,
+  type HeadingLevel,
+} from './editor-commands';
+
+// Markdown formatting shortcuts. Bound at high precedence so they win over
+// the default keymap when there's overlap. `Mod-` resolves to ⌘ on macOS
+// and Ctrl on Windows / Linux.
+function runWithView(fn: (v: EditorView) => void) {
+  return (view: EditorView): boolean => {
+    fn(view);
+    return true;
+  };
+}
+const formatKeymap = Prec.high(
+  keymap.of([
+    { key: 'Mod-b', run: runWithView(toggleBold) },
+    { key: 'Mod-i', run: runWithView(toggleItalic) },
+    { key: 'Mod-e', run: runWithView(toggleInlineCode) },
+    { key: 'Mod-k', run: runWithView(insertLink) },
+    ...([0, 1, 2, 3, 4] as const).map((n) => ({
+      key: `Mod-${n}`,
+      run: runWithView((v) => setHeading(v, n as HeadingLevel)),
+    })),
+    { key: 'Mod-Shift-l', run: runWithView(toggleBulletList) },
+    { key: 'Mod-Shift-o', run: runWithView(toggleNumberedList) },
+    { key: 'Mod-Shift-q', run: runWithView(toggleBlockquote) },
+    { key: 'Mod-Alt-i', run: runWithView(pickAndInsertImage) },
+  ]),
+);
 
 // Selecting whole lines from the gutter: clicking a line number selects that
 // line's content; dragging extends the selection over the range. We
@@ -100,6 +138,7 @@ export function createEditor(
         markdown(),
         EditorView.lineWrapping,
         syntaxHighlighting(editorHighlight),
+        formatKeymap,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());
