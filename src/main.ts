@@ -10,6 +10,7 @@ import '@fontsource/roboto-condensed/500-italic.css';
 import '@fontsource/roboto-mono/400.css';
 
 import './style.css';
+import { registerFallbackFonts } from './fonts';
 import { createEditor } from './editor';
 import {
   renderPreview,
@@ -85,6 +86,13 @@ function downloadMarkdown(content: string, filename: string): void {
 }
 
 function bootstrap(): void {
+  // Register the Noto fallback fonts (full TTFs, not subsetted) so the HTML
+  // preview's font cascade has the same coverage as the PDF. Fire and
+  // forget — the browser starts using the fonts as soon as they're loaded.
+  void registerFallbackFonts().catch((err: unknown) => {
+    console.error('Fallback font registration failed', err);
+  });
+
   const toolbarEl = document.getElementById('toolbar') as HTMLElement;
   const editorEl = document.getElementById('editor-pane') as HTMLElement;
   const previewEl = document.getElementById('preview-pane') as HTMLElement;

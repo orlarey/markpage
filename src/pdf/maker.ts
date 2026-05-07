@@ -10,6 +10,8 @@ import mediumUrl from '@expo-google-fonts/roboto-condensed/500Medium/RobotoConde
 import italicUrl from '@expo-google-fonts/roboto-condensed/400Regular_Italic/RobotoCondensed_400Regular_Italic.ttf?url';
 import mediumItalicUrl from '@expo-google-fonts/roboto-condensed/500Medium_Italic/RobotoCondensed_500Medium_Italic.ttf?url';
 import monoRegularUrl from '@expo-google-fonts/roboto-mono/400Regular/RobotoMono_400Regular.ttf?url';
+import symbolsRegularUrl from '@expo-google-fonts/noto-sans-symbols/400Regular/NotoSansSymbols_400Regular.ttf?url';
+import mathRegularUrl from '@expo-google-fonts/noto-sans-math/400Regular/NotoSansMath_400Regular.ttf?url';
 
 interface PdfMakeRuntime {
   vfs: Record<string, string>;
@@ -39,12 +41,14 @@ let fontsReady: Promise<void> | null = null;
 
 function ensureFontsReady(): Promise<void> {
   fontsReady ??= (async () => {
-    const [reg, med, ital, medItal, mono] = await Promise.all([
+    const [reg, med, ital, medItal, mono, symbols, math] = await Promise.all([
       fetchAsBase64(regularUrl),
       fetchAsBase64(mediumUrl),
       fetchAsBase64(italicUrl),
       fetchAsBase64(mediumItalicUrl),
       fetchAsBase64(monoRegularUrl),
+      fetchAsBase64(symbolsRegularUrl),
+      fetchAsBase64(mathRegularUrl),
     ]);
     const m = pdfMake as unknown as PdfMakeRuntime;
     m.vfs = {
@@ -53,12 +57,14 @@ function ensureFontsReady(): Promise<void> {
       'RobotoCondensed-Italic.ttf': ital,
       'RobotoCondensed-MediumItalic.ttf': medItal,
       'RobotoMono-Regular.ttf': mono,
+      'NotoSansSymbols-Regular.ttf': symbols,
+      'NotoSansMath-Regular.ttf': math,
     };
     // Override the default "Roboto" family so existing styles (which use
     // bold/italics) automatically pick up the condensed variants. We also
-    // register a "Mono" family used by the code / codeBlock styles. Code in
-    // Markdown rarely needs bold or italic, so all four entries point to the
-    // same Regular TTF — keeps the bundle smaller.
+    // register "Mono" (code styles), "Symbols" (arrows, dingbats, geometric
+    // shapes), and "Math" (Mathematical Operators block). Per-glyph font
+    // selection happens at the call site via splitByFont.
     m.fonts = {
       Roboto: {
         normal: 'RobotoCondensed-Regular.ttf',
@@ -72,7 +78,23 @@ function ensureFontsReady(): Promise<void> {
         italics: 'RobotoMono-Regular.ttf',
         bolditalics: 'RobotoMono-Regular.ttf',
       },
+      Symbols: {
+        normal: 'NotoSansSymbols-Regular.ttf',
+        bold: 'NotoSansSymbols-Regular.ttf',
+        italics: 'NotoSansSymbols-Regular.ttf',
+        bolditalics: 'NotoSansSymbols-Regular.ttf',
+      },
+      Math: {
+        normal: 'NotoSansMath-Regular.ttf',
+        bold: 'NotoSansMath-Regular.ttf',
+        italics: 'NotoSansMath-Regular.ttf',
+        bolditalics: 'NotoSansMath-Regular.ttf',
+      },
     };
+    // Wait for the CSS-side @font-face declarations (including the dynamic
+    // FontFace registrations from src/fonts.ts) to load too — the
+    // splitByFont detector relies on these being available.
+    await document.fonts.ready;
   })();
   return fontsReady;
 }

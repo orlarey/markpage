@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.0",
+    "@expo-google-fonts/noto-sans-math": "^0.4.1",
+    "@expo-google-fonts/noto-sans-symbols": "^0.4.1",
     "@expo-google-fonts/roboto-condensed": "^0.4.2",
     "@expo-google-fonts/roboto-mono": "^0.4.1",
     "@fontsource/roboto-condensed": "^5.1.0",

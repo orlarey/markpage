@@ -356,14 +356,112 @@ function inlineTokenToRun(
 }
 
 function applyStyle(text: string, style: InlineStyle): InlineRun {
-  if (
-    !style.bold &&
-    !style.italics &&
-    !style.decoration &&
-    !style.link &&
-    !style.style
-  ) {
-    return text;
+  const segments = splitByFont(text);
+  const hasStyle = !!(
+    style.bold ||
+    style.italics ||
+    style.decoration ||
+    style.link ||
+    style.style
+  );
+
+  if (segments.length === 1) {
+    const seg = segments[0];
+    if (!seg.font && !hasStyle) return seg.text;
+    return {
+      text: seg.text,
+      ...style,
+      ...(seg.font ? { font: seg.font } : {}),
+    };
   }
-  return { text, ...style };
+
+  // Multiple segments: emit a nested array of runs. pdfmake propagates
+  // outer styles (bold, italics, decoration, link, style) to children, so
+  // we don't need to repeat them on every segment.
+  const runs: InlineRun[] = segments.map((seg) =>
+    seg.font ? { text: seg.text, font: seg.font } : seg.text,
+  );
+  return hasStyle ? { text: runs, ...style } : { text: runs };
+}
+
+type FallbackFont = 'Math' | 'Symbols';
+
+interface FontSegment {
+  text: string;
+  font?: FallbackFont;
+}
+
+// Order matters: we test each fallback against the codepoint and pick the
+// first that has the glyph. Math is tried before Symbols because some
+// characters (e.g. ⊕, ⊗) live in both fonts, and Math draws them at the
+// proportions expected for mathematical use.
+const FALLBACK_FONTS: ReadonlyArray<{ font: FallbackFont; family: string }> = [
+  { font: 'Math', family: 'Noto Sans Math' },
+  { font: 'Symbols', family: 'Noto Sans Symbols' },
+];
+
+function makeSegment(text: string, font: FallbackFont | undefined): FontSegment {
+  return font ? { text, font } : { text };
+}
+
+// Splits a string into runs, marking each codepoint with the font that
+// should render it. The default font is "Roboto" (Roboto Condensed); chars
+// outside its glyph coverage get tagged with the first fallback that has
+// them, or are left untagged (and will tofu) if no fallback covers them.
+function splitByFont(text: string): FontSegment[] {
+  if (text === '') return [{ text }];
+  const out: FontSegment[] = [];
+  let buf = '';
+  let bufFont: FallbackFont | undefined;
+  let started = false;
+  for (const ch of text) {
+    const font = pickFontFor(ch.codePointAt(0) ?? 0);
+    if (started && font === bufFont) {
+      buf += ch;
+      continue;
+    }
+    if (buf) out.push(makeSegment(buf, bufFont));
+    buf = ch;
+    bufFont = font;
+    started = true;
+  }
+  if (buf) out.push(makeSegment(buf, bufFont));
+  return out;
+}
+
+const fontPickCache = new Map<number, FallbackFont | undefined>();
+
+// Returns the fallback font to use for `codepoint`, or undefined when
+// Roboto Condensed already has a glyph (or no fallback covers it).
+function pickFontFor(codepoint: number): FallbackFont | undefined {
+  if (codepoint <= 0x024f) return undefined; // ASCII + Latin Extended A/B
+  if (fontPickCache.has(codepoint)) return fontPickCache.get(codepoint);
+  let chosen: FallbackFont | undefined;
+  if (!canvasHasGlyph(codepoint, 'Roboto Condensed')) {
+    for (const { font, family } of FALLBACK_FONTS) {
+      if (canvasHasGlyph(codepoint, family)) {
+        chosen = font;
+        break;
+      }
+    }
+  }
+  fontPickCache.set(codepoint, chosen);
+  return chosen;
+}
+
+let widthCanvas: HTMLCanvasElement | null = null;
+
+function canvasHasGlyph(codepoint: number, fontFamily: string): boolean {
+  widthCanvas ??= document.createElement('canvas');
+  const ctx = widthCanvas.getContext('2d');
+  if (!ctx) return true; // No way to detect; assume yes to avoid breaking.
+  const ch = String.fromCodePoint(codepoint);
+  // Compare width with `fontFamily, monospace` against `something-fake,
+  // monospace`. If the test char isn't in fontFamily, both fall through to
+  // monospace and produce the same width.
+  ctx.font = `64px "${fontFamily}", monospace`;
+  const w1 = ctx.measureText(ch).width;
+  ctx.font = '64px "__no_such_font_xyz__", monospace';
+  const w2 = ctx.measureText(ch).width;
+  return Math.abs(w1 - w2) > 0.5;
 }
