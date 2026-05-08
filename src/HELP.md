@@ -179,7 +179,103 @@ md2pdf reconnaît la plupart des conventions Markdown classiques :
 - Images de référence
 - Tableaux comme celui ci-dessus
 - Lignes horizontales (trois tirets sur une ligne)
+- Formules mathématiques (voir la section suivante)
 - Diagrammes Mermaid (voir la section suivante)
+
+## Formules mathématiques
+
+Vous pouvez inclure des **formules en LaTeX** en les encadrant par
+`$$ … $$` (sur leur propre paragraphe). Le rendu utilise
+[MathJax](https://www.mathjax.org/) et produit un PDF de qualité
+typographique professionnelle.
+
+Par exemple, en tapant :
+
+```
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+```
+
+…vous obtenez :
+
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+
+### Exemples utiles
+
+**Sommes et intégrales**
+
+```
+$$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+```
+
+$$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+
+**Matrice**
+
+```
+$$
+A = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+$$
+```
+
+$$
+A = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+$$
+
+**Système d'équations alignées**
+
+```
+$$
+\begin{align*}
+f(x)   &= ax^2 + bx + c \\
+f'(x)  &= 2ax + b \\
+f''(x) &= 2a
+\end{align*}
+$$
+```
+
+$$
+\begin{align*}
+f(x)   &= ax^2 + bx + c \\
+f'(x)  &= 2ax + b \\
+f''(x) &= 2a
+\end{align*}
+$$
+
+### À savoir
+
+- Seules les formules **en bloc** (`$$…$$`) sont gérées. Les formules
+  *inline* (`$…$` au milieu d'une phrase) ne sont pas encore
+  supportées — placez chaque formule dans son propre paragraphe.
+- La taille des formules s'aligne sur la taille du texte courant ; si
+  vous changez le réglage **Texte normal** dans **Réglages**, les
+  formules grandissent ou rétrécissent en proportion.
+- Si une formule est plus large que la zone de texte de la page, elle
+  est automatiquement réduite pour tenir.
+- Les commandes LaTeX usuelles fonctionnent : `\frac`, `\sqrt`,
+  `\sum`, `\int`, `\lim`, `\vec`, `\partial`, lettres grecques
+  (`\alpha`, `\beta`, …), opérateurs (`\pm`, `\times`, `\le`),
+  flèches (`\to`, `\Rightarrow`), environnements `pmatrix` /
+  `bmatrix` / `align*`, etc.
 
 ## Diagrammes Mermaid
 

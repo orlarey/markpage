@@ -413,6 +413,42 @@ body,
   font-size: 0.9em;
 }
 
+#preview-pane .math-block {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em auto;
+  overflow-x: auto;
+}
+
+#preview-pane .math-block svg,
+#preview-pane .math-block mjx-container {
+  max-width: 100%;
+  height: auto;
+}
+
+#preview-pane .math-block.math-error {
+  display: block;
+  border-left: 4px solid #d1242f;
+  background: #ffeef0;
+  padding: 0.6em 0.9em;
+  margin: 0.6em 0;
+  border-radius: 0 4px 4px 0;
+}
+
+#preview-pane .math-block.math-error .math-error-msg {
+  color: #d1242f;
+  font-weight: 500;
+  margin-bottom: 0.5em;
+}
+
+#preview-pane .math-block.math-error pre {
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 .preview-metadata {
   text-align: center;
   margin: 0 0 1.5rem;

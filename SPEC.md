@@ -43,11 +43,14 @@ initial.
   - référence `![alt][label]` + `[label]: url` ailleurs dans le doc
 - Tableaux GFM (`| col | col |` + ligne `|---|`)
 - Diagrammes Mermaid (bloc ```` ```mermaid ```` ; voir §7)
+- Formules mathématiques en mode display (`$$…$$`) via MathJax ; voir §8
 
 ### 3.2. Hors périmètre actuel
 
 - Coloration syntaxique des blocs de code
-- Formules mathématiques (KaTeX/MathJax)
+- Formules mathématiques **inline** (`$…$`) — pdfmake ne supporte pas le SVG
+  dans une suite de runs `text`, donc le mélange texte + formule sur la
+  même ligne n'est pas géré pour l'instant
 - Listes de tâches `- [ ]`
 - Notes de bas de page
 - HTML brut dans le Markdown
@@ -160,6 +163,8 @@ src/
                        extract data URLs, GC, drop/paste handlers)
   image-store.ts       wrapper IndexedDB
   mermaid.ts           lazy import + cache de mermaid.render() par source
+  math.ts              lazy import + cache de MathJax tex2svg par source
+  marked-config.ts     extension marked pour `$$…$$` (math display)
   vite-env.d.ts        types Vite pour `?url`, `?raw`, etc.
   style.css            styles globaux + modales
   assets/
@@ -392,7 +397,96 @@ Trois champs sur `PdfSettings`, ajustables dans le panneau Réglages :
 | `mermaidMaxWidthPct` | 1.0 | Fraction de la largeur de la zone de texte que le diagramme peut occuper. |
 | `mermaidMaxHeightPct` | 0.7 | Fraction de la hauteur de la zone de texte qu'il peut occuper. |
 
-## 8. Réglages PDF
+## 8. Formules mathématiques
+
+Les blocs `$$…$$` sont rendus en SVG dans l'aperçu **et** dans le PDF, via
+[MathJax](https://www.mathjax.org/) en sortie `SVG`. Comme pour Mermaid,
+la librairie est chargée paresseusement (`import()`) au premier bloc math
+rencontré, et chaque `(source, display)` est mémorisé une fois rendu.
+
+Seul le mode **display** (bloc dédié) est supporté. Les formules inline
+(`$…$`) sont volontairement hors périmètre : pdfmake n'autorise pas un
+SVG à l'intérieur d'une suite de runs `text`, ce qui rendrait le mélange
+texte + formule sur la même ligne fragile (cassure du wrap, alignement
+de baseline approximatif).
+
+### 8.1. Reconnaissance Markdown
+
+Une extension `marked` (`src/marked-config.ts`) ajoute un type de token
+`mathBlock` qui matche `^\$\$([\S\s]+?)\$\$` au niveau bloc. Le module
+est importé pour ses effets de bord depuis `main.ts`, avant tout appel à
+`marked.parse` ou `marked.lexer`. Le `renderer` produit un placeholder
+`<div class="math-block" data-math="…"></div>` ; le contenu LaTeX est
+HTML-échappé pour pouvoir loger dans l'attribut `data-math`.
+
+### 8.2. MathJax
+
+`src/math.ts` configure MathJax 3 (paquet `mathjax-full`) en sortie SVG :
+
+```ts
+const adaptor = browserAdaptor();
+RegisterHTMLHandler(adaptor);
+const tex = new TeX({ packages: AllPackages });
+const svg = new SVG({ fontCache: 'local' });
+const doc = mathjax.document(document, { InputJax: tex, OutputJax: svg });
+```
+
+- `AllPackages` charge tous les paquets TeX (ams, amssymb, etc.) ; sans
+  ça, `\begin{pmatrix}` ou `align*` lèveraient une erreur de parsing.
+- `fontCache: 'local'` met les glyphes utilisés dans un `<defs>` interne
+  à chaque SVG et y fait référence via `<use>` ; le SVG reste autonome
+  sans dupliquer chaque glyph en path inline.
+
+`mj.render(latex, display)` renvoie un `<mjx-container>` qui enveloppe
+le SVG. On extrait le SVG racine via une regex *greedy* (`<svg…</svg>`)
+parce que MathJax imbrique des `<svg>` enfants pour les glyphes étirés
+(parenthèses extensibles, accolades), et un match non-greedy ne capterait
+que le premier `</svg>` interne.
+
+### 8.3. Aperçu
+
+`renderMathBlocks(target)` post-traite le HTML produit par marked : il
+trouve chaque `<div class="math-block" data-math="…">`, lit la source
+LaTeX, appelle `renderMath(source, display=true)` et insère le SVG dans
+le placeholder. Erreurs de parsing : on ajoute la classe `math-error`,
+qui est stylée en bordure rouge et qui ré-affiche la source.
+
+Le rendu math et le rendu mermaid sont lancés en parallèle dans le même
+`Promise.all` du pipeline d'aperçu (`main.ts`).
+
+### 8.4. PDF — sizing
+
+Le défi : MathJax exprime ses dimensions en `ex` (`<svg width="9.166ex"
+height="2.262ex">`), unité relative à la hauteur de l'`x` du contexte
+typographique. C'est ce qui fait que ses formules s'intègrent visuellement
+au texte qui les entoure dans le navigateur.
+
+Mais notre pipeline de sanitisation (`sanitiseSvgForPdfmake`, partagé avec
+mermaid) appelle `cropSvgToContent`, qui réécrit `width`/`height` en
+unités internes du `viewBox` (ordres de milliers — c'est le système de
+coordonnées que MathJax utilise pour ses paths). Si on passait ces
+valeurs telles quelles à pdfmake, la formule serait gigantesque.
+
+Solution dans `preRenderMathBlocks` : on lit les dimensions originales en
+`ex` **avant** la sanitisation (regex `width="([\d.]+)ex"`), puis on les
+convertit en pt en utilisant la taille du corps de texte des réglages :
+
+```ts
+widthPt = widthEx × 0.5 × bodyFontSizePt
+heightPt = heightEx × 0.5 × bodyFontSizePt
+```
+
+(0.5 est l'approximation standard CSS de la hauteur de l'`x` par rapport
+au cadratin, pour la plupart des polices y compris Roboto Condensed.)
+
+Le SVG est ensuite emballé dans la même table 3 colonnes que les
+diagrammes mermaid pour être centré et pour que pdfmake respecte les
+dimensions qu'on lui passe. Si une formule très large dépasse la largeur
+de page, on applique un scale `min(1, contentWidth / widthPt)` pour qu'elle
+tienne — pas d'agrandissement, contrairement aux diagrammes (les formules
+sont déjà dimensionnées pour le contexte typographique).
+
+## 9. Réglages PDF
 
 Un panneau **Réglages** (clic sur le bouton dans la toolbar ou
 `Cmd/Ctrl + ,`) configure le rendu. Les réglages sont persistés dans
@@ -482,7 +576,7 @@ interface PdfSettings {
 | Numéro de page       | bas centre, 9 pt, non italique, #57606a      |
 | Mermaid (scale max / largeur / hauteur) | 2 / 100 % / 70 %                |
 
-## 9. Aide intégrée
+## 10. Aide intégrée
 
 - Le tutoriel `src/HELP.md` est bundlé via `import helpMd from './HELP.md?raw'`.
 - Au premier lancement (`localStorage` vide), il sert de document par
@@ -493,7 +587,7 @@ interface PdfSettings {
   toucher au document de l'utilisateur. Échap / clic hors panneau /
   bouton Fermer pour la refermer.
 
-## 10. Déploiement
+## 11. Déploiement
 
 - Workflow `.github/workflows/deploy.yml`.
 - Déclenché sur `push` vers `main`.
@@ -503,7 +597,7 @@ interface PdfSettings {
   `https://user.github.io/md2pdf/`) → `base: './'` dans
   `vite.config.ts` produit des chemins relatifs.
 
-## 11. Critères d'acceptation
+## 12. Critères d'acceptation
 
 1. `npm run dev` lance l'application localement, prête à éditer.
 2. Le premier lancement (sans `localStorage`) charge le HELP.md.
@@ -521,7 +615,7 @@ interface PdfSettings {
 8. L'application charge et fonctionne sans connexion réseau une fois
    servie (toutes les polices et libs sont bundlées).
 
-## 12. À décider plus tard
+## 13. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Choix d'une autre famille de polices que Roboto Condensed dans les
@@ -530,4 +624,7 @@ interface PdfSettings {
 - Export d'un HTML autonome.
 - Sauvegarde / chargement de plusieurs documents (multi-doc).
 - Coloration syntaxique des blocs de code.
-- Listes de tâches `- [ ]`, notes de bas de page, formules math.
+- Formules math **inline** (`$…$`) — passerait par un re-layout des
+  paragraphes en `columns` pdfmake, ou par une approximation Unicode
+  pour les expressions très simples.
+- Listes de tâches `- [ ]`, notes de bas de page.

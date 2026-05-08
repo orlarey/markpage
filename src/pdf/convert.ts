@@ -7,6 +7,7 @@ import {
   type PdfSettings,
 } from '../settings';
 import { renderMermaid } from '../mermaid';
+import { renderMath } from '../math';
 import { buildBaseDocDefinition } from './styles';
 
 // Page dimensions in pt, matching pdfmake's internal table. Used to figure
@@ -98,11 +99,14 @@ export async function markdownToDocDefinition(
   // Trailing whitespace (extra blank lines) is the single most common cause
   // of pdfmake emitting an empty trailing page, so we drop it before lexing.
   const tokens = marked.lexer(source.replace(/\s+$/u, ''));
-  // Pre-render every ```mermaid block to SVG (async). The token walker
-  // below is synchronous and just looks each one up by source string.
-  const mermaidSvgs = await preRenderMermaidBlocks(tokens);
-  const content = tokensToContent(tokens, settings, mermaidSvgs);
-  // (mermaidSvgs is also threaded through nested tokensToContent calls.)
+  // Pre-render every ```mermaid block and `$$…$$` math block to SVG, in
+  // parallel. The token walker below is synchronous and looks each one
+  // up by its source string in the maps we build here.
+  const [mermaidSvgs, mathSvgs] = await Promise.all([
+    preRenderMermaidBlocks(tokens),
+    preRenderMathBlocks(tokens, settings),
+  ]);
+  const content = tokensToContent(tokens, settings, mermaidSvgs, mathSvgs);
   insertMetadataBlock(content, tokens, settings);
   clearTrailingMargin(content);
   return {
@@ -137,6 +141,67 @@ async function preRenderMermaidBlocks(
     }),
   );
   return map;
+}
+
+// Same idea as preRenderMermaidBlocks, but for `$$…$$` display-math
+// tokens. MathJax sizes its SVGs in `ex` units (height of an `x` glyph),
+// which is what makes its math integrate with surrounding text in the
+// browser. We must capture those ex dimensions *before* sanitisation —
+// `sanitiseSvgForPdfmake` calls `cropSvgToContent`, which rewrites width
+// /height to the bbox in internal math units (thousands), useless for
+// pdfmake sizing. We then convert ex → pt using the body font size
+// (1ex ≈ 0.5em ≈ fontSize/2) so the formula prints at body-text scale.
+async function preRenderMathBlocks(
+  tokens: Token[],
+  settings: PdfSettings,
+): Promise<Map<string, RenderedMermaid>> {
+  const sources = new Set<string>();
+  collectMathSources(tokens, sources);
+  const map = new Map<string, RenderedMermaid>();
+  const fontPt = settings.styles.body.fontSize;
+  await Promise.all(
+    [...sources].map(async (src) => {
+      const result = await renderMath(src, true);
+      if (!result.ok) return;
+      const ex = readExDimensions(result.svg);
+      const entry = sanitiseSvgForPdfmake(result.svg);
+      if (ex) {
+        // Override the bbox-derived numbers with ex-based pt dimensions.
+        entry.width = ex.widthEx * 0.5 * fontPt;
+        entry.height = ex.heightEx * 0.5 * fontPt;
+      }
+      map.set(src, entry);
+    }),
+  );
+  return map;
+}
+
+function readExDimensions(svg: string): {
+  widthEx: number;
+  heightEx: number;
+} | null {
+  const w = /<svg[^>]*\swidth="([\d.]+)ex"/i.exec(svg);
+  const h = /<svg[^>]*\sheight="([\d.]+)ex"/i.exec(svg);
+  if (!w || !h) return null;
+  const widthEx = Number.parseFloat(w[1] ?? '');
+  const heightEx = Number.parseFloat(h[1] ?? '');
+  if (!Number.isFinite(widthEx) || !Number.isFinite(heightEx)) return null;
+  return { widthEx, heightEx };
+}
+
+function collectMathSources(tokens: Token[], out: Set<string>): void {
+  for (const tok of tokens) {
+    if (tok.type === 'mathBlock') {
+      out.add((tok as unknown as { text: string }).text);
+    }
+    const nested = (tok as { tokens?: Token[] }).tokens;
+    if (nested) collectMathSources(nested, out);
+    if (tok.type === 'list') {
+      for (const item of (tok as Tokens.List).items) {
+        collectMathSources(item.tokens ?? [], out);
+      }
+    }
+  }
 }
 
 // Mermaid puts all of its colouring (box fills, text colour, stroke widths)
@@ -625,10 +690,11 @@ function tokensToContent(
   tokens: Token[],
   settings: PdfSettings,
   mermaidSvgs: Map<string, RenderedMermaid>,
+  mathSvgs: Map<string, RenderedMermaid>,
 ): Content[] {
   const out: Content[] = [];
   for (const tok of tokens) {
-    const node = tokenToContent(tok, settings, mermaidSvgs);
+    const node = tokenToContent(tok, settings, mermaidSvgs, mathSvgs);
     if (node === null) continue;
     if (Array.isArray(node)) out.push(...node);
     else out.push(node);
@@ -640,6 +706,7 @@ function tokenToContent(
   tok: Token,
   settings: PdfSettings,
   mermaidSvgs: Map<string, RenderedMermaid>,
+  mathSvgs: Map<string, RenderedMermaid>,
 ): Content | Content[] | null {
   switch (tok.type) {
     case 'space':
@@ -752,9 +819,46 @@ function tokenToContent(
       return { text: decodeEntities(c.text), style: 'codeBlock' };
     }
 
+    case 'mathBlock': {
+      const text = (tok as unknown as { text: string }).text;
+      const entry = mathSvgs.get(text);
+      if (!entry) {
+        // MathJax couldn't parse the source: fall back to showing the
+        // raw TeX as a code block so the user sees something to fix.
+        return { text, style: 'codeBlock' };
+      }
+      // entry.width / entry.height are already in PDF points
+      // (preRenderMathBlocks converted from MathJax's ex units against the
+      // body font size). Only shrink if a very wide formula would
+      // overflow the column.
+      const cw = contentWidthPt(settings);
+      const fit = Math.min(1, cw / entry.width);
+      const w = entry.width * fit;
+      const h = entry.height * fit;
+      return {
+        table: {
+          widths: ['*', w, '*'],
+          body: [
+            [
+              { text: '' },
+              { svg: entry.svg, width: w, height: h },
+              { text: '' },
+            ],
+          ],
+        },
+        layout: 'noBorders',
+        margin: [0, 6, 0, 6] as [number, number, number, number],
+      };
+    }
+
     case 'blockquote': {
       const b = tok as Tokens.Blockquote;
-      const inner = tokensToContent(b.tokens ?? [], settings, mermaidSvgs);
+      const inner = tokensToContent(
+        b.tokens ?? [],
+        settings,
+        mermaidSvgs,
+        mathSvgs,
+      );
       // Wrap the quote in a 1-cell table so we can paint a left bar via a
       // custom layout. pdfmake doesn't support per-element borders outside
       // of tables.
@@ -777,7 +881,7 @@ function tokenToContent(
     case 'list': {
       const l = tok as Tokens.List;
       const items = l.items.map((item) =>
-        listItemToContent(item, settings, mermaidSvgs),
+        listItemToContent(item, settings, mermaidSvgs, mathSvgs),
       );
       return l.ordered ? { ol: items } : { ul: items };
     }
@@ -820,8 +924,14 @@ function listItemToContent(
   item: Tokens.ListItem,
   settings: PdfSettings,
   mermaidSvgs: Map<string, RenderedMermaid>,
+  mathSvgs: Map<string, RenderedMermaid>,
 ): Content {
-  const blocks = tokensToContent(item.tokens ?? [], settings, mermaidSvgs);
+  const blocks = tokensToContent(
+    item.tokens ?? [],
+    settings,
+    mermaidSvgs,
+    mathSvgs,
+  );
   if (blocks.length === 0) return '';
   if (blocks.length === 1) return blocks[0]!;
   return { stack: blocks };

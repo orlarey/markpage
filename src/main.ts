@@ -10,6 +10,9 @@ import '@fontsource/roboto-condensed/500-italic.css';
 import '@fontsource/roboto-mono/400.css';
 
 import './style.css';
+// Side-effect import: registers our marked extensions ($$math$$, …) on the
+// shared `marked` instance. Must run before any marked.parse / marked.lexer.
+import './marked-config';
 import { registerFallbackFonts } from './fonts';
 import { createEditor } from './editor';
 import {
@@ -19,6 +22,7 @@ import {
   applyPreviewMetadata,
   annotateSourceLines,
   renderMermaidBlocks,
+  renderMathBlocks,
 } from './preview';
 import { setupScrollSync } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
@@ -107,11 +111,14 @@ function bootstrap(): void {
         // annotateSourceLines walks the *original* source so scroll-sync
         // line numbers match what the user typed in the editor.
         annotateSourceLines(previewEl, source);
-        // Mermaid runs last so the data-line annotations are already on
-        // the <pre> blocks it replaces (renderMermaidBlocks copies them
-        // onto the SVG wrappers). Bail out if the user typed something
-        // newer in the meantime.
-        await renderMermaidBlocks(previewEl);
+        // Mermaid + math run last so the data-line annotations are already
+        // on the <pre> / placeholder blocks they replace. Run them in
+        // parallel — independent libraries, both lazy-loaded. Bail out
+        // afterwards if the user typed something newer in the meantime.
+        await Promise.all([
+          renderMermaidBlocks(previewEl),
+          renderMathBlocks(previewEl),
+        ]);
         if (myReq !== previewReqId) return;
       })
       .catch((err: unknown) => {
