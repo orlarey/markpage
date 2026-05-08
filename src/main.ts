@@ -35,20 +35,15 @@ import {
   gcUnusedImages,
   refifyImageUrls,
 } from './image';
-import { markdownToDocDefinition } from './pdf/convert';
-import { downloadPdf } from './pdf/maker';
 import { mountToolbar } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
 import { openHelpModal } from './ui/help-modal';
 import helpMd from './HELP.md?raw';
-import {
-  loadDoc,
-  loadFilename,
-  saveDoc,
-  saveFilename,
-} from './storage';
+import { loadDoc, loadFilename, saveDoc, saveFilename } from './storage';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
+import { paginate } from './preview-paginated';
+import { exportViaPrint } from './print-export';
 
 // First-run document is the bundled HELP.md tutorial. The user can edit
 // or erase it; once a doc lives in localStorage, that one wins on reopen
@@ -102,37 +97,49 @@ function bootstrap(): void {
   // We only render the latest call's output (previewReqId) to avoid an in-
   // flight resolve overwriting a more recent one when typing fast.
   let previewReqId = 0;
+
+  // Builds the rendered DOM subtree (Markdown + post-processing) and hands
+  // it to paged.js, which writes the chunked-into-pages result into the
+  // preview pane.
   const updatePreview = (source: string): void => {
     const myReq = ++previewReqId;
-    expandRefsToBlobUrls(source)
-      .then(async (resolved) => {
-        if (myReq !== previewReqId) return;
-        renderPreview(previewEl, resolved);
-        applyPreviewMetadata(previewEl, state.settings);
-        // annotateSourceLines walks the *original* source so scroll-sync
-        // line numbers match what the user typed in the editor.
-        annotateSourceLines(previewEl, source);
-        // Mermaid + math run last so the data-line annotations are already
-        // on the <pre> / placeholder blocks they replace. Run them in
-        // parallel — independent libraries, both lazy-loaded. Bail out
-        // afterwards if the user typed something newer in the meantime.
+    void (async () => {
+      try {
+        const resolved = await expandRefsToBlobUrls(source);
+        const built = document.createElement('div');
+        renderPreview(built, resolved);
+        applyPreviewMetadata(built, state.settings);
+        annotateSourceLines(built, source);
         await Promise.all([
-          renderMermaidBlocks(previewEl),
-          renderMathBlocks(previewEl),
-          renderMathInlines(previewEl),
+          renderMermaidBlocks(built),
+          renderMathBlocks(built),
+          renderMathInlines(built),
         ]);
         if (myReq !== previewReqId) return;
-      })
-      .catch((err: unknown) => {
+        await paginate(built, state.settings, previewEl);
+        if (myReq !== previewReqId) return;
+      } catch (err) {
         console.error('Preview render failed', err);
-      });
+      }
+    })();
   };
+
   const debouncedSave = debounce((source: string) => saveDoc(source), 200);
+
+  // Repagination is heavy (paged.js measures every block); debounce so we
+  // don't recompute layout on every keystroke. 700 ms feels right: long
+  // enough to ride through a typing burst, short enough that a deliberate
+  // pause shows the updated layout.
+  let previewTimer: ReturnType<typeof setTimeout> | undefined;
+  const schedulePreview = (source: string): void => {
+    if (previewTimer !== undefined) clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => updatePreview(source), 700);
+  };
 
   applyPreviewStyles(state.settings);
 
   const editor = createEditor(editorEl, initialDoc, (doc) => {
-    updatePreview(doc);
+    schedulePreview(doc);
     debouncedSave(doc);
   });
 
@@ -145,7 +152,9 @@ function bootstrap(): void {
     state.settings = s;
     saveSettings(s);
     applyPreviewStyles(s);
-    applyPreviewMetadata(previewEl, s);
+    // The @page CSS depends on settings (page size, margins, page-number
+    // position) — repaginate to reflect them.
+    updatePreview(editor.getValue());
   };
 
   const handleOpen = (file: File): void => {
@@ -212,8 +221,11 @@ function bootstrap(): void {
     void (async () => {
       try {
         const expanded = await expandRefsToInlineDataUrls(source);
-        const doc = await markdownToDocDefinition(expanded, state.settings);
-        await downloadPdf(doc, ensureFilename(state.filename));
+        const filename = ensureFilename(state.filename);
+        // SPEC §13.6: every export goes through the browser print pipeline.
+        // The result is identical to what the paginated preview shows,
+        // selectable text included.
+        await exportViaPrint(expanded, state.settings, filename);
       } catch (err) {
         console.error('PDF export failed', err);
       }
@@ -239,8 +251,7 @@ function bootstrap(): void {
           organization: { ...state.settings.organization, show: false },
           date: { mode: 'none', custom: '' },
         };
-        const doc = await markdownToDocDefinition(helpMd, helpSettings);
-        await downloadPdf(doc, 'md2pdf-aide.pdf');
+        await exportViaPrint(helpMd, helpSettings, 'md2pdf-aide.pdf');
       },
     });
   };

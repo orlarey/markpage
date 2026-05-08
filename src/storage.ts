@@ -16,3 +16,4 @@ export function loadFilename(): string | null {
 export function saveFilename(name: string): void {
   localStorage.setItem(KEY_FILENAME, name);
 }
+
