@@ -169,6 +169,11 @@ function sanitiseSvgForPdfmake(svg: string): RenderedMermaid {
     inlineComputedStyles(root);
     scrubInvalidDasharrays(root);
     forceRegisteredFont(root);
+    // Bake markers as rotated <g> clones at line endpoints. svg-to-pdfkit
+    // mishandles `orient="auto"` for right-to-left lines (sequence-diagram
+    // reply arrows), so we compute the rotation ourselves and stop relying
+    // on pdfmake to interpret marker-end / marker-start at all.
+    inlineMarkers(root);
     for (const styleEl of root.querySelectorAll('style')) styleEl.remove();
     // Crop the SVG to the actual painted extent. Mermaid often sets
     // width="100%" or a height that pads the content with empty space, so
@@ -237,34 +242,203 @@ function cropSvgToContent(svg: SVGElement): {
   return { width: w || 800, height: h || 600 };
 }
 
-// Replaces each <foreignObject> with an SVG <text> that contains the same
-// (collapsed) text content, positioned at the FO's centre with
-// text-anchor="middle". Vertical centering is approximated by shifting the
-// baseline down by ~0.35em from the box centre — close enough for the
-// short single-line labels mermaid emits for nodes and edges.
+// Replaces each <foreignObject> with an SVG <text> centred at the FO's
+// centre. Multi-line content (split by <br> or block-level boundaries) is
+// emitted as one <tspan> per line, vertically centred as a block.
 function foreignObjectsToText(svg: SVGElement): void {
+  const fontSize = 14;
+  const lineHeight = fontSize * 1.2;
   const fos = [...svg.querySelectorAll('foreignObject')];
   for (const fo of fos) {
-    const raw = fo.textContent ?? '';
-    const text = raw.replaceAll(/\s+/g, ' ').trim();
-    if (!text) continue;
+    const lines = extractLines(fo);
+    if (lines.length === 0) continue;
     const x = Number.parseFloat(fo.getAttribute('x') ?? '0') || 0;
     const y = Number.parseFloat(fo.getAttribute('y') ?? '0') || 0;
     const w = Number.parseFloat(fo.getAttribute('width') ?? '0') || 0;
     const h = Number.parseFloat(fo.getAttribute('height') ?? '0') || 0;
-    const fontSize = 14;
     const cx = x + w / 2;
-    const cy = y + h / 2 + fontSize * 0.35;
+    // Centre the multi-line block vertically: first baseline sits ~0.85em
+    // below the block's visual top.
+    const blockTop = y + (h - lines.length * lineHeight) / 2;
+    const firstBaseline = blockTop + fontSize * 0.85;
+
     const t = document.createElementNS(SVG_NS, 'text');
     t.setAttribute('x', String(cx));
-    t.setAttribute('y', String(cy));
+    t.setAttribute('y', String(firstBaseline));
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('font-family', 'Roboto');
     t.setAttribute('font-size', String(fontSize));
     t.setAttribute('fill', '#333');
-    t.textContent = text;
+    for (const [i, line] of lines.entries()) {
+      const span = document.createElementNS(SVG_NS, 'tspan');
+      span.setAttribute('x', String(cx));
+      if (i > 0) span.setAttribute('dy', String(lineHeight));
+      span.textContent = line;
+      t.appendChild(span);
+    }
     fo.replaceWith(t);
   }
+}
+
+// Walks an HTML subtree and extracts its visual lines: splits on <br> and
+// at the boundaries of block-level elements (<p>, <div>, <li>). Each line
+// is whitespace-collapsed and trimmed. Empty lines are dropped.
+function extractLines(root: Element): string[] {
+  const lines: string[] = [];
+  let buf = '';
+  const flush = () => {
+    const t = buf.replaceAll(/\s+/g, ' ').trim();
+    if (t) lines.push(t);
+    buf = '';
+  };
+  const BLOCK_TAGS = new Set(['p', 'div', 'li']);
+  const walk = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      buf += node.textContent ?? '';
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'br') {
+      flush();
+      return;
+    }
+    const isBlock = BLOCK_TAGS.has(tag);
+    if (isBlock) flush();
+    for (const child of el.childNodes) walk(child);
+    if (isBlock) flush();
+  };
+  for (const child of root.childNodes) walk(child);
+  flush();
+  return lines;
+}
+
+// Replaces every `marker-end` / `marker-start` reference with a cloned,
+// rotated copy of the marker's contents at the corresponding endpoint. We
+// compute the angle from the line/path's local direction and apply it as
+// an explicit `rotate(...)` transform, so pdfmake never has to interpret
+// `orient="auto"` (which it gets wrong for non-LTR lines).
+function inlineMarkers(svg: SVGElement): void {
+  const markers = new Map<string, SVGElement>();
+  for (const m of svg.querySelectorAll('marker')) {
+    const id = m.getAttribute('id');
+    if (id) markers.set(id, m as SVGElement);
+  }
+  if (markers.size === 0) return;
+
+  for (const el of svg.querySelectorAll<SVGElement>('line, path, polyline')) {
+    if (!el.hasAttribute('marker-end') && !el.hasAttribute('marker-start')) {
+      continue;
+    }
+    const ends = endpointsOf(el);
+    if (!ends) continue;
+    bakeMarker(el, 'marker-start', ends.start, ends.startDir, markers);
+    bakeMarker(el, 'marker-end', ends.end, ends.endDir, markers);
+  }
+}
+
+interface Endpoints {
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+  startDir: { dx: number; dy: number };
+  endDir: { dx: number; dy: number };
+}
+
+function endpointsOf(el: SVGElement): Endpoints | null {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'line') {
+    const x1 = Number.parseFloat(el.getAttribute('x1') ?? '0') || 0;
+    const y1 = Number.parseFloat(el.getAttribute('y1') ?? '0') || 0;
+    const x2 = Number.parseFloat(el.getAttribute('x2') ?? '0') || 0;
+    const y2 = Number.parseFloat(el.getAttribute('y2') ?? '0') || 0;
+    // Both tangents point in the direction of travel (start → end). The
+    // SVG spec defines the marker-start orient as the path's tangent at
+    // the start *as it heads forward*, not as it points back at the
+    // origin.
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return {
+      start: { x: x1, y: y1 },
+      end: { x: x2, y: y2 },
+      startDir: { dx, dy },
+      endDir: { dx, dy },
+    };
+  }
+  // <path> / <polyline>: use the geometry-element API to sample tangent
+  // vectors at the two ends, both pointing in the direction of travel.
+  try {
+    const geom = el as unknown as SVGGeometryElement;
+    const len = geom.getTotalLength();
+    if (!Number.isFinite(len) || len <= 0) return null;
+    const eps = Math.min(1, len / 100);
+    const a = geom.getPointAtLength(0);
+    const b = geom.getPointAtLength(eps);
+    const c = geom.getPointAtLength(Math.max(0, len - eps));
+    const d = geom.getPointAtLength(len);
+    return {
+      start: { x: a.x, y: a.y },
+      end: { x: d.x, y: d.y },
+      startDir: { dx: b.x - a.x, dy: b.y - a.y },
+      endDir: { dx: d.x - c.x, dy: d.y - c.y },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function bakeMarker(
+  el: SVGElement,
+  attr: 'marker-start' | 'marker-end',
+  point: { x: number; y: number },
+  dir: { dx: number; dy: number },
+  markers: Map<string, SVGElement>,
+): void {
+  const ref = el.getAttribute(attr);
+  if (!ref) return;
+  const idMatch = /url\(\s*#?([^)\s]+?)\s*\)/.exec(ref);
+  if (!idMatch) return;
+  const marker = markers.get(idMatch[1] ?? '');
+  if (!marker) {
+    el.removeAttribute(attr);
+    return;
+  }
+  const refX = Number.parseFloat(marker.getAttribute('refX') ?? '0') || 0;
+  const refY = Number.parseFloat(marker.getAttribute('refY') ?? '0') || 0;
+  const angle = computeMarkerAngle(marker, attr, dir);
+  const g = el.ownerDocument.createElementNS(SVG_NS, 'g');
+  g.setAttribute(
+    'transform',
+    `translate(${point.x},${point.y}) rotate(${angle}) translate(${-refX},${-refY})`,
+  );
+  for (const child of marker.children) {
+    g.appendChild(child.cloneNode(true));
+  }
+  el.parentElement?.appendChild(g);
+  el.removeAttribute(attr);
+}
+
+// Resolves the rotation angle for a marker according to its `orient`:
+//  - "auto" (default): angle of the path tangent
+//  - "auto-start-reverse": tangent + 180° at marker-start (so symbols meant
+//    to be received from the other end keep facing inward); equivalent to
+//    "auto" at marker-end
+//  - any numeric value: that fixed angle in degrees, ignoring the tangent
+function computeMarkerAngle(
+  marker: SVGElement,
+  attr: 'marker-start' | 'marker-end',
+  dir: { dx: number; dy: number },
+): number {
+  const orient = (marker.getAttribute('orient') ?? 'auto').trim();
+  if (orient !== 'auto' && orient !== 'auto-start-reverse') {
+    const fixed = Number.parseFloat(orient);
+    if (Number.isFinite(fixed)) return fixed;
+  }
+  const tangent = (Math.atan2(dir.dy, dir.dx) * 180) / Math.PI;
+  if (orient === 'auto-start-reverse' && attr === 'marker-start') {
+    return tangent + 180;
+  }
+  return tangent;
 }
 
 // pdfmake only paints text whose font is registered. Mermaid's neutral theme
@@ -296,9 +470,11 @@ function scrubInvalidDasharrays(svg: SVGElement): void {
 }
 
 // SVG presentation attributes pdfmake honours. We copy each from the
-// element's computed style only when the attribute isn't already set, so
-// existing inline values win (mermaid does set some of these directly,
-// e.g. on arrow markers).
+// element's computed style, overwriting any existing attribute — the
+// browser's computed value matches what the preview actually paints, and
+// trusting attribute defaults breaks elements like sequence-diagram
+// message lines (mermaid emits them without a stroke attribute, then
+// styles them via a CSS rule we strip).
 const SVG_PRESENTATION_ATTRS = [
   'fill',
   'fill-opacity',
@@ -322,7 +498,6 @@ function inlineComputedStyles(svg: SVGElement): void {
     if (tag === 'style' || tag === 'defs') continue;
     const computed = globalThis.getComputedStyle(el);
     for (const attr of SVG_PRESENTATION_ATTRS) {
-      if (el.hasAttribute(attr)) continue;
       const value = computed.getPropertyValue(attr).trim();
       if (!value) continue;
       // PDFKit (pdfmake's backend) rejects any stroke-dasharray with a 0
