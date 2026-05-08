@@ -147,6 +147,15 @@ body,
   cursor: pointer;
 }
 
+/* Breathing room between the line-number gutter and the first character.
+   Without this, clicking right at the start of a line is fiddly: the
+   gutter abuts the text, so the click lands on the gutter (which selects
+   the whole line) instead of placing the caret. The padding stays inside
+   the editable area, so it's also clickable for caret placement. */
+#editor-pane .cm-content {
+  padding-left: 12px;
+}
+
 /* ---- Editor context menu ---------------------------------------------- */
 
 .editor-context-menu {
@@ -241,13 +250,23 @@ body,
   font-weight: 500;
 }
 
-.help-panel header button.close {
+.help-panel header .actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.help-panel header button {
   padding: 0.3rem 0.7rem;
   border: 1px solid var(--border);
   background: var(--bg);
   border-radius: 6px;
   cursor: pointer;
   font: inherit;
+}
+
+.help-panel header button:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 .help-body {

@@ -22,7 +22,11 @@ declare module 'marked' {
   }
 }
 
-const MATH_BLOCK_RE = /^\$\$([\S\s]+?)\$\$(?:\n|$)/;
+// Only matches `$$` that's the very first thing on its line (no leading
+// whitespace) and a closing `$$` that's also alone on its line. Without
+// the line-start anchors we'd swallow `$$` mentions inside inline code
+// spans or fenced code samples and treat surrounding prose as math.
+const MATH_BLOCK_RE = /^\$\$\n([\S\s]+?)\n\$\$(?=\n|$)/;
 
 marked.use({
   extensions: [
@@ -30,8 +34,11 @@ marked.use({
       name: 'mathBlock',
       level: 'block',
       start(src: string) {
-        const idx = src.indexOf('$$');
-        return idx === -1 ? undefined : idx;
+        // Position of `$$` at the start of input or right after a newline.
+        // Ignore `$$` mid-line (e.g. inside `\`…\`` code spans).
+        if (src.startsWith('$$\n')) return 0;
+        const idx = src.indexOf('\n$$\n');
+        return idx === -1 ? undefined : idx + 1;
       },
       tokenizer(src: string) {
         const match = MATH_BLOCK_RE.exec(src);

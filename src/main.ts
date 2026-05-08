@@ -226,7 +226,21 @@ function bootstrap(): void {
   };
 
   const triggerHelp = (): void => {
-    openHelpModal(helpMd);
+    openHelpModal(helpMd, {
+      onExportPdf: async () => {
+        // Use the user's current typography / page setup, but blank out
+        // the personal metadata (author / organisation / date) — the
+        // help is a generic tutorial, not the user's own document.
+        const helpSettings: PdfSettings = {
+          ...state.settings,
+          author: { ...state.settings.author, show: false },
+          organization: { ...state.settings.organization, show: false },
+          date: { mode: 'none', custom: '' },
+        };
+        const doc = await markdownToDocDefinition(helpMd, helpSettings);
+        await downloadPdf(doc, 'md2pdf-aide.pdf');
+      },
+    });
   };
 
   const renderToolbar = (): void => {
