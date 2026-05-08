@@ -52,6 +52,7 @@ import {
 } from './storage';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
 import { paginate } from './preview-paginated';
+import { exportViaPrint } from './print-export';
 
 // First-run document is the bundled HELP.md tutorial. The user can edit
 // or erase it; once a doc lives in localStorage, that one wins on reopen
@@ -270,8 +271,17 @@ function bootstrap(): void {
     void (async () => {
       try {
         const expanded = await expandRefsToInlineDataUrls(source);
-        const doc = await markdownToDocDefinition(expanded, state.settings);
-        await downloadPdf(doc, ensureFilename(state.filename));
+        const filename = ensureFilename(state.filename);
+        if (state.paginated) {
+          // Phase 2 path (SPEC §13.6): browser-native print → PDF.
+          // Same CSS rules as the paginated preview, so the resulting
+          // PDF matches what the user sees on screen pixel for pixel,
+          // with selectable text and inline math properly in the flow.
+          await exportViaPrint(expanded, state.settings, filename);
+        } else {
+          const doc = await markdownToDocDefinition(expanded, state.settings);
+          await downloadPdf(doc, filename);
+        }
       } catch (err) {
         console.error('PDF export failed', err);
       }

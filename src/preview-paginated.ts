@@ -65,7 +65,9 @@ export async function paginate(
 
 // Walks the rendered preview and, for every "label" element, wraps it
 // together with its immediately following sibling in a
-// `<div class="keep-with-next">`. A label is:
+// `<div class="keep-with-next">`. Exported so the print-based PDF
+// export (phase 2, SPEC §13.6) can apply the same wrappers before
+// handing content to the browser's native print engine. A label is:
 //   - a heading (h1-h4), or
 //   - a paragraph that immediately precedes a "presentable" block:
 //     a fenced code block, display math, mermaid diagram, image, or
@@ -76,7 +78,7 @@ export async function paginate(
 // end up in nested wrappers: the inner pair (h3 + paragraph) is
 // wrapped first, then the outer h2 grabs that wrapper as its next
 // sibling, keeping the trio together recursively.
-function keepLabelsWithNext(root: HTMLElement): void {
+export function keepLabelsWithNext(root: HTMLElement): void {
   const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
   for (const el of all) {
     if (!isLabel(el)) continue;
@@ -148,6 +150,19 @@ export function pagedCss(s: PdfSettings): string {
     h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; }
     h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; }
     h4, h5, h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; }
+
+    /* pdfmake renders "bold" with Roboto Medium (500), not 700. We only
+       ship the 400 and 500 weights, so leaving headings/strong at the
+       default 700 forces the browser to *synthesise* a heavier weight,
+       which prints noticeably heavier than the on-screen preview. */
+    strong, b, h1, h2, h3, h4, h5, h6 { font-weight: 500; }
+
+    /* Subtle rule below the top-level headings (matches the on-screen
+       fluid preview's GitHub-ish look). */
+    h1, h2, h3 {
+      border-bottom: 1px solid #d0d7de;
+      padding-bottom: 0.2em;
+    }
 
     code, pre {
       font-family: "Roboto Mono", monospace;
