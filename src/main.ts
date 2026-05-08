@@ -45,10 +45,13 @@ import helpMd from './HELP.md?raw';
 import {
   loadDoc,
   loadFilename,
+  loadPaginated,
   saveDoc,
   saveFilename,
+  savePaginated,
 } from './storage';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
+import { paginate } from './preview-paginated';
 
 // First-run document is the bundled HELP.md tutorial. The user can edit
 // or erase it; once a doc lives in localStorage, that one wins on reopen
@@ -94,6 +97,7 @@ function bootstrap(): void {
   const state = {
     filename: loadFilename() ?? DEFAULT_FILENAME,
     settings: loadSettings(),
+    paginated: loadPaginated(),
   };
 
   const initialDoc = loadDoc() ?? DEFAULT_DOC;
@@ -102,37 +106,73 @@ function bootstrap(): void {
   // We only render the latest call's output (previewReqId) to avoid an in-
   // flight resolve overwriting a more recent one when typing fast.
   let previewReqId = 0;
+
+  // Builds a fresh DOM subtree that holds the rendered Markdown plus all
+  // post-processing (metadata block, data-line annotations, mermaid/math
+  // SVGs). The caller chooses what to do with it: in fluid mode we move
+  // its children into `previewEl`; in paginated mode we hand it to
+  // paged.js for chunking into pages.
+  const buildPreviewContent = async (
+    source: string,
+  ): Promise<HTMLElement> => {
+    const resolved = await expandRefsToBlobUrls(source);
+    const el = document.createElement('div');
+    renderPreview(el, resolved);
+    applyPreviewMetadata(el, state.settings);
+    // annotateSourceLines walks the *original* source so scroll-sync line
+    // numbers match what the user typed in the editor.
+    annotateSourceLines(el, source);
+    // Mermaid + math run last so the data-line annotations are already
+    // on the <pre> / placeholder blocks they replace. Run them in
+    // parallel — independent libraries, both lazy-loaded.
+    await Promise.all([
+      renderMermaidBlocks(el),
+      renderMathBlocks(el),
+      renderMathInlines(el),
+    ]);
+    return el;
+  };
+
   const updatePreview = (source: string): void => {
     const myReq = ++previewReqId;
-    expandRefsToBlobUrls(source)
-      .then(async (resolved) => {
+    buildPreviewContent(source)
+      .then(async (built) => {
         if (myReq !== previewReqId) return;
-        renderPreview(previewEl, resolved);
-        applyPreviewMetadata(previewEl, state.settings);
-        // annotateSourceLines walks the *original* source so scroll-sync
-        // line numbers match what the user typed in the editor.
-        annotateSourceLines(previewEl, source);
-        // Mermaid + math run last so the data-line annotations are already
-        // on the <pre> / placeholder blocks they replace. Run them in
-        // parallel — independent libraries, both lazy-loaded. Bail out
-        // afterwards if the user typed something newer in the meantime.
-        await Promise.all([
-          renderMermaidBlocks(previewEl),
-          renderMathBlocks(previewEl),
-          renderMathInlines(previewEl),
-        ]);
-        if (myReq !== previewReqId) return;
+        if (state.paginated) {
+          // paged.js takes the prepared DOM, applies our @page CSS rules,
+          // and writes the paginated result into previewEl.
+          await paginate(built, state.settings, previewEl);
+          if (myReq !== previewReqId) return;
+        } else {
+          previewEl.innerHTML = '';
+          previewEl.append(...built.childNodes);
+        }
       })
       .catch((err: unknown) => {
         console.error('Preview render failed', err);
       });
   };
+
   const debouncedSave = debounce((source: string) => saveDoc(source), 200);
+
+  // Re-pagination is heavy (paged.js measures every block) — hold the
+  // user's typing back longer in paginated mode to avoid stutter. Fluid
+  // mode rerenders immediately as before.
+  let previewTimer: ReturnType<typeof setTimeout> | undefined;
+  const schedulePreview = (source: string): void => {
+    if (previewTimer !== undefined) clearTimeout(previewTimer);
+    const delay = state.paginated ? 700 : 0;
+    if (delay === 0) {
+      updatePreview(source);
+    } else {
+      previewTimer = setTimeout(() => updatePreview(source), delay);
+    }
+  };
 
   applyPreviewStyles(state.settings);
 
   const editor = createEditor(editorEl, initialDoc, (doc) => {
-    updatePreview(doc);
+    schedulePreview(doc);
     debouncedSave(doc);
   });
 
@@ -145,8 +185,26 @@ function bootstrap(): void {
     state.settings = s;
     saveSettings(s);
     applyPreviewStyles(s);
-    applyPreviewMetadata(previewEl, s);
+    // In paginated mode the @page CSS depends on settings (page size,
+    // margins, page-number position). Easiest reliable update is a full
+    // re-render. In fluid mode we just refresh the metadata block.
+    if (state.paginated) {
+      updatePreview(editor.getValue());
+    } else {
+      applyPreviewMetadata(previewEl, s);
+    }
   };
+
+  const handleTogglePaginated = (paginated: boolean): void => {
+    state.paginated = paginated;
+    savePaginated(paginated);
+    previewEl.classList.toggle('paginated', paginated);
+    // Cancel any debounced fluid update before switching, then redraw.
+    updatePreview(editor.getValue());
+  };
+  // Apply the persisted state to the preview class on first load so the
+  // CSS picks the right backdrop colour from the start.
+  previewEl.classList.toggle('paginated', state.paginated);
 
   const handleOpen = (file: File): void => {
     const current = editor.getValue();
@@ -248,6 +306,7 @@ function bootstrap(): void {
   const renderToolbar = (): void => {
     mountToolbar(toolbarEl, {
       initialFilename: state.filename,
+      initialPaginated: state.paginated,
       onFilenameChange(name) {
         state.filename = name;
         saveFilename(name);
@@ -260,6 +319,7 @@ function bootstrap(): void {
       onHelp: triggerHelp,
       onDownload: triggerDownload,
       onSettings: triggerSettings,
+      onTogglePaginated: handleTogglePaginated,
     });
   };
 

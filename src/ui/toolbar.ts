@@ -6,7 +6,9 @@ export interface ToolbarHandlers {
   onDownload(): void;
   onFilenameChange(name: string): void;
   onSettings(): void;
+  onTogglePaginated(paginated: boolean): void;
   initialFilename: string;
+  initialPaginated: boolean;
 }
 
 export function mountToolbar(
@@ -42,6 +44,24 @@ export function mountToolbar(
   styleBtn.addEventListener('click', () => {
     const rect = styleBtn.getBoundingClientRect();
     handlers.onStyle({ x: rect.left, y: rect.bottom + 4 });
+  });
+
+  const paginatedBtn = document.createElement('button');
+  paginatedBtn.type = 'button';
+  paginatedBtn.className = 'paginated-toggle';
+  paginatedBtn.textContent = 'Mise en page';
+  paginatedBtn.title =
+    'Basculer l\'aperçu en mode paginé (pages réelles avec marges)';
+  let paginated = handlers.initialPaginated;
+  const updatePaginatedVisual = () => {
+    paginatedBtn.setAttribute('aria-pressed', String(paginated));
+    paginatedBtn.classList.toggle('active', paginated);
+  };
+  updatePaginatedVisual();
+  paginatedBtn.addEventListener('click', () => {
+    paginated = !paginated;
+    updatePaginatedVisual();
+    handlers.onTogglePaginated(paginated);
   });
 
   const helpBtn = document.createElement('button');
@@ -90,7 +110,7 @@ export function mountToolbar(
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(helpBtn, downloadBtn, settingsBtn);
+  right.append(paginatedBtn, helpBtn, downloadBtn, settingsBtn);
 
   parent.append(left, center, right);
 }
