@@ -143,14 +143,17 @@ async function preRenderMermaidBlocks(
   return map;
 }
 
-// Same idea as preRenderMermaidBlocks, but for `$$…$$` display-math
-// tokens. MathJax sizes its SVGs in `ex` units (height of an `x` glyph),
-// which is what makes its math integrate with surrounding text in the
-// browser. We must capture those ex dimensions *before* sanitisation —
-// `sanitiseSvgForPdfmake` calls `cropSvgToContent`, which rewrites width
-// /height to the bbox in internal math units (thousands), useless for
-// pdfmake sizing. We then convert ex → pt using the body font size
-// (1ex ≈ 0.5em ≈ fontSize/2) so the formula prints at body-text scale.
+// Same idea as preRenderMermaidBlocks, but for math tokens. Both
+// `$$…$$` (mathBlock) and `$…$` (mathInline) sources are pooled and
+// rendered with display=true: pdfmake can't insert SVG inside a text run
+// (its layout engine ignores non-`text` items), so inline math falls back
+// to a centred display block when the paragraph is split apart below.
+//
+// MathJax sizes its SVGs in `ex` units. We capture those *before*
+// sanitisation — `cropSvgToContent` rewrites width/height to bbox math
+// units, useless for pdfmake sizing — then convert ex → pt using the
+// body font size (1ex ≈ 0.5em ≈ fontSize/2) so the formula prints at
+// body-text scale.
 async function preRenderMathBlocks(
   tokens: Token[],
   settings: PdfSettings,
@@ -191,7 +194,7 @@ function readExDimensions(svg: string): {
 
 function collectMathSources(tokens: Token[], out: Set<string>): void {
   for (const tok of tokens) {
-    if (tok.type === 'mathBlock') {
+    if (tok.type === 'mathBlock' || tok.type === 'mathInline') {
       out.add((tok as unknown as { text: string }).text);
     }
     const nested = (tok as { tokens?: Token[] }).tokens;
@@ -686,6 +689,42 @@ function buildPageNumber(
   return vSide === 'top' ? { header: renderer } : { footer: renderer };
 }
 
+// Builds the centred-table block we use for both `$$…$$` (mathBlock) and
+// `$…$` (mathInline, fragmented out of paragraphs). When MathJax fails to
+// parse the source, we surface the raw TeX as a code block so the user
+// can see what's broken.
+function mathToContent(
+  text: string,
+  settings: PdfSettings,
+  mathSvgs: Map<string, RenderedMermaid>,
+): Content {
+  const entry = mathSvgs.get(text);
+  if (!entry) {
+    return { text, style: 'codeBlock' };
+  }
+  // entry.width / entry.height are already in PDF points
+  // (preRenderMathBlocks converted from MathJax's ex units against the
+  // body font size). Only shrink if a very wide formula would overflow.
+  const cw = contentWidthPt(settings);
+  const fit = Math.min(1, cw / entry.width);
+  const w = entry.width * fit;
+  const h = entry.height * fit;
+  return {
+    table: {
+      widths: ['*', w, '*'],
+      body: [
+        [
+          { text: '' },
+          { svg: entry.svg, width: w, height: h },
+          { text: '' },
+        ],
+      ],
+    },
+    layout: 'noBorders',
+    margin: [0, 6, 0, 6] as [number, number, number, number],
+  };
+}
+
 function tokensToContent(
   tokens: Token[],
   settings: PdfSettings,
@@ -758,6 +797,13 @@ function tokenToContent(
             // mixed run.
             margin: [0, 0, 0, 0] as [number, number, number, number],
           });
+        } else if (t.type === 'mathInline') {
+          // Inline math fallback: pdfmake can't put SVG/image inside a
+          // text run, so we break the paragraph here and emit the formula
+          // as a centred display block (same shape as `$$…$$`).
+          flushText();
+          const mathText = (t as unknown as { text: string }).text;
+          blocks.push(mathToContent(mathText, settings, mathSvgs));
         } else {
           textBuf.push(t);
         }
@@ -821,34 +867,7 @@ function tokenToContent(
 
     case 'mathBlock': {
       const text = (tok as unknown as { text: string }).text;
-      const entry = mathSvgs.get(text);
-      if (!entry) {
-        // MathJax couldn't parse the source: fall back to showing the
-        // raw TeX as a code block so the user sees something to fix.
-        return { text, style: 'codeBlock' };
-      }
-      // entry.width / entry.height are already in PDF points
-      // (preRenderMathBlocks converted from MathJax's ex units against the
-      // body font size). Only shrink if a very wide formula would
-      // overflow the column.
-      const cw = contentWidthPt(settings);
-      const fit = Math.min(1, cw / entry.width);
-      const w = entry.width * fit;
-      const h = entry.height * fit;
-      return {
-        table: {
-          widths: ['*', w, '*'],
-          body: [
-            [
-              { text: '' },
-              { svg: entry.svg, width: w, height: h },
-              { text: '' },
-            ],
-          ],
-        },
-        layout: 'noBorders',
-        margin: [0, 6, 0, 6] as [number, number, number, number],
-      };
+      return mathToContent(text, settings, mathSvgs);
     }
 
     case 'blockquote': {
@@ -988,6 +1007,16 @@ function inlineTokenToRun(
         link: l.href,
         style: 'link',
       });
+    }
+
+    case 'mathInline': {
+      // Inline math reachable from inside a heading, list item label,
+      // table cell — anywhere paragraph splitting can't apply. We render
+      // it as its raw source so the formula is at least visible (paragraph
+      // bodies promote inline math to a centred display block before
+      // calling renderInline; see the 'paragraph' case in tokenToContent).
+      const text = (tok as unknown as { text: string }).text;
+      return applyStyle(`$${text}$`, style);
     }
 
     case 'br':

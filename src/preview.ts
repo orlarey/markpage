@@ -68,6 +68,30 @@ function countNewlines(s: string): number {
   return n;
 }
 
+// Same idea as renderMathBlocks but for inline `$…$` placeholders. The
+// MathJax SVG is dropped in directly — the browser renders inline SVG in
+// the text flow and applies the `vertical-align: -…ex` style MathJax
+// emits, which lines the formula up with the surrounding baseline.
+export async function renderMathInlines(target: HTMLElement): Promise<void> {
+  const placeholders = Array.from(
+    target.querySelectorAll<HTMLElement>('span.math-inline[data-math]'),
+  );
+  if (placeholders.length === 0) return;
+  await Promise.all(
+    placeholders.map(async (el) => {
+      const source = el.dataset['math'] ?? '';
+      const result = await renderMath(source, false);
+      if (result.ok) {
+        el.innerHTML = result.svg;
+      } else {
+        el.classList.add('math-error');
+        el.textContent = source;
+        el.title = `Erreur LaTeX : ${result.error}`;
+      }
+    }),
+  );
+}
+
 // Walks the rendered preview, finds the placeholders our marked-config
 // extension left behind for `$$…$$` blocks, and swaps each one for the
 // MathJax SVG. Errors render as a red-bordered block with the source

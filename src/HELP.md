@@ -123,6 +123,12 @@ Le format **Markdown** (`.md`) est un format texte ouvert, lisible
 partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
 il l'ouvrira dans n'importe quel éditeur de texte.
 
+> **À noter pour les fichiers Word** : à l'import d'un `.docx`, le
+> texte, les titres, les listes, le gras/italique, les liens et les
+> citations sont récupérés, mais **pas les images**. Si votre document
+> Word contenait des photos ou des illustrations, vous devrez les
+> réinsérer manuellement après import.
+
 Votre travail est **automatiquement sauvegardé** dans le navigateur, donc
 si vous fermez l'onglet par accident, tout est récupéré à la prochaine
 ouverture.
@@ -184,8 +190,9 @@ md2pdf reconnaît la plupart des conventions Markdown classiques :
 
 ## Formules mathématiques
 
-Vous pouvez inclure des **formules en LaTeX** en les encadrant par
-`$$ … $$` (sur leur propre paragraphe). Le rendu utilise
+Vous pouvez inclure des **formules en LaTeX**, soit **en bloc** entre
+`$$ … $$` (la formule s'affiche centrée sur sa propre ligne), soit
+**inline** entre `$ … $` au milieu d'une phrase. Le rendu utilise
 [MathJax](https://www.mathjax.org/) et produit un PDF de qualité
 typographique professionnelle.
 
@@ -261,11 +268,19 @@ f''(x) &= 2a
 \end{align*}
 $$
 
+**Formule inline** : tapez par exemple
+`Soit $\epsilon > 0$ tel que…` et vous obtenez :
+
+Soit $\epsilon > 0$ tel que…
+
 ### À savoir
 
-- Seules les formules **en bloc** (`$$…$$`) sont gérées. Les formules
-  *inline* (`$…$` au milieu d'une phrase) ne sont pas encore
-  supportées — placez chaque formule dans son propre paragraphe.
+- Les **formules inline** (`$…$`) s'affichent dans le flux du
+  paragraphe à l'écran, mais **dans le PDF** elles sont rendues comme
+  des blocs centrés (le paragraphe est coupé avant et repris après la
+  formule). C'est une limitation de la bibliothèque qui produit le PDF.
+  Pour les formules courtes au milieu d'une phrase, l'aperçu HTML
+  correspond donc mieux à votre intention que le PDF.
 - La taille des formules s'aligne sur la taille du texte courant ; si
   vous changez le réglage **Texte normal** dans **Réglages**, les
   formules grandissent ou rétrécissent en proportion.
@@ -358,6 +373,36 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
+
+## Crédits
+
+md2pdf est un projet open source assemblé à partir de logiciels libres.
+Merci à toutes les personnes qui maintiennent ces projets :
+
+- **Édition et rendu** :
+  [CodeMirror](https://codemirror.net/) pour l'éditeur,
+  [marked](https://marked.js.org/) pour le parser Markdown,
+  [pdfmake](https://pdfmake.github.io/) pour la génération PDF.
+- **Diagrammes et formules** :
+  [Mermaid](https://mermaid.js.org/) pour les diagrammes,
+  [MathJax](https://www.mathjax.org/) pour les formules LaTeX.
+- **Imports** :
+  [Mammoth.js](https://github.com/mwilliamson/mammoth.js) pour
+  l'import Word (`.docx`),
+  [Turndown](https://github.com/mixmark-io/turndown) pour la conversion
+  HTML → Markdown.
+- **Polices** :
+  [Roboto Condensed](https://fonts.google.com/specimen/Roboto+Condensed) et
+  [Roboto Mono](https://fonts.google.com/specimen/Roboto+Mono)
+  (Christian Robertson, Google),
+  [Noto Sans Math](https://fonts.google.com/noto/specimen/Noto+Sans+Math) et
+  [Noto Sans Symbols](https://fonts.google.com/noto/specimen/Noto+Sans+Symbols)
+  (Google) pour les caractères mathématiques et les symboles.
+- **Outils de build** :
+  [Vite](https://vitejs.dev/) et [TypeScript](https://www.typescriptlang.org/).
+
+Le code source de md2pdf est sur
+[GitHub](https://github.com/orlarey/md2pdf).
 
 ---
 

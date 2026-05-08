@@ -23,6 +23,7 @@ import {
   annotateSourceLines,
   renderMermaidBlocks,
   renderMathBlocks,
+  renderMathInlines,
 } from './preview';
 import { setupScrollSync } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
@@ -118,6 +119,7 @@ function bootstrap(): void {
         await Promise.all([
           renderMermaidBlocks(previewEl),
           renderMathBlocks(previewEl),
+          renderMathInlines(previewEl),
         ]);
         if (myReq !== previewReqId) return;
       })

@@ -468,6 +468,28 @@ body,
   font-size: 0.9em;
 }
 
+/* Inline math: MathJax sets `vertical-align: -…ex` on the SVG itself, so
+   leaving the span as inline lets the browser line up the formula's
+   baseline with the surrounding text automatically. */
+#preview-pane .math-inline svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+#preview-pane .math-inline.math-error {
+  color: #d1242f;
+  font-family: var(--font-mono);
+  background: #ffeef0;
+  padding: 0 0.2em;
+  border-radius: 3px;
+}
+
+/* Same rules apply inside the Help modal body. */
+.help-body .math-inline svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .preview-metadata {
   text-align: center;
   margin: 0 0 1.5rem;

@@ -43,14 +43,19 @@ initial.
   - référence `![alt][label]` + `[label]: url` ailleurs dans le doc
 - Tableaux GFM (`| col | col |` + ligne `|---|`)
 - Diagrammes Mermaid (bloc ```` ```mermaid ```` ; voir §7)
-- Formules mathématiques en mode display (`$$…$$`) via MathJax ; voir §8
+- Formules mathématiques (`$$…$$` en bloc, `$…$` en inline) via MathJax ;
+  voir §8 pour le détail du rendu inline en PDF
 
 ### 3.2. Hors périmètre actuel
 
 - Coloration syntaxique des blocs de code
-- Formules mathématiques **inline** (`$…$`) — pdfmake ne supporte pas le SVG
-  dans une suite de runs `text`, donc le mélange texte + formule sur la
-  même ligne n'est pas géré pour l'instant
+- Formules **inline** (`$…$`) en flux de paragraphe dans le PDF — la
+  preview HTML les rend bien dans le texte, mais pdfmake n'accepte pas
+  de SVG/image dans une suite de runs `text`, donc l'export PDF coupe
+  le paragraphe et émet la formule comme un bloc centré (voir §8.4)
+- Import des **images embarquées dans un fichier Word** (`.docx`) :
+  l'import récupère le texte, les titres, listes, gras/italique, liens
+  et citations, mais pas les images
 - Listes de tâches `- [ ]`
 - Notes de bas de page
 - HTML brut dans le Markdown
@@ -90,15 +95,18 @@ qu'ils ouvrent un menu / panneau.
 - **Ouvrir** : accepte `.md`, `.markdown`, `.txt`, `.html`, `.htm`,
   `.docx`. Demande confirmation si le doc courant n'est ni vide ni le
   HELP. À l'ouverture, les data URLs inlinées sont migrées en IndexedDB.
+  Limitation DOCX : les images embarquées dans un Word ne sont **pas**
+  importées (mammoth → HTML les sort en data URLs, mais notre filtre
+  Turndown les retire pour rester sur du contenu textuel propre).
 - **Enregistrer** : produit un `.md` portable (data URLs en fin de doc en
   forme ref-style, voir §6).
 - **Exporter .pdf** : pipeline §5.1.
-- **Aide** : ouvre une modale qui rend le HELP.md original (voir §8).
+- **Aide** : ouvre une modale qui rend le HELP.md original (voir §10).
 - **Style** : ouvre un menu déroulant avec les commandes de mise en forme.
   Même menu disponible au clic-droit dans l'éditeur. Les items déjà
   applicables au curseur courant sont signalés par une coche.
 - **Réglages** : ouvre un panneau modal pour personnaliser le rendu PDF
-  (voir §7).
+  (voir §9).
 - **Sélection ligne entière** : clic sur un numéro de ligne dans la
   gouttière sélectionne la ligne ; glisser-en sélectionne plusieurs.
 - **Synchronisation du scroll** : le scroll de l'éditeur et celui de
@@ -164,7 +172,8 @@ src/
   image-store.ts       wrapper IndexedDB
   mermaid.ts           lazy import + cache de mermaid.render() par source
   math.ts              lazy import + cache de MathJax tex2svg par source
-  marked-config.ts     extension marked pour `$$…$$` (math display)
+  marked-config.ts     extensions marked pour `$$…$$` (math display)
+                       et `$…$` (math inline)
   vite-env.d.ts        types Vite pour `?url`, `?raw`, etc.
   style.css            styles globaux + modales
   assets/
@@ -399,24 +408,59 @@ Trois champs sur `PdfSettings`, ajustables dans le panneau Réglages :
 
 ## 8. Formules mathématiques
 
-Les blocs `$$…$$` sont rendus en SVG dans l'aperçu **et** dans le PDF, via
+Les formules `$$…$$` (display) et `$…$` (inline) sont rendues via
 [MathJax](https://www.mathjax.org/) en sortie `SVG`. Comme pour Mermaid,
 la librairie est chargée paresseusement (`import()`) au premier bloc math
 rencontré, et chaque `(source, display)` est mémorisé une fois rendu.
 
-Seul le mode **display** (bloc dédié) est supporté. Les formules inline
-(`$…$`) sont volontairement hors périmètre : pdfmake n'autorise pas un
-SVG à l'intérieur d'une suite de runs `text`, ce qui rendrait le mélange
-texte + formule sur la même ligne fragile (cassure du wrap, alignement
-de baseline approximatif).
+**Différence preview/PDF pour l'inline** : la preview HTML rend `$…$`
+naturellement dans le flux du paragraphe (le navigateur sait poser un
+SVG inline dans du texte avec word-wrap). pdfmake, lui, ne sait pas
+faire — son moteur de mesure de texte (`textTools.measure`) n'accepte
+que des items `{text, …style}` dans un tableau. Toute tentative
+d'intercaler `{image, …}` ou `{svg, …}` dans une suite de runs `text`
+est silencieusement ignorée.
+
+Le compromis retenu : à l'export PDF, chaque `$…$` est traité comme
+`$$…$$` — le paragraphe est fragmenté à chaque formule, qui s'affiche
+centrée sur sa propre ligne. La formule est correcte, mais le flux du
+paragraphe est rompu. Pour des cas comme « Soit $\epsilon > 0$ tel
+que… » ça produit trois "paragraphes" successifs au lieu d'une phrase
+unique. Solutions évaluées et écartées :
+
+- **Inline image dans `text` array** : pdfmake la jette silencieusement
+  (cf. analyse du source `node_modules/pdfmake/src/textTools.js` ligne
+  311 — `measure()` n'a pas de branche pour `image`/`svg`).
+- **html2canvas + capture du paragraphe** : ajoute ~50 KB de
+  dépendances et perd la sélectabilité du texte sur les paragraphes
+  concernés.
+- **Layout en `columns`** : casse le word-wrap pour un paragraphe long
+  (chaque colonne est sur une seule ligne).
+
+La solution propre nécessiterait de quitter pdfmake pour un pipeline
+HTML→PDF (rendu paginé HTML + `window.print()` ou similaire) — voir
+§13 « À décider plus tard ».
 
 ### 8.1. Reconnaissance Markdown
 
-Une extension `marked` (`src/marked-config.ts`) ajoute un type de token
-`mathBlock` qui matche `^\$\$([\S\s]+?)\$\$` au niveau bloc. Le module
-est importé pour ses effets de bord depuis `main.ts`, avant tout appel à
-`marked.parse` ou `marked.lexer`. Le `renderer` produit un placeholder
-`<div class="math-block" data-math="…"></div>` ; le contenu LaTeX est
+Une extension `marked` (`src/marked-config.ts`) ajoute deux types de
+tokens :
+
+- **`mathBlock`** (niveau block) — matche `^\$\$\n([\S\s]+?)\n\$\$` avec
+  `$$` seul sur sa ligne d'ouverture comme de fermeture. Sans cette
+  contrainte de ligne, des `$$` mentionnés dans des code spans ou
+  fenced blocks seraient capturés à tort.
+- **`mathInline`** (niveau inline) — matche
+  `\$(?!\s)((?:\\.|[^$\n])+?)(?<!\s)\$(?!\d)`. Garde-fous Pandoc-style
+  pour ne pas avaler des dollars de prix (« Cost $5 or $7 ») ni des
+  `$$`. L'alternative `\\.` à l'intérieur du groupe permet d'écrire
+  `\$` (ou tout autre caractère échappé) à l'intérieur de la formule
+  sans casser la fermeture.
+
+Le module est importé pour ses effets de bord depuis `main.ts`, avant
+tout appel à `marked.parse` ou `marked.lexer`. Les renderers produisent
+des placeholders `<div class="math-block" data-math="…">` /
+`<span class="math-inline" data-math="…">` ; le contenu LaTeX est
 HTML-échappé pour pouvoir loger dans l'attribut `data-math`.
 
 ### 8.2. MathJax
@@ -445,16 +489,43 @@ que le premier `</svg>` interne.
 
 ### 8.3. Aperçu
 
-`renderMathBlocks(target)` post-traite le HTML produit par marked : il
-trouve chaque `<div class="math-block" data-math="…">`, lit la source
-LaTeX, appelle `renderMath(source, display=true)` et insère le SVG dans
-le placeholder. Erreurs de parsing : on ajoute la classe `math-error`,
-qui est stylée en bordure rouge et qui ré-affiche la source.
+Deux post-traitements parallèles au `Promise.all` du pipeline d'aperçu :
 
-Le rendu math et le rendu mermaid sont lancés en parallèle dans le même
-`Promise.all` du pipeline d'aperçu (`main.ts`).
+- `renderMathBlocks(target)` trouve chaque
+  `<div class="math-block" data-math="…">`, appelle
+  `renderMath(source, display=true)` et insère le SVG.
+- `renderMathInlines(target)` fait la même chose pour les
+  `<span class="math-inline">` (avec `display=false`). Le navigateur
+  pose le SVG inline dans le flux et applique le `vertical-align: -…ex`
+  que MathJax émet, ce qui aligne la formule sur la baseline du texte
+  environnant.
 
-### 8.4. PDF — sizing
+Erreurs de parsing : on ajoute la classe `math-error`, stylée en
+bordure rouge avec ré-affichage de la source.
+
+### 8.4. PDF — fragmentation des paragraphes à inline math
+
+Le case `paragraph` dans `tokenToContent` (convert.ts) walk les inline
+tokens en gardant un `textBuf`. Quand il rencontre un `mathInline`, il
+flush le buffer texte courant comme un paragraphe, émet la formule
+comme un bloc math centré (mêmes mécaniques que `mathBlock` — fonction
+helper `mathToContent`), puis continue. Une phrase
+« Soit $\epsilon > 0$ tel que… » produit donc trois blocs successifs :
+un paragraphe « Soit », un bloc math centré ε > 0, un paragraphe
+« tel que… ».
+
+`mathInline` peut aussi apparaître dans des contextes où la
+fragmentation n'est pas possible (titre, cellule de tableau, étiquette
+de liste). Dans ces cas, le case `mathInline` de `inlineTokenToRun`
+fournit un repli minimal : on rend la source brute `$…$` comme texte,
+pour qu'au moins quelque chose s'affiche.
+
+La même `preRenderMathBlocks` collecte les sources de **mathBlock et
+mathInline** ensemble dans le même `Set`, et les rend toutes en
+display=true SVG. Une formule utilisée à la fois en bloc et en inline
+n'est donc rendue qu'une seule fois.
+
+### 8.5. PDF — sizing
 
 Le défi : MathJax exprime ses dimensions en `ex` (`<svg width="9.166ex"
 height="2.262ex">`), unité relative à la hauteur de l'`x` du contexte
@@ -494,7 +565,7 @@ Un panneau **Réglages** (clic sur le bouton dans la toolbar ou
 titres, du corps, du code, des citations) s'appliquent aussi à l'aperçu
 HTML pour visualiser leur effet sans exporter.
 
-### 8.1. Schéma
+### 9.1. Schéma
 
 ```ts
 interface PdfSettings {
@@ -528,7 +599,7 @@ interface PdfSettings {
 }
 ```
 
-### 8.2. Comportements
+### 9.2. Comportements
 
 - Les **titres** sont toujours en gras (Roboto Medium 500), choix non
   exposé dans l'UI.
@@ -558,7 +629,7 @@ interface PdfSettings {
   haute ou basse selon la position. Format : entier seul (ex. « 12 »).
 - Bouton **Réinitialiser** revient aux valeurs par défaut.
 
-### 8.3. Valeurs par défaut
+### 9.3. Valeurs par défaut
 
 | Réglage              | Valeur                                       |
 | -------------------- | -------------------------------------------- |
@@ -591,8 +662,9 @@ interface PdfSettings {
 
 - Workflow `.github/workflows/deploy.yml`.
 - Déclenché sur `push` vers `main`.
-- Étapes : checkout → install (`npm ci`) → build (`vite build`) → upload
-  artifact → deploy via `actions/deploy-pages`.
+- Étapes : checkout → install (`npm ci`) → build (`npm run build`, qui
+  enchaîne `tsc --noEmit && vite build` — un échec TypeScript bloque le
+  déploiement) → upload artifact → deploy via `actions/deploy-pages`.
 - L'application doit fonctionner servie depuis un sous-chemin (ex.
   `https://user.github.io/md2pdf/`) → `base: './'` dans
   `vite.config.ts` produit des chemins relatifs.
@@ -603,7 +675,9 @@ interface PdfSettings {
 2. Le premier lancement (sans `localStorage`) charge le HELP.md.
 3. Coller un Markdown couvrant les éléments §3.1 produit un aperçu HTML
    correct, et un PDF fidèle à l'aperçu (mêmes polices, mêmes glyphes
-   pour les symboles `→`, `≤`, `★`…).
+   pour les symboles `→`, `≤`, `★`…), aux limitations explicites de §3.2
+   près — notamment les formules `$…$` inline qui s'affichent dans le
+   flux du paragraphe à l'écran mais comme des blocs centrés en PDF.
 4. Les images insérées par drag-drop, paste ou menu sont stockées en IDB,
    visibles dans l'aperçu et dans le PDF, et absentes du data URL inline
    du doc en cours.
@@ -624,7 +698,11 @@ interface PdfSettings {
 - Export d'un HTML autonome.
 - Sauvegarde / chargement de plusieurs documents (multi-doc).
 - Coloration syntaxique des blocs de code.
-- Formules math **inline** (`$…$`) — passerait par un re-layout des
-  paragraphes en `columns` pdfmake, ou par une approximation Unicode
-  pour les expressions très simples.
+- **Pipeline HTML→PDF** (rendu paginé HTML + `window.print()` ou
+  similaire). Bénéfice attendu : conformité parfaite preview ↔ PDF,
+  inline math en flux de paragraphe (pdfmake limite ça aujourd'hui ;
+  voir §8), une seule chaîne de rendu à maintenir au lieu de deux.
+  Coût : changement de pipeline export (dialogue d'impression plutôt
+  que téléchargement direct, ou ajout d'une dépendance type
+  html2canvas / pdf-lib).
 - Listes de tâches `- [ ]`, notes de bas de page.

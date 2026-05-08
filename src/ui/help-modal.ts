@@ -1,5 +1,9 @@
 import { marked } from 'marked';
-import { renderMathBlocks, renderMermaidBlocks } from '../preview';
+import {
+  renderMathBlocks,
+  renderMathInlines,
+  renderMermaidBlocks,
+} from '../preview';
 
 const OVERLAY_ID = 'help-overlay';
 
@@ -73,6 +77,7 @@ export function openHelpModal(
   // via .math-error / .mermaid-error) so the user still sees the source.
   void Promise.all([
     renderMathBlocks(body),
+    renderMathInlines(body),
     renderMermaidBlocks(body),
   ]).catch((err: unknown) => {
     console.error('Help post-processing failed', err);
