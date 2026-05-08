@@ -47,12 +47,13 @@ export async function paginate(
   // the same instance breaks. We create a fresh one per render, which is
   // cheap.
   const previewer = new Previewer();
-  // Wrap each heading with its immediate next sibling so the pair gets
-  // a real `break-inside: avoid` boundary. CSS `break-after: avoid`
-  // alone is honoured inconsistently by paged.js for a heading that
-  // happens to fall just before a tall block (fenced code, image,
-  // another heading); the wrapper is the reliable fix.
-  keepHeadingsWithNext(source);
+  // Wrap each "label" (heading, or paragraph that introduces a block)
+  // with its immediate next sibling so the pair gets a real
+  // `break-inside: avoid` boundary. CSS `break-after: avoid` alone is
+  // honoured inconsistently by paged.js when the next block is tall
+  // (fenced code, math, mermaid, image, table); the wrapper is the
+  // reliable fix.
+  keepLabelsWithNext(source);
   // paged.js fills `renderTo` itself; clear any previous render first.
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -62,27 +63,52 @@ export async function paginate(
   );
 }
 
-// Walks the rendered preview and, for every heading, wraps it together
-// with its immediately following sibling in a `<div class="keep-with-
-// next">`. Done in **reverse** document order so chains of consecutive
-// headings (h2 → h3 → paragraph) end up in nested wrappers — the inner
-// pair (h3 + paragraph) is wrapped first, then the outer h2 grabs that
-// wrapper as its own next sibling, recursively keeping the trio
-// together.
-function keepHeadingsWithNext(root: HTMLElement): void {
-  const headings = [
-    ...root.querySelectorAll<HTMLElement>('h1, h2, h3, h4'),
-  ].reverse();
-  for (const h of headings) {
-    const next = h.nextElementSibling;
+// Walks the rendered preview and, for every "label" element, wraps it
+// together with its immediately following sibling in a
+// `<div class="keep-with-next">`. A label is:
+//   - a heading (h1-h4), or
+//   - a paragraph that immediately precedes a "presentable" block:
+//     a fenced code block, display math, mermaid diagram, image, or
+//     table. The classic case is `**Matrice**` followed by `$$…$$` —
+//     the bold word is acting as a heading without being one.
+//
+// Done in **reverse** document order so chains (h2 → h3 → paragraph)
+// end up in nested wrappers: the inner pair (h3 + paragraph) is
+// wrapped first, then the outer h2 grabs that wrapper as its next
+// sibling, keeping the trio together recursively.
+function keepLabelsWithNext(root: HTMLElement): void {
+  const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
+  for (const el of all) {
+    if (!isLabel(el)) continue;
+    const next = el.nextElementSibling;
     if (!next) continue;
-    if (!h.parentElement) continue;
+    if (!el.parentElement) continue;
     const wrapper = root.ownerDocument.createElement('div');
     wrapper.className = 'keep-with-next';
-    h.before(wrapper);
-    wrapper.appendChild(h);
+    el.before(wrapper);
+    wrapper.appendChild(el);
     wrapper.appendChild(next);
   }
+}
+
+function isLabel(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4') {
+    return true;
+  }
+  if (tag === 'p') {
+    const next = el.nextElementSibling;
+    return next ? isPresentableBlock(next) : false;
+  }
+  return false;
+}
+
+function isPresentableBlock(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'pre' || tag === 'table' || tag === 'img') return true;
+  if (el.classList.contains('math-block')) return true;
+  if (el.classList.contains('mermaid-block')) return true;
+  return false;
 }
 
 // Builds the @page rules and the minimum-vital fragmentation policy from
