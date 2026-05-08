@@ -382,7 +382,9 @@ Merci à toutes les personnes qui maintiennent ces projets :
 - **Édition et rendu** :
   [CodeMirror](https://codemirror.net/) pour l'éditeur,
   [marked](https://marked.js.org/) pour le parser Markdown,
-  [pdfmake](https://pdfmake.github.io/) pour la génération PDF.
+  [paged.js](https://pagedjs.org/) pour la mise en page paginée
+  (l'aperçu et le PDF passent par le moteur d'impression du
+  navigateur sur ce même rendu).
 - **Diagrammes et formules** :
   [Mermaid](https://mermaid.js.org/) pour les diagrammes,
   [MathJax](https://www.mathjax.org/) pour les formules LaTeX.

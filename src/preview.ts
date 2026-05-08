@@ -82,7 +82,7 @@ export async function renderMathInlines(target: HTMLElement): Promise<void> {
       const source = el.dataset['math'] ?? '';
       const result = await renderMath(source, false);
       if (result.ok) {
-        el.innerHTML = result.svg;
+        el.innerHTML = makeIdsUnique(result.svg);
       } else {
         el.classList.add('math-error');
         el.textContent = source;
@@ -90,6 +90,67 @@ export async function renderMathInlines(target: HTMLElement): Promise<void> {
       }
     }),
   );
+}
+
+// SVG `id` collisions across cached renders. mermaid/MathJax both
+// generate SVGs that reference internal markers, glyph paths, masks etc.
+// via `url(#some-id)`, `href="#some-id"`, AND CSS selectors like
+// `#mermaid-1 .node rect { fill: ... }` inside `<style>`. Our render
+// caches return the same SVG string for the same source; if that SVG
+// is inserted in two places (e.g. the editor preview AND the print-
+// target), browsers resolve `#some-id` references to the first match
+// in document order — the second instance loses its markers, fills,
+// and glyph references. Prefix every id and every internal reference
+// with a per-call tag so each insertion is self-contained.
+let uniqueIdCounter = 0;
+function makeIdsUnique(svg: string): string {
+  uniqueIdCounter += 1;
+  const prefix = `mid${uniqueIdCounter}-`;
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const root = doc.documentElement;
+
+  // Build the id → newId map and stamp the new ids onto every element.
+  const idMap = new Map<string, string>();
+  for (const el of root.querySelectorAll<Element>('[id]')) {
+    const oldId = el.getAttribute('id');
+    if (!oldId) continue;
+    const newId = prefix + oldId;
+    idMap.set(oldId, newId);
+    el.setAttribute('id', newId);
+  }
+  if (idMap.size === 0) return svg;
+
+  // Rewrites every `#oldId` in a string to `#newId`, keeping unrelated
+  // hash sequences (e.g. CSS colours `#fff`) untouched because `idMap`
+  // only contains real ids harvested above.
+  const rewrite = (s: string): string =>
+    s.replaceAll(/#([\w-]+)/g, (match, id: string) => {
+      const replaced = idMap.get(id);
+      return replaced ? `#${replaced}` : match;
+    });
+
+  // 1. Attribute references (href, xlink:href, marker-end, fill,
+  //    stroke, mask, clip-path, filter…). Walk every attribute that
+  //    contains a `#` so we don't have to maintain a list.
+  for (const el of root.querySelectorAll<Element>('*')) {
+    for (const attr of el.attributes) {
+      if (attr.name === 'id') continue;
+      if (!attr.value.includes('#')) continue;
+      const updated = rewrite(attr.value);
+      if (updated !== attr.value) el.setAttribute(attr.name, updated);
+    }
+  }
+
+  // 2. CSS selectors inside <style> blocks (e.g. `#mermaid-1 .node rect
+  //    { fill: ... }`) — what we'd missed in the first regex pass and
+  //    that made mermaid diagrams render as black rectangles.
+  for (const styleEl of root.querySelectorAll<Element>('style')) {
+    const css = styleEl.textContent ?? '';
+    if (!css.includes('#')) continue;
+    styleEl.textContent = rewrite(css);
+  }
+
+  return new XMLSerializer().serializeToString(root);
 }
 
 // Walks the rendered preview, finds the placeholders our marked-config
@@ -106,7 +167,7 @@ export async function renderMathBlocks(target: HTMLElement): Promise<void> {
       const source = el.dataset['math'] ?? '';
       const result = await renderMath(source, true);
       if (result.ok) {
-        el.innerHTML = result.svg;
+        el.innerHTML = makeIdsUnique(result.svg);
       } else {
         el.classList.add('math-error');
         const msg = document.createElement('div');
@@ -142,7 +203,7 @@ export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
       if (dataLine !== undefined) wrapper.dataset.line = dataLine;
       if (result.ok) {
         wrapper.className = 'mermaid-block';
-        wrapper.innerHTML = result.svg;
+        wrapper.innerHTML = makeIdsUnique(result.svg);
       } else {
         wrapper.className = 'mermaid-error';
         const msg = document.createElement('div');

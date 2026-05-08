@@ -128,6 +128,15 @@ export function pagedCss(s: PdfSettings): string {
   const pn = s.pageNumber;
   const pageNumberRule = pageNumberCss(pn);
   const styles = s.styles;
+  // All typography rules below are scoped to the two containers that
+  // host paginated content: `#preview-pane` for the on-screen aperçu
+  // (paged.js writes its `.pagedjs_pages` tree there), and
+  // `#md2pdf-print-target` for the export-via-print pipeline. Without
+  // the scope these rules would leak globally — paged.js inserts the
+  // stylesheet via `<style>` in `<head>` — and bleed into the help
+  // modal, the toolbar, etc. `:where(...)` keeps specificity at zero
+  // so the rules can still be overridden by component CSS.
+  const SCOPE = ':where(#preview-pane, #md2pdf-print-target)';
   return `
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;
@@ -135,9 +144,8 @@ export function pagedCss(s: PdfSettings): string {
       ${pageNumberRule}
     }
 
-    /* Body uses the same font cascade as the fluid preview; paged.js
-       isolates its rendering, so we re-state the basics. */
-    body {
+    /* Body-equivalent styles applied to the paginated container. */
+    ${SCOPE} {
       font-family: "Roboto Condensed", "Noto Sans Math",
         "Noto Sans Symbols", sans-serif;
       font-size: ${styles.body.fontSize}pt;
@@ -146,32 +154,31 @@ export function pagedCss(s: PdfSettings): string {
       ${s.justify ? 'text-align: justify;' : ''}
     }
 
-    h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; }
-    h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; }
-    h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; }
-    h4, h5, h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; }
+    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; }
+    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; }
+    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; }
+    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; }
 
-    /* pdfmake renders "bold" with Roboto Medium (500), not 700. We only
-       ship the 400 and 500 weights, so leaving headings/strong at the
-       default 700 forces the browser to *synthesise* a heavier weight,
-       which prints noticeably heavier than the on-screen preview. */
-    strong, b, h1, h2, h3, h4, h5, h6 { font-weight: 500; }
+    /* We only ship Roboto Condensed Regular (400) and Medium (500), so
+       leaving headings/strong at the default 700 forces the browser to
+       *synthesise* a heavier weight — which prints noticeably heavier
+       than the on-screen rendering. */
+    ${SCOPE} :is(strong, b, h1, h2, h3, h4, h5, h6) { font-weight: 500; }
 
-    /* Subtle rule below the top-level headings (matches the on-screen
-       fluid preview's GitHub-ish look). */
-    h1, h2, h3 {
+    /* Subtle rule below the top-level headings (GitHub-ish look). */
+    ${SCOPE} :is(h1, h2, h3) {
       border-bottom: 1px solid #d0d7de;
       padding-bottom: 0.2em;
     }
 
-    code, pre {
+    ${SCOPE} :is(code, pre) {
       font-family: "Roboto Mono", monospace;
       font-size: ${styles.code.fontSize}pt;
       color: ${styles.code.color};
     }
-    pre { background: #f6f8fa; padding: 0.6em 0.9em; border-radius: 4px; }
+    ${SCOPE} pre { background: #f6f8fa; padding: 0.6em 0.9em; border-radius: 4px; }
 
-    blockquote {
+    ${SCOPE} blockquote {
       font-size: ${styles.quote.fontSize}pt;
       color: ${styles.quote.color};
       border-left: 3px solid ${styles.quote.barColor};
@@ -180,18 +187,15 @@ export function pagedCss(s: PdfSettings): string {
       orphans: 3; widows: 3;
     }
 
-    /* Fragmentation policy — minimum vital. Defaults are good for the
-       rest; we observe in practice and add rules only on demand.
-
-       Headings: we double-lock the relationship with their next sibling.
-       paged.js honours 'break-after: avoid' on the heading, but if the
-       next block (e.g. a fenced code block) doesn't fit on the remaining
-       page space, the engine sometimes leaves the heading orphaned at
-       the bottom anyway. Pairing it with 'break-before: avoid' on the
-       adjacent sibling makes the keep-together explicit and reliable. */
+    /* Fragmentation policy — left unscoped on purpose. paged.js's
+       break-rule processor naively splits the selector list by comma
+       before calling querySelectorAll, which corrupts CSS pseudo-class
+       lists like :where(a, b) :is(c, d). break-* properties are inert
+       outside a paginated context anyway, so leaking them globally is
+       harmless. */
     h1, h2, h3, h4 { break-after: avoid; }
     h1 + *, h2 + *, h3 + *, h4 + * { break-before: avoid; }
-    /* Reliable keep-with-next: paginate() wraps each heading with its
+    /* Reliable keep-with-next: paginate() wraps each label with its
        next sibling in a div carrying this class (reverse-iteration so
        chains of headings nest). */
     .keep-with-next { break-inside: avoid; }

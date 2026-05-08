@@ -13,7 +13,8 @@ automatiquement sur GitHub Pages.
 | Langage              | TypeScript (vanilla, pas de framework UI)               |
 | Build                | Vite                                                    |
 | Parser Markdown      | [`marked`](https://github.com/markedjs/marked)          |
-| Générateur PDF       | [`pdfmake`](https://github.com/bpampuch/pdfmake)        |
+| Aperçu paginé        | [`paged.js`](https://pagedjs.org/)                      |
+| Génération PDF       | impression navigateur (`window.print()`) sur la vue paginée |
 | Éditeur de texte     | [CodeMirror 6](https://codemirror.net/)                 |
 | Stockage images      | IndexedDB (origin-private)                              |
 | Stockage doc         | localStorage                                            |
@@ -43,16 +44,12 @@ initial.
   - référence `![alt][label]` + `[label]: url` ailleurs dans le doc
 - Tableaux GFM (`| col | col |` + ligne `|---|`)
 - Diagrammes Mermaid (bloc ```` ```mermaid ```` ; voir §7)
-- Formules mathématiques (`$$…$$` en bloc, `$…$` en inline) via MathJax ;
-  voir §8 pour le détail du rendu inline en PDF
+- Formules mathématiques en bloc (`$$…$$`) et en inline (`$…$`) via
+  MathJax ; voir §8
 
 ### 3.2. Hors périmètre actuel
 
 - Coloration syntaxique des blocs de code
-- Formules **inline** (`$…$`) en flux de paragraphe dans le PDF — la
-  preview HTML les rend bien dans le texte, mais pdfmake n'accepte pas
-  de SVG/image dans une suite de runs `text`, donc l'export PDF coupe
-  le paragraphe et émet la formule comme un bloc centré (voir §8.4)
 - Import des **images embarquées dans un fichier Word** (`.docx`) :
   l'import récupère le texte, les titres, listes, gras/italique, liens
   et citations, mais pas les images
@@ -174,14 +171,14 @@ src/
   math.ts              lazy import + cache de MathJax tex2svg par source
   marked-config.ts     extensions marked pour `$$…$$` (math display)
                        et `$…$` (math inline)
+  preview-paginated.ts paged.js + dynamic CSS Paged Media (size, margins,
+                       fragmentation rules) pour la pagination écran
+  print-export.ts      export PDF via window.print() : prépare le contenu,
+                       applique le CSS @page, ouvre le dialogue
   vite-env.d.ts        types Vite pour `?url`, `?raw`, etc.
   style.css            styles globaux + modales
   assets/
     cauchy.png         bandeau de fond de la toolbar (manuscrit Cauchy)
-  pdf/
-    convert.ts         tokens marked → docDefinition pdfmake
-    styles.ts          styles pdfmake dérivés des PdfSettings
-    maker.ts           init pdfmake, chargement des TTF, downloadPdf
   ui/
     toolbar.ts         toolbar globale
     settings-panel.ts  panneau Réglages
@@ -192,49 +189,46 @@ vite.config.ts
 .github/workflows/deploy.yml
 ```
 
-### 5.1. Pipeline d'export PDF
+### 5.1. Pipeline d'aperçu (= pipeline d'export)
+
+L'aperçu et l'export PDF partagent le même rendu. La preview montre le
+résultat paginé à l'écran ; l'export ouvre le dialogue d'impression du
+navigateur sur ce même contenu — d'où conformité parfaite preview ↔ PDF.
 
 ```
 Doc éditeur (avec `img://uuid`)
    │
    ▼
-expandRefsToInlineDataUrls()
-   ├─► IndexedDB → blobs → data URLs inline
-   └─► défs ref-style également inlinées
+expandRefsToBlobUrls() (preview) | expandRefsToInlineDataUrls() (export)
+   ├─► IndexedDB → blobs → blob URLs (preview) ou data URLs (export, autonomes)
    │
    ▼
-markdownToDocDefinition() = marked.lexer + tokens → pdfmake content
-   │
-   ▼
-pdfMake.createPdf(docDefinition).download()
-```
-
-`marked.lexer` est utilisé plutôt que `marked.parse` pour walker les tokens
-nous-mêmes. La détection de fontes par caractère (Roboto / Math / Symbols)
-se fait au moment de produire les `text` runs (voir §7).
-
-### 5.2. Pipeline d'aperçu
-
-```
-Doc éditeur (avec `img://uuid`)
-   │
-   ▼
-expandRefsToBlobUrls()  ── IndexedDB → blobs → blob URLs (cache)
-   │
-   ▼
-marked.parse() → HTML → previewEl.innerHTML
+marked.parse() → HTML
    │
    ▼
 applyPreviewMetadata() (insère bloc auteur/org/date)
    │
    ▼
 annotateSourceLines() (data-line=N pour le scroll-sync)
+   │
+   ▼
+renderMermaidBlocks / renderMathBlocks / renderMathInlines (en parallèle,
+remplissent les placeholders avec les SVG MathJax / Mermaid)
+   │
+   ▼
+keepLabelsWithNext() (regroupe titres + paragraphes-labels avec leur
+suivant immédiat dans des `<div class="keep-with-next">`)
+   │
+   ├─► preview : paged.js → DOM paginé écran (.pagedjs_page)
+   └─► export  : print-target dans le DOM live + window.print()
 ```
 
-Le numéro de requête `previewReqId` empêche un rendu obsolète d'écraser un
-plus récent quand la frappe est rapide.
+Le numéro de requête `previewReqId` empêche un rendu obsolète d'écraser
+un plus récent quand la frappe est rapide. La repagination est
+debouncée à 700 ms — paged.js fait un layout pass coûteux à chaque
+appel, on attend qu'une rafale de frappes se calme.
 
-### 5.3. Pipeline de sauvegarde / chargement
+### 5.2. Pipeline de sauvegarde / chargement
 
 - **Save** :
   ```
@@ -284,38 +278,38 @@ L'éditeur voit toujours **inline** ; le fichier sauvegardé est toujours
 - Le `Blob` produit est stocké en IDB sous la clé UUID, et l'éditeur reçoit
   `![](img://uuid)`.
 
-### 6.4. Polices et fallback de glyphes
+### 6.4. Polices
 
-`pdfMake.fonts` enregistre quatre familles. Les TTF correspondantes sont
-chargées paresseusement au premier export depuis `@expo-google-fonts/...`
-via Vite `?url`.
+L'aperçu HTML utilise une cascade unique pour le texte courant comme pour
+le PDF (puisque le PDF est produit par le moteur d'impression du
+navigateur sur la même vue) :
 
-| Famille (pdfmake) | Police TTF | Couverture principale |
+| Police | Source | Couverture principale |
 |---|---|---|
-| `Roboto` | Roboto Condensed (4 variantes) | Latin, Cyrillique, Grec, ponctuation générale |
-| `Mono` | Roboto Mono Regular | Code |
-| `Symbols` | Noto Sans Symbols Regular | Flèches, géométrique, dingbats, divers |
-| `Math` | Noto Sans Math Regular | Opérateurs mathématiques (U+2200-22FF) |
+| Roboto Condensed (4 variantes) | `@fontsource/roboto-condensed/*` (CSS) | Latin, Cyrillique, Grec, ponctuation générale |
+| Roboto Mono Regular | `@fontsource/roboto-mono/400` (CSS) | Code |
+| Noto Sans Symbols Regular | `@expo-google-fonts/noto-sans-symbols` (`?url`) | Flèches, géométrique, dingbats, divers |
+| Noto Sans Math Regular | `@expo-google-fonts/noto-sans-math` (`?url`) | Opérateurs mathématiques (U+2200-22FF) |
 
-Pour chaque caractère de chaque `text` run produit, `splitByFont` détermine
-via une heuristique Canvas si Roboto Condensed possède le glyphe ; sinon il
-essaie successivement Math puis Symbols, et tagge le run avec la famille
-adaptée. Cache mémoire `Map<codepoint, FallbackFont | undefined>`.
+Roboto Condensed et Roboto Mono sont enregistrées via `@font-face` du
+package `@fontsource` (chargement réseau standard). Noto Symbols et Noto
+Math sont chargées via la `FontFace` API au démarrage (`fonts.ts`) en
+prenant les TTF complets — le sous-set fourni par `@fontsource` pour ces
+polices laissait de côté plusieurs blocs Unicode utiles (ex. flèches).
 
-L'aperçu HTML déclare les TTF complètes via `FontFace` API au démarrage
-(module `fonts.ts`), pour que le navigateur ait la même cascade que pdfmake
-et que le rendu visuel reste cohérent.
+Le navigateur sélectionne le glyphe en cherchant dans cette cascade
+(via `font-family: "Roboto Condensed", "Noto Sans Math", "Noto Sans
+Symbols", sans-serif`), donc plus besoin de la détection Canvas par
+caractère qu'on faisait pour pdfmake.
 
 ## 7. Diagrammes Mermaid
 
 Un bloc de code dont le langage est `mermaid` est rendu en SVG dans
-l'aperçu **et** dans le PDF (qualité vectorielle). La librairie mermaid
-(~600 KB minifié) est chargée paresseusement via `import()` au premier
-diagramme rencontré ; les rendus sont mémorisés par source pour qu'un doc
-stable ne déclenche qu'un appel à `mermaid.render()` par diagramme par
-session.
-
-### 7.1. Aperçu
+l'aperçu **et** dans le PDF — qualité vectorielle des deux côtés
+puisque le PDF est produit par le moteur d'impression du navigateur
+sur la même vue (cf. §5.1). La librairie mermaid (~600 KB minifié)
+est chargée paresseusement via `import()` au premier diagramme
+rencontré ; les rendus sont mémorisés par source.
 
 `renderMermaidBlocks()` post-traite le HTML produit par marked : il
 trouve chaque `<code class="language-mermaid">`, appelle
@@ -324,132 +318,51 @@ class="mermaid-block">` contenant le SVG (ou un `<div
 class="mermaid-error">` montrant la source si le rendu échoue). Les
 attributs `data-line` du scroll-sync sont reportés sur le wrapper.
 
-### 7.2. PDF — transformations du SVG
+Le SVG produit par mermaid passe directement dans le DOM rendu — pas
+de sanitisation supplémentaire. Le navigateur gère nativement les
+constructions sur lesquelles pdfmake butait jadis (`<foreignObject>`,
+`marker-end orient="auto"`/`auto-start-reverse`, CSS inline dans
+`<style>`, `stroke-dasharray="0"`…). C'est l'un des grands gains de
+la voie impression.
 
-pdfmake utilise `svg-to-pdfkit`, dont le parser SAX et le moteur de
-rendu sont sensiblement plus stricts qu'un navigateur. Mermaid émet du
-SVG qui dépend de plusieurs comportements **du navigateur** : CSS
-inline dans `<style>`, `<foreignObject>` pour les labels HTML,
-`marker-end` avec `orient="auto"` ou `"auto-start-reverse"`, polices
-système, etc. Tout cela casse en pdfmake. La fonction
-`sanitiseSvgForPdfmake()` rejoue ces étapes côté navigateur, en
-manipulant un DOM SVG hors écran, puis re-sérialise.
-
-Pipeline appliqué dans cet ordre :
-
-1. **Strip `@import`** textuellement avant `DOMParser` (sinon le
-   navigateur tente de charger des polices Google et taint le SVG).
-2. **Insertion hors écran** dans un `<div>` `visibility:hidden` à
-   `left:-99999px`, pour que `getComputedStyle()` et `getBBox()`
-   fonctionnent sur le SVG vivant.
-3. **`<foreignObject>` → `<text>`** : mermaid place le contenu des
-   labels en HTML dans des `<foreignObject>`, même quand on demande
-   `htmlLabels: false`. On extrait le texte (en respectant les `<br>`,
-   `<p>`, `<div>` comme séparateurs de ligne) et on émet un `<text>`
-   centré au centre du foreignObject, avec un `<tspan>` par ligne.
-4. **Inline des styles calculés** : `getComputedStyle()` sur chaque
-   élément ; les propriétés de présentation SVG (`fill`, `stroke`,
-   `stroke-width`, `font-family`…) sont posées comme **attributs**
-   (plus fiables que `style="…"` côté pdfmake), **en écrasant** les
-   attributs déjà présents — sinon les `<line>` sans attribut `stroke`
-   stylés via CSS deviennent invisibles.
-5. **Filtrage `stroke-dasharray`** : PDFKit refuse toute valeur dont
-   un composant est 0 (`"1 0"`, `"0"`). Les marqueurs mermaid en
-   posent par défaut. On retire l'attribut/style inline si invalide
-   (la ligne sera dessinée pleine).
-6. **Force la `font-family` des `<text>`/`<tspan>` à `"Roboto"`** :
-   pdfmake n'imprime que les polices enregistrées (`Roboto`, `Mono`,
-   `Symbols`, `Math` ; voir §6.4) et la valeur calculée par mermaid
-   (`"trebuchet ms", verdana, …`) ne correspond à aucune.
-7. **Cuisson des markers** : pour chaque `<line>` / `<path>` /
-   `<polyline>` portant `marker-end` ou `marker-start`, on calcule
-   l'angle du tangent au point concerné, on clone le contenu du
-   `<marker>` dans un `<g transform="translate(p) rotate(θ) translate(-refX,-refY)">`
-   ajouté au SVG, et on supprime l'attribut `marker-*`. Cela évite les
-   bugs de pdfmake sur `orient="auto"` quand la ligne va de droite à
-   gauche, et sur `orient="auto-start-reverse"` qu'il ignore.
-8. **Crop sur le bbox** : `root.getBBox()` donne l'extent réel du
-   dessin ; on récrit `width`, `height` et `viewBox` sur la racine.
-   Mermaid sort souvent `width="100%"` ou un `height` qui borde le
-   contenu d'espace vide, ce qui fausse à la fois la zone que pdfmake
-   réserve pour la mise en page et le centrage du dessin à l'intérieur
-   de cette zone.
-9. **Suppression des `<style>`** restants (leurs règles ont été
-   inlinées comme attributs).
-10. **Re-sérialisation** via `XMLSerializer`.
-
-### 7.3. PDF — mise en page du bloc
-
-Le SVG nettoyé arrive dans `tokensToContent` comme un objet pdfmake.
-Deux astuces de layout :
-
-- **Wrapping en table 3 colonnes `['*', w, '*']`** : un bloc `{svg,
-  width, height}` brut fait que pdfmake réserve plus d'espace
-  vertical qu'il n'en dessine (page break parasite avant un petit
-  diagramme). La table avec colonne fixe au milieu et `*` autour
-  l'oblige à respecter les dimensions ET centre horizontalement.
-- **Borne de scaling `min(maxScale, maxW/w, maxH/h)`** où `maxW =
-  contentWidth × mermaidMaxWidthPct` et `maxH = contentHeight ×
-  mermaidMaxHeightPct`. Le facteur de scaling peut donc agrandir
-  jusqu'à `mermaidMaxScale` (défaut 2), mais jamais au-delà des
-  bornes en largeur (par défaut 100% de la zone de texte) ni en
-  hauteur (par défaut 70%, pour éviter qu'un diagramme haut ne
-  pousse le contenu suivant à la page d'après).
-
-### 7.4. Réglages exposés
+### 7.1. Réglages exposés
 
 Trois champs sur `PdfSettings`, ajustables dans le panneau Réglages :
 
 | Champ | Défaut | Effet |
 |---|---|---|
-| `mermaidMaxScale` | 2 | Facteur d'agrandissement maximal (le diagramme ne sera jamais agrandi au-delà). |
+| `mermaidMaxScale` | 2 | Facteur d'agrandissement maximal du diagramme. |
 | `mermaidMaxWidthPct` | 1.0 | Fraction de la largeur de la zone de texte que le diagramme peut occuper. |
 | `mermaidMaxHeightPct` | 0.7 | Fraction de la hauteur de la zone de texte qu'il peut occuper. |
+
+> *Note d'implémentation* : ces réglages étaient câblés au pipeline
+> pdfmake. Avec la voie impression ils ne sont plus appliqués
+> automatiquement. À reconnecter via du CSS dans `pagedCss()`
+> (`max-width`, `max-height` sur `.mermaid-block svg`) — ticket de
+> rattrapage à prévoir.
 
 ## 8. Formules mathématiques
 
 Les formules `$$…$$` (display) et `$…$` (inline) sont rendues via
-[MathJax](https://www.mathjax.org/) en sortie `SVG`. Comme pour Mermaid,
-la librairie est chargée paresseusement (`import()`) au premier bloc math
-rencontré, et chaque `(source, display)` est mémorisé une fois rendu.
+[MathJax](https://www.mathjax.org/) en sortie SVG. La librairie est
+chargée paresseusement (`import()`) au premier bloc math rencontré,
+et chaque `(source, display)` est mémorisé une fois rendu.
 
-**Différence preview/PDF pour l'inline** : la preview HTML rend `$…$`
-naturellement dans le flux du paragraphe (le navigateur sait poser un
-SVG inline dans du texte avec word-wrap). pdfmake, lui, ne sait pas
-faire — son moteur de mesure de texte (`textTools.measure`) n'accepte
-que des items `{text, …style}` dans un tableau. Toute tentative
-d'intercaler `{image, …}` ou `{svg, …}` dans une suite de runs `text`
-est silencieusement ignorée.
-
-Le compromis retenu : à l'export PDF, chaque `$…$` est traité comme
-`$$…$$` — le paragraphe est fragmenté à chaque formule, qui s'affiche
-centrée sur sa propre ligne. La formule est correcte, mais le flux du
-paragraphe est rompu. Pour des cas comme « Soit $\epsilon > 0$ tel
-que… » ça produit trois "paragraphes" successifs au lieu d'une phrase
-unique. Solutions évaluées et écartées :
-
-- **Inline image dans `text` array** : pdfmake la jette silencieusement
-  (cf. analyse du source `node_modules/pdfmake/src/textTools.js` ligne
-  311 — `measure()` n'a pas de branche pour `image`/`svg`).
-- **html2canvas + capture du paragraphe** : ajoute ~50 KB de
-  dépendances et perd la sélectabilité du texte sur les paragraphes
-  concernés.
-- **Layout en `columns`** : casse le word-wrap pour un paragraphe long
-  (chaque colonne est sur une seule ligne).
-
-La solution propre nécessiterait de quitter pdfmake pour un pipeline
-HTML→PDF (rendu paginé HTML + `window.print()` ou similaire) — voir
-§13 « À décider plus tard ».
+Avec le pipeline impression (cf. §5.1), les formules **inline et
+display sont rendues identiquement entre l'aperçu et le PDF** : le
+navigateur intègre les SVG MathJax dans le flux du texte et respecte
+le `vertical-align` que MathJax émet pour aligner la baseline. Plus
+de fragmentation ni de fallback inline → bloc.
 
 ### 8.1. Reconnaissance Markdown
 
 Une extension `marked` (`src/marked-config.ts`) ajoute deux types de
 tokens :
 
-- **`mathBlock`** (niveau block) — matche `^\$\$\n([\S\s]+?)\n\$\$` avec
-  `$$` seul sur sa ligne d'ouverture comme de fermeture. Sans cette
-  contrainte de ligne, des `$$` mentionnés dans des code spans ou
-  fenced blocks seraient capturés à tort.
+- **`mathBlock`** (niveau block) — matche `^\$\$\n([\S\s]+?)\n\$\$`
+  avec `$$` seul sur sa ligne d'ouverture comme de fermeture. Sans
+  cette contrainte de ligne, des `$$` mentionnés dans des code spans
+  ou fenced blocks seraient capturés à tort.
 - **`mathInline`** (niveau inline) — matche
   `\$(?!\s)((?:\\.|[^$\n])+?)(?<!\s)\$(?!\d)`. Garde-fous Pandoc-style
   pour ne pas avaler des dollars de prix (« Cost $5 or $7 ») ni des
@@ -458,14 +371,15 @@ tokens :
   sans casser la fermeture.
 
 Le module est importé pour ses effets de bord depuis `main.ts`, avant
-tout appel à `marked.parse` ou `marked.lexer`. Les renderers produisent
-des placeholders `<div class="math-block" data-math="…">` /
-`<span class="math-inline" data-math="…">` ; le contenu LaTeX est
+tout appel à `marked.parse` ou `marked.lexer`. Les renderers
+produisent des placeholders `<div class="math-block" data-math="…">`
+/ `<span class="math-inline" data-math="…">` ; le contenu LaTeX est
 HTML-échappé pour pouvoir loger dans l'attribut `data-math`.
 
 ### 8.2. MathJax
 
-`src/math.ts` configure MathJax 3 (paquet `mathjax-full`) en sortie SVG :
+`src/math.ts` configure MathJax 3 (paquet `mathjax-full`) en sortie
+SVG :
 
 ```ts
 const adaptor = browserAdaptor();
@@ -475,87 +389,35 @@ const svg = new SVG({ fontCache: 'local' });
 const doc = mathjax.document(document, { InputJax: tex, OutputJax: svg });
 ```
 
-- `AllPackages` charge tous les paquets TeX (ams, amssymb, etc.) ; sans
-  ça, `\begin{pmatrix}` ou `align*` lèveraient une erreur de parsing.
-- `fontCache: 'local'` met les glyphes utilisés dans un `<defs>` interne
-  à chaque SVG et y fait référence via `<use>` ; le SVG reste autonome
-  sans dupliquer chaque glyph en path inline.
+- `AllPackages` charge tous les paquets TeX (ams, amssymb, etc.) ;
+  sans ça, `\begin{pmatrix}` ou `align*` lèveraient une erreur de
+  parsing.
+- `fontCache: 'local'` met les glyphes utilisés dans un `<defs>`
+  interne à chaque SVG et y fait référence via `<use>` ; le SVG reste
+  autonome sans dupliquer chaque glyph en path inline.
 
 `mj.render(latex, display)` renvoie un `<mjx-container>` qui enveloppe
-le SVG. On extrait le SVG racine via une regex *greedy* (`<svg…</svg>`)
-parce que MathJax imbrique des `<svg>` enfants pour les glyphes étirés
-(parenthèses extensibles, accolades), et un match non-greedy ne capterait
-que le premier `</svg>` interne.
+le SVG. On extrait le SVG racine via une regex *greedy*
+(`<svg…</svg>`) parce que MathJax imbrique des `<svg>` enfants pour
+les glyphes étirés (parenthèses extensibles, accolades), et un match
+non-greedy ne capterait que le premier `</svg>` interne.
 
-### 8.3. Aperçu
+### 8.3. Substitution dans le DOM
 
-Deux post-traitements parallèles au `Promise.all` du pipeline d'aperçu :
+Deux post-traitements parallèles au `Promise.all` du pipeline
+d'aperçu :
 
 - `renderMathBlocks(target)` trouve chaque
   `<div class="math-block" data-math="…">`, appelle
   `renderMath(source, display=true)` et insère le SVG.
 - `renderMathInlines(target)` fait la même chose pour les
   `<span class="math-inline">` (avec `display=false`). Le navigateur
-  pose le SVG inline dans le flux et applique le `vertical-align: -…ex`
-  que MathJax émet, ce qui aligne la formule sur la baseline du texte
-  environnant.
+  pose le SVG inline dans le flux et applique le `vertical-align:
+  -…ex` que MathJax émet, ce qui aligne la formule sur la baseline du
+  texte environnant.
 
 Erreurs de parsing : on ajoute la classe `math-error`, stylée en
 bordure rouge avec ré-affichage de la source.
-
-### 8.4. PDF — fragmentation des paragraphes à inline math
-
-Le case `paragraph` dans `tokenToContent` (convert.ts) walk les inline
-tokens en gardant un `textBuf`. Quand il rencontre un `mathInline`, il
-flush le buffer texte courant comme un paragraphe, émet la formule
-comme un bloc math centré (mêmes mécaniques que `mathBlock` — fonction
-helper `mathToContent`), puis continue. Une phrase
-« Soit $\epsilon > 0$ tel que… » produit donc trois blocs successifs :
-un paragraphe « Soit », un bloc math centré ε > 0, un paragraphe
-« tel que… ».
-
-`mathInline` peut aussi apparaître dans des contextes où la
-fragmentation n'est pas possible (titre, cellule de tableau, étiquette
-de liste). Dans ces cas, le case `mathInline` de `inlineTokenToRun`
-fournit un repli minimal : on rend la source brute `$…$` comme texte,
-pour qu'au moins quelque chose s'affiche.
-
-La même `preRenderMathBlocks` collecte les sources de **mathBlock et
-mathInline** ensemble dans le même `Set`, et les rend toutes en
-display=true SVG. Une formule utilisée à la fois en bloc et en inline
-n'est donc rendue qu'une seule fois.
-
-### 8.5. PDF — sizing
-
-Le défi : MathJax exprime ses dimensions en `ex` (`<svg width="9.166ex"
-height="2.262ex">`), unité relative à la hauteur de l'`x` du contexte
-typographique. C'est ce qui fait que ses formules s'intègrent visuellement
-au texte qui les entoure dans le navigateur.
-
-Mais notre pipeline de sanitisation (`sanitiseSvgForPdfmake`, partagé avec
-mermaid) appelle `cropSvgToContent`, qui réécrit `width`/`height` en
-unités internes du `viewBox` (ordres de milliers — c'est le système de
-coordonnées que MathJax utilise pour ses paths). Si on passait ces
-valeurs telles quelles à pdfmake, la formule serait gigantesque.
-
-Solution dans `preRenderMathBlocks` : on lit les dimensions originales en
-`ex` **avant** la sanitisation (regex `width="([\d.]+)ex"`), puis on les
-convertit en pt en utilisant la taille du corps de texte des réglages :
-
-```ts
-widthPt = widthEx × 0.5 × bodyFontSizePt
-heightPt = heightEx × 0.5 × bodyFontSizePt
-```
-
-(0.5 est l'approximation standard CSS de la hauteur de l'`x` par rapport
-au cadratin, pour la plupart des polices y compris Roboto Condensed.)
-
-Le SVG est ensuite emballé dans la même table 3 colonnes que les
-diagrammes mermaid pour être centré et pour que pdfmake respecte les
-dimensions qu'on lui passe. Si une formule très large dépasse la largeur
-de page, on applique un scale `min(1, contentWidth / widthPt)` pour qu'elle
-tienne — pas d'agrandissement, contrairement aux diagrammes (les formules
-sont déjà dimensionnées pour le contexte typographique).
 
 ## 9. Réglages PDF
 
@@ -618,13 +480,11 @@ interface PdfSettings {
 - **Justifier le texte** s'applique aux paragraphes, listes et citations,
   PDF et aperçu HTML, sauf les titres (toujours alignés).
 - **Interligne** : valeur "à la CSS" (multiplicateur de la taille de
-  police). Pour le PDF on divise par ~1.17 (facteur de hauteur de ligne
-  naturelle de Roboto Condensed) avant de la passer à pdfmake, afin que
-  le rendu visuel corresponde à celui de l'aperçu.
-- Les **citations** sont affichées avec une **barre verticale** à gauche.
-  Couleur réglable indépendamment du texte de la citation.
-  Côté PDF, on enveloppe le bloc dans une mini-table 1 cellule avec un
-  layout custom (border gauche uniquement).
+  police), appliqué identiquement à l'aperçu et au PDF puisque les
+  deux passent par le même moteur.
+- Les **citations** sont affichées avec une **barre verticale** à gauche
+  (`border-left` sur `<blockquote>`). Couleur réglable indépendamment du
+  texte de la citation.
 - Le **numéro de page** apparaît dès la page 1, à mi-hauteur de la marge
   haute ou basse selon la position. Format : entier seul (ex. « 12 »).
 - Bouton **Réinitialiser** revient aux valeurs par défaut.
@@ -689,54 +549,45 @@ interface PdfSettings {
 8. L'application charge et fonctionne sans connexion réseau une fois
    servie (toutes les polices et libs sont bundlées).
 
-## 13. Aperçu paginé (en cours d'implémentation)
+## 13. Aperçu paginé et export PDF
 
-Mode optionnel de l'aperçu où la colonne de droite simule des pages
-physiques (A4/A5/Letter…) avec leurs marges, comme on visualiserait un
-PDF dans Word ou Pages. WYSIWYG strict : ce qu'on voit dans la preview
-paginée correspond pixel à pixel au PDF qui sera produit en
-phase 2 (§13.6).
+L'aperçu (colonne de droite) simule des pages physiques (A4/A5/Letter…)
+avec leurs marges, comme dans Word ou Pages. WYSIWYG strict : ce qu'on
+voit dans la preview correspond pixel à pixel au PDF généré, parce que
+les deux passent par le même moteur de rendu navigateur.
 
-Objectifs :
-- Voir la **mise en page réelle** avant export — sauts de page,
-  orphelines, alignement, position des numéros de page.
-- Préparer un **export PDF par impression navigateur** qui supprime
-  les limitations actuelles de pdfmake (notamment les formules
-  `$…$` inline ; cf. §8).
+L'export PDF (`Exporter .pdf` ou `Cmd/Ctrl + P`) ouvre le dialogue
+d'impression du navigateur, configuré pour produire un PDF sur la même
+vue. L'utilisateur choisit « Enregistrer au format PDF » comme
+destination.
 
-Implémentation prévue dans la branche `paginated-preview`. La preview
-fluide actuelle (§5.2) reste l'aperçu par défaut ; le mode paginé
-s'active à la demande.
+### 13.1. Architecture
 
-### 13.1. Activation
-
-Un nouveau bouton dans la toolbar, **entre « Style » et « Aide »**,
-bascule entre les deux modes. Visuellement, fond clair quand
-inactif, fond bleu pâle quand actif. L'état (`paginated: boolean`)
-est persisté en `localStorage` (sticky entre sessions).
-
-Quand actif :
-- La preview se transforme en suite de pages blanches sur fond gris
-  clair, avec ombre portée et espacement vertical entre pages.
-- Le rendu Markdown + Mermaid + math continue de fonctionner
-  identiquement à l'intérieur des pages.
-- Le scroll-sync éditeur ↔ aperçu reste opérationnel (les
-  `data-line` sont préservés à travers le chunking).
-
-### 13.2. Architecture
-
-Nouveau module `src/preview-paginated.ts` :
+Module `src/preview-paginated.ts` :
 - Lazy-load de [paged.js](https://pagedjs.org/) (~300 KB) au
-  premier toggle.
-- API : `paginate(htmlEl, settings) → paginatedEl`.
+  premier rendu.
+- API : `paginate(htmlEl, settings, renderTo)`.
 - paged.js implémente les standards W3C CSS Paged Media + CSS
   Fragmentation. Il fournit le **moteur** de pagination ; on lui
-  fournit la **politique** via du CSS dynamique (§13.3).
+  fournit la **politique** via du CSS dynamique (§13.2).
 
-### 13.3. CSS dynamique
+Module `src/print-export.ts` :
+- API : `exportViaPrint(source, settings, filename)`.
+- Construit un sous-arbre DOM auto-suffisant (Markdown → métadonnées
+  → mermaid/math/inline-math → keep-with-next), l'insère dans un
+  `#md2pdf-print-target` caché en mode écran, applique le même
+  `pagedCss(settings)` que l'aperçu, et appelle `window.print()`.
+- Le print-target vit dans le document principal pour que les
+  polices déjà chargées par l'éditeur soient disponibles au moteur
+  d'impression sans round-trip iframe.
+- `document.title` est temporairement remplacé par le nom de fichier
+  voulu (la plupart des navigateurs s'en servent comme nom de
+  fichier suggéré), restauré sur l'événement `afterprint`.
 
-Généré depuis les `PdfSettings` au moment du switch et injecté dans
-le DOM :
+### 13.2. CSS dynamique
+
+Généré depuis les `PdfSettings` à chaque rendu et injecté dans le
+DOM (`pagedCss(settings)` dans `preview-paginated.ts`) :
 
 ```css
 @page {
@@ -770,56 +621,54 @@ est coupée.
 D'autres règles seront ajoutées **a posteriori** si on observe des
 défauts visuels en pratique. La règle est de ne pas sur-spécifier.
 
+### 13.3. Keep-with-next (titres et labels)
+
+`break-after: avoid` sur les titres ne suffit pas toujours : paged.js
+laisse parfois un titre orphelin en bas de page si le bloc qui le suit
+ne tient pas sur la page courante. Solution : avant de passer le
+contenu à paged.js, `keepLabelsWithNext()` enveloppe chaque **label**
+avec son frère immédiat dans un `<div class="keep-with-next">` qui
+porte un vrai `break-inside: avoid`. Un label est :
+
+- un titre h1-h4, ou
+- un paragraphe qui précède directement un bloc « présentable » :
+  fenced code, `<table>`, `<img>`, `.math-block`, `.mermaid-block`.
+  Le cas typique est `**Matrice**` suivi de `$$…$$`, où le gras tient
+  lieu de titre.
+
+L'enveloppement est fait en **ordre inverse** du document, pour que
+les chaînes (h2 → h3 → paragraphe) finissent dans des wrappers
+nestés et restent groupées.
+
 ### 13.4. Aspect visuel
 
-- Fond `--bg-paged` (gris clair, ex. `#e9eaee`) derrière les pages.
-- Pages blanches avec `box-shadow: 0 2px 8px rgba(0,0,0,.15)`.
+- Fond `#e9eaee` (gris clair) derrière les pages.
+- Pages blanches avec `box-shadow: 0 2px 8px rgba(0,0,0,.18)`.
 - Espacement vertical entre pages : 24 px.
-- Largeur de page : `100% de la colonne preview`. La hauteur suit
-  le ratio du format choisi (`297/210` pour A4).
+- Largeur de page : 100 % de la colonne preview. La hauteur suit le
+  ratio du format choisi (`297/210` pour A4).
 - Le contenu à l'intérieur d'une page conserve les marges
   (`@page margin`) — on retrouve donc visuellement la zone de texte.
 
 ### 13.5. Performance
 
-- Repagination **debouncée à 700 ms** en mode paginé (vs 200 ms en
-  mode fluide) — la pagination est un calcul de layout coûteux.
+- Repagination **debouncée à 700 ms** : la pagination est un calcul
+  de layout coûteux.
 - Annulation des repaginations en cours quand l'utilisateur continue
-  de taper (équivalent au pattern `previewReqId` existant).
+  de taper (pattern `previewReqId`).
 - Ordre de grandeur observable : ~100 ms pour un doc de 5 pages,
-  ~1 s pour un doc de 50 pages. Acceptable car le mode paginé est
-  utilisé pour la *revue* de mise en page, pas pour la frappe.
+  ~1 s pour un doc de 50 pages. Acceptable car la repagination est
+  censée se voir lorsqu'on relit, pas pendant la frappe rapide.
 
-### 13.6. Phase 2 — export PDF par `window.print()`
+### 13.6. Notes pratiques sur l'impression
 
-Une fois le mode paginé en place et stabilisé, l'export PDF pourra
-basculer sur la voie « impression navigateur » :
-
-1. L'utilisateur clique sur **Exporter .pdf**.
-2. Si le mode paginé est actif, on ouvre un onglet d'impression avec
-   uniquement la vue paginée + le CSS `@page`.
-3. Le navigateur ouvre son dialogue d'impression natif.
-4. L'utilisateur choisit « Enregistrer au format PDF ».
-
-Bénéfices attendus :
-- **Conformité parfaite preview ↔ PDF** (même moteur de rendu).
-- **Texte sélectionnable** dans le PDF, polices vectorielles,
-  math/mermaid en SVG natif.
-- **Formules `$…$` inline correctement intégrées** au flux du
-  paragraphe (ce que pdfmake ne sait pas faire ; cf. §8).
-- Suppression progressive du pipeline pdfmake et des modules
-  `convert.ts` / `mermaid.ts` (sanitisation pdfmake) / `maker.ts`,
-  une fois la voie impression validée.
-
-Coûts à accepter :
-- UX : dialogue d'impression au lieu d'un téléchargement direct.
-- Le nom de fichier suggéré dépend du navigateur ; certains
-  navigateurs ajoutent en-tête/pied automatiques que l'utilisateur
-  doit décocher dans le dialogue.
-
-À évaluer en phase 2 : conserver pdfmake comme deuxième mode
-d'export pour les utilisateurs qui préfèrent le téléchargement
-direct sans dialogue.
+- L'utilisateur doit choisir « Enregistrer au format PDF » (ou
+  équivalent) comme destination dans le dialogue d'impression.
+- Selon le navigateur, des en-têtes/pieds par défaut (URL, date)
+  peuvent apparaître ; ils se décochent dans les options du dialogue.
+- Le nom de fichier suggéré reprend le `document.title` que
+  `exportViaPrint()` met temporairement à la valeur de la zone
+  « Nom » de la toolbar.
 
 ## 14. À décider plus tard
 
