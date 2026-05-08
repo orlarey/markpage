@@ -689,7 +689,139 @@ interface PdfSettings {
 8. L'application charge et fonctionne sans connexion réseau une fois
    servie (toutes les polices et libs sont bundlées).
 
-## 13. À décider plus tard
+## 13. Aperçu paginé (en cours d'implémentation)
+
+Mode optionnel de l'aperçu où la colonne de droite simule des pages
+physiques (A4/A5/Letter…) avec leurs marges, comme on visualiserait un
+PDF dans Word ou Pages. WYSIWYG strict : ce qu'on voit dans la preview
+paginée correspond pixel à pixel au PDF qui sera produit en
+phase 2 (§13.6).
+
+Objectifs :
+- Voir la **mise en page réelle** avant export — sauts de page,
+  orphelines, alignement, position des numéros de page.
+- Préparer un **export PDF par impression navigateur** qui supprime
+  les limitations actuelles de pdfmake (notamment les formules
+  `$…$` inline ; cf. §8).
+
+Implémentation prévue dans la branche `paginated-preview`. La preview
+fluide actuelle (§5.2) reste l'aperçu par défaut ; le mode paginé
+s'active à la demande.
+
+### 13.1. Activation
+
+Un nouveau bouton dans la toolbar, **entre « Style » et « Aide »**,
+bascule entre les deux modes. Visuellement, fond clair quand
+inactif, fond bleu pâle quand actif. L'état (`paginated: boolean`)
+est persisté en `localStorage` (sticky entre sessions).
+
+Quand actif :
+- La preview se transforme en suite de pages blanches sur fond gris
+  clair, avec ombre portée et espacement vertical entre pages.
+- Le rendu Markdown + Mermaid + math continue de fonctionner
+  identiquement à l'intérieur des pages.
+- Le scroll-sync éditeur ↔ aperçu reste opérationnel (les
+  `data-line` sont préservés à travers le chunking).
+
+### 13.2. Architecture
+
+Nouveau module `src/preview-paginated.ts` :
+- Lazy-load de [paged.js](https://pagedjs.org/) (~300 KB) au
+  premier toggle.
+- API : `paginate(htmlEl, settings) → paginatedEl`.
+- paged.js implémente les standards W3C CSS Paged Media + CSS
+  Fragmentation. Il fournit le **moteur** de pagination ; on lui
+  fournit la **politique** via du CSS dynamique (§13.3).
+
+### 13.3. CSS dynamique
+
+Généré depuis les `PdfSettings` au moment du switch et injecté dans
+le DOM :
+
+```css
+@page {
+  size: <pageSize>;                  /* A4, A5… depuis settings.pageSize */
+  margin: <top>mm <right>mm <bottom>mm <left>mm;
+  @bottom-center {                   /* selon settings.pageNumber.position */
+    content: counter(page);
+    font-size: <pn.fontSize>pt;
+    color: <pn.color>;
+  }
+}
+
+/* Politique de fragmentation — minimum vital */
+h1, h2, h3, h4 { break-after: avoid; }   /* pas de titre seul en bas de page */
+.math-block,
+.mermaid-block,
+img { break-inside: avoid; }             /* blocs visuels indivisibles */
+p, li, blockquote { orphans: 3; widows: 3; }
+```
+
+**Tableaux** : on utilise les défauts CSS, qui autorisent la coupure
+entre lignes et **répètent automatiquement le `<thead>`** en haut de
+chaque page (comportement Word/LaTeX standard, paged.js l'implémente
+correctement).
+
+**Citations `<blockquote>`** : également défauts CSS, avec
+orphans/widows = 3. La barre verticale gauche (`border-left`) se
+reprend naturellement en haut de la page suivante quand la citation
+est coupée.
+
+D'autres règles seront ajoutées **a posteriori** si on observe des
+défauts visuels en pratique. La règle est de ne pas sur-spécifier.
+
+### 13.4. Aspect visuel
+
+- Fond `--bg-paged` (gris clair, ex. `#e9eaee`) derrière les pages.
+- Pages blanches avec `box-shadow: 0 2px 8px rgba(0,0,0,.15)`.
+- Espacement vertical entre pages : 24 px.
+- Largeur de page : `100% de la colonne preview`. La hauteur suit
+  le ratio du format choisi (`297/210` pour A4).
+- Le contenu à l'intérieur d'une page conserve les marges
+  (`@page margin`) — on retrouve donc visuellement la zone de texte.
+
+### 13.5. Performance
+
+- Repagination **debouncée à 700 ms** en mode paginé (vs 200 ms en
+  mode fluide) — la pagination est un calcul de layout coûteux.
+- Annulation des repaginations en cours quand l'utilisateur continue
+  de taper (équivalent au pattern `previewReqId` existant).
+- Ordre de grandeur observable : ~100 ms pour un doc de 5 pages,
+  ~1 s pour un doc de 50 pages. Acceptable car le mode paginé est
+  utilisé pour la *revue* de mise en page, pas pour la frappe.
+
+### 13.6. Phase 2 — export PDF par `window.print()`
+
+Une fois le mode paginé en place et stabilisé, l'export PDF pourra
+basculer sur la voie « impression navigateur » :
+
+1. L'utilisateur clique sur **Exporter .pdf**.
+2. Si le mode paginé est actif, on ouvre un onglet d'impression avec
+   uniquement la vue paginée + le CSS `@page`.
+3. Le navigateur ouvre son dialogue d'impression natif.
+4. L'utilisateur choisit « Enregistrer au format PDF ».
+
+Bénéfices attendus :
+- **Conformité parfaite preview ↔ PDF** (même moteur de rendu).
+- **Texte sélectionnable** dans le PDF, polices vectorielles,
+  math/mermaid en SVG natif.
+- **Formules `$…$` inline correctement intégrées** au flux du
+  paragraphe (ce que pdfmake ne sait pas faire ; cf. §8).
+- Suppression progressive du pipeline pdfmake et des modules
+  `convert.ts` / `mermaid.ts` (sanitisation pdfmake) / `maker.ts`,
+  une fois la voie impression validée.
+
+Coûts à accepter :
+- UX : dialogue d'impression au lieu d'un téléchargement direct.
+- Le nom de fichier suggéré dépend du navigateur ; certains
+  navigateurs ajoutent en-tête/pied automatiques que l'utilisateur
+  doit décocher dans le dialogue.
+
+À évaluer en phase 2 : conserver pdfmake comme deuxième mode
+d'export pour les utilisateurs qui préfèrent le téléchargement
+direct sans dialogue.
+
+## 14. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Choix d'une autre famille de polices que Roboto Condensed dans les
@@ -698,11 +830,4 @@ interface PdfSettings {
 - Export d'un HTML autonome.
 - Sauvegarde / chargement de plusieurs documents (multi-doc).
 - Coloration syntaxique des blocs de code.
-- **Pipeline HTML→PDF** (rendu paginé HTML + `window.print()` ou
-  similaire). Bénéfice attendu : conformité parfaite preview ↔ PDF,
-  inline math en flux de paragraphe (pdfmake limite ça aujourd'hui ;
-  voir §8), une seule chaîne de rendu à maintenir au lieu de deux.
-  Coût : changement de pipeline export (dialogue d'impression plutôt
-  que téléchargement direct, ou ajout d'une dépendance type
-  html2canvas / pdf-lib).
 - Listes de tâches `- [ ]`, notes de bas de page.
