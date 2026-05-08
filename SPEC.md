@@ -42,6 +42,7 @@ initial.
   - inline `![alt](url)` ou data URL
   - référence `![alt][label]` + `[label]: url` ailleurs dans le doc
 - Tableaux GFM (`| col | col |` + ligne `|---|`)
+- Diagrammes Mermaid (bloc ```` ```mermaid ```` ; voir §7)
 
 ### 3.2. Hors périmètre actuel
 
@@ -158,6 +159,7 @@ src/
   image.ts             pipeline images (process, IDB, ref-expansion,
                        extract data URLs, GC, drop/paste handlers)
   image-store.ts       wrapper IndexedDB
+  mermaid.ts           lazy import + cache de mermaid.render() par source
   vite-env.d.ts        types Vite pour `?url`, `?raw`, etc.
   style.css            styles globaux + modales
   assets/
@@ -290,7 +292,107 @@ L'aperçu HTML déclare les TTF complètes via `FontFace` API au démarrage
 (module `fonts.ts`), pour que le navigateur ait la même cascade que pdfmake
 et que le rendu visuel reste cohérent.
 
-## 7. Réglages PDF
+## 7. Diagrammes Mermaid
+
+Un bloc de code dont le langage est `mermaid` est rendu en SVG dans
+l'aperçu **et** dans le PDF (qualité vectorielle). La librairie mermaid
+(~600 KB minifié) est chargée paresseusement via `import()` au premier
+diagramme rencontré ; les rendus sont mémorisés par source pour qu'un doc
+stable ne déclenche qu'un appel à `mermaid.render()` par diagramme par
+session.
+
+### 7.1. Aperçu
+
+`renderMermaidBlocks()` post-traite le HTML produit par marked : il
+trouve chaque `<code class="language-mermaid">`, appelle
+`renderMermaid(source)`, et remplace le `<pre>` parent par un `<div
+class="mermaid-block">` contenant le SVG (ou un `<div
+class="mermaid-error">` montrant la source si le rendu échoue). Les
+attributs `data-line` du scroll-sync sont reportés sur le wrapper.
+
+### 7.2. PDF — transformations du SVG
+
+pdfmake utilise `svg-to-pdfkit`, dont le parser SAX et le moteur de
+rendu sont sensiblement plus stricts qu'un navigateur. Mermaid émet du
+SVG qui dépend de plusieurs comportements **du navigateur** : CSS
+inline dans `<style>`, `<foreignObject>` pour les labels HTML,
+`marker-end` avec `orient="auto"` ou `"auto-start-reverse"`, polices
+système, etc. Tout cela casse en pdfmake. La fonction
+`sanitiseSvgForPdfmake()` rejoue ces étapes côté navigateur, en
+manipulant un DOM SVG hors écran, puis re-sérialise.
+
+Pipeline appliqué dans cet ordre :
+
+1. **Strip `@import`** textuellement avant `DOMParser` (sinon le
+   navigateur tente de charger des polices Google et taint le SVG).
+2. **Insertion hors écran** dans un `<div>` `visibility:hidden` à
+   `left:-99999px`, pour que `getComputedStyle()` et `getBBox()`
+   fonctionnent sur le SVG vivant.
+3. **`<foreignObject>` → `<text>`** : mermaid place le contenu des
+   labels en HTML dans des `<foreignObject>`, même quand on demande
+   `htmlLabels: false`. On extrait le texte (en respectant les `<br>`,
+   `<p>`, `<div>` comme séparateurs de ligne) et on émet un `<text>`
+   centré au centre du foreignObject, avec un `<tspan>` par ligne.
+4. **Inline des styles calculés** : `getComputedStyle()` sur chaque
+   élément ; les propriétés de présentation SVG (`fill`, `stroke`,
+   `stroke-width`, `font-family`…) sont posées comme **attributs**
+   (plus fiables que `style="…"` côté pdfmake), **en écrasant** les
+   attributs déjà présents — sinon les `<line>` sans attribut `stroke`
+   stylés via CSS deviennent invisibles.
+5. **Filtrage `stroke-dasharray`** : PDFKit refuse toute valeur dont
+   un composant est 0 (`"1 0"`, `"0"`). Les marqueurs mermaid en
+   posent par défaut. On retire l'attribut/style inline si invalide
+   (la ligne sera dessinée pleine).
+6. **Force la `font-family` des `<text>`/`<tspan>` à `"Roboto"`** :
+   pdfmake n'imprime que les polices enregistrées (`Roboto`, `Mono`,
+   `Symbols`, `Math` ; voir §6.4) et la valeur calculée par mermaid
+   (`"trebuchet ms", verdana, …`) ne correspond à aucune.
+7. **Cuisson des markers** : pour chaque `<line>` / `<path>` /
+   `<polyline>` portant `marker-end` ou `marker-start`, on calcule
+   l'angle du tangent au point concerné, on clone le contenu du
+   `<marker>` dans un `<g transform="translate(p) rotate(θ) translate(-refX,-refY)">`
+   ajouté au SVG, et on supprime l'attribut `marker-*`. Cela évite les
+   bugs de pdfmake sur `orient="auto"` quand la ligne va de droite à
+   gauche, et sur `orient="auto-start-reverse"` qu'il ignore.
+8. **Crop sur le bbox** : `root.getBBox()` donne l'extent réel du
+   dessin ; on récrit `width`, `height` et `viewBox` sur la racine.
+   Mermaid sort souvent `width="100%"` ou un `height` qui borde le
+   contenu d'espace vide, ce qui fausse à la fois la zone que pdfmake
+   réserve pour la mise en page et le centrage du dessin à l'intérieur
+   de cette zone.
+9. **Suppression des `<style>`** restants (leurs règles ont été
+   inlinées comme attributs).
+10. **Re-sérialisation** via `XMLSerializer`.
+
+### 7.3. PDF — mise en page du bloc
+
+Le SVG nettoyé arrive dans `tokensToContent` comme un objet pdfmake.
+Deux astuces de layout :
+
+- **Wrapping en table 3 colonnes `['*', w, '*']`** : un bloc `{svg,
+  width, height}` brut fait que pdfmake réserve plus d'espace
+  vertical qu'il n'en dessine (page break parasite avant un petit
+  diagramme). La table avec colonne fixe au milieu et `*` autour
+  l'oblige à respecter les dimensions ET centre horizontalement.
+- **Borne de scaling `min(maxScale, maxW/w, maxH/h)`** où `maxW =
+  contentWidth × mermaidMaxWidthPct` et `maxH = contentHeight ×
+  mermaidMaxHeightPct`. Le facteur de scaling peut donc agrandir
+  jusqu'à `mermaidMaxScale` (défaut 2), mais jamais au-delà des
+  bornes en largeur (par défaut 100% de la zone de texte) ni en
+  hauteur (par défaut 70%, pour éviter qu'un diagramme haut ne
+  pousse le contenu suivant à la page d'après).
+
+### 7.4. Réglages exposés
+
+Trois champs sur `PdfSettings`, ajustables dans le panneau Réglages :
+
+| Champ | Défaut | Effet |
+|---|---|---|
+| `mermaidMaxScale` | 2 | Facteur d'agrandissement maximal (le diagramme ne sera jamais agrandi au-delà). |
+| `mermaidMaxWidthPct` | 1.0 | Fraction de la largeur de la zone de texte que le diagramme peut occuper. |
+| `mermaidMaxHeightPct` | 0.7 | Fraction de la hauteur de la zone de texte qu'il peut occuper. |
+
+## 8. Réglages PDF
 
 Un panneau **Réglages** (clic sur le bouton dans la toolbar ou
 `Cmd/Ctrl + ,`) configure le rendu. Les réglages sont persistés dans
@@ -298,7 +400,7 @@ Un panneau **Réglages** (clic sur le bouton dans la toolbar ou
 titres, du corps, du code, des citations) s'appliquent aussi à l'aperçu
 HTML pour visualiser leur effet sans exporter.
 
-### 7.1. Schéma
+### 8.1. Schéma
 
 ```ts
 interface PdfSettings {
@@ -325,10 +427,14 @@ interface PdfSettings {
       | 'bottom-left' | 'bottom-center' | 'bottom-right';
     style: { fontSize: number; italics: boolean; color: string };
   };
+  // Voir §7.4 pour la sémantique.
+  mermaidMaxScale: number;
+  mermaidMaxWidthPct: number;
+  mermaidMaxHeightPct: number;
 }
 ```
 
-### 7.2. Comportements
+### 8.2. Comportements
 
 - Les **titres** sont toujours en gras (Roboto Medium 500), choix non
   exposé dans l'UI.
@@ -358,7 +464,7 @@ interface PdfSettings {
   haute ou basse selon la position. Format : entier seul (ex. « 12 »).
 - Bouton **Réinitialiser** revient aux valeurs par défaut.
 
-### 7.3. Valeurs par défaut
+### 8.3. Valeurs par défaut
 
 | Réglage              | Valeur                                       |
 | -------------------- | -------------------------------------------- |
@@ -374,8 +480,9 @@ interface PdfSettings {
 | Code                 | 10 pt, couleur #1f2328, fond #f6f8fa (fixe)  |
 | Citation             | 11 pt, couleur #57606a, barre #d0d7de        |
 | Numéro de page       | bas centre, 9 pt, non italique, #57606a      |
+| Mermaid (scale max / largeur / hauteur) | 2 / 100 % / 70 %                |
 
-## 8. Aide intégrée
+## 9. Aide intégrée
 
 - Le tutoriel `src/HELP.md` est bundlé via `import helpMd from './HELP.md?raw'`.
 - Au premier lancement (`localStorage` vide), il sert de document par
@@ -386,7 +493,7 @@ interface PdfSettings {
   toucher au document de l'utilisateur. Échap / clic hors panneau /
   bouton Fermer pour la refermer.
 
-## 9. Déploiement
+## 10. Déploiement
 
 - Workflow `.github/workflows/deploy.yml`.
 - Déclenché sur `push` vers `main`.
@@ -396,7 +503,7 @@ interface PdfSettings {
   `https://user.github.io/md2pdf/`) → `base: './'` dans
   `vite.config.ts` produit des chemins relatifs.
 
-## 10. Critères d'acceptation
+## 11. Critères d'acceptation
 
 1. `npm run dev` lance l'application localement, prête à éditer.
 2. Le premier lancement (sans `localStorage`) charge le HELP.md.
@@ -414,7 +521,7 @@ interface PdfSettings {
 8. L'application charge et fonctionne sans connexion réseau une fois
    servie (toutes les polices et libs sont bundlées).
 
-## 11. À décider plus tard
+## 12. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Choix d'une autre famille de polices que Roboto Condensed dans les

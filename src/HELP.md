@@ -170,25 +170,6 @@ Tout texte placé entre trois accents graves (```) est affiché
 dans une police à largeur fixe, sur fond gris.
 ```
 
-## Diagrammes Mermaid
-
-Vous pouvez insérer des diagrammes en utilisant la syntaxe
-[Mermaid](https://mermaid.js.org/) à l'intérieur d'un bloc de code dont
-le langage est `mermaid` :
-
-```mermaid
-graph LR
-  A[Idée] --> B[Brouillon]
-  B --> C[Document final]
-  C --> D[PDF]
-```
-
-Diagrammes reconnus : `graph` / `flowchart`, `sequenceDiagram`,
-`classDiagram`, `stateDiagram`, `gantt`, `pie`, `mindmap`, etc.
-
-Le diagramme est rendu en **SVG** dans l'aperçu **et** dans le PDF
-(qualité vectorielle, sans pixellisation à l'impression).
-
 ## Pour aller plus loin
 
 md2pdf reconnaît la plupart des conventions Markdown classiques :
@@ -198,7 +179,89 @@ md2pdf reconnaît la plupart des conventions Markdown classiques :
 - Images de référence
 - Tableaux comme celui ci-dessus
 - Lignes horizontales (trois tirets sur une ligne)
-- Diagrammes Mermaid (voir ci-dessus)
+- Diagrammes Mermaid (voir la section suivante)
+
+## Diagrammes Mermaid
+
+[Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
+quelques lignes de texte. Placez votre code dans un bloc dont le langage
+est `mermaid` :
+
+````
+```mermaid
+flowchart LR
+    A[Idée] --> B[Brouillon]
+    B --> C[Document final]
+    C --> D[PDF]
+```
+````
+
+…et vous obtenez :
+
+```mermaid
+flowchart LR
+    A[Idée] --> B[Brouillon]
+    B --> C[Document final]
+    C --> D[PDF]
+```
+
+Le diagramme est rendu en **SVG**, dans l'aperçu **et** dans le PDF
+(qualité vectorielle, sans pixellisation à l'impression).
+
+### Quelques exemples
+
+**Diagramme de séquence** (échange entre deux acteurs) :
+
+```mermaid
+sequenceDiagram
+    participant U as Utilisateur
+    participant S as Serveur
+    U->>S: Requête GET /data
+    S-->>U: 200 OK + JSON
+```
+
+**Diagramme de classes** :
+
+```mermaid
+classDiagram
+    class Animal {
+        +String nom
+        +manger()
+    }
+    class Chien {
+        +aboyer()
+    }
+    Animal <|-- Chien
+```
+
+**Camembert** :
+
+```mermaid
+pie title Répartition
+    "Travail" : 40
+    "Loisir" : 30
+    "Sommeil" : 30
+```
+
+Autres types reconnus : `stateDiagram`, `gantt`, `mindmap`, etc. — voir
+la [documentation Mermaid](https://mermaid.js.org/) pour la liste
+complète et la syntaxe de chacun.
+
+### Réglages
+
+La section **Diagrammes Mermaid** du panneau **Réglages** propose trois
+contrôles pour adapter la taille des diagrammes dans le PDF :
+
+- **Agrandissement max.** : facteur d'agrandissement maximal (par
+  défaut 2). Les petits diagrammes sont agrandis jusqu'à ce facteur ;
+  jamais au-delà.
+- **Largeur max. (% du texte)** : fraction de la largeur de la page
+  (hors marges) que le diagramme peut occuper (par défaut 100 %).
+- **Hauteur max. (% du texte)** : fraction de la hauteur de la page
+  (hors marges) que le diagramme peut occuper (par défaut 70 %).
+
+Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
+page suivante en laissant la précédente à moitié vide.
 
 ---
 
