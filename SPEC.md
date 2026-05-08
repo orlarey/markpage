@@ -670,7 +670,123 @@ nestés et restent groupées.
   `exportViaPrint()` met temporairement à la valeur de la zone
   « Nom » de la toolbar.
 
-## 14. À décider plus tard
+## 14. Synchronisation éditeur ↔ aperçu
+
+L'éditeur et l'aperçu paginé sont **co-positionnés** : ce qu'on regarde
+dans l'un correspond à ce qu'on regarde dans l'autre. Le mécanisme
+fonctionne dans les deux sens (scroll dans l'une fait scroller l'autre,
+même chose pour le clic).
+
+### 14.1. Le principe : ligne d'ancrage + position d'ancrage
+
+Toute synchronisation se ramène à une **ligne d'ancrage** `L` (une
+ligne source du document) et une **position d'ancrage** `y` (en pixels,
+dans le viewport de la vue qui pilote). L'opération est :
+
+> *Trouver le bloc `data-line=L` dans l'autre vue, et la scroller pour
+> que ce bloc apparaisse au pixel `y` de son viewport.*
+
+Le choix de `(L, y)` change selon ce qui a déclenché la sync :
+
+| Action utilisateur (sur la vue A) | `L` | `y` |
+|---|---|---|
+| Clic à la position verticale `yc` | ligne sous le clic | `yc` |
+| Scroll **vers le bas** | dernière ligne visible | **position réelle de cette ligne dans le viewport** |
+| Scroll **vers le haut** | première ligne visible | **position réelle de cette ligne dans le viewport** |
+
+Subtilité importante sur le `y` du scroll : on ne prend **pas**
+simplement `viewportH` pour le scroll-down (resp. `0` pour le
+scroll-up), mais bien la position réelle où la ligne d'ancrage est
+rendue. Cette nuance unifie le scroll et le clic : *scroller vers le
+bas, c'est cliquer sur la dernière ligne visible à l'endroit exact où
+elle apparaît*. Au milieu du document, la dernière ligne visible
+touche le bas du viewport (`y ≈ viewportH`) ; mais à la fin du
+document, la dernière ligne avec `data-line` n'atteint pas le bord bas
+du viewport (il y a derrière la marge basse de la page, le numéro de
+page, …) et `y` reflète cette position effective pour que le suiveur
+s'aligne correctement.
+
+Cas particuliers aux bords du document — clamp explicite, en plus
+de l'algorithme ci-dessus :
+
+- Si la vue pilote est à `scrollTop = 0`, on force le suiveur à `0`.
+- Si la vue pilote est à `scrollTop = scrollMax`, on force le suiveur
+  à `scrollMax`.
+
+Le clamp est belt-and-suspenders : l'algorithme principal couvre déjà
+la majorité des cas grâce au `y` réel, mais aux extrêmes mathématiques
+exacts (scrollTop = 0 ou = scrollMax) il y a des arrondis sub-pixel
+qui peuvent laisser le suiveur quelques pixels avant le bord. Le clamp
+garantit l'alignement parfait.
+
+### 14.2. Cartographie ligne-source ↔ position
+
+Le rendu de l'aperçu stamp un `data-line="N"` sur chaque bloc rendu
+(paragraphe, titre, liste, math, mermaid, …) où `N` est la ligne
+0-indexée du token marked correspondant dans la source. paged.js
+préserve ces attributs lors du chunking en pages.
+
+À chaque cycle de pagination on (re)construit une **table de
+correspondance** triée par ligne source :
+
+```ts
+type LineMap = Array<{
+  line: number;     // ligne source
+  editorY: number;  // top de la ligne dans le scroller éditeur
+  previewY: number; // top du bloc dans le scroller aperçu
+}>;
+```
+
+Pour `editorY`, CodeMirror fournit `coordsAtPos(pos).top` ;
+pour `previewY`, on lit `el.getBoundingClientRect().top -
+container.getBoundingClientRect().top + container.scrollTop`.
+
+L'interpolation linéaire ligne ↔ pixel **n'est faite qu'entre deux
+entrées consécutives** de la table : elle ne traverse pas les gaps
+inter-pages ni les marges `@page`, parce que ces zones n'ont pas de
+ligne source associée — la table saute simplement par-dessus.
+
+### 14.3. Détection de la direction du scroll
+
+À chaque scroll-event sur A, on compare le `scrollTop` courant à celui
+mémorisé du précédent event :
+
+- `newTop > prevTop` → mouvement **vers le bas** (l'utilisateur
+  approche la fin du document).
+- `newTop < prevTop` → mouvement **vers le haut**.
+- `newTop === prevTop` → ignore (déclenché par un changement de
+  layout, pas un scroll utilisateur).
+
+Cas particulier au tout premier event après l'ouverture du doc :
+on prend l'ancrage haut par défaut (le doc est à `scrollTop = 0`).
+
+### 14.4. Sync par clic / curseur
+
+- **Clic dans l'éditeur** (ou déplacement du curseur) à la ligne `L`
+  visible à la position verticale `yc` : on scrolle l'aperçu pour
+  amener le bloc `data-line=L` à `yc` dans son viewport.
+- **Clic dans l'aperçu** sur un bloc `data-line=L` à la position `yc` :
+  on scrolle l'éditeur pour amener cette ligne à `yc` (CodeMirror
+  expose `scrollIntoView(line, "top|center|nearest")` ; on calcule la
+  cible directement en pixels).
+
+### 14.5. Anti-boucle
+
+Une sync programmatique scrolle B, ce qui déclenche son `scroll` event
+qui re-déclencherait une sync vers A. On évite la boucle avec un
+drapeau `syncSource` réglé sur la vue qui pilote au moment de la sync,
+levé ~150 ms après le dernier mouvement programmatique.
+
+### 14.6. Performances
+
+- La `LineMap` est mise à jour seulement après une repagination
+  complète (donc au pire à chaque debounce de 700 ms en frappe
+  active).
+- Pendant le scroll, chaque sync est en O(log N) (recherche binaire
+  dans la table) plus deux lectures DOM. Imperceptible jusqu'à
+  plusieurs centaines de pages.
+
+## 15. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Choix d'une autre famille de polices que Roboto Condensed dans les
