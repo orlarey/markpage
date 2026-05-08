@@ -180,8 +180,13 @@ body,
    gutter abuts the text, so the click lands on the gutter (which selects
    the whole line) instead of placing the caret. The padding stays inside
    the editable area, so it's also clickable for caret placement. */
-#editor-pane .cm-content {
+/* Breathing room either side of the editable text. We put it on the
+   line element rather than on .cm-content so the selection rectangles
+   (drawn relative to each line) stay flush with the text and don't
+   bleed into the margins. */
+#editor-pane .cm-line {
   padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* ---- Editor context menu ---------------------------------------------- */
