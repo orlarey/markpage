@@ -439,6 +439,88 @@ body,
    pagedCss() (preview-paginated.ts) — it computes max-height from the
    user's settings, which we don't know here. */
 
+/* ---- Admonitions ----------------------------------------------------- */
+/* Pandoc-style fenced divs (`::: classname [Title] … :::`). Two visual
+   families: generic (note / tip / warning / caution / important) get a
+   colored left bar + tinted background; academic (theorem / lemma / …)
+   get a sober look with an italic title, mimicking LaTeX's theorem
+   environments. Unknown classes inherit the neutral default below. */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition {
+  margin: 0.8em 0;
+  padding: 0.5em 0.9em;
+  border-left: 4px solid var(--admonition-color, #ccc);
+  background: var(--admonition-bg, transparent);
+  border-radius: 0 4px 4px 0;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-title {
+  font-weight: 500;
+  color: var(--admonition-color, #444);
+  margin-bottom: 0.3em;
+}
+
+/* Strip outer margins of the body's first/last block so the bordered
+   box hugs the content instead of leaving extra padding. */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-body > :first-child {
+  margin-top: 0;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Generic — colored, attention-getting */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-note {
+  --admonition-color: #4a8cf0;
+  --admonition-bg: #eef4ff;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-tip {
+  --admonition-color: #2da44e;
+  --admonition-bg: #ebfbef;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-warning {
+  --admonition-color: #d29922;
+  --admonition-bg: #fff8e1;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-caution {
+  --admonition-color: #cf222e;
+  --admonition-bg: #ffebe9;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-important {
+  --admonition-color: #8250df;
+  --admonition-bg: #f3eeff;
+}
+
+/* Academic — sober, italic title (LaTeX theorem-style). Thin grey bar,
+   no fill. */
+:where(#preview-pane, #md2pdf-print-target, .help-body)
+  :is(
+    .admonition-theorem,
+    .admonition-lemma,
+    .admonition-proposition,
+    .admonition-corollary,
+    .admonition-definition,
+    .admonition-proof,
+    .admonition-example,
+    .admonition-remark
+  ) {
+  --admonition-color: #6e7781;
+  border-left-width: 2px;
+  background: transparent;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body)
+  :is(
+    .admonition-theorem,
+    .admonition-lemma,
+    .admonition-proposition,
+    .admonition-corollary,
+    .admonition-definition
+  )
+  .admonition-title {
+  font-style: italic;
+  color: #1f2328;
+}
+
 .mermaid-block {
   display: flex;
   justify-content: center;

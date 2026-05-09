@@ -393,6 +393,50 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
 
+## Encadrés (notes, théorèmes…)
+
+Vous pouvez mettre en valeur un passage avec un **encadré** : ouvrez
+avec `:::` suivi du nom de l'encadré, écrivez votre contenu, fermez
+avec `:::` seul sur une ligne. C'est la syntaxe Pandoc des *fenced
+divs*.
+
+```
+::: warning
+Attention, cette opération est irréversible.
+:::
+```
+
+Les noms d'encadrés reconnus se rangent en deux familles :
+
+- **Génériques** (cadre coloré, fond teinté) :
+  - `note` (bleu),
+  - `tip` (vert),
+  - `warning` (orange),
+  - `caution` (rouge),
+  - `important` (violet).
+- **Académiques** (cadre sobre, titre en italique, façon LaTeX) :
+  `theorem`, `lemma`, `proposition`, `corollary`, `definition`,
+  `proof`, `example`, `remark`.
+
+Vous pouvez ajouter un **titre** entre crochets après le nom :
+
+```
+::: theorem [Pythagore]
+Dans un triangle rectangle, le carré de l'hypoténuse est égal à
+la somme des carrés des deux autres côtés.
+:::
+```
+
+…s'affiche avec le titre **« Théorème — Pythagore »**.
+
+Si vous écrivez un encadré avec un nom qui n'est pas dans la liste
+ci-dessus (par exemple `::: aside`), il sera rendu avec un cadre
+neutre — utile pour vos propres conventions de mise en page.
+
+L'intérieur d'un encadré est du Markdown comme le reste : vous pouvez
+y mettre du texte mis en forme, des listes, des formules, voire des
+tableaux.
+
 ## Crédits
 
 md2pdf est un projet open source assemblé à partir de logiciels libres.

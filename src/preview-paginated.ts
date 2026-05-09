@@ -282,6 +282,10 @@ export function pagedCss(s: PdfSettings): string {
        chains of headings nest). */
     .keep-with-next { break-inside: avoid; }
     .math-block, .mermaid-block, img { break-inside: avoid; }
+    /* Admonitions usually fit on a page (a paragraph or two); when
+       they don't, the user's prose is what should split, not the
+       boxed wrapper — keeping the colored bar and title together. */
+    .admonition { break-inside: avoid; }
     p, li { orphans: 3; widows: 3; }
   `;
 }
