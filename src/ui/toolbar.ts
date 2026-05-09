@@ -101,7 +101,7 @@ export function mountToolbar(
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(openBtn, saveBtn, styleBtn, previewBtn);
+  left.append(openBtn, saveBtn, styleBtn, helpBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
@@ -109,7 +109,7 @@ export function mountToolbar(
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(helpBtn, downloadBtn, settingsBtn);
+  right.append(previewBtn, downloadBtn, settingsBtn);
 
   parent.append(left, center, right);
 

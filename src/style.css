@@ -37,6 +37,7 @@ body,
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
+  font-size: 14px;
   /* Banner extracted from a Cauchy manuscript page (rotated, cropped) used
      as a textured background. A near-white overlay keeps the buttons
      legible without losing the warm tone of the paper. */
@@ -434,12 +435,9 @@ body,
   color: var(--accent);
 }
 
-#preview-pane img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 0.6em auto;
-}
+/* Image sizing for both #preview-pane and #md2pdf-print-target lives in
+   pagedCss() (preview-paginated.ts) — it computes max-height from the
+   user's settings, which we don't know here. */
 
 .mermaid-block {
   display: flex;

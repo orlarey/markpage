@@ -252,6 +252,23 @@ export function pagedCss(s: PdfSettings): string {
       orphans: 3; widows: 3;
     }
 
+    /* Images: cap both width and height to the page's content area so
+       paged.js can always fit them on a page. Without max-height,
+       portrait photos taller than the page combined with the
+       break-inside:avoid rule below leave paged.js with an unsolvable
+       layout — it logs "Unable to layout item" and (on Firefox) loops
+       until the tab dies. The max-height is computed from the user's
+       page geometry and a small slack for paragraph margins. */
+    ${SCOPE} img {
+      display: block;
+      margin: 0.6em auto;
+      max-width: 100%;
+      max-height: ${sizeMm.h - m.top - m.bottom - 4}mm;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+
     /* Fragmentation policy — left unscoped on purpose. paged.js's
        break-rule processor naively splits the selector list by comma
        before calling querySelectorAll, which corrupts CSS pseudo-class
