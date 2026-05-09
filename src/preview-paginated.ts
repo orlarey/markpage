@@ -99,6 +99,35 @@ export async function paginate(
   currentPreviewer = previewer;
 }
 
+// One-shot pagination for the print export pipeline. Runs paged.js
+// the same way as `paginate()` but **without** touching
+// `currentPreviewer` — the preview pane's pages stay alive (so the
+// user can return to preview after printing without re-paginating)
+// and the print target's pages live just for the duration of the
+// print dialog.
+//
+// Returns a teardown function that disconnects the print render's
+// ResizeObservers; call it from the print pipeline's cleanup so the
+// observers don't fire on the detached print target after `target.remove()`.
+export async function paginateOnce(
+  source: HTMLElement,
+  settings: PdfSettings,
+  renderTo: HTMLElement,
+): Promise<() => void> {
+  const { Previewer } = await loadPagedJs();
+  const previewer = new Previewer();
+  keepLabelsWithNext(source);
+  renderTo.innerHTML = '';
+  await previewer.preview(
+    source,
+    [{ 'paged-rules.css': pagedCss(settings) }],
+    renderTo,
+  );
+  return () => {
+    teardownPreviewer(previewer);
+  };
+}
+
 // Walks the rendered preview and, for every "label" element, wraps it
 // together with its immediately following sibling in a
 // `<div class="keep-with-next">`. Exported so the print-based PDF

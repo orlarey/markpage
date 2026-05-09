@@ -119,6 +119,13 @@ exemple) ; dans ce cas, téléchargez l'image localement d'abord.
 | **Exporter .pdf** | `Cmd/Ctrl` + `P` | Produit le PDF final, prêt à imprimer ou envoyer |
 | **Réglages** | `Cmd/Ctrl` + `,` | Personnalise le rendu PDF |
 
+> **À l'export PDF, sélectionnez "Marges : Aucune"** dans le dialogue
+> d'impression (section *Plus de paramètres*). Sans ça, le navigateur
+> ajoute ses propres marges par-dessus celles du document, ce qui
+> rétrécit la zone imprimable et fait dépasser ou re-scaler le contenu.
+> Les marges visibles dans le PDF sont gérées par md2pdf, pas par le
+> navigateur.
+
 Le format **Markdown** (`.md`) est un format texte ouvert, lisible
 partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
 il l'ouvrira dans n'importe quel éditeur de texte.

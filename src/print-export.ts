@@ -1,59 +1,80 @@
 // Print-based PDF export (SPEC §13.6, phase 2 of paginated preview).
-// When the user is in paginated mode and clicks "Exporter .pdf", we
-// route through the browser's native print dialog instead of pdfmake.
-// The browser uses CSS Paged Media (`@page`, `break-*`, orphans/widows)
-// natively at print time, so the layout is exactly what they see in
-// the paginated preview, with selectable text and vector math/mermaid.
+// We paginate the print target with paged.js — same renderer as the
+// on-screen preview — then call window.print(). Each `.pagedjs_page`
+// div is one physical page; paged.js's @media print rules give it
+// `page-break-after: always`, and our @page rule sets margin to 0 so
+// Chrome's printable area matches the page divs exactly.
+//
+// Why not just feed plain HTML and let Chrome paginate? Because Chrome's
+// print dialog "Margins" setting hard-overrides the @page margin we
+// declare in CSS, replacing it with the dialog's value (Default ≈ 12 mm,
+// None = 0 mm). The user's settings.margins were ignored. Going through
+// paged.js bakes the margins into the page DIV layout, where Chrome
+// can't touch them — at the cost of requiring "Margins: Aucune" in the
+// print dialog.
 
 import { marked } from 'marked';
 import { renderMermaidBlocks, renderMathBlocks, renderMathInlines } from './preview';
 import { applyPreviewMetadata } from './preview';
-import { keepLabelsWithNext, pagedCss } from './preview-paginated';
+import { paginateOnce } from './preview-paginated';
 import type { PdfSettings } from './settings';
 
 const PRINT_TARGET_ID = 'md2pdf-print-target';
 const PRINT_STYLE_ID = 'md2pdf-print-style';
 
-// Builds a self-contained DOM subtree from the source, paginates it the
-// same way the on-screen preview does (heading + label keep-with-next),
-// injects it into a hidden div in the live document, applies the
-// `@page` CSS, then calls `window.print()`. The browser handles the
-// pagination natively for print.
-//
-// We use the live document (and not an iframe) so the user's installed
-// fonts (`Roboto Condensed` etc., loaded once at app start) are
-// available to the print engine without re-loading.
 export async function exportViaPrint(
   expandedSource: string,
   settings: PdfSettings,
   filename: string,
 ): Promise<void> {
   const content = await buildPrintContent(expandedSource, settings);
-  keepLabelsWithNext(content);
 
-  // Mount the print container, hidden on screen, visible only in print.
+  // Mount the target with measurable dimensions so paged.js can lay
+  // out pages even though we don't want it visible on screen.
+  // `visibility: hidden` keeps the box in the layout (paged.js needs
+  // computed widths to fragment paragraphs), and the off-screen
+  // position keeps it from scrolling onto the visible viewport. We
+  // strip these inline styles after pagination so the @media print
+  // rule below can flip the target visible at print time.
   const target = ensureNode(document, 'div', PRINT_TARGET_ID);
   target.innerHTML = '';
-  target.append(...content.childNodes);
+  target.style.cssText =
+    'position: fixed; left: -10000px; top: 0; ' +
+    'width: 210mm; visibility: hidden; pointer-events: none;';
 
-  // Apply the dynamic @page rules + the screen/print toggle that hides
-  // the rest of the app while the user is in the print dialog.
+  // Wait for fonts before paginating — paged.js measures glyph widths
+  // to decide where lines break, so a re-flow once webfonts arrive
+  // would shift the page boundaries.
+  await document.fonts.ready;
+
+  // Run paged.js into the print target. Same renderer as the on-screen
+  // preview: identical fragmentation, identical page numbers (rendered
+  // as DOM children of each .pagedjs_page, not via @bottom-center which
+  // would need a non-zero @page margin). `paginateOnce` does not touch
+  // the global currentPreviewer state so the preview pane keeps its
+  // pages alive for when the user returns to it after printing.
+  const teardownPrintPreviewer = await paginateOnce(content, settings, target);
+
+  // Clear the inline staging styles so @media print can take over.
+  target.style.cssText = '';
+
+  // Apply the screen/print toggle. Note we install this AFTER paginate
+  // so the on-screen `display: none` doesn't fight paged.js's
+  // measurement pass.
   const styleEl = ensureNode(document, 'style', PRINT_STYLE_ID);
   styleEl.textContent = printStylesheet(settings);
 
   // Suggested filename: most browsers pick `document.title` as the
-  // default `Save as PDF` name. We swap it temporarily and restore on
-  // the `afterprint` event so the visible browser tab title is unchanged
-  // for the rest of the session.
+  // default "Save as PDF" name. Swap and restore via afterprint.
   const previousTitle = document.title;
   document.title = filename.replace(/\.pdf$/i, '');
 
-  // Wait for any newly-injected images / fonts to settle before opening
-  // the dialog. document.fonts.ready resolves once webfonts have loaded;
-  // images already have data URLs from `expandedSource`.
-  await document.fonts.ready;
-
   const cleanup = (): void => {
+    // Disconnect the print render's ResizeObservers before we detach
+    // the target — otherwise their queued rAF callbacks fire on the
+    // now-removed pages and walk a corrupted DOM (the same null-deref
+    // family we patched in paged.js itself).
+    teardownPrintPreviewer();
     target.remove();
     styleEl.remove();
     document.title = previousTitle;
@@ -63,9 +84,8 @@ export async function exportViaPrint(
 
   globalThis.print();
 
-  // Some browsers (Safari) don't fire `afterprint` reliably when the
-  // user dismisses the dialog without printing. Schedule a fallback
-  // cleanup after a generous delay.
+  // Safari sometimes doesn't fire afterprint when the dialog is
+  // dismissed without printing — schedule a fallback cleanup.
   setTimeout(() => cleanup(), 30_000);
 }
 
@@ -97,28 +117,33 @@ function ensureNode<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-// CSS that ships everything the browser needs at print time. Wraps the
-// app-level rules (toolbar, editor, preview) in `@media print { display:
-// none }` so only the print target is rendered, then re-uses the same
-// `pagedCss(settings)` we already feed paged.js so screen and paper
-// agree on margins, fonts, page numbers, fragmentation rules.
-function printStylesheet(settings: PdfSettings): string {
+// CSS that ships at print time. Hides the editor app and forces the
+// browser's page area to match the .pagedjs_page divs paged.js laid
+// out — without this, Chrome's dialog "Margins: Default" would carve
+// ~12 mm off every side and squeeze the divs.
+//
+// settings is unused here on purpose: page geometry is encoded in the
+// .pagedjs_page divs themselves (paged.js polished it from
+// `pagedCss(settings)` during paginate()). Chrome's @page only needs
+// to declare `margin: 0` so the printable area matches the divs.
+function printStylesheet(_settings: PdfSettings): string {
   return `
-    /* On screen, the print target is invisible — we use the live
-       document (not an iframe) so fonts already loaded for the editor
-       are available to the print engine. */
+    /* On screen, the print target stays out of view. */
     @media screen {
       #${PRINT_TARGET_ID} { display: none; }
     }
 
     @media print {
-      /* Hide the editor app; only the print target is rendered. */
+      /* Only the print target is rendered. */
       body > *:not(#${PRINT_TARGET_ID}) { display: none !important; }
       #${PRINT_TARGET_ID} { display: block !important; }
 
-      /* Page geometry, fonts, fragmentation policy — same source of
-         truth as the on-screen paginated preview. */
-      ${pagedCss(settings)}
+      /* Force Chrome's printable area to the full paper. The user's
+         margins are baked into the .pagedjs_page divs; the @page rule
+         only needs to keep Chrome from carving extra margin around
+         them. !important defeats paged.js's polished @page rule that
+         would otherwise re-introduce the user's margins here. */
+      @page { margin: 0 !important; }
     }
   `;
 }
