@@ -54,6 +54,21 @@ const MATH_BLOCK_RE =
 const MATH_INLINE_RE = /^\$(?!\s)((?:\\.|[^$\n])+?)(?<!\s)\$(?!\d)/;
 
 marked.use({
+  // Treat ```math fenced blocks as display math, equivalent to a $$…$$
+  // block. GitHub renders ```math as LaTeX since 2023 — we follow that
+  // convention. Emits the same `<div class="math-block">` placeholder
+  // as the mathBlock extension below, so the rest of the pipeline
+  // (renderMathBlocks → MathJax → SVG) handles them uniformly.
+  // Other languages fall through to the default fenced-code renderer.
+  renderer: {
+    code(token) {
+      if (token.lang === 'math') {
+        const escaped = escapeHtml(token.text);
+        return `<div class="math-block" data-math="${escaped}"></div>\n`;
+      }
+      return false;
+    },
+  },
   extensions: [
     {
       name: 'mathBlock',

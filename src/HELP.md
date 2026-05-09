@@ -203,6 +203,18 @@ Vous pouvez inclure des **formules en LaTeX**, soit **en bloc** entre
 [MathJax](https://www.mathjax.org/) et produit un PDF de qualité
 typographique professionnelle.
 
+Pour les blocs, vous pouvez aussi utiliser un *fenced block* avec le
+langage `math` — c'est la convention GitHub et ça évite le piège des
+`$$` qui doivent être seuls sur leur ligne :
+
+````
+```math
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+````
+
+Le rendu est strictement identique à `$$ … $$`.
+
 Par exemple, en tapant :
 
 ```
