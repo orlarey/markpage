@@ -439,6 +439,51 @@ body,
    pagedCss() (preview-paginated.ts) — it computes max-height from the
    user's settings, which we don't know here. */
 
+/* ---- Data tables (```csv / ```tsv) ----------------------------------- */
+/* Standalone class so we don't fight the user's pipe-tables, which use
+   marked's default <table> with no class. */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table {
+  border-collapse: collapse;
+  margin: 0.8em 0;
+  font-size: 0.95em;
+  border: 1px solid var(--border);
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table th,
+:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table td {
+  padding: 0.35em 0.7em;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table thead th {
+  background: var(--bg-alt);
+  font-weight: 500;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* ---- Definition lists ------------------------------------------------ */
+:where(#preview-pane, #md2pdf-print-target, .help-body) dl {
+  margin: 0.8em 0;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) dt {
+  font-weight: 500;
+  margin-top: 0.6em;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) dt:first-child {
+  margin-top: 0;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) dd {
+  margin: 0.1em 0 0 1.6em;
+}
+
 /* ---- Footnotes ------------------------------------------------------- */
 /* In-text reference: small superscript link in the accent colour. */
 :where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-ref {

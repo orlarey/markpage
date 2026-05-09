@@ -34,6 +34,17 @@ interface FootnoteRefToken {
   isFirst: boolean;
 }
 
+interface DefListItem {
+  termTokens: Tokens.Generic[];
+  defsTokens: Tokens.Generic[][];
+}
+
+interface DefListToken {
+  type: 'defList';
+  raw: string;
+  items: DefListItem[];
+}
+
 declare module 'marked' {
   namespace Tokens {
     interface MathBlock {
@@ -132,6 +143,12 @@ marked.use({
       if (token.lang === 'math') {
         const escaped = escapeHtml(token.text);
         return `<div class="math-block" data-math="${escaped}"></div>\n`;
+      }
+      if (token.lang === 'csv') {
+        return renderDataTable(token.text, ',');
+      }
+      if (token.lang === 'tsv') {
+        return renderDataTable(token.text, '\t');
       }
       return false;
     },
@@ -308,6 +325,45 @@ marked.use({
       },
     },
     {
+      name: 'defList',
+      level: 'block',
+      // Cheap pre-check: a `:` at the start of a line, preceded by
+      // anything that isn't itself a `:` line. The full validation
+      // happens in the tokenizer below — here we just want to skip
+      // ahead efficiently.
+      start(src: string) {
+        if (/^[^\n:][^\n]*\n:[ \t]+/.test(src)) return 0;
+        const m = /\n[^\n:][^\n]*\n:[ \t]+/.exec(src);
+        return m === null ? undefined : m.index + 1;
+      },
+      tokenizer(src: string) {
+        const parsed = parseDefListBlock(src);
+        if (!parsed) return undefined;
+        const items: DefListItem[] = parsed.pairs.map((pair) => ({
+          termTokens: this.lexer.inlineTokens(pair.term),
+          defsTokens: pair.defs.map((d) => this.lexer.inlineTokens(d)),
+        }));
+        const token: DefListToken = {
+          type: 'defList',
+          raw: parsed.raw,
+          items,
+        };
+        return token as unknown as Tokens.Generic;
+      },
+      renderer(token) {
+        const t = token as unknown as DefListToken;
+        const parts: string[] = ['<dl>'];
+        for (const item of t.items) {
+          parts.push(`<dt>${this.parser.parseInline(item.termTokens)}</dt>`);
+          for (const defTokens of item.defsTokens) {
+            parts.push(`<dd>${this.parser.parseInline(defTokens)}</dd>`);
+          }
+        }
+        parts.push('</dl>\n');
+        return parts.join('');
+      },
+    },
+    {
       name: 'mathInline',
       level: 'inline',
       start(src: string) {
@@ -342,4 +398,105 @@ function escapeHtml(s: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+// Renders a CSV/TSV fenced block as an HTML <table>. The first
+// non-empty row becomes the header (<thead>), the rest are data rows.
+// CRLF is normalised to LF; leading/trailing blank lines are dropped
+// so users can leave a blank line after the opening fence without it
+// turning into an empty header row.
+function renderDataTable(src: string, sep: string): string {
+  const lines = src.replaceAll(/\r\n?/g, '\n').split('\n');
+  const rows = lines
+    .filter((l) => l.trim() !== '')
+    .map((l) => parseCsvLine(l, sep));
+  if (rows.length === 0) return '';
+  const head = rows[0] ?? [];
+  const body = rows.slice(1);
+  const headHtml = head
+    .map((cell) => `<th>${escapeHtml(cell)}</th>`)
+    .join('');
+  const bodyHtml = body
+    .map((row) => {
+      const cells = row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
+  return `<table class="data-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>\n`;
+}
+
+// Walks src line-by-line and consumes a contiguous block of
+// term/definition pairs (Pandoc def list). Returns the raw consumed
+// text and the parsed pairs, or null if the head of src isn't the
+// start of such a block.
+//
+// Format (single-line per term, single-line per def — v1):
+//   Term
+//   :   Definition
+//
+// Multiple defs per term, multiple consecutive term-pairs in the
+// same dl block are supported. A blank line or a non-`:` line after
+// a def closes the dl. Multi-paragraph defs with 4-space-indented
+// continuations are not yet supported.
+function parseDefListBlock(
+  src: string,
+): { raw: string; pairs: { term: string; defs: string[] }[] } | null {
+  const lines = src.split('\n');
+  const pairs: { term: string; defs: string[] }[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const termLine = lines[i] ?? '';
+    // Term: non-empty, doesn't start with `:`. Stop the loop on
+    // anything else — we only consume contiguous pairs.
+    if (termLine === '' || termLine.startsWith(':')) break;
+    const defLine = lines[i + 1];
+    if (defLine === undefined || !/^:[ \t]+/.test(defLine)) break;
+    const defs: string[] = [defLine.replace(/^:[ \t]+/, '')];
+    i += 2;
+    while (i < lines.length && /^:[ \t]+/.test(lines[i] ?? '')) {
+      defs.push((lines[i] ?? '').replace(/^:[ \t]+/, ''));
+      i += 1;
+    }
+    pairs.push({ term: termLine, defs });
+  }
+  if (pairs.length === 0) return null;
+  const raw = lines.slice(0, i).join('\n');
+  return { raw, pairs };
+}
+
+// Minimal RFC-4180-ish CSV/TSV line parser: handles double-quoted
+// fields with escaped `""` inside. Doesn't handle embedded newlines
+// in quoted fields (we split on \n before reaching here) — if a real
+// document needs that we'll add a multi-line state machine.
+function parseCsvLine(line: string, sep: string): string[] {
+  const fields: string[] = [];
+  let cur = '';
+  let inQuote = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i += 1;
+      } else if (c === '"') {
+        inQuote = false;
+      } else {
+        cur += c;
+      }
+    } else if (c === '"' && cur.trim() === '') {
+      // Opening quote at the start of a field. We allow whitespace
+      // between the previous separator and the quote (CSVs from
+      // spreadsheets often pad after the comma) and drop it so the
+      // padding doesn't end up inside the parsed field.
+      inQuote = true;
+      cur = '';
+    } else if (c === sep) {
+      fields.push(cur.trim());
+      cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  fields.push(cur.trim());
+  return fields;
 }

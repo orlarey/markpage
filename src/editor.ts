@@ -1,6 +1,7 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, Prec } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
+import { indentLess, indentMore, insertTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -139,6 +140,30 @@ export function createEditor(
         EditorView.lineWrapping,
         syntaxHighlighting(editorHighlight),
         formatKeymap,
+        // Smart Tab. Without binding, the browser intercepts it for
+        // focus traversal; with `indentWithTab` (the standard CM
+        // helper), every Tab indents the line — annoying when typing
+        // a TSV block. So:
+        //   - empty / single-line selection → insert a literal `\t`
+        //   - multi-line selection         → indent the lines
+        //   - Shift-Tab                    → dedent the lines
+        keymap.of([
+          {
+            key: 'Tab',
+            preventDefault: true,
+            run: (view) => {
+              const state = view.state;
+              const multiLine = state.selection.ranges.some(
+                (r) =>
+                  !r.empty &&
+                  state.doc.lineAt(r.from).number !==
+                    state.doc.lineAt(r.to).number,
+              );
+              return multiLine ? indentMore(view) : insertTab(view);
+            },
+            shift: indentLess,
+          },
+        ]),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChange(update.state.doc.toString());

@@ -393,6 +393,66 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
 
+## Tableaux de données (CSV / TSV)
+
+Pour un tableau dense, écrire la syntaxe pipe-style (`| a | b |`) à
+la main est fastidieux. Vous pouvez à la place coller un **CSV** ou un
+**TSV** dans un *fenced block* :
+
+````
+```csv
+Note, Concert pitch (Hz), MIDI
+A4,    440.00, 69
+A#4,   466.16, 70
+B4,    493.88, 71
+```
+````
+
+Le **séparateur** est la virgule pour `csv`, la tabulation pour `tsv`.
+La **première ligne** devient l'en-tête du tableau, les suivantes les
+données.
+
+Si l'une de vos cellules contient le séparateur (par exemple une
+virgule dans un nom), entourez-la de guillemets doubles :
+
+````
+```csv
+Nom, Description
+"Doe, John", "Auteur, fondateur"
+```
+````
+
+Pour insérer un guillemet littéral dans une cellule entre guillemets,
+doublez-le : `""`.
+
+## Listes de définitions
+
+Pour une liste de **termes avec leur définition** (glossaire,
+notation, dictionnaire), utilisez la syntaxe Pandoc : un terme sur
+une ligne, puis sa définition sur la ligne suivante préfixée par
+`:` et au moins une espace.
+
+```
+DAG
+:   Directed Acyclic Graph — un graphe orienté sans cycle.
+
+FFT
+:   Fast Fourier Transform, l'algorithme en $O(n \log n)$ de
+    Cooley & Tukey.
+```
+
+Plusieurs définitions pour le même terme : ajoutez d'autres lignes
+`:` à la suite.
+
+```
+Polynôme
+:   Une expression de la forme $a_0 + a_1 x + \dots + a_n x^n$.
+:   Un objet du langage Faust qui représente la même chose.
+```
+
+À l'intérieur des termes et des définitions vous pouvez utiliser du
+Markdown inline (gras, italique, code, formules, liens).
+
 ## Notes de bas de page
 
 Vous pouvez ajouter une **note de bas de page** avec la syntaxe
