@@ -35,10 +35,13 @@ declare module 'marked' {
 }
 
 // Only matches `$$` that's the very first thing on its line (no leading
-// whitespace) and a closing `$$` that's also alone on its line. Without
-// the line-start anchors we'd swallow `$$` mentions inside inline code
-// spans or fenced code samples and treat surrounding prose as math.
-const MATH_BLOCK_RE = /^\$\$\n([\S\s]+?)\n\$\$(?=\n|$)/;
+// whitespace) and a closing `$$` that's also alone on its line.
+// Trailing spaces/tabs on either delimiter line are tolerated — users
+// often have them by accident and would never notice. The line-start
+// anchor is what keeps us from swallowing `$$` mentions inside inline
+// code spans or fenced code samples.
+const MATH_BLOCK_RE =
+  /^\$\$[ \t]*\n([\S\s]+?)\n[ \t]*\$\$[ \t]*(?=\n|$)/;
 
 // Inline math: `$x$`. Pandoc-ish constraints to keep it from eating prose
 // dollars (prices, etc.):
@@ -56,11 +59,12 @@ marked.use({
       name: 'mathBlock',
       level: 'block',
       start(src: string) {
-        // Position of `$$` at the start of input or right after a newline.
-        // Ignore `$$` mid-line (e.g. inside `\`…\`` code spans).
-        if (src.startsWith('$$\n')) return 0;
-        const idx = src.indexOf('\n$$\n');
-        return idx === -1 ? undefined : idx + 1;
+        // Position of `$$` at the start of input or right after a
+        // newline, optionally followed by trailing spaces/tabs before
+        // the line break. Ignores `$$` mid-line (inside code spans).
+        if (/^\$\$[ \t]*\n/.test(src)) return 0;
+        const m = /\n\$\$[ \t]*\n/.exec(src);
+        return m === null ? undefined : m.index + 1;
       },
       tokenizer(src: string) {
         const match = MATH_BLOCK_RE.exec(src);

@@ -1,0 +1,77 @@
+diff --git a/node_modules/pagedjs/src/chunker/layout.js b/node_modules/pagedjs/src/chunker/layout.js
+index 31b319c..0e452fe 100644
+--- a/node_modules/pagedjs/src/chunker/layout.js
++++ b/node_modules/pagedjs/src/chunker/layout.js
+@@ -403,14 +403,20 @@ class Layout {
+ 				if (!renderedNode) {
+ 					// Find closest element with data-ref
+ 					let prevNode = prevValidNode(temp);
+-					if (!isElement(prevNode)) {
++					if (prevNode && !isElement(prevNode)) {
+ 						prevNode = prevNode.parentElement;
+ 					}
+ 					renderedNode = findElement(prevNode, rendered);
++					// md2pdf patch: bail if no rendered ancestor was found.
++					// The original code dereferenced renderedNode unguarded
++					// below, crashing on documents whose break-token search
++					// walks off the rendered tree's root.
++					if (!renderedNode) return;
+ 					// Check if temp is the last rendered node at its level.
+ 					if (!temp.nextSibling) {
+ 						// We need to ensure that the previous sibling of temp is fully rendered.
+ 						const renderedNodeFromSource = findElement(renderedNode, source);
++						if (!renderedNodeFromSource) return;
+ 						const walker = document.createTreeWalker(renderedNodeFromSource, NodeFilter.SHOW_ELEMENT);
+ 						const lastChildOfRenderedNodeFromSource = walker.lastChild();
+ 						const lastChildOfRenderedNodeMatchingFromRendered = findElement(lastChildOfRenderedNodeFromSource, rendered);
+@@ -423,7 +429,9 @@ class Layout {
+ 					}
+ 					// renderedNode is actually the last unbroken box that does not overflow.
+ 					// Break Token is therefore the next sibling of renderedNode within source node.
+-					node = findElement(renderedNode, source).nextSibling;
++					const sourceMatch = findElement(renderedNode, source);
++					if (!sourceMatch) return;
++					node = sourceMatch.nextSibling;
+ 					offset = 0;
+ 				} else {
+ 					node = findElement(renderedNode, source);
+@@ -435,8 +443,10 @@ class Layout {
+ 				if (!renderedNode) {
+ 					renderedNode = findElement(prevValidNode(container), rendered);
+ 				}
++				if (!renderedNode) return;
+ 
+ 				parent = findElement(renderedNode, source);
++				if (!parent) return;
+ 				index = indexOfTextNode(temp, parent);
+ 				// No seperatation for the first textNode of an element
+ 				if(index === 0) {
+@@ -453,8 +463,10 @@ class Layout {
+ 			if (!renderedNode) {
+ 				renderedNode = findElement(prevValidNode(container.parentNode), rendered);
+ 			}
++			if (!renderedNode) return;
+ 
+ 			parent = findElement(renderedNode, source);
++			if (!parent) return;
+ 			index = indexOfTextNode(container, parent);
+ 
+ 			if (index === -1) {
+diff --git a/node_modules/pagedjs/src/utils/dom.js b/node_modules/pagedjs/src/utils/dom.js
+index 2c0e50d..ad3dbad 100644
+--- a/node_modules/pagedjs/src/utils/dom.js
++++ b/node_modules/pagedjs/src/utils/dom.js
+@@ -480,6 +480,13 @@ export function cloneNode(n, deep=false) {
+ }
+ 
+ export function findElement(node, doc, forceQuery) {
++	// md2pdf patch: defensive null-check. paged.js's createBreakToken
++	// calls findElement on the result of prevValidNode(...), which can
++	// itself return null on documents whose break-token search walks off
++	// the rendered tree's root. The crash was 'Cannot read properties of
++	// null (reading getAttribute)'. Returning null here lets the caller
++	// (createBreakToken) propagate the null up and bail.
++	if (!node || typeof node.getAttribute !== "function") return null;
+ 	const ref = node.getAttribute("data-ref");
+ 	return findRef(ref, doc, forceQuery);
+ }

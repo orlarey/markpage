@@ -796,3 +796,12 @@ levé ~150 ms après le dernier mouvement programmatique.
 - Sauvegarde / chargement de plusieurs documents (multi-doc).
 - Coloration syntaxique des blocs de code.
 - Listes de tâches `- [ ]`, notes de bas de page.
+- Préambule MathJax par document via un champ `mathjax-preamble:` en
+  frontmatter YAML. Son contenu (typiquement `\newcommand` + ligatures
+  `\mathlig`) serait préfixé à chaque source TeX avant `doc.convert()`
+  dans `src/math.ts`. Les `\mathlig{X}{Y}` n'étant pas connus de
+  MathJax, il faudrait les détecter au parsing du préambule et les
+  convertir en pré-substitutions textuelles. Permet à un auteur d'avoir
+  ses macros perso (notations sémantique dénotationnelle, théorie des
+  catégories, etc.) sans polluer le code de l'app et garde les `.md`
+  autonomes.

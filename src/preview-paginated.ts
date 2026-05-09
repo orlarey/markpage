@@ -6,12 +6,21 @@
 
 import type { PdfSettings } from './settings';
 
+interface PagedPage {
+  destroy?: () => void;
+}
+
+interface PagedChunker {
+  pages?: PagedPage[];
+}
+
 interface Previewer {
   preview: (
     content: HTMLElement | string,
     stylesheets: Array<Record<string, string>>,
     renderTo: HTMLElement,
   ) => Promise<unknown>;
+  chunker?: PagedChunker;
 }
 
 interface PagedJsModule {
@@ -20,12 +29,31 @@ interface PagedJsModule {
 
 let modulePromise: Promise<PagedJsModule> | null = null;
 
+// Holds the Previewer of the *currently displayed* render. Each Page it
+// owns has a ResizeObserver attached to its wrapper; we must disconnect
+// them (via Page.destroy()) before discarding the render, otherwise the
+// observer's rAF callback can fire on detached/missing nodes the next
+// time we re-paginate and crash deep inside paged.js's findEndToken
+// ("Cannot read properties of null (reading 'nextSibling')").
+let currentPreviewer: Previewer | null = null;
+
 async function loadPagedJs(): Promise<PagedJsModule> {
   modulePromise ??= (async () => {
     const mod = (await import('pagedjs')) as unknown as PagedJsModule;
     return mod;
   })();
   return modulePromise;
+}
+
+function teardownPreviewer(p: Previewer): void {
+  const pages = p.chunker?.pages ?? [];
+  for (const page of pages) {
+    try {
+      page.destroy?.();
+    } catch {
+      /* a page may already be partially torn down — ignore */
+    }
+  }
 }
 
 // Renders `source` (an already-rendered HTML element from the fluid
@@ -43,6 +71,13 @@ export async function paginate(
   renderTo: HTMLElement,
 ): Promise<void> {
   const { Previewer } = await loadPagedJs();
+  // Disconnect the previous render's ResizeObservers *before* wiping the
+  // DOM. Otherwise the observers fire one last time on the now-detached
+  // wrappers and their queued rAF callbacks walk a corrupted node graph.
+  if (currentPreviewer) {
+    teardownPreviewer(currentPreviewer);
+    currentPreviewer = null;
+  }
   // Each `Previewer` instance is single-shot — calling preview() twice on
   // the same instance breaks. We create a fresh one per render, which is
   // cheap.
@@ -61,6 +96,7 @@ export async function paginate(
     [{ 'paged-rules.css': pagedCss(settings) }],
     renderTo,
   );
+  currentPreviewer = previewer;
 }
 
 // Walks the rendered preview and, for every "label" element, wraps it
