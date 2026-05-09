@@ -104,6 +104,18 @@ body,
   background: #fff3b0;
 }
 
+/* Preview-toggle: visually "pressed" when we're in preview mode so the
+   user can see at a glance which view is active. The active fill picks
+   up the accent colour rather than the neutral hover state. */
+#toolbar button.preview-toggle[aria-pressed='true'] {
+  background: #d6e8ff;
+  border-color: #7aa8e0;
+}
+
+#toolbar button.preview-toggle[aria-pressed='true']:hover {
+  background: #c5dcfa;
+}
+
 
 #toolbar .menu-caret {
   font-size: 0.8em;
@@ -111,17 +123,34 @@ body,
   line-height: 1;
 }
 
+/* Single-pane mode: only one of editor / preview is visible at a time.
+   `data-view` on #panes drives the toggle. The hidden pane is
+   display:none rather than visibility:hidden so it doesn't reserve any
+   space — the visible pane fills the full content area. */
 #panes {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   min-height: 0;
+}
+
+#panes[data-view='editor'] #preview-pane,
+#panes[data-view='preview'] #editor-pane {
+  display: none;
 }
 
 #editor-pane {
   overflow: auto;
   min-height: 0;
-  border-right: 1px solid var(--border);
+}
+
+/* Strip the focus ring on the preview — we make it focusable
+   (tabindex=0) so the user can scroll with PgUp/PgDn / arrows after
+   toggling into preview mode, but the dotted outline is visual noise
+   that doesn't help. */
+#preview-pane:focus,
+#preview-pane:focus-visible {
+  outline: none;
 }
 
 /* Preview pane: paged.js writes its `.pagedjs_pages` container inside,

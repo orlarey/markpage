@@ -25,7 +25,12 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from './preview';
-import { setupScrollSync } from './scroll-sync';
+import {
+  applyAnchorToEditor,
+  applyAnchorToPreview,
+  editorCursorAnchor,
+  previewClickAnchor,
+} from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
 import {
   expandRefsToBlobUrls,
@@ -35,7 +40,7 @@ import {
   gcUnusedImages,
   refifyImageUrls,
 } from './image';
-import { mountToolbar } from './ui/toolbar';
+import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
 import { openHelpModal } from './ui/help-modal';
@@ -83,6 +88,7 @@ function bootstrap(): void {
   });
 
   const toolbarEl = document.getElementById('toolbar') as HTMLElement;
+  const panesEl = document.getElementById('panes') as HTMLElement;
   const editorEl = document.getElementById('editor-pane') as HTMLElement;
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 
@@ -93,74 +99,125 @@ function bootstrap(): void {
 
   const initialDoc = loadDoc() ?? DEFAULT_DOC;
 
-  // Resolving `img://id` refs touches IndexedDB, so updatePreview is async.
-  // We only render the latest call's output (previewReqId) to avoid an in-
-  // flight resolve overwriting a more recent one when typing fast.
+  // Single-pane UX: only one of editor/preview is visible at a time.
+  // The user toggles with Cmd/Ctrl+Enter; clicking inside the preview
+  // also returns to the editor with the cursor placed on the clicked
+  // line. This decouples editing from pagination — re-paginate fires
+  // only when the user explicitly enters preview mode (and the doc has
+  // changed since the last render), never during a typing burst.
+  let viewMode: 'editor' | 'preview' = 'editor';
+  // True when the on-screen preview is out of date with the current
+  // editor state or settings. Set on every doc/settings change, cleared
+  // after a successful paginate.
+  let dirty = true;
+
+  // We only show the latest paginate call's output. A previous in-flight
+  // render must not overwrite a more recent one.
   let previewReqId = 0;
 
-  // Builds the rendered DOM subtree (Markdown + post-processing) and hands
-  // it to paged.js, which writes the chunked-into-pages result into the
-  // preview pane.
-  const updatePreview = (source: string): void => {
+  // Builds the rendered DOM subtree (Markdown + post-processing) and
+  // hands it to paged.js. Called only when entering preview mode (or on
+  // settings change while in preview); never during typing.
+  const updatePreview = async (source: string): Promise<void> => {
     const myReq = ++previewReqId;
-    void (async () => {
-      try {
-        const resolved = await expandRefsToBlobUrls(source);
-        const built = document.createElement('div');
-        renderPreview(built, resolved);
-        applyPreviewMetadata(built, state.settings);
-        annotateSourceLines(built, source);
-        await Promise.all([
-          renderMermaidBlocks(built),
-          renderMathBlocks(built),
-          renderMathInlines(built),
-        ]);
-        if (myReq !== previewReqId) return;
-        await paginate(built, state.settings, previewEl);
-        if (myReq !== previewReqId) return;
-      } catch (err) {
-        console.error('Preview render failed', err);
-      }
-    })();
+    const resolved = await expandRefsToBlobUrls(source);
+    const built = document.createElement('div');
+    renderPreview(built, resolved);
+    applyPreviewMetadata(built, state.settings);
+    annotateSourceLines(built, source);
+    await Promise.all([
+      renderMermaidBlocks(built),
+      renderMathBlocks(built),
+      renderMathInlines(built),
+    ]);
+    if (myReq !== previewReqId) return;
+    await paginate(built, state.settings, previewEl);
+    if (myReq !== previewReqId) return;
+    dirty = false;
   };
 
   const debouncedSave = debounce((source: string) => saveDoc(source), 200);
 
-  // Repagination is heavy (paged.js measures every block); debounce so we
-  // don't recompute layout on every keystroke. 700 ms feels right: long
-  // enough to ride through a typing burst, short enough that a deliberate
-  // pause shows the updated layout.
-  let previewTimer: ReturnType<typeof setTimeout> | undefined;
-  const schedulePreview = (source: string): void => {
-    if (previewTimer !== undefined) clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => updatePreview(source), 700);
-  };
-
   applyPreviewStyles(state.settings);
 
   const editor = createEditor(editorEl, initialDoc, (doc) => {
-    schedulePreview(doc);
+    // Edits only mark the preview dirty; we re-paginate on the next
+    // toggle into preview mode. No work happens during typing.
+    dirty = true;
     debouncedSave(doc);
   });
 
   attachStyleContextMenu(editor.view.dom, editor.view);
-  setupScrollSync(editor.view, previewEl);
 
-  updatePreview(initialDoc);
+  // Assigned in renderToolbar() below before any user input has the
+  // chance to fire setViewMode().
+  let toolbarCtrl!: ToolbarControl;
+
+  const setViewMode = (mode: 'editor' | 'preview'): void => {
+    viewMode = mode;
+    panesEl.dataset['view'] = mode;
+    toolbarCtrl.setViewMode(mode);
+  };
+
+  // editor → preview. Snapshot the cursor's anchor before flipping the
+  // panes (the editor's measurements need to be read while it's still
+  // visible), then paginate if dirty, then align the preview to the
+  // snapshot so the same source line lands at the same viewport y.
+  const enterPreview = async (): Promise<void> => {
+    const anchor = editorCursorAnchor(editor.view);
+    setViewMode('preview');
+    if (dirty) {
+      try {
+        await updatePreview(editor.getValue());
+      } catch (err) {
+        console.error('Preview render failed', err);
+      }
+    }
+    if (anchor) applyAnchorToPreview(previewEl, anchor);
+    previewEl.focus();
+  };
+
+  // preview → editor. If `anchor` is provided (preview click), the
+  // cursor lands on the matching line at the click's viewport y;
+  // otherwise we just unhide the editor with the cursor wherever it
+  // already was.
+  const enterEditor = (anchor: { line: number; y: number } | null): void => {
+    setViewMode('editor');
+    if (anchor) applyAnchorToEditor(editor.view, anchor);
+    editor.view.focus();
+  };
+
+  const toggleView = (): void => {
+    if (viewMode === 'editor') void enterPreview();
+    else enterEditor(null);
+  };
+
+  // Click inside the preview returns to the editor at that source line.
+  previewEl.addEventListener('click', (e) => {
+    if (viewMode !== 'preview') return;
+    const anchor = previewClickAnchor(e, previewEl);
+    if (anchor) enterEditor(anchor);
+  });
 
   const handleSettingsChange = (s: PdfSettings) => {
     state.settings = s;
     saveSettings(s);
     applyPreviewStyles(s);
     // The @page CSS depends on settings (page size, margins, page-number
-    // position) — repaginate to reflect them.
-    updatePreview(editor.getValue());
+    // position). Mark dirty so we repaginate on the next toggle into
+    // preview; if we're already in preview, refresh now.
+    dirty = true;
+    if (viewMode === 'preview') {
+      void updatePreview(editor.getValue()).catch((err: unknown) => {
+        console.error('Preview render failed', err);
+      });
+    }
   };
 
   const handleOpen = (file: File): void => {
     const current = editor.getValue();
-    const dirty = current.trim() !== '' && current !== DEFAULT_DOC;
-    if (dirty) {
+    const hasContent = current.trim() !== '' && current !== DEFAULT_DOC;
+    if (hasContent) {
       const ok = globalThis.confirm(
         'Le contenu actuel sera remplacé. Continuer ?',
       );
@@ -173,7 +230,11 @@ function bootstrap(): void {
         const cleaned = await extractDataUrlsToStore(content);
         editor.setValue(cleaned);
         saveDoc(cleaned);
-        updatePreview(cleaned);
+        // Stay in editor mode after import — the user typically wants to
+        // see the markdown they just opened. The preview is dirty and
+        // will repaginate on the next Cmd/Ctrl+Enter.
+        dirty = true;
+        if (viewMode === 'preview') setViewMode('editor');
         state.filename = ensureFilename(baseName);
         saveFilename(state.filename);
         renderToolbar();
@@ -257,8 +318,9 @@ function bootstrap(): void {
   };
 
   const renderToolbar = (): void => {
-    mountToolbar(toolbarEl, {
+    toolbarCtrl = mountToolbar(toolbarEl, {
       initialFilename: state.filename,
+      initialViewMode: viewMode,
       onFilenameChange(name) {
         state.filename = name;
         saveFilename(name);
@@ -271,6 +333,7 @@ function bootstrap(): void {
       onHelp: triggerHelp,
       onDownload: triggerDownload,
       onSettings: triggerSettings,
+      onTogglePreview: toggleView,
     });
   };
 
@@ -283,6 +346,14 @@ function bootstrap(): void {
     if (e.defaultPrevented) return;
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.shiftKey || e.altKey) return;
+    // Cmd/Ctrl+Enter: toggle between editor and preview. We compare on
+    // `e.key === 'Enter'` rather than going through the lowercase
+    // switch because Enter has no lowercase form.
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      toggleView();
+      return;
+    }
     switch (e.key.toLowerCase()) {
       case 's':
         e.preventDefault();

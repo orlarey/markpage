@@ -1,3 +1,5 @@
+export type ViewMode = 'editor' | 'preview';
+
 export interface ToolbarHandlers {
   onOpen(): void;
   onSave(): void;
@@ -6,13 +8,19 @@ export interface ToolbarHandlers {
   onDownload(): void;
   onFilenameChange(name: string): void;
   onSettings(): void;
+  onTogglePreview(): void;
   initialFilename: string;
+  initialViewMode: ViewMode;
+}
+
+export interface ToolbarControl {
+  setViewMode(mode: ViewMode): void;
 }
 
 export function mountToolbar(
   parent: HTMLElement,
   handlers: ToolbarHandlers,
-): void {
+): ToolbarControl {
   parent.innerHTML = '';
 
   const openBtn = document.createElement('button');
@@ -26,6 +34,17 @@ export function mountToolbar(
   saveBtn.textContent = 'Enregistrer';
   saveBtn.title = 'Enregistrer le document Markdown (Ctrl+S / Cmd+S)';
   saveBtn.addEventListener('click', () => handlers.onSave());
+
+  const previewBtn = document.createElement('button');
+  previewBtn.type = 'button';
+  previewBtn.className = 'preview-toggle';
+  previewBtn.textContent = 'Aperçu';
+  previewBtn.title = 'Basculer entre éditeur et aperçu (Ctrl+Enter / Cmd+Enter)';
+  previewBtn.setAttribute(
+    'aria-pressed',
+    handlers.initialViewMode === 'preview' ? 'true' : 'false',
+  );
+  previewBtn.addEventListener('click', () => handlers.onTogglePreview());
 
   const styleBtn = document.createElement('button');
   styleBtn.type = 'button';
@@ -82,7 +101,7 @@ export function mountToolbar(
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(openBtn, saveBtn, styleBtn);
+  left.append(openBtn, saveBtn, styleBtn, previewBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
@@ -93,4 +112,13 @@ export function mountToolbar(
   right.append(helpBtn, downloadBtn, settingsBtn);
 
   parent.append(left, center, right);
+
+  return {
+    setViewMode(mode: ViewMode) {
+      previewBtn.setAttribute(
+        'aria-pressed',
+        mode === 'preview' ? 'true' : 'false',
+      );
+    },
+  };
 }

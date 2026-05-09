@@ -8,9 +8,13 @@
   <body>
     <div id="app">
       <header id="toolbar"></header>
-      <main id="panes">
+      <main id="panes" data-view="editor">
         <section id="editor-pane"></section>
-        <section id="preview-pane"></section>
+        <section
+          id="preview-pane"
+          tabindex="0"
+          aria-label="Aperçu paginé"
+        ></section>
       </main>
     </div>
     <script type="module" src="/src/main.ts"></script>

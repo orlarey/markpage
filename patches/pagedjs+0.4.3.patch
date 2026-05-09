@@ -58,10 +58,32 @@ index 31b319c..0e452fe 100644
  
  			if (index === -1) {
 diff --git a/node_modules/pagedjs/src/utils/dom.js b/node_modules/pagedjs/src/utils/dom.js
-index 2c0e50d..ad3dbad 100644
+index 2c0e50d..9a4ef29 100644
 --- a/node_modules/pagedjs/src/utils/dom.js
 +++ b/node_modules/pagedjs/src/utils/dom.js
-@@ -480,6 +480,13 @@ export function cloneNode(n, deep=false) {
+@@ -39,6 +39,12 @@ export function* walk(start, limiter) {
+ }
+ 
+ export function nodeAfter(node, limiter) {
++	// md2pdf patch: null-guard. Same root cause as the patches in
++	// nextSignificantNode / previousSignificantNode — rAF callbacks
++	// from paged.js's ResizeObservers fire after the preview pane is
++	// hidden (display:none on view toggle) and walk a DOM where node
++	// can be null. Without this, `.parentNode` on null crashes.
++	if (!node) return;
+ 	if (limiter && node === limiter) {
+ 		return;
+ 	}
+@@ -60,6 +66,8 @@ export function nodeAfter(node, limiter) {
+ }
+ 
+ export function nodeBefore(node, limiter) {
++	// md2pdf patch: null-guard, symmetric with nodeAfter.
++	if (!node) return;
+ 	if (limiter && node === limiter) {
+ 		return;
+ 	}
+@@ -480,6 +488,13 @@ export function cloneNode(n, deep=false) {
  }
  
  export function findElement(node, doc, forceQuery) {
@@ -75,3 +97,25 @@ index 2c0e50d..ad3dbad 100644
  	const ref = node.getAttribute("data-ref");
  	return findRef(ref, doc, forceQuery);
  }
+@@ -657,6 +672,8 @@ export function isAllWhitespace(node) {
+  *  2) null if no such node exists.
+  */
+ export function previousSignificantNode(sib) {
++	// md2pdf patch: null-guard, symmetric with nextSignificantNode.
++	if (!sib) return null;
+ 	while ((sib = sib.previousSibling)) {
+ 		if (!isIgnorable(sib)) return sib;
+ 	}
+@@ -724,6 +741,12 @@ export function parentOf(node, nodeName, limiter) {
+  *  2) null if no such node exists.
+  */
+ export function nextSignificantNode(sib) {
++	// md2pdf patch: null-guard the input. paged.js's rAF-deferred
++	// callbacks (Page.checkUnderflowAfterResize → Layout.findEndToken
++	// → nodeAfter → here) can fire after the preview pane has been
++	// hidden via display:none, by which point the chain may have walked
++	// off the DOM and `sib` is null. Bail cleanly instead of crashing.
++	if (!sib) return null;
+ 	while ((sib = sib.nextSibling)) {
+ 		if (!isIgnorable(sib)) return sib;
+ 	}
