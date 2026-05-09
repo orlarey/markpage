@@ -174,6 +174,49 @@ Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.
 
+### Ligatures de saisie
+
+Pour vous éviter de chercher chaque symbole Unicode, l'éditeur
+remplace au vol certaines séquences ASCII par leur équivalent
+mathématique :
+
+| Tapez | Obtenez | Tapez | Obtenez |
+|---|---|---|---|
+| `[[` | ⟦ | `<<` | ⟨ |
+| `]]` | ⟧ | `>>` | ⟩ |
+| `->` | → | `<-` | ← |
+| `=>` | ⇒ | | |
+| `<=` | ≤ | `>=` | ≥ |
+| `!=` | ≠ | `+-` | ± |
+| `\|-` | ⊢ | `-\|` | ⊣ |
+| `...` | … | | |
+
+Et pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
+n'importe quelle lettre majuscule donne sa version doublée :
+
+| Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
+|---|---|---|---|---|---|
+| `\|A` | 𝔸 | `\|J` | 𝕁 | `\|S` | 𝕊 |
+| `\|B` | 𝔹 | `\|K` | 𝕂 | `\|T` | 𝕋 |
+| `\|C` | ℂ | `\|L` | 𝕃 | `\|U` | 𝕌 |
+| `\|D` | 𝔻 | `\|M` | 𝕄 | `\|V` | 𝕍 |
+| `\|E` | 𝔼 | `\|N` | ℕ | `\|W` | 𝕎 |
+| `\|F` | 𝔽 | `\|O` | 𝕆 | `\|X` | 𝕏 |
+| `\|G` | 𝔾 | `\|P` | ℙ | `\|Y` | 𝕐 |
+| `\|H` | ℍ | `\|Q` | ℚ | `\|Z` | ℤ |
+| `\|I` | 𝕀 | `\|R` | ℝ | | |
+
+Le remplacement modifie le **source** du document (pas seulement
+l'affichage), donc les caractères Unicode sont là si vous copiez le
+texte ailleurs.
+
+Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
+le texte littéral, faites `Cmd/Ctrl + Z` immédiatement après — la
+substitution se défait, le texte ASCII est restauré.
+
+Les ligatures sont **désactivées** dans les blocs de code (` ``` ` et
+` `` `) — taper `=>` dans un fenced JavaScript reste `=>`.
+
 ### Bloc de code
 
 Pour insérer du code :

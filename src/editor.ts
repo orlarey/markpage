@@ -17,6 +17,7 @@ import {
   toggleNumberedList,
   type HeadingLevel,
 } from './editor-commands';
+import { ligatures } from './editor-ligatures';
 
 // Markdown formatting shortcuts. Bound at high precedence so they win over
 // the default keymap when there's overlap. `Mod-` resolves to ⌘ on macOS
@@ -140,6 +141,7 @@ export function createEditor(
         EditorView.lineWrapping,
         syntaxHighlighting(editorHighlight),
         formatKeymap,
+        ligatures,
         // Smart Tab. Without binding, the browser intercepts it for
         // focus traversal; with `indentWithTab` (the standard CM
         // helper), every Tab indents the line — annoying when typing
