@@ -51,7 +51,16 @@ export function annotateSourceLines(
   let elementIndex = 0;
   let line = 0;
   for (const tok of tokens) {
-    if (tok.type !== 'space' && tok.type !== 'html') {
+    // Skip token types that don't render to a DOM element of their own.
+    // - 'space' / 'html' were already excluded.
+    // - 'footnoteDef' is collected for the footnotes section and
+    //   produces no inline output, so it would shift elementIndex past
+    //   real elements if counted.
+    const renders =
+      tok.type !== 'space' &&
+      tok.type !== 'html' &&
+      tok.type !== 'footnoteDef';
+    if (renders) {
       const el = elements[elementIndex];
       if (el) el.dataset.line = String(line);
       elementIndex += 1;

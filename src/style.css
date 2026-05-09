@@ -439,6 +439,48 @@ body,
    pagedCss() (preview-paginated.ts) — it computes max-height from the
    user's settings, which we don't know here. */
 
+/* ---- Footnotes ------------------------------------------------------- */
+/* In-text reference: small superscript link in the accent colour. */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-ref {
+  font-size: 0.75em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-ref a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* End-of-document footnotes section. The `<hr>` separates it from the
+   main flow; the smaller font matches academic typography. */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes {
+  margin-top: 2em;
+  font-size: 0.9em;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.6em 0;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes ol {
+  padding-left: 1.4em;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes li {
+  margin: 0.3em 0;
+}
+
+/* The "↩" back-link sits at the end of each footnote, jumps to the
+   reference when clicked. Subtle so it doesn't compete with the prose. */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-back {
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: 0.3em;
+}
+
 /* ---- Admonitions ----------------------------------------------------- */
 /* Pandoc-style fenced divs (`::: classname [Title] … :::`). Two visual
    families: generic (note / tip / warning / caution / important) get a

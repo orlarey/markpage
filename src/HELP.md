@@ -393,6 +393,34 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
 
+## Notes de bas de page
+
+Vous pouvez ajouter une **note de bas de page** avec la syntaxe
+Pandoc : un appel de note `[^id]` dans le texte, et la définition
+`[^id]: contenu` n'importe où dans le document (généralement à la
+fin).
+
+```
+La transformée de Fourier discrète[^dft] est l'outil de base pour
+analyser un signal numérique.
+
+[^dft]: Voir Cooley & Tukey (1965) pour l'algorithme rapide.
+```
+
+L'identifiant `id` peut être un nombre, un mot, ou un libellé court —
+il sert seulement à relier l'appel à sa définition, et n'apparaît
+nulle part dans le rendu. Les notes sont **numérotées
+automatiquement** dans l'ordre où elles apparaissent dans le texte
+(pas dans l'ordre des définitions), et regroupées en fin de document.
+
+À l'intérieur d'une note vous pouvez utiliser **`gras`**, *italique*,
+`code inline`, des liens, ou même `$math$`. Une même note peut être
+référencée plusieurs fois — toutes les occurrences pointent vers la
+même entrée.
+
+Cliquer sur l'appel `¹` saute à la note ; cliquer sur le `↩` à la
+fin de la note revient à l'appel.
+
 ## Encadrés (notes, théorèmes…)
 
 Vous pouvez mettre en valeur un passage avec un **encadré** : ouvrez

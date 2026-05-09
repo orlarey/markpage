@@ -27,6 +27,13 @@ interface AdmonitionToken {
   tokens: Tokens.Generic[];
 }
 
+interface FootnoteRefToken {
+  type: 'footnoteRef';
+  raw: string;
+  id: string;
+  isFirst: boolean;
+}
+
 declare module 'marked' {
   namespace Tokens {
     interface MathBlock {
@@ -60,6 +67,25 @@ const ADMONITION_LABELS: Record<string, string> = {
   example: 'Exemple',
   remark: 'Remarque',
 };
+
+// Footnote registry. Resets at the start of every parse via the
+// preprocess hook. Definitions are collected as the block lexer runs;
+// references then look them up in the inline pass (block parsing
+// completes before inline parsing in marked, so all defs are known by
+// the time refs are tokenized).
+//
+// `seen` tracks the ids in order of first reference — which is how
+// they are numbered in the rendered list, regardless of where the
+// definition appears in the source. This matches Pandoc's behaviour.
+const footnoteDefs = new Map<string, string>();
+const footnoteSeen: string[] = [];
+// Re-entrance guard. The postprocess hook calls `marked.parseInline()`
+// to render each footnote's content as Markdown — but parseInline turns
+// out to trigger the preprocess/postprocess hooks too, which would
+// otherwise clear our registry mid-iteration and lose every footnote
+// after the first. Setting this flag tells the hooks to no-op for the
+// duration of the inner render.
+let inFootnoteRender = false;
 
 // Pandoc-style fenced div: `::: classname [Optional title]\n…body…\n:::`.
 // Constraints to keep the syntax non-greedy and predictable:
@@ -108,6 +134,40 @@ marked.use({
         return `<div class="math-block" data-math="${escaped}"></div>\n`;
       }
       return false;
+    },
+  },
+  // Hooks for footnote bookkeeping. preprocess wipes the registry so a
+  // new parse doesn't inherit state from the previous one (preview and
+  // print run separate parses on the same module). postprocess appends
+  // the rendered footnotes section if anything was referenced.
+  hooks: {
+    preprocess(src) {
+      if (inFootnoteRender) return src;
+      footnoteDefs.clear();
+      footnoteSeen.length = 0;
+      return src;
+    },
+    postprocess(html) {
+      if (inFootnoteRender) return html;
+      if (footnoteSeen.length === 0) return html;
+      inFootnoteRender = true;
+      try {
+        const items = footnoteSeen
+          .map((id) => {
+            const content = footnoteDefs.get(id) ?? '';
+            // Inline-parse the content so users can use **bold**,
+            // $math$, links, etc. inside their footnotes. parseInline
+            // re-enters the hooks; the guard above keeps them from
+            // clearing our registry mid-iteration.
+            const inlineHtml = marked.parseInline(content) as string;
+            const idEsc = escapeHtml(id);
+            return `<li id="fn-${idEsc}">${inlineHtml} <a href="#fnref-${idEsc}" class="footnote-back" aria-label="Retour à l'appel de note">↩</a></li>`;
+          })
+          .join('');
+        return `${html}\n<section class="footnotes" role="doc-endnotes"><hr><ol>${items}</ol></section>\n`;
+      } finally {
+        inFootnoteRender = false;
+      }
     },
   },
   extensions: [
@@ -184,6 +244,68 @@ marked.use({
         return `<div class="admonition admonition-${klass}">${titleHtml}<div class="admonition-body">${body}</div></div>\n`;
       },
       childTokens: ['tokens'],
+    },
+    {
+      name: 'footnoteDef',
+      level: 'block',
+      start(src: string) {
+        if (/^\[\^[^\]\n]+\]:/.test(src)) return 0;
+        const m = /\n\[\^[^\]\n]+\]:/.exec(src);
+        return m === null ? undefined : m.index + 1;
+      },
+      tokenizer(src: string) {
+        // Single-line definition for v1: `[^id]: content`. Pandoc also
+        // allows multi-paragraph defs with 4-space-indented continuations;
+        // we'll add that if a real document needs it.
+        const match = /^\[\^([^\]\n]+)\]:[ \t]*(.+)/.exec(src);
+        if (!match) return undefined;
+        footnoteDefs.set(match[1] ?? '', (match[2] ?? '').trim());
+        return {
+          type: 'footnoteDef',
+          raw: match[0],
+        };
+      },
+      // Defs don't render in place — they're collected and emitted at
+      // the end of the document via the postprocess hook.
+      renderer() {
+        return '';
+      },
+    },
+    {
+      name: 'footnoteRef',
+      level: 'inline',
+      start(src: string) {
+        const m = /\[\^/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\[\^([^\]\n]+)\]/.exec(src);
+        if (!match) return undefined;
+        const id = match[1] ?? '';
+        // Refs to undefined ids fall through to default Markdown
+        // (rendered as literal `[^id]` text). Avoids surprising "blank"
+        // numbers when a user typos an id.
+        if (!footnoteDefs.has(id)) return undefined;
+        const isFirst = !footnoteSeen.includes(id);
+        if (isFirst) footnoteSeen.push(id);
+        const token: FootnoteRefToken = {
+          type: 'footnoteRef',
+          raw: match[0],
+          id,
+          isFirst,
+        };
+        return token as unknown as Tokens.Generic;
+      },
+      renderer(token) {
+        const t = token as unknown as FootnoteRefToken;
+        const num = footnoteSeen.indexOf(t.id) + 1;
+        const idEsc = escapeHtml(t.id);
+        // Only the first reference carries the back-link target id —
+        // a footnote referenced N times shouldn't generate N elements
+        // with the same DOM id.
+        const idAttr = t.isFirst ? ` id="fnref-${idEsc}"` : '';
+        return `<sup class="footnote-ref"><a href="#fn-${idEsc}"${idAttr}>${num}</a></sup>`;
+      },
     },
     {
       name: 'mathInline',
