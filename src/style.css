@@ -466,6 +466,36 @@ body,
   background: rgba(0, 0, 0, 0.02);
 }
 
+/* ---- Task lists (- [ ] / - [x]) ------------------------------------- */
+/* marked emits a `<input type=checkbox disabled>` inside the <li> for
+   GFM-style task items. We use `:has()` to detect those items and
+   strip the bullet, replacing it with the checkbox itself. The
+   checkbox is sized up and aligned so it reads as a real list marker
+   rather than the tiny browser-default control. Nested lists of
+   regular bullets keep their default style. */
+:where(#preview-pane, #md2pdf-print-target, .help-body)
+  li:has(> input[type='checkbox']) {
+  list-style: none;
+  /* Pull the item left so the checkbox lines up with where a bullet
+     would have been. The 0.4em is the gap between bullet and text in
+     the default <ul> rendering. */
+  margin-left: -1.4em;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body)
+  li > input[type='checkbox'] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  /* Make the checkbox a hair bigger than the browser default so it
+     doesn't disappear next to body text. */
+  width: 0.95em;
+  height: 0.95em;
+  /* Disabled checkboxes are typically faded — we want them to render
+     full-strength so the checked / unchecked state stays legible in
+     the printed PDF. */
+  opacity: 1;
+}
+
 /* ---- Definition lists ------------------------------------------------ */
 :where(#preview-pane, #md2pdf-print-target, .help-body) dl {
   margin: 0.8em 0;

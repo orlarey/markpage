@@ -393,6 +393,19 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
 
+## Listes de tâches
+
+Pour une checklist, utilisez la syntaxe GitHub : un tiret ou un astérisque, puis `[ ]` pour une tâche à faire, `[x]` pour une tâche faite.
+
+```
+- [x] Écrire le brouillon
+- [x] Relire
+- [ ] Envoyer au comité
+- [ ] Préparer la version finale
+```
+
+Les cases sont **purement visuelles** : pour cocher / décocher, modifiez le `[ ]` en `[x]` (ou inversement) directement dans le markdown.
+
 ## Tableaux de données (CSV / TSV)
 
 Pour un tableau dense, écrire la syntaxe pipe-style (`| a | b |`) à
