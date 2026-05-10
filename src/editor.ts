@@ -8,6 +8,7 @@ import { tags } from '@lezer/highlight';
 import { attachImageHandlers, pickAndInsertImage } from './image';
 import {
   insertLink,
+  renumberHeadings,
   setHeading,
   toggleBlockquote,
   toggleBold,
@@ -42,6 +43,7 @@ const formatKeymap = Prec.high(
     { key: 'Mod-Shift-o', run: runWithView(toggleNumberedList) },
     { key: 'Mod-Shift-q', run: runWithView(toggleBlockquote) },
     { key: 'Mod-Alt-i', run: runWithView(pickAndInsertImage) },
+    { key: 'Mod-Shift-n', run: runWithView(renumberHeadings) },
   ]),
 );
 

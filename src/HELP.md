@@ -463,6 +463,72 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
 
+## Numérotation des sections
+
+Pour numéroter les titres d'un long document sans configurer de menu,
+il suffit de **donner l'exemple sur le premier titre de chaque
+niveau** : la commande **Numéroter les sections**
+(`Cmd/Ctrl + Maj + N`, ou bien menu **Style** → *Numéroter les
+sections*) détecte le style de numérotation que vous avez écrit, puis
+l'applique à tous les autres titres du même niveau.
+
+Exemple. Vous écrivez :
+
+```
+# 1. Introduction
+
+## 1.1 Contexte
+
+## Objectifs
+
+# Méthode
+
+## Données
+
+# Résultats
+```
+
+…vous lancez la commande, et le document devient :
+
+```
+# 1. Introduction
+
+## 1.1 Contexte
+
+## 1.2 Objectifs
+
+# 2. Méthode
+
+## 2.1 Données
+
+# 3. Résultats
+```
+
+Le premier `#` (h1) annonce un style décimal plat (`1.`) ; le premier
+`##` (h2) annonce un style hiérarchique (`1.1`, qui combine le numéro
+du parent et le numéro propre). La commande retient et applique. Si
+votre premier titre n'a aucune numérotation, ce niveau ne sera pas
+numéroté du tout — et tout préfixe numérique éventuel des titres
+suivants à ce niveau sera retiré (mise au propre).
+
+**Styles reconnus** par niveau :
+
+| Premier titre | Style appliqué |
+|---|---|
+| `# 1. Foo` | `1.`, `2.`, `3.`, … |
+| `# 1) Foo` | `1)`, `2)`, `3)`, … |
+| `# (1) Foo` | `(1)`, `(2)`, `(3)`, … |
+| `# A. Foo` | `A.`, `B.`, …, `Z.`, `AA.` |
+| `# a. Foo` | `a.`, `b.`, … |
+| `# I. Foo` | `I.`, `II.`, `III.`, … |
+| `# i. Foo` | `i.`, `ii.`, … |
+| `## 1.1 Foo` | hiérarchique : `1.1`, `1.2`, `2.1`, … |
+| `## 1.1. Foo` | hiérarchique avec point final |
+| (sans préfixe) | aucune numérotation pour ce niveau |
+
+La numérotation hiérarchique a besoin que tous les niveaux parents
+soient eux-mêmes numérotés.
+
 ## Règles d'inférence
 
 Pour écrire une **règle d'inférence** (déduction logique, sémantique

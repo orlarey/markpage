@@ -6,6 +6,7 @@ import {
 import type { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
+import { renumberByExample } from './numbering';
 
 const HEADING_PREFIX_RE = /^(#{1,6})\s+/;
 const BULLET_PREFIX_RE = /^[-*]\s+/;
@@ -132,6 +133,24 @@ export function insertLink(view: EditorView): void {
       selectedText === ''
         ? EditorSelection.range(textStart, textEnd)
         : EditorSelection.range(urlStart, urlEnd),
+  });
+  view.focus();
+}
+
+// "Renumber by example": detect the numbering style each heading level
+// uses (from its first occurrence) and rewrite every other heading at
+// that level to match. Single dispatched transaction so it's one undo
+// step. Selection is preserved at the doc level — the cursor's
+// document offset is kept, even if the surrounding heading text grew
+// or shrank by a few characters.
+export function renumberHeadings(view: EditorView): void {
+  const before = view.state.doc.toString();
+  const after = renumberByExample(before);
+  if (after === before) return;
+  const head = view.state.selection.main.head;
+  view.dispatch({
+    changes: { from: 0, to: before.length, insert: after },
+    selection: { anchor: Math.min(head, after.length) },
   });
   view.focus();
 }

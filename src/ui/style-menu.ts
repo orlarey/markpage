@@ -2,6 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import {
   getSelectionState,
   insertLink,
+  renumberHeadings,
   setHeading,
   toggleBlockquote,
   toggleBold,
@@ -118,6 +119,8 @@ export function openStyleMenu(
     sep(),
     item('Insérer un lien…', () => insertLink(view)),
     item('Insérer une image…', () => pickAndInsertImage(view)),
+    sep(),
+    item('Numéroter les sections', () => renumberHeadings(view)),
   );
 
   document.body.appendChild(menu);
