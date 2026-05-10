@@ -995,13 +995,13 @@ SVG est émis inline dans le DOM rendu, donc imprime crispe et stay
 
 ### 16.1. Syntaxe
 
-```
+````
 ```chart <type> [Title]
 x-label, y1-label[, y2-label, …]
 x1, y1[, y1', …]
 …
 ```
-```
+````
 
 `<type>` ∈ `line` / `bar`. Title optionnel, peut être entre guillemets
 pour préserver de la ponctuation. Première ligne = en-têtes (label X
