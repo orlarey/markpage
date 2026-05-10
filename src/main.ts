@@ -39,14 +39,25 @@ import {
   extractDataUrlsToStore,
   gcUnusedImages,
   refifyImageUrls,
+  rewriteImageRefs,
 } from './image';
+import { migrateToContentAddressed } from './image-store';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
 import { openHelp } from './ui/help-window';
 import { redo, undo } from '@codemirror/commands';
 import helpMd from './HELP.md?raw';
-import { loadDoc, loadFilename, saveDoc, saveFilename } from './storage';
+import { loadFilename, saveFilename } from './storage';
+import {
+  createDoc,
+  listDocs,
+  loadDocContent,
+  migrateLegacyDocIfNeeded,
+  resolveCurrentDoc,
+  saveDocContent,
+  setCurrentDocId,
+} from './docs';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
 import { paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
@@ -80,7 +91,7 @@ function downloadMarkdown(content: string, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-function bootstrap(): void {
+async function bootstrap(): Promise<void> {
   // Register the Noto fallback fonts (full TTFs, not subsetted) so the HTML
   // preview's font cascade has the same coverage as the PDF. Fire and
   // forget — the browser starts using the fonts as soon as they're loaded.
@@ -98,7 +109,34 @@ function bootstrap(): void {
     settings: loadSettings(),
   };
 
-  const initialDoc = loadDoc() ?? DEFAULT_DOC;
+  // Storage migrations, in order:
+  //  1. Mono-doc legacy (md2pdf:doc) → first entry in the new doc
+  //     index. Idempotent.
+  //  2. IndexedDB image keys: UUID → SHA-256. Returns a mapping the
+  //     caller applies to every doc's markdown so `img://<uuid>`
+  //     references follow.
+  //  3. If step 2 produced any rewrites, patch each doc's content in
+  //     place (saveDocContent re-hashes and updates the index).
+  await migrateLegacyDocIfNeeded();
+  try {
+    const mapping = await migrateToContentAddressed();
+    if (mapping.size > 0) {
+      for (const e of listDocs()) {
+        const c = loadDocContent(e);
+        if (c == null) continue;
+        const rewrote = rewriteImageRefs(c, mapping);
+        if (rewrote !== c) await saveDocContent(e.uuid, rewrote);
+      }
+    }
+  } catch (err) {
+    console.error('Image store migration failed', err);
+  }
+
+  // First run: empty index → seed with the bundled help tutorial.
+  const currentDoc =
+    resolveCurrentDoc() ?? (await createDoc('Aide md2pdf', DEFAULT_DOC));
+  setCurrentDocId(currentDoc.uuid);
+  const initialDoc = loadDocContent(currentDoc) ?? '';
 
   // Single-pane UX: only one of editor/preview is visible at a time.
   // The user toggles with Cmd/Ctrl+Enter; clicking inside the preview
@@ -137,7 +175,11 @@ function bootstrap(): void {
     dirty = false;
   };
 
-  const debouncedSave = debounce((source: string) => saveDoc(source), 200);
+  const debouncedSave = debounce((source: string) => {
+    void saveDocContent(currentDoc.uuid, source).catch((err: unknown) => {
+      console.error('Autosave failed', err);
+    });
+  }, 200);
 
   applyPreviewStyles(state.settings);
 
@@ -230,7 +272,7 @@ function bootstrap(): void {
         // short `img://id` refs. Keeps the editor doc readable.
         const cleaned = await extractDataUrlsToStore(content);
         editor.setValue(cleaned);
-        saveDoc(cleaned);
+        await saveDocContent(currentDoc.uuid, cleaned);
         // Stay in editor mode after import — the user typically wants to
         // see the markdown they just opened. The preview is dirty and
         // will repaginate on the next Cmd/Ctrl+Enter.
@@ -422,4 +464,4 @@ function bootstrap(): void {
   renderToolbar();
 }
 
-bootstrap();
+await bootstrap();

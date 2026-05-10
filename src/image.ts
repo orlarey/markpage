@@ -9,7 +9,7 @@ import {
   deleteImage,
   getAllIds,
   getImage,
-  putImage,
+  putBlobBySha,
 } from './image-store';
 
 const MAX_DIMENSION = 2000;
@@ -86,15 +86,14 @@ function hasTransparency(
 // ---- insertion --------------------------------------------------------
 
 // Inserts the processed image inline at the cursor. The actual binary lives
-// in IndexedDB; the markdown only carries an opaque `img://uuid` URL —
-// short enough that we don't need the reference-style indirection any more
-// (it was useful when the URL was a multi-megabyte data: URL).
+// in IndexedDB; the markdown only carries an opaque `img://<sha>` URL —
+// content-addressed so two documents embedding the same image share one
+// blob, and unused blobs are mechanically detectable by GC.
 async function insertImageAtCursor(
   view: EditorView,
   blob: Blob,
 ): Promise<void> {
-  const id = crypto.randomUUID();
-  await putImage(id, blob);
+  const id = await putBlobBySha(blob);
 
   const { state } = view;
   const range = state.selection.main;
@@ -370,8 +369,7 @@ export async function extractDataUrlsToStore(text: string): Promise<string> {
       if (replacements.has(dataUrl)) continue;
       try {
         const blob = await dataUrlToBlob(dataUrl);
-        const id = crypto.randomUUID();
-        await putImage(id, blob);
+        const id = await putBlobBySha(blob);
         replacements.set(dataUrl, `${URL_SCHEME}${id}`);
       } catch (err) {
         console.error('Failed to import inline image', err);
@@ -460,6 +458,23 @@ function trailingSeparator(text: string): string {
   if (text.endsWith('\n\n')) return '';
   if (text.endsWith('\n')) return '\n';
   return '\n\n';
+}
+
+// Applies a mapping `oldId → newId` to every `img://oldId` reference
+// inside `text`. Untouched ids pass through. Used by the legacy UUID →
+// content-addressed migration.
+export function rewriteImageRefs(
+  text: string,
+  mapping: Map<string, string>,
+): string {
+  if (mapping.size === 0) return text;
+  return text.replaceAll(
+    new RegExp(URL_RE_PATTERN, 'g'),
+    (full, id: string) => {
+      const replaced = mapping.get(id);
+      return replaced ? `${URL_SCHEME}${replaced}` : full;
+    },
+  );
 }
 
 // Removes IDB entries whose ids no longer appear in `text`. Also revokes
