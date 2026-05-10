@@ -14,6 +14,7 @@ import './style.css';
 // shared `marked` instance. Must run before any marked.parse / marked.lexer.
 import './marked-config';
 import { registerFallbackFonts } from './fonts';
+import { loadFontTrio } from './font-loader';
 import { createEditor } from './editor';
 import {
   renderPreview,
@@ -45,7 +46,7 @@ import {
 import { migrateToContentAddressed } from './image-store';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
-import { openSettingsPanel } from './ui/settings-panel';
+import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
 import { openDocMenu } from './ui/doc-menu';
 import { openExportMenu } from './ui/export-menu';
@@ -133,6 +134,15 @@ async function bootstrap(): Promise<void> {
   const state = {
     settings: loadSettings(),
   };
+
+  // Pre-load the user's active font trio (headings / body / code).
+  // Fire and forget — the page renders with the bundled fallback
+  // until the Google Fonts CSS resolves. The next paginate() call
+  // will pick up the right family because pagedCss is regenerated
+  // each time.
+  void loadFontTrio(state.settings.fonts).catch((err: unknown) => {
+    console.error('Font trio preload failed', err);
+  });
 
   // Storage migrations, in order:
   //  1. Mono-doc legacy (md2pdf:doc) → first entry in the new doc
@@ -374,6 +384,13 @@ async function bootstrap(): Promise<void> {
     state.settings = s;
     saveSettings(s);
     applyPreviewStyles(s);
+    // Kick off loading any newly-selected Google Font in parallel.
+    // We don't block on it: the preview repaints with the bundled
+    // fallback, then the browser swaps in the real font as soon as
+    // its CSS resolves (display=swap).
+    void loadFontTrio(s.fonts).catch((err: unknown) => {
+      console.error('Font load failed', err);
+    });
     // The @page CSS depends on settings (page size, margins, page-number
     // position). Mark dirty so we repaginate on the next toggle into
     // preview; if we're already in preview, refresh now.
@@ -468,7 +485,7 @@ async function bootstrap(): Promise<void> {
   };
 
   const triggerSettings = (): void => {
-    openSettingsPanel({
+    openSettingsWindow({
       getSettings: () => state.settings,
       onChange: handleSettingsChange,
     });

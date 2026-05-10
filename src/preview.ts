@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import { metadataLines, type PdfSettings } from './settings';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
+import { quoteFontFamily } from './font-loader';
 
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
@@ -247,15 +248,20 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   }
   const s = settings.styles;
   const align = settings.justify ? 'justify' : 'left';
+  const f = settings.fonts;
+  const headFam = `${quoteFontFamily(f.headings)}, "Roboto Condensed", sans-serif`;
+  const bodyFam = `${quoteFontFamily(f.body)}, "Roboto Condensed", sans-serif`;
+  const codeFam = `${quoteFontFamily(f.code)}, "Roboto Mono", monospace`;
   el.textContent = `
-    #preview-pane { font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
+    #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
+    #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
     #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; border-bottom: none; }
     #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; }
     #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; }
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
     #preview-pane h5,
     #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
-    #preview-pane code { font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
+    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
     #preview-pane blockquote {
       font-size: ${s.quote.fontSize}pt;
       color: ${s.quote.color};

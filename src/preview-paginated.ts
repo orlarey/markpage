@@ -5,6 +5,7 @@
 // "Mise en page" button in the toolbar.
 
 import type { PdfSettings } from './settings';
+import { quoteFontFamily } from './font-loader';
 
 interface PagedPage {
   destroy?: () => void;
@@ -193,6 +194,9 @@ export function pagedCss(s: PdfSettings): string {
   const pn = s.pageNumber;
   const pageNumberRule = pageNumberCss(pn);
   const styles = s.styles;
+  const headingsFamily = fontFamilyChain(s.fonts.headings, 'sans');
+  const bodyFamily = fontFamilyChain(s.fonts.body, 'sans');
+  const codeFamily = fontFamilyChain(s.fonts.code, 'mono');
   // All typography rules below are scoped to the two containers that
   // host paginated content: `#preview-pane` for the on-screen aperçu
   // (paged.js writes its `.pagedjs_pages` tree there), and
@@ -211,14 +215,14 @@ export function pagedCss(s: PdfSettings): string {
 
     /* Body-equivalent styles applied to the paginated container. */
     ${SCOPE} {
-      font-family: "Roboto Condensed", "Noto Sans Math",
-        "Noto Sans Symbols", sans-serif;
+      font-family: ${bodyFamily};
       font-size: ${styles.body.fontSize}pt;
       line-height: ${s.lineHeight};
       color: ${styles.body.color};
       ${s.justify ? 'text-align: justify;' : ''}
     }
 
+    ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
     ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; }
     ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; }
     ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; }
@@ -237,7 +241,7 @@ export function pagedCss(s: PdfSettings): string {
     }
 
     ${SCOPE} :is(code, pre) {
-      font-family: "Roboto Mono", monospace;
+      font-family: ${codeFamily};
       font-size: ${styles.code.fontSize}pt;
       color: ${styles.code.color};
     }
@@ -288,6 +292,25 @@ export function pagedCss(s: PdfSettings): string {
     .admonition { break-inside: avoid; }
     p, li { orphans: 3; widows: 3; }
   `;
+}
+
+// Builds a CSS `font-family` value list ending with the appropriate
+// generic + the Noto fallbacks for math / symbols glyph coverage.
+// `kind` selects which generic the chain tails with — `mono` for
+// code, anything else for proportional text.
+function fontFamilyChain(name: string, kind: 'sans' | 'mono'): string {
+  const head = quoteFontFamily(name);
+  // If the user picked a non-bundled, unknown family, we still emit
+  // it; the browser falls through to the fallbacks if it can't load.
+  // Bundled families (Roboto Condensed / Roboto Mono) are still
+  // listed last as a network-free safety net.
+  if (kind === 'mono') {
+    return `${head}, "Roboto Mono", monospace`;
+  }
+  // Headings/body: tail with Noto Sans Math + Symbols (so math
+  // glyphs and arrows resolve even when the chosen family lacks
+  // them) and Roboto Condensed as the final bundled fallback.
+  return `${head}, "Roboto Condensed", "Noto Sans Math", "Noto Sans Symbols", sans-serif`;
 }
 
 // Maps the PageSize enum to physical mm dimensions. Standard ISO sizes

@@ -1,0 +1,18 @@
+[
+  { "name": "Roboto Condensed", "family": "sans",  "weights": [400, 500], "bundled": true },
+  { "name": "Inter",            "family": "sans",  "weights": [400, 500, 700] },
+  { "name": "Roboto",           "family": "sans",  "weights": [400, 500, 700] },
+  { "name": "Open Sans",        "family": "sans",  "weights": [400, 600, 700] },
+  { "name": "Lato",             "family": "sans",  "weights": [400, 700] },
+  { "name": "Poppins",          "family": "sans",  "weights": [400, 500, 600] },
+  { "name": "Source Serif 4",   "family": "serif", "weights": [400, 600, 700] },
+  { "name": "EB Garamond",      "family": "serif", "weights": [400, 700] },
+  { "name": "Merriweather",     "family": "serif", "weights": [400, 700] },
+  { "name": "Lora",             "family": "serif", "weights": [400, 600, 700] },
+  { "name": "PT Serif",         "family": "serif", "weights": [400, 700] },
+  { "name": "Roboto Mono",      "family": "mono",  "weights": [400, 500], "bundled": true },
+  { "name": "JetBrains Mono",   "family": "mono",  "weights": [400, 500, 700] },
+  { "name": "Fira Code",        "family": "mono",  "weights": [400, 500] },
+  { "name": "Source Code Pro",  "family": "mono",  "weights": [400, 500, 700] },
+  { "name": "IBM Plex Mono",    "family": "mono",  "weights": [400, 500] }
+]

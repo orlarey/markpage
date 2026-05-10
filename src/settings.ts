@@ -72,11 +72,22 @@ export interface DateSetting {
   custom: string;
 }
 
+export interface FontTrio {
+  // Family name for h1-h6 (and bold runs).
+  headings: string;
+  // Family name for body text (paragraphs, lists, blockquote).
+  body: string;
+  // Family name for inline code and code blocks. Always a monospace
+  // — a proportional family here would break grid alignment.
+  code: string;
+}
+
 export interface PdfSettings {
   pageSize: PageSize;
   margins: Margins;
   justify: boolean;
   lineHeight: number;
+  fonts: FontTrio;
   author: MetadataField;
   organization: MetadataField;
   date: DateSetting;
@@ -112,6 +123,11 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   margins: { top: 25, bottom: 25, left: 35, right: 35 },
   justify: true,
   lineHeight: 1.25,
+  fonts: {
+    headings: 'Roboto Condensed',
+    body: 'Roboto Condensed',
+    code: 'Roboto Mono',
+  },
   author: { text: 'Prénom Nom', show: true, bold: true },
   organization: { text: 'Mon organisation', show: true, bold: true },
   date: { mode: 'today', custom: '' },
@@ -163,6 +179,7 @@ function mergeWithDefaults(input: unknown): PdfSettings {
     margins: merge(d.margins, obj.margins),
     justify: obj.justify ?? d.justify,
     lineHeight: obj.lineHeight ?? d.lineHeight,
+    fonts: merge(d.fonts, obj.fonts),
     author: merge(d.author, obj.author),
     organization: merge(d.organization, obj.organization),
     date: merge(d.date, obj.date),
