@@ -1258,34 +1258,158 @@ Algorithme :
 Le walk est en O(N × taille moyenne de doc) — négligeable pour des
 collections personnelles.
 
-### 19.4. UI
+### 19.4. Toolbar
 
-- Nouveau bouton **Documents** dans la toolbar (à gauche de
-  *Ouvrir*, ou en remplacement). Ouvre un panneau / dropdown
-  listant les docs : nom, dernière modif, taille en KB.
-- Pour chaque doc dans la liste : actions **Ouvrir**, **Renommer**,
-  **Dupliquer**, **Supprimer** (avec confirmation).
-- Bouton global **Nouveau document** (vide, nom par défaut
-  *Sans titre N* incrémenté).
-- Le doc courant est mis en évidence dans la liste (fond bleuté,
-  comme le toggle Aperçu).
+Layout révisé. Un nouveau bouton **Documents ▾** rejoint le groupe
+de gauche (à gauche d'Ouvrir). Le champ central « Nom » devient le
+**nom du document courant**, éditable en place. Le nom du PDF à
+l'export est dérivé automatiquement (slug + `.pdf`).
 
-Comportement au switch : les modifs en cours du doc actuel sont
-écrites en `localStorage` avant de charger le nouveau doc — pas de
-boîte « voulez-vous sauvegarder ? ». La persistance auto suffit
-puisque tout est local.
+```
+┌─ Toolbar ─────────────────────────────────────────────────────────────┐
+│ [Documents ▾] [Ouvrir] [Enregistrer] [Style ▾] [Aide]                 │
+│                          [Nom du doc courant — éditable]              │
+│                                       [Aperçu] [Exporter .pdf] [Réglages ▾] │
+└───────────────────────────────────────────────────────────────────────┘
+```
 
-### 19.5. État au démarrage
+**Pourquoi à gauche d'Ouvrir** : *Documents* parcourt les docs
+internes du navigateur, *Ouvrir* importe un fichier externe — ils
+sont conceptuellement adjacents (« choisir d'où vient le contenu
+suivant »).
 
-`md2pdf:current-doc` mémorise le UUID du dernier doc ouvert.
-Au lancement :
-- index vide → premier run → créer un doc unique avec le contenu de
-  HELP.md, le marquer comme courant.
-- index non vide, current-doc valide → ouvrir.
-- index non vide, current-doc invalide (effacement manuel) →
-  ouvrir le plus récent.
+**Pourquoi le nom du doc remplace le champ Nom** : il n'y a plus
+deux notions distinctes (« nom du doc » et « nom du PDF »).
+L'utilisateur entretient un seul nom ; l'app le slug-ifie pour le
+PDF (« Rapport T3 » → `rapport-t3.pdf`). Override possible au
+moment de l'export via le dialogue d'impression du navigateur.
 
-### 19.6. Hors v1
+Le dropdown **Documents ▾** affiche :
+
+```
+┌─ Documents ────────────────────────────────────────────┐
+│  + Nouveau document                                    │
+│ ─────────────────────────────────────────────────────  │
+│  ● Rapport T3                            il y a 2 min  │   ← courant
+│    Notes de réunion 12/05                il y a 3 j   │
+│    Article — DAG audio                   il y a 1 sem │
+│ ─────────────────────────────────────────────────────  │
+│   Renommer  Dupliquer  Supprimer  (sur survol d'un item) │
+└────────────────────────────────────────────────────────┘
+```
+
+- **+ Nouveau document** : crée un doc vide (nom par défaut
+  *Sans titre N*, où N est le plus petit entier qui rend le nom
+  unique), bascule dessus.
+- Le doc courant est marqué d'un point coloré et mis en évidence.
+- Click sur une ligne = ouvrir ce doc.
+- Au survol d'une ligne, trois petits boutons apparaissent :
+  *Renommer* (édition inline), *Dupliquer* (clone immédiatement avec
+  un nom *Copie de …*), *Supprimer* (avec `confirm()`).
+- Le tri par défaut est par mtime décroissant.
+
+Pas de barre de recherche en v1 — tant qu'on a moins de ~20 docs,
+c'est inutile. À ajouter quand le nombre de docs justifie.
+
+### 19.5. Scénarios utilisateur
+
+Workflow normal, du début à la fin.
+
+**S1. Premier lancement** — `localStorage` vide.
+1. L'app crée un doc « Aide md2pdf » avec le contenu de HELP.md.
+2. Marque comme courant. L'éditeur affiche le tutoriel.
+3. L'utilisateur lit, efface tout, écrit son propre contenu.
+4. Renomme dans la toolbar centre : « Mon premier document ».
+5. Autosave 200 ms après l'arrêt de la frappe (debounce existant).
+
+**S2. Créer un nouveau document.**
+1. Click *Documents ▾* → *+ Nouveau document*.
+2. Le doc actuel est sauvegardé (autosave forcé). Mtime du doc
+   actuel mis à jour.
+3. Création d'un nouveau doc « Sans titre 2 », content-sha pointant
+   sur un blob vide (string vide, hashée).
+4. Bascule l'éditeur dessus. Page blanche.
+5. Mode éditeur si on était en preview (la preview du doc précédent
+   est jetée).
+
+**S3. Switcher entre docs.**
+1. Click *Documents ▾* → click sur un doc dans la liste.
+2. Doc actuel sauvegardé.
+3. Doc cible chargé : lecture du blob `md2pdf:blobs:<content-sha>`,
+   `editor.setValue(...)`, mise à jour de `md2pdf:current-doc`.
+4. Si on était en preview, on bascule en éditeur (la preview du
+   doc précédent ne s'applique plus).
+
+**S4. Importer un fichier externe** (Markdown / DOCX / HTML / TXT).
+1. Click *Ouvrir* → file picker.
+2. Confirmation si le doc courant n'est ni vide ni le HELP (comme
+   aujourd'hui).
+3. Création d'un **nouveau doc** dans la liste (au lieu d'écraser
+   le courant comme aujourd'hui), nommé d'après le fichier source.
+4. Migration des éventuelles `data:` URLs vers IndexedDB
+   content-addressed (identique au pipeline actuel mais clé = SHA).
+5. Bascule sur le nouveau doc.
+
+**S5. Dupliquer un doc.**
+1. Survol dans la liste, click *Dupliquer*.
+2. Création immédiate d'un doc avec le même `content-sha` (le blob
+   est partagé puisque le contenu est identique). Nom « Copie de X ».
+3. Bascule. Si l'utilisateur modifie, le hash change, un nouveau
+   blob apparaît, l'original reste référencé par l'autre doc.
+
+**S6. Renommer.**
+- Soit via le champ central de la toolbar (renomme le doc courant).
+- Soit via *Renommer* dans la liste (édition inline du nom).
+- Le rename met à jour l'index, n'affecte pas le contenu ni les
+  blobs.
+
+**S7. Supprimer.**
+1. Survol → *Supprimer* → `confirm()`.
+2. Retire l'entrée de l'index.
+3. Si c'était le doc courant : bascule sur le plus récent restant
+   (ou crée un nouveau doc vide si la liste devient vide).
+4. GC à la passe suivante : le blob de contenu et les images
+   référencées uniquement par ce doc sont libérés.
+
+**S8. Export `.md`** (inchangé).
+- *Enregistrer* télécharge le doc courant en `.md` (data URLs
+  développées en référence, comme aujourd'hui).
+
+**S9. Export `.pdf`** (inchangé).
+- *Exporter .pdf* paginate via paged.js + `window.print()`. Nom de
+  fichier suggéré dérivé du nom du doc.
+
+**S10. Fermer l'onglet.**
+- L'autosave debounced écrit avant fermeture si possible. En
+  pratique, `beforeunload` fait un `flush()` synchrone si dirty.
+- Au prochain démarrage, `current-doc` rouvre exactement où on en
+  était.
+
+### 19.6. État au démarrage
+
+`md2pdf:current-doc` mémorise l'UUID du dernier doc ouvert.
+
+- Index vide → premier run → S1 (créer le doc HELP).
+- Index non vide, `current-doc` valide → ouvrir.
+- Index non vide, `current-doc` invalide ou absent → ouvrir le plus
+  récent (premier de l'index trié par mtime desc).
+- Blob `<content-sha>` introuvable pour le doc courant (dégât du
+  storage) → on logue, on remplace le content-sha par celui d'un
+  blob vide, l'utilisateur récupère un doc vide avec son ancien nom
+  (préserver le nom plutôt que de tout perdre).
+
+### 19.7. Concurrence multi-onglets
+
+Hors v1 explicite. Si l'utilisateur ouvre md2pdf dans deux onglets
+en parallèle, les `localStorage` writes vont se piétiner — le doc
+de l'onglet le plus récemment écrit gagne. Acceptable v1, l'app
+n'est pas pensée pour ça.
+
+V2 possible : écouter l'événement `storage` pour détecter les
+écritures externes ; afficher un warning « ce doc a été modifié
+dans un autre onglet, recharger ? ».
+
+### 19.8. Hors v1
 
 - Versionnage / historique de modifications par doc (snapshots).
 - Tags / dossiers pour organiser.
