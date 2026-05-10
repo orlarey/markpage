@@ -1260,56 +1260,100 @@ collections personnelles.
 
 ### 19.4. Toolbar
 
-Layout révisé. Un nouveau bouton **Documents ▾** rejoint le groupe
-de gauche (à gauche d'Ouvrir). Le champ central « Nom » devient le
-**nom du document courant**, éditable en place. Le nom du PDF à
-l'export est dérivé automatiquement (slug + `.pdf`).
+La toolbar est repensée pour densifier les actions et clarifier les
+rôles. Trois groupes séparés visuellement :
 
 ```
 ┌─ Toolbar ─────────────────────────────────────────────────────────────┐
-│ [Documents ▾] [Ouvrir] [Enregistrer] [Style ▾] [Aide]                 │
-│                          [Nom du doc courant — éditable]              │
-│                                       [Aperçu] [Exporter .pdf] [Réglages ▾] │
+│ [Mon doc ▾] [Importer] [Style ▾]  │  [Aide]  │  [Aperçu] [Exporter ▾] [Réglages ▾] │
 └───────────────────────────────────────────────────────────────────────┘
+   ──────── édition du doc ────────    aide       ─── sortie / config ───
 ```
 
-**Pourquoi à gauche d'Ouvrir** : *Documents* parcourt les docs
-internes du navigateur, *Ouvrir* importe un fichier externe — ils
-sont conceptuellement adjacents (« choisir d'où vient le contenu
-suivant »).
+#### Groupe édition
 
-**Pourquoi le nom du doc remplace le champ Nom** : il n'y a plus
-deux notions distinctes (« nom du doc » et « nom du PDF »).
-L'utilisateur entretient un seul nom ; l'app le slug-ifie pour le
-PDF (« Rapport T3 » → `rapport-t3.pdf`). Override possible au
-moment de l'export via le dialogue d'impression du navigateur.
+- **[Mon doc ▾]** : combo qui fusionne *sélecteur de document* et
+  *nom du doc courant*. Le bouton affiche le nom du doc courant ; le
+  caret ▾ indique qu'il ouvre une liste. Click → dropdown (cf.
+  ci-dessous). C'est le seul endroit où l'utilisateur voit / modifie
+  le nom du doc — le champ central séparé de la version mono-doc
+  disparaît.
+- **[Importer]** : ex-*Ouvrir*. Renommé pour refléter le nouveau
+  comportement multi-doc : *Importer* charge un fichier externe
+  (.md / .docx / .txt / .html) **comme nouveau document** dans la
+  liste, plutôt que d'écraser le courant.
+- **[Style ▾]** : inchangé — menu de mise en forme + commande
+  *Numéroter les sections*.
 
-Le dropdown **Documents ▾** affiche :
+#### Groupe aide
+
+- **[Aide]** : inchangé, fond jaune. Ouvre la fenêtre d'aide
+  séparée (§4.2, §help-window).
+
+#### Groupe sortie / config
+
+- **[Aperçu]** : inchangé, toggle éditeur ↔ aperçu paginé.
+- **[Exporter ▾]** : fusionne l'ancien *Enregistrer* (.md) et
+  l'ancien *Exporter .pdf*. Click → menu déroulant avec trois
+  entrées :
+  - **.md** — télécharge le doc courant en Markdown (ancien
+    *Enregistrer*).
+  - **.tex** — produit l'export LaTeX (cf. §21).
+  - **.pdf** — pipeline paged.js + window.print() (cf. §13.6).
+
+  Chaque format suggère un nom de fichier dérivé du nom du doc
+  (slug-ifié). Raccourcis clavier conservés : `Cmd/Ctrl + S` pour
+  .md, `Cmd/Ctrl + P` pour .pdf. Pas de raccourci dédié au .tex
+  pour l'instant — accessible uniquement via le menu.
+- **[Réglages ▾]** : inchangé.
+
+#### Dropdown Document
 
 ```
-┌─ Documents ────────────────────────────────────────────┐
+┌─ Document ─────────────────────────────────────────────┐
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ Mon document                                  ⌫  │  │  ← nom courant éditable
+│  └──────────────────────────────────────────────────┘  │
+│                                                        │
 │  + Nouveau document                                    │
 │ ─────────────────────────────────────────────────────  │
-│  ● Rapport T3                            il y a 2 min  │   ← courant
-│    Notes de réunion 12/05                il y a 3 j   │
-│    Article — DAG audio                   il y a 1 sem │
+│  Notes de réunion 12/05                  il y a 3 j   │
+│      Renommer  Dupliquer  Supprimer  (au survol)       │
+│  Article — DAG audio                     il y a 1 sem │
+│      Renommer  Dupliquer  Supprimer                    │
 │ ─────────────────────────────────────────────────────  │
-│   Renommer  Dupliquer  Supprimer  (sur survol d'un item) │
 └────────────────────────────────────────────────────────┘
 ```
 
+- En haut : un input éditable contenant le nom du **doc courant**.
+  Modifier → met à jour l'index immédiatement (et la valeur
+  affichée sur le bouton de la toolbar). C'est le seul endroit où
+  on renomme le doc actif. Touche Échap = annule l'édition,
+  Entrée = valide.
 - **+ Nouveau document** : crée un doc vide (nom par défaut
-  *Sans titre N*, où N est le plus petit entier qui rend le nom
-  unique), bascule dessus.
-- Le doc courant est marqué d'un point coloré et mis en évidence.
-- Click sur une ligne = ouvrir ce doc.
-- Au survol d'une ligne, trois petits boutons apparaissent :
-  *Renommer* (édition inline), *Dupliquer* (clone immédiatement avec
-  un nom *Copie de …*), *Supprimer* (avec `confirm()`).
-- Le tri par défaut est par mtime décroissant.
+  *Sans titre N* unique), bascule dessus, ferme le dropdown.
+- Liste des **autres** documents (le courant n'y figure pas,
+  puisqu'il est représenté par l'input du haut). Triés par mtime
+  décroissant. Un click sur une ligne ouvre ce doc.
+- Au survol d'une ligne, trois actions apparaissent :
+  *Renommer* (édition inline du nom), *Dupliquer* (clone immédiat
+  avec un nom *Copie de …*), *Supprimer* (avec `confirm()`).
 
-Pas de barre de recherche en v1 — tant qu'on a moins de ~20 docs,
-c'est inutile. À ajouter quand le nombre de docs justifie.
+Pas de barre de recherche en v1 — tant qu'il y a moins d'une
+vingtaine de docs, c'est inutile.
+
+#### Pourquoi cette refonte
+
+- *Documents* + *nom du doc* étaient deux UI distinctes pour la
+  même chose (« quel est mon document courant »). Les fusionner
+  réduit la charge cognitive.
+- *Ouvrir* en multi-doc est trompeur (suggère « remplace ce que
+  j'ai »). *Importer* dit ce qui se passe : un fichier externe
+  rentre dans la liste comme nouveau doc.
+- *Enregistrer* + *Exporter .pdf* sont deux variantes du même
+  geste « sortir le doc dans un fichier ». Avec l'arrivée de
+  l'export LaTeX, le pattern devient naturellement un menu.
+  Économise un bouton.
 
 ### 19.5. Scénarios utilisateur
 
@@ -1323,17 +1367,18 @@ Workflow normal, du début à la fin.
 5. Autosave 200 ms après l'arrêt de la frappe (debounce existant).
 
 **S2. Créer un nouveau document.**
-1. Click *Documents ▾* → *+ Nouveau document*.
+1. Click *[Mon doc ▾]* → *+ Nouveau document*.
 2. Le doc actuel est sauvegardé (autosave forcé). Mtime du doc
    actuel mis à jour.
-3. Création d'un nouveau doc « Sans titre 2 », content-sha pointant
-   sur un blob vide (string vide, hashée).
+3. Création d'un nouveau doc « Sans titre N » (N = plus petit
+   entier rendant le nom unique), content-sha pointant sur un blob
+   vide (string vide, hashée).
 4. Bascule l'éditeur dessus. Page blanche.
 5. Mode éditeur si on était en preview (la preview du doc précédent
    est jetée).
 
 **S3. Switcher entre docs.**
-1. Click *Documents ▾* → click sur un doc dans la liste.
+1. Click *[Mon doc ▾]* → click sur un doc dans la liste.
 2. Doc actuel sauvegardé.
 3. Doc cible chargé : lecture du blob `md2pdf:blobs:<content-sha>`,
    `editor.setValue(...)`, mise à jour de `md2pdf:current-doc`.
@@ -1341,11 +1386,11 @@ Workflow normal, du début à la fin.
    doc précédent ne s'applique plus).
 
 **S4. Importer un fichier externe** (Markdown / DOCX / HTML / TXT).
-1. Click *Ouvrir* → file picker.
-2. Confirmation si le doc courant n'est ni vide ni le HELP (comme
-   aujourd'hui).
-3. Création d'un **nouveau doc** dans la liste (au lieu d'écraser
-   le courant comme aujourd'hui), nommé d'après le fichier source.
+1. Click *Importer* → file picker.
+2. **Pas de confirmation** : l'import en mode multi-doc ne remplace
+   plus le doc courant, donc rien à protéger.
+3. Création d'un **nouveau doc** dans la liste, nommé d'après le
+   fichier source (sans extension).
 4. Migration des éventuelles `data:` URLs vers IndexedDB
    content-addressed (identique au pipeline actuel mais clé = SHA).
 5. Bascule sur le nouveau doc.
@@ -1358,8 +1403,10 @@ Workflow normal, du début à la fin.
    blob apparaît, l'original reste référencé par l'autre doc.
 
 **S6. Renommer.**
-- Soit via le champ central de la toolbar (renomme le doc courant).
-- Soit via *Renommer* dans la liste (édition inline du nom).
+- Pour le **doc courant** : ouvrir *[Mon doc ▾]*, taper dans
+  l'input du haut, valider avec Entrée (ou Échap pour annuler).
+- Pour un **autre doc** : survol dans la liste → *Renommer* →
+  édition inline du nom.
 - Le rename met à jour l'index, n'affecte pas le contenu ni les
   blobs.
 
@@ -1371,15 +1418,23 @@ Workflow normal, du début à la fin.
 4. GC à la passe suivante : le blob de contenu et les images
    référencées uniquement par ce doc sont libérés.
 
-**S8. Export `.md`** (inchangé).
-- *Enregistrer* télécharge le doc courant en `.md` (data URLs
-  développées en référence, comme aujourd'hui).
+**S8. Export `.md`.**
+- *[Exporter ▾]* → *.md* télécharge le doc courant en Markdown
+  (data URLs développées en référence, comme aujourd'hui).
+- Raccourci `Cmd/Ctrl + S` (préservé).
 
-**S9. Export `.pdf`** (inchangé).
-- *Exporter .pdf* paginate via paged.js + `window.print()`. Nom de
-  fichier suggéré dérivé du nom du doc.
+**S9. Export `.pdf`.**
+- *[Exporter ▾]* → *.pdf* paginate via paged.js + `window.print()`.
+  Nom de fichier suggéré dérivé du nom du doc.
+- Raccourci `Cmd/Ctrl + P` (préservé).
 
-**S10. Fermer l'onglet.**
+**S10. Export `.tex`.**
+- *[Exporter ▾]* → *.tex* lance le pipeline LaTeX (§21). Télécharge
+  un `.tex` autosuffisant, ou un `.zip` si le doc référence des
+  images / SVG mermaid / chart.
+- Pas de raccourci dédié — accessible uniquement via le menu.
+
+**S11. Fermer l'onglet.**
 - L'autosave debounced écrit avant fermeture si possible. En
   pratique, `beforeunload` fait un `flush()` synchrone si dirty.
 - Au prochain démarrage, `current-doc` rouvre exactement où on en
