@@ -251,6 +251,13 @@ function collectRefIds(text: string): Set<string> {
   return ids;
 }
 
+// Public alias so callers outside this module (GC orchestrator in
+// main.ts) can collect every `img://<id>` referenced by a markdown
+// source without depending on the internal regex.
+export function collectImageRefs(text: string): Set<string> {
+  return collectRefIds(text);
+}
+
 // Replaces `img://id` URLs with short-lived blob URLs for the HTML preview.
 // Uses the in-memory cache to avoid recreating URLs on every keystroke.
 export async function expandRefsToBlobUrls(text: string): Promise<string> {
@@ -477,11 +484,12 @@ export function rewriteImageRefs(
   );
 }
 
-// Removes IDB entries whose ids no longer appear in `text`. Also revokes
-// the cached blob URLs for those ids. Called at every save so the store
-// stays bounded.
-export async function gcUnusedImages(text: string): Promise<void> {
-  const referenced = collectRefIds(text);
+// Removes IDB entries whose ids are absent from the `referenced` set,
+// and revokes any cached blob URL for the dropped ids. Caller is
+// responsible for building `referenced` by walking every doc — see
+// runGC in main.ts. In multi-doc mode an image referenced by *any*
+// doc must be kept, so this no longer accepts a single source string.
+export async function gcUnusedImages(referenced: Set<string>): Promise<void> {
   const all = await getAllIds();
   for (const id of all) {
     if (referenced.has(id)) continue;

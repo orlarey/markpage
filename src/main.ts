@@ -33,6 +33,7 @@ import {
 } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
 import {
+  collectImageRefs,
   expandRefsToBlobUrls,
   expandRefsToDataUrls,
   expandRefsToInlineDataUrls,
@@ -51,6 +52,7 @@ import helpMd from './HELP.md?raw';
 import { loadFilename, saveFilename } from './storage';
 import {
   createDoc,
+  gcContentBlobs,
   listDocs,
   loadDocContent,
   migrateLegacyDocIfNeeded,
@@ -89,6 +91,25 @@ function downloadMarkdown(content: string, filename: string): void {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// Walks every doc, collects every `img://<sha>` ref it carries,
+// then drops IndexedDB blobs (resource pool) and `md2pdf:blobs:*`
+// entries (content pool) outside that live set. SPEC §19.3. Run at
+// boot and after every autosave so the storage stays bounded.
+async function runGC(): Promise<void> {
+  try {
+    const referenced = new Set<string>();
+    for (const e of listDocs()) {
+      const c = loadDocContent(e);
+      if (c == null) continue;
+      for (const id of collectImageRefs(c)) referenced.add(id);
+    }
+    await gcUnusedImages(referenced);
+    gcContentBlobs();
+  } catch (err) {
+    console.error('GC failed', err);
+  }
 }
 
 async function bootstrap(): Promise<void> {
@@ -138,6 +159,12 @@ async function bootstrap(): Promise<void> {
   setCurrentDocId(currentDoc.uuid);
   const initialDoc = loadDocContent(currentDoc) ?? '';
 
+  // Boot-time GC. Cleans up anything left over from a crash mid-save
+  // or from a previous version that didn't run content GC. Fire and
+  // forget — nothing in the editor pipeline depends on the storage
+  // being tight at startup.
+  void runGC();
+
   // Single-pane UX: only one of editor/preview is visible at a time.
   // The user toggles with Cmd/Ctrl+Enter; clicking inside the preview
   // also returns to the editor with the cursor placed on the clicked
@@ -176,9 +203,14 @@ async function bootstrap(): Promise<void> {
   };
 
   const debouncedSave = debounce((source: string) => {
-    void saveDocContent(currentDoc.uuid, source).catch((err: unknown) => {
-      console.error('Autosave failed', err);
-    });
+    void (async () => {
+      try {
+        await saveDocContent(currentDoc.uuid, source);
+        await runGC();
+      } catch (err) {
+        console.error('Autosave failed', err);
+      }
+    })();
   }, 200);
 
   applyPreviewStyles(state.settings);
@@ -312,7 +344,6 @@ async function bootstrap(): Promise<void> {
       try {
         const refified = refifyImageUrls(source);
         const expanded = await expandRefsToDataUrls(refified);
-        await gcUnusedImages(source);
         downloadMarkdown(expanded, mdFilenameFrom(state.filename));
       } catch (err) {
         console.error('Save failed', err);

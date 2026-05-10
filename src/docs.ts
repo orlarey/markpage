@@ -234,7 +234,7 @@ export function allBlobShas(): string[] {
   const out: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {
     const k = localStorage.key(i);
-    if (k && k.startsWith(KEY_BLOB_PREFIX)) {
+    if (k?.startsWith(KEY_BLOB_PREFIX)) {
       out.push(k.slice(KEY_BLOB_PREFIX.length));
     }
   }
@@ -243,4 +243,20 @@ export function allBlobShas(): string[] {
 
 export function deleteBlob(sha: string): void {
   localStorage.removeItem(blobKey(sha));
+}
+
+// Drops every `md2pdf:blobs:<sha>` entry whose SHA is no longer the
+// current contentSha of any doc in the index. Cheap walk: O(blobs)
+// localStorage reads, no JSON parsing per blob. Safe to run as often
+// as wanted — content-addressed, so a deleted blob is always
+// reproducible by re-saving its source.
+export function gcContentBlobs(): number {
+  const referenced = referencedContentShas();
+  let removed = 0;
+  for (const sha of allBlobShas()) {
+    if (referenced.has(sha)) continue;
+    deleteBlob(sha);
+    removed += 1;
+  }
+  return removed;
 }
