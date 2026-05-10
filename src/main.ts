@@ -43,7 +43,8 @@ import {
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
-import { openHelpModal } from './ui/help-modal';
+import { openHelp } from './ui/help-window';
+import { redo, undo } from '@codemirror/commands';
 import helpMd from './HELP.md?raw';
 import { loadDoc, loadFilename, saveDoc, saveFilename } from './storage';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
@@ -300,8 +301,51 @@ function bootstrap(): void {
     });
   };
 
+  // Inserts a markdown snippet (sent from the help window) at the
+  // editor's current cursor / selection. We wrap the source in blank
+  // lines so a fenced code block / heading / list always sits as its
+  // own paragraph in the resulting markdown, even when the cursor was
+  // mid-paragraph. Extra blank lines collapse in CommonMark, so
+  // over-wrapping is harmless. Single transaction, single undo step.
+  const insertFromHelp = (source: string): void => {
+    const view = editor.view;
+    const sel = view.state.selection.main;
+    const wrapped = `\n\n${source}\n\n`;
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert: wrapped },
+      selection: { anchor: sel.from + wrapped.length },
+    });
+    dirty = true;
+    // If the user is currently looking at the preview, refresh it so
+    // the inserted block becomes visible without forcing a switch
+    // back to the editor. Sync the preview to the start of the
+    // insertion (skipping the leading blank lines we just added) so
+    // the new content is what the user sees, anchored near the top
+    // of the viewport.
+    if (viewMode === 'preview') {
+      const insertedStart = sel.from + 2;
+      void (async () => {
+        try {
+          await updatePreview(editor.getValue());
+          const line =
+            editor.view.state.doc.lineAt(insertedStart).number - 1;
+          applyAnchorToPreview(previewEl, { line, y: 60 });
+        } catch (err) {
+          console.error('Preview refresh after help insert failed', err);
+        }
+      })();
+    }
+  };
+
   const triggerHelp = (): void => {
-    openHelpModal(helpMd, {
+    openHelp(helpMd, {
+      onInsert: insertFromHelp,
+      onUndo: () => {
+        undo(editor.view);
+      },
+      onRedo: () => {
+        redo(editor.view);
+      },
       onExportPdf: async () => {
         // Use the user's current typography / page setup, but blank out
         // the personal metadata (author / organisation / date) — the

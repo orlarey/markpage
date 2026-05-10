@@ -142,29 +142,37 @@ marked.use({
   renderer: {
     code(token) {
       const lang = (token.lang ?? '').trim();
+      // The original fenced-block source. Stashed as data-source on
+      // each emitted block so the help window can offer "insert this"
+      // even on blocks whose output (table / SVG / math placeholder)
+      // doesn't preserve the markdown form.
+      const raw = token.raw ?? '';
       if (lang === 'math') {
         const escaped = escapeHtml(token.text);
-        return `<div class="math-block" data-math="${escaped}"></div>\n`;
+        return injectSource(
+          `<div class="math-block" data-math="${escaped}"></div>\n`,
+          raw,
+        );
       }
       if (lang === 'csv') {
-        return renderDataTable(token.text, ',');
+        return injectSource(renderDataTable(token.text, ','), raw);
       }
       if (lang === 'tsv') {
-        return renderDataTable(token.text, '\t');
+        return injectSource(renderDataTable(token.text, '\t'), raw);
       }
       // ```inference (Label) — premises / dashes / conclusion. The
       // info string after `inference` is the optional rule label.
       if (lang === 'inference' || lang.startsWith('inference ')) {
         const labelMatch = /^inference\s*(.*)$/.exec(lang);
         const label = labelMatch ? (labelMatch[1] ?? '').trim() : '';
-        return renderInference(token.text, label);
+        return injectSource(renderInference(token.text, label), raw);
       }
       // ```chart <type> [Title] — see chart.ts. Everything after the
       // word "chart" (type + optional title) is forwarded as the info
       // string; the helper does its own parsing.
       if (lang === 'chart' || lang.startsWith('chart ')) {
         const m = /^chart\s*(.*)$/.exec(lang);
-        return renderChart(token.text, m?.[1] ?? '');
+        return injectSource(renderChart(token.text, m?.[1] ?? ''), raw);
       }
       return false;
     },
@@ -230,7 +238,10 @@ marked.use({
       renderer(token) {
         const t = token as unknown as MathBlockToken;
         const escaped = escapeHtml(t.text);
-        return `<div class="math-block" data-math="${escaped}"></div>\n`;
+        return injectSource(
+          `<div class="math-block" data-math="${escaped}"></div>\n`,
+          t.raw,
+        );
       },
     },
     {
@@ -274,7 +285,10 @@ marked.use({
           titleHtml = `<div class="admonition-title">${escapeHtml(defaultLabel)}</div>`;
         }
         const body = this.parser.parse(t.tokens);
-        return `<div class="admonition admonition-${klass}">${titleHtml}<div class="admonition-body">${body}</div></div>\n`;
+        return injectSource(
+          `<div class="admonition admonition-${klass}">${titleHtml}<div class="admonition-body">${body}</div></div>\n`,
+          t.raw,
+        );
       },
       childTokens: ['tokens'],
     },
@@ -406,6 +420,17 @@ marked.use({
     },
   ],
 });
+
+// Adds a `data-source="<escaped raw markdown>"` attribute to the
+// FIRST tag of `html`. The output of every renderer in this file is
+// a single root element, so the regex `<\w+` matches exactly the
+// opening tag we care about. Used to thread the original fenced-
+// block markdown into the rendered DOM, where the help window's
+// insert-button machinery can read it back via `dataset.source`.
+function injectSource(html: string, raw: string): string {
+  const escaped = escapeHtml(raw);
+  return html.replace(/<(\w+)/, `<$1 data-source="${escaped}"`);
+}
 
 function escapeHtml(s: string): string {
   return s

@@ -210,6 +210,11 @@ export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
       const dataLine = pre.dataset.line;
       const wrapper = document.createElement('div');
       if (dataLine !== undefined) wrapper.dataset.line = dataLine;
+      // Stash the original markdown form on the wrapper so the help
+      // window's insert-button machinery can offer "insert this" on
+      // a rendered diagram (otherwise the source is lost when we
+      // replace the <pre><code> with the SVG below).
+      wrapper.dataset.source = `\`\`\`mermaid\n${source.replace(/\n$/, '')}\n\`\`\``;
       if (result.ok) {
         wrapper.className = 'mermaid-block';
         wrapper.innerHTML = makeIdsUnique(result.svg);
