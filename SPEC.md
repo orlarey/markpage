@@ -30,22 +30,54 @@ initial.
 
 ### 3.1. Éléments Markdown supportés
 
+CommonMark + GFM de base :
+
 - Titres `#` à `######` (h1 → h6)
 - Paragraphes
-- **Gras** (`**…**`) et *italique* (`*…*`)
+- **Gras** (`**…**`) et *italique* (`*…*`), barré (`~~…~~`)
 - Code en ligne `` `…` `` et blocs de code (```` ``` ````), sans coloration
   syntaxique
 - Listes à puces (`-`, `*`) et numérotées (`1.`)
+- Listes de tâches GFM (`- [ ]` / `- [x]`) — case visuelle, le toggle
+  se fait en éditant la source
 - Citations `>`
-- Liens `[texte](url)` (cliquables dans le PDF)
+- Liens `[texte](url)` (cliquables dans le PDF) et autolinks `<url>`
 - Règles horizontales `---`
 - Images, en deux formes :
   - inline `![alt](url)` ou data URL
   - référence `![alt][label]` + `[label]: url` ailleurs dans le doc
 - Tableaux GFM (`| col | col |` + ligne `|---|`)
-- Diagrammes Mermaid (bloc ```` ```mermaid ```` ; voir §7)
-- Formules mathématiques en bloc (`$$…$$`) et en inline (`$…$`) via
-  MathJax ; voir §8
+
+Extensions md2pdf (toutes implémentées comme extensions `marked` ou
+overrides du renderer `code`, voir §5 et §8) :
+
+- **Diagrammes Mermaid** — bloc ```` ```mermaid ````. Voir §7.
+- **Formules mathématiques** — `$$…$$` (display) et `$…$` (inline) via
+  MathJax. Le bloc ```` ```math ```` est un alias *display* équivalent à
+  `$$…$$` (convention GitHub depuis 2023). Voir §8.
+- **Règles d'inférence** — bloc ```` ```inference [Label] ```` avec
+  prémisses / barre de tirets / conclusion. Rendu en LaTeX
+  `\dfrac{prem}{conc}` via MathJax. Voir §8.4.
+- **Tableaux de données** — blocs ```` ```csv ```` et ```` ```tsv ````.
+  Première ligne = en-têtes, suivantes = données. Séparateur
+  auto-détecté pour `csv`. Guillemets RFC-4180 supportés.
+- **Graphiques** — bloc ```` ```chart <type> [Title] ```` avec données
+  CSV-like (`<type>` ∈ `line` / `bar`). Auto-détection séparateur,
+  smart-comma pour les nombres FR (`3,14`), abscisses numériques /
+  catégorielles / dates ISO 8601. Rendu inline SVG. Voir §16.
+- **Encadrés (admonitions)** — syntaxe Pandoc fenced div
+  `::: classname [titre] … :::`. Classes génériques (`note`, `tip`,
+  `warning`, `caution`, `important`) en cadres colorés ; classes
+  académiques (`theorem`, `lemma`, `proposition`, `corollary`,
+  `definition`, `proof`, `example`, `remark`) en style sobre titre
+  italique ; classes inconnues en cadre neutre.
+- **Notes de bas de page** — syntaxe Pandoc `[^id]` (référence) +
+  `[^id]: contenu` (définition). Numérotation automatique dans l'ordre
+  des références (pas des définitions) ; collectées en fin de document
+  sous une fine `<hr>`. Voir §17.
+- **Listes de définitions** — syntaxe Pandoc `Terme\n:   Définition`.
+  Plusieurs définitions par terme et plusieurs termes consécutifs dans
+  la même `<dl>` supportés.
 
 ### 3.2. Hors périmètre actuel
 
@@ -53,38 +85,82 @@ initial.
 - Import des **images embarquées dans un fichier Word** (`.docx`) :
   l'import récupère le texte, les titres, listes, gras/italique, liens
   et citations, mais pas les images
-- Listes de tâches `- [ ]`
-- Notes de bas de page
 - HTML brut dans le Markdown
 - Recto/verso (marges alternées) à l'export PDF
+- Notes de bas de page **multi-paragraphes** (continuations indentées
+  à la Pandoc — single-line seulement en v1)
+- Numérotation automatique des admonitions académiques
+  (« Théorème 1.2 », « Lemme 3 », …)
+- Citations bibliographiques `[@key]` et bibliographie
 
 ## 4. Interface utilisateur
 
-### 4.1. Layout
+### 4.1. Layout — single-pane
+
+L'éditeur et l'aperçu paginé sont **deux vues du même document, jamais
+visibles simultanément**. L'utilisateur bascule de l'une à l'autre par
+un raccourci (`Cmd/Ctrl + Enter`) ou un bouton toolbar **Aperçu**.
 
 ```
-┌─ Toolbar globale ─────────────────────────────────────────────────────┐
-│ [Ouvrir] [Enregistrer] [Style ▾]   Nom : […]   [Aide] [Exporter .pdf]│
-│                                                          [Réglages ▾] │
-├──────────────────────────────────┬────────────────────────────────────┤
-│                                  │                                    │
-│   Éditeur (CodeMirror)           │   Aperçu HTML                      │
-│   numéros de ligne, wrapping     │   rendu en direct, fonte Roboto    │
-│   syntaxe Markdown colorée       │   Condensed                        │
-│                                  │                                    │
-└──────────────────────────────────┴────────────────────────────────────┘
+┌─ Toolbar ─────────────────────────────────────────────────────────────┐
+│ [Ouvrir] [Enregistrer] [Style ▾] [Aide]   Nom : […]   [Aperçu] [Exporter .pdf] [Réglages ▾] │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│   ╔═══════════════════════════════════════════════════════════════╗   │
+│   ║  Vue active (l'une ou l'autre, selon le mode)                 ║   │
+│   ║                                                               ║   │
+│   ║  - Éditeur Markdown (CodeMirror) — par défaut au démarrage    ║   │
+│   ║  - Aperçu paginé (paged.js) — quand la preview est demandée   ║   │
+│   ║                                                               ║   │
+│   ╚═══════════════════════════════════════════════════════════════╝   │
+│                                                                       │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
-Toolbar globale en grille 3 colonnes (gauche / centre / droite). Le bouton
-**Aide** a un fond jaune pâle pour le distinguer des actions habituelles.
-Les boutons **Style** et **Réglages** affichent un caret `▾` pour signaler
-qu'ils ouvrent un menu / panneau.
+Le bouton **Aperçu** porte un état pressé (`aria-pressed=true`, fond
+bleuté) quand on est en mode preview. Le bouton **Aide** garde son
+fond jaune pâle. Les boutons **Style** et **Réglages** affichent un
+caret `▾`.
 
-### 4.2. Comportements
+L'élément `#panes` porte un `data-view="editor" | "preview"` qui pilote
+via CSS la visibilité de chaque section (`display: none` sur l'autre).
+Le `<section id="preview-pane">` est `tabindex="0"` pour que les
+touches PgUp/PgDn et flèches scrollent l'aperçu après basculement.
 
-- **Aperçu** : recalculé à chaque frappe (résolution `img://` → blob URLs
-  via IndexedDB, voir §6) ; le rendu marked est synchrone, le pipeline est
-  protégé par un compteur de requêtes pour ignorer les rendus obsolètes.
+**Pourquoi ce choix.** Le split bidirectionnel précédent générait des
+boucles de feedback ingérables : taper un caractère déclenchait
+re-pagination + re-sync, qui scrollait l'aperçu, qui re-syncait
+l'éditeur, etc. Le single-pane découple complètement édition et
+pagination — la frappe ne déclenche plus rien dans la vue paginée
+(qui n'est pas visible), et la pagination ne tourne qu'au moment
+d'un toggle vers la preview, sur un doc *dirty* (voir §13.5).
+
+### 4.2. Bascule éditeur ↔ aperçu
+
+- **Toggle (`Cmd/Ctrl + Enter` ou bouton Aperçu)** :
+  - **éditeur → aperçu** : on capture l'**ancre** du curseur (ligne +
+    position verticale dans le viewport éditeur), on bascule la vue,
+    on re-pagine si le doc est dirty (cf. §13.5), puis on aligne
+    l'aperçu sur cette ancre.
+  - **aperçu → éditeur** : pas d'ancre, le curseur reste là où il
+    était dans l'éditeur. La vue éditeur réapparaît telle quelle.
+- **Click dans l'aperçu** = **retour éditeur avec ancrage** :
+  l'utilisateur clique sur un bloc `data-line=L` à la position `yc`
+  de son viewport ; on bascule en éditeur, on place le curseur en
+  début de ligne `L`, et on scrolle l'éditeur pour que `L` apparaisse
+  à `yc`. C'est le workflow « j'ai vu une faute, je la corrige » :
+  un clic suffit.
+- **Scroll dans l'aperçu** : reste local. Pas de propagation à
+  l'éditeur.
+
+Voir §14 pour les détails de la sync par ancre.
+
+### 4.3. Comportements
+
+- **Frappe → marque dirty** : chaque modification dans l'éditeur met
+  un drapeau `dirty = true` au niveau de l'app. **Aucune autre action
+  n'est déclenchée par la frappe** (pas de re-pagination, pas de
+  sync, pas de re-render).
 - **Persistance** : le doc est sauvegardé en `localStorage` à chaque
   modification (debounce 200 ms). Au prochain démarrage, le doc est
   restauré. Si `localStorage` est vide, c'est `HELP.md` qui est chargé
@@ -92,23 +168,24 @@ qu'ils ouvrent un menu / panneau.
 - **Ouvrir** : accepte `.md`, `.markdown`, `.txt`, `.html`, `.htm`,
   `.docx`. Demande confirmation si le doc courant n'est ni vide ni le
   HELP. À l'ouverture, les data URLs inlinées sont migrées en IndexedDB.
-  Limitation DOCX : les images embarquées dans un Word ne sont **pas**
-  importées (mammoth → HTML les sort en data URLs, mais notre filtre
-  Turndown les retire pour rester sur du contenu textuel propre).
+  L'app bascule en mode éditeur (si on était en preview) et marque
+  dirty. Limitation DOCX : les images embarquées dans un Word ne sont
+  **pas** importées (mammoth → HTML les sort en data URLs, mais notre
+  filtre Turndown les retire pour rester sur du contenu textuel
+  propre).
 - **Enregistrer** : produit un `.md` portable (data URLs en fin de doc en
   forme ref-style, voir §6).
-- **Exporter .pdf** : pipeline §5.1.
+- **Exporter .pdf** : pipeline §13.6, via paged.js.
 - **Aide** : ouvre une modale qui rend le HELP.md original (voir §10).
 - **Style** : ouvre un menu déroulant avec les commandes de mise en forme.
   Même menu disponible au clic-droit dans l'éditeur. Les items déjà
-  applicables au curseur courant sont signalés par une coche.
-- **Réglages** : ouvre un panneau modal pour personnaliser le rendu PDF
-  (voir §9).
+  applicables au curseur courant sont signalés par une coche. Inclut
+  également **Numéroter les sections** (cf. §15).
+- **Réglages** : panneau modal pour personnaliser le rendu PDF (§9).
+  Les changements marquent dirty et re-paginent immédiatement si la
+  preview est visible.
 - **Sélection ligne entière** : clic sur un numéro de ligne dans la
   gouttière sélectionne la ligne ; glisser-en sélectionne plusieurs.
-- **Synchronisation du scroll** : le scroll de l'éditeur et celui de
-  l'aperçu sont synchronisés via un mapping ligne source → bloc rendu
-  (annotations `data-line` sur les éléments de l'aperçu).
 - **Insertion d'image** : trois entrées (drag-drop sur l'éditeur, paste
   d'une image du presse-papier, item « Insérer une image… » du menu Style).
   Les images sont automatiquement redimensionnées (max 2000 px) et
@@ -117,8 +194,10 @@ qu'ils ouvrent un menu / panneau.
   web (avec limites CORS, voir §6).
 - **Métadonnées centrées** (auteur / organisation / date) insérées juste
   après le premier `# Titre 1` du doc, dans l'aperçu et dans le PDF.
+- **Ligatures de saisie** (cf. §18) : actives à la frappe et au paste,
+  désactivées dans les fenced code blocks (sauf ` ```inference `).
 
-### 4.3. Raccourcis clavier
+### 4.4. Raccourcis clavier
 
 **Mise en forme** (actifs quand l'éditeur a le focus) :
 
@@ -133,12 +212,17 @@ qu'ils ouvrent un menu / panneau.
 | `Cmd/Ctrl` + `Maj` + `L` | Liste à puces |
 | `Cmd/Ctrl` + `Maj` + `O` | Liste numérotée |
 | `Cmd/Ctrl` + `Maj` + `Q` | Citation |
+| `Cmd/Ctrl` + `Maj` + `N` | Numéroter les sections (§15) |
 | `Cmd/Ctrl` + `Alt` + `I` | Insérer une image (file picker) |
+| `Tab` (curseur seul ou sélection mono-ligne) | Insérer un `\t` |
+| `Tab` (sélection multi-lignes) | Indenter |
+| `Maj` + `Tab` | Désindenter |
 
 **Application** (globaux, indépendants du focus) :
 
 | Raccourci | Action |
 |---|---|
+| `Cmd/Ctrl` + `Enter` | Basculer éditeur ↔ aperçu |
 | `Cmd/Ctrl` + `O` | Ouvrir |
 | `Cmd/Ctrl` + `S` | Enregistrer .md |
 | `Cmd/Ctrl` + `P` | Exporter .pdf |
@@ -191,9 +275,10 @@ vite.config.ts
 
 ### 5.1. Pipeline d'aperçu (= pipeline d'export)
 
-L'aperçu et l'export PDF partagent le même rendu. La preview montre le
-résultat paginé à l'écran ; l'export ouvre le dialogue d'impression du
-navigateur sur ce même contenu — d'où conformité parfaite preview ↔ PDF.
+L'aperçu et l'export PDF partagent **le même rendu via paged.js**.
+La preview montre le résultat paginé à l'écran ; l'export pagine la
+même chose dans un container caché et appelle `window.print()` —
+d'où conformité parfaite preview ↔ PDF (cf. §13.6).
 
 ```
 Doc éditeur (avec `img://uuid`)
@@ -209,7 +294,7 @@ marked.parse() → HTML
 applyPreviewMetadata() (insère bloc auteur/org/date)
    │
    ▼
-annotateSourceLines() (data-line=N pour le scroll-sync)
+annotateSourceLines() (data-line=N pour la sync §14)
    │
    ▼
 renderMermaidBlocks / renderMathBlocks / renderMathInlines (en parallèle,
@@ -217,16 +302,18 @@ remplissent les placeholders avec les SVG MathJax / Mermaid)
    │
    ▼
 keepLabelsWithNext() (regroupe titres + paragraphes-labels avec leur
-suivant immédiat dans des `<div class="keep-with-next">`)
+suivant immédiat dans des `<div class="keep-with-next">`) — appelé
+par paginate() / paginateOnce()
    │
-   ├─► preview : paged.js → DOM paginé écran (.pagedjs_page)
-   └─► export  : print-target dans le DOM live + window.print()
+   ├─► preview : paginate() → paged.js → DOM paginé écran (.pagedjs_page)
+   └─► export  : paginateOnce() → paged.js dans #md2pdf-print-target → window.print()
 ```
 
-Le numéro de requête `previewReqId` empêche un rendu obsolète d'écraser
-un plus récent quand la frappe est rapide. La repagination est
-debouncée à 700 ms — paged.js fait un layout pass coûteux à chaque
-appel, on attend qu'une rafale de frappes se calme.
+Le pipeline ne tourne **pas** à la frappe — il est déclenché à
+chaque toggle vers la preview (sur un doc dirty) ou à un changement
+de réglages, jamais en arrière-plan (cf. §4.3 et §13.5). Un compteur
+`previewReqId` annule un rendu obsolète si un toggle plus récent
+arrive avant la fin du précédent.
 
 ### 5.2. Pipeline de sauvegarde / chargement
 
@@ -357,18 +444,24 @@ de fragmentation ni de fallback inline → bloc.
 ### 8.1. Reconnaissance Markdown
 
 Une extension `marked` (`src/marked-config.ts`) ajoute deux types de
-tokens :
+tokens et un override du renderer `code` :
 
 - **`mathBlock`** (niveau block) — matche `^\$\$\n([\S\s]+?)\n\$\$`
   avec `$$` seul sur sa ligne d'ouverture comme de fermeture. Sans
   cette contrainte de ligne, des `$$` mentionnés dans des code spans
-  ou fenced blocks seraient capturés à tort.
+  ou fenced blocks seraient capturés à tort. Espaces/tabs en fin de
+  ligne de délimiteur tolérés.
 - **`mathInline`** (niveau inline) — matche
   `\$(?!\s)((?:\\.|[^$\n])+?)(?<!\s)\$(?!\d)`. Garde-fous Pandoc-style
   pour ne pas avaler des dollars de prix (« Cost $5 or $7 ») ni des
   `$$`. L'alternative `\\.` à l'intérieur du groupe permet d'écrire
   `\$` (ou tout autre caractère échappé) à l'intérieur de la formule
   sans casser la fermeture.
+- **Bloc ```` ```math ```` (alias display)** — override du renderer
+  `code` quand `lang === 'math'`. Émet le même placeholder
+  `<div class="math-block">` que `$$…$$`. Aligné sur la convention
+  GitHub. Évite le piège des `$$` qui doivent être seuls sur leur
+  ligne.
 
 Le module est importé pour ses effets de bord depuis `main.ts`, avant
 tout appel à `marked.parse` ou `marked.lexer`. Les renderers
@@ -418,6 +511,31 @@ d'aperçu :
 
 Erreurs de parsing : on ajoute la classe `math-error`, stylée en
 bordure rouge avec ré-affichage de la source.
+
+### 8.4. Bloc ```inference
+
+Override du renderer `code` quand `lang === 'inference'` (avec étiquette
+optionnelle entre parenthèses : ```` ```inference (MP) ````). Le
+contenu du bloc est découpé sur une **ligne de tirets** (3 ou plus,
+seule sur sa ligne) :
+
+- au-dessus : les **prémisses**, séparées par `;` (converti en `\quad`)
+  ou réparties sur plusieurs lignes (idem) ;
+- en-dessous : la **conclusion**.
+
+Le tout est emballé en `\dfrac{prémisses \quad …}{conclusion}` et
+émis comme placeholder `<div class="math-block">`, traité ensuite par
+le pipeline math standard. L'étiquette devient `\quad \textsf{(label)}`
+à droite de la barre.
+
+**Pas de pré-substitution ASCII → LaTeX** : on s'appuie sur les
+ligatures de saisie (§18), qui restent **actives à l'intérieur de
+``` ```inference ``` ``` ** (seule exception au comportement « ligatures
+off dans les fenced blocks »). L'utilisateur tape `|-`, `->`, `[[`,
+`|N` et la source contient déjà `⊢`, `→`, `⟦`, `ℕ` au moment où le
+renderer prend la main. MathJax 3 (avec les paquets `textmacros` et
+`unicode` dans `AllPackages`) accepte ces caractères Unicode
+directement en mode math.
 
 ## 9. Réglages PDF
 
@@ -551,22 +669,28 @@ interface PdfSettings {
 
 ## 13. Aperçu paginé et export PDF
 
-L'aperçu (colonne de droite) simule des pages physiques (A4/A5/Letter…)
-avec leurs marges, comme dans Word ou Pages. WYSIWYG strict : ce qu'on
-voit dans la preview correspond pixel à pixel au PDF généré, parce que
-les deux passent par le même moteur de rendu navigateur.
+L'aperçu simule des pages physiques (A4/A5/Letter…) avec leurs marges,
+comme dans Word ou Pages. **WYSIWYG strict** : ce qu'on voit dans la
+preview correspond pixel à pixel au PDF généré, parce que les deux
+passent par **paged.js** sur le même moteur de rendu navigateur.
 
-L'export PDF (`Exporter .pdf` ou `Cmd/Ctrl + P`) ouvre le dialogue
-d'impression du navigateur, configuré pour produire un PDF sur la même
-vue. L'utilisateur choisit « Enregistrer au format PDF » comme
-destination.
+L'export PDF (`Exporter .pdf` ou `Cmd/Ctrl + P`) pagine le contenu
+**dans un container caché** via paged.js, puis appelle `window.print()`.
+L'utilisateur choisit « Enregistrer au format PDF » comme destination
+et **« Marges : Aucune »** dans les options du dialogue (cf. §13.7).
 
 ### 13.1. Architecture
 
 Module `src/preview-paginated.ts` :
 - Lazy-load de [paged.js](https://pagedjs.org/) (~300 KB) au
   premier rendu.
-- API : `paginate(htmlEl, settings, renderTo)`.
+- API : `paginate(htmlEl, settings, renderTo)` — pagine pour l'aperçu,
+  gère un `currentPreviewer` au niveau module (le détruit avant chaque
+  re-paginate pour libérer les `ResizeObserver` attachés aux Pages).
+- API : `paginateOnce(htmlEl, settings, renderTo)` — variante
+  one-shot pour le pipeline print, qui ne touche pas au
+  `currentPreviewer` (sinon imprimer ferait disparaître l'aperçu) et
+  retourne une closure de teardown que l'appelant invoque au cleanup.
 - paged.js implémente les standards W3C CSS Paged Media + CSS
   Fragmentation. Il fournit le **moteur** de pagination ; on lui
   fournit la **politique** via du CSS dynamique (§13.2).
@@ -574,9 +698,11 @@ Module `src/preview-paginated.ts` :
 Module `src/print-export.ts` :
 - API : `exportViaPrint(source, settings, filename)`.
 - Construit un sous-arbre DOM auto-suffisant (Markdown → métadonnées
-  → mermaid/math/inline-math → keep-with-next), l'insère dans un
-  `#md2pdf-print-target` caché en mode écran, applique le même
-  `pagedCss(settings)` que l'aperçu, et appelle `window.print()`.
+  → mermaid/math/inline-math), le pose dans `#md2pdf-print-target`
+  positionné hors-écran avec `visibility: hidden` (paged.js a besoin
+  de dimensions mesurables pour fragmenter), **pagine via
+  `paginateOnce`**, puis applique un stylesheet `@media print` qui
+  affiche le print-target et masque tout le reste.
 - Le print-target vit dans le document principal pour que les
   polices déjà chargées par l'éditeur soient disponibles au moteur
   d'impression sans round-trip iframe.
@@ -604,9 +730,29 @@ DOM (`pagedCss(settings)` dans `preview-paginated.ts`) :
 h1, h2, h3, h4 { break-after: avoid; }   /* pas de titre seul en bas de page */
 .math-block,
 .mermaid-block,
-img { break-inside: avoid; }             /* blocs visuels indivisibles */
+img,
+.admonition,
+.chart-block { break-inside: avoid; }    /* blocs visuels indivisibles */
 p, li, blockquote { orphans: 3; widows: 3; }
+.keep-with-next { break-inside: avoid; } /* §13.3 */
+
+/* Images : cap proportionnel à la zone de page pour qu'une portrait
+   tienne toujours sur une page. Sans ça, paged.js bouclait sur les
+   docs avec image ≥ hauteur page + break-inside: avoid. */
+img {
+  max-width: 100%;
+  max-height: <pageH - margins - 4mm>;
+  width: auto; height: auto;
+  object-fit: contain;
+}
 ```
+
+Pour le **pipeline print uniquement**, un override surcharge le
+`@page margin` à `0` (`!important`). paged.js, à ce moment-là, a déjà
+laid-out chaque page comme un `.pagedjs_page` div de la taille papier
+exacte avec ses marges internes baked-in. Forcer `@page { margin: 0 }`
+empêche Chrome d'ajouter ses propres marges « par défaut » qui
+écraseraient les nôtres (cf. §13.7).
 
 **Tableaux** : on utilise les défauts CSS, qui autorisent la coupure
 entre lignes et **répètent automatiquement le `<thead>`** en haut de
@@ -650,143 +796,368 @@ nestés et restent groupées.
 - Le contenu à l'intérieur d'une page conserve les marges
   (`@page margin`) — on retrouve donc visuellement la zone de texte.
 
-### 13.5. Performance
+### 13.5. Performance et déclenchement
 
-- Repagination **debouncée à 700 ms** : la pagination est un calcul
-  de layout coûteux.
-- Annulation des repaginations en cours quand l'utilisateur continue
-  de taper (pattern `previewReqId`).
-- Ordre de grandeur observable : ~100 ms pour un doc de 5 pages,
-  ~1 s pour un doc de 50 pages. Acceptable car la repagination est
-  censée se voir lorsqu'on relit, pas pendant la frappe rapide.
+- **La pagination ne tourne PAS pendant la frappe.** L'éditeur marque
+  le doc `dirty` à chaque modification, mais la re-pagination n'a lieu
+  que :
+  - au **toggle** vers la preview, si le doc est dirty (cf. §4.2) ;
+  - au **changement de réglages**, immédiatement si la preview est
+    affichée, sinon différé au prochain toggle.
+- Annulation des paginations en cours quand un nouveau toggle survient
+  (pattern `previewReqId`).
+- Ordre de grandeur : ~100 ms pour un doc de 5 pages, ~1 s pour un
+  doc de 50 pages. Pris une fois au toggle, c'est imperceptible.
 
-### 13.6. Notes pratiques sur l'impression
+### 13.6. Pipeline export PDF (print)
+
+L'export PDF **réutilise paged.js** (pas seulement `window.print()`
+sur du contenu vierge) :
+
+1. Construire le sous-arbre DOM auto-suffisant (Markdown rendu →
+   metadonnées → mermaid/math).
+2. Le poser dans `#md2pdf-print-target`, hors-écran et invisible
+   (`position:fixed; left:-10000px; visibility:hidden`) mais avec une
+   `width: 210mm` pour que paged.js puisse mesurer.
+3. `await document.fonts.ready` (les ruptures de ligne dépendent des
+   métriques de fonte).
+4. `await paginateOnce(content, settings, target)` — paged.js layoute
+   chaque page comme un `.pagedjs_page` div à dimensions exactes.
+5. Réinitialiser le style inline du target, installer la `<style>`
+   `@media print` qui révèle le target et masque le reste de l'app,
+   surcharge `@page margin: 0 !important`.
+6. `globalThis.print()` ouvre le dialogue.
+7. Sur `afterprint` (ou timeout 30 s en fallback Safari), la closure
+   de teardown détache les `ResizeObserver` des Pages, le target et
+   la `<style>` sont retirés.
+
+Avantage du passage par paged.js plutôt que de laisser le moteur de
+print du navigateur paginer : les marges utilisateur sont **baked
+dans les `.pagedjs_page` divs**, donc Chrome ne peut pas les écraser
+(à condition que l'utilisateur sélectionne « Marges : Aucune », cf.
+§13.7).
+
+### 13.7. Notes pratiques sur l'impression
 
 - L'utilisateur doit choisir « Enregistrer au format PDF » (ou
   équivalent) comme destination dans le dialogue d'impression.
+- L'utilisateur doit **également** choisir **« Marges : Aucune »** dans
+  les options « Plus de paramètres » du dialogue. Sans ça, Chrome
+  ajoute ses ~12 mm de marges par-dessus les nôtres, ce qui rétrécit
+  la zone imprimable et fait dépasser ou re-scaler les
+  `.pagedjs_page` divs (qui font la taille exacte du papier). Cette
+  contrainte est documentée dans HELP.md.
 - Selon le navigateur, des en-têtes/pieds par défaut (URL, date)
   peuvent apparaître ; ils se décochent dans les options du dialogue.
 - Le nom de fichier suggéré reprend le `document.title` que
   `exportViaPrint()` met temporairement à la valeur de la zone
   « Nom » de la toolbar.
 
+### 13.8. paged.js patché (null-derefs)
+
+paged.js 0.4.3 a plusieurs null-derefs dans `findElement`,
+`createBreakToken`, `nodeAfter`/`nodeBefore`, `nextSignificantNode`/
+`previousSignificantNode`. Les `ResizeObserver` qu'il attache à
+chaque `Page` peuvent émettre des `requestAnimationFrame` après que
+le pane preview soit passé en `display:none` (ou que la cible
+d'impression soit retirée), et la chaîne de walk DOM crashe sur des
+nodes null transitoires.
+
+Six null-guards défensifs sont appliqués via `patch-package` :
+`patches/pagedjs+0.4.3.patch`, rejoué automatiquement par le
+`postinstall` de `package.json`. Tous retournent simplement
+undefined / null en amont — paged.js documente que `breakToken is
+nullable`, et le walk peut bailer proprement.
+
 ## 14. Synchronisation éditeur ↔ aperçu
 
-L'éditeur et l'aperçu paginé sont **co-positionnés** : ce qu'on regarde
-dans l'un correspond à ce qu'on regarde dans l'autre. Le mécanisme
-fonctionne dans les deux sens (scroll dans l'une fait scroller l'autre,
-même chose pour le clic).
+Le single-pane (§4.1) signifie que les deux vues ne sont jamais
+visibles en même temps. La synchronisation n'est **plus** une boucle
+permanente entre deux scrollers — c'est un **transfert d'ancre** au
+moment précis où l'utilisateur bascule. Quatre points de sync, pas
+plus.
 
-### 14.1. Le principe : ligne d'ancrage + position d'ancrage
+### 14.1. Le principe : ancre (ligne, y)
 
-Toute synchronisation se ramène à une **ligne d'ancrage** `L` (une
-ligne source du document) et une **position d'ancrage** `y` (en pixels,
-dans le viewport de la vue qui pilote). L'opération est :
+Une **ancre** est une paire `(L, y)` :
+- `L` : la ligne source 0-indexée que l'on souhaite « regarder ».
+- `y` : la position verticale (en pixels) où elle doit apparaître dans
+  le viewport de la vue cible.
 
-> *Trouver le bloc `data-line=L` dans l'autre vue, et la scroller pour
-> que ce bloc apparaisse au pixel `y` de son viewport.*
+Appliquer une ancre à une vue cible = scroller cette vue pour que la
+ligne `L` apparaisse au pixel `y` de son viewport.
 
-Le choix de `(L, y)` change selon ce qui a déclenché la sync :
+### 14.2. Cartographie
 
-| Action utilisateur (sur la vue A) | `L` | `y` |
-|---|---|---|
-| Clic à la position verticale `yc` | ligne sous le clic | `yc` |
-| Scroll **vers le bas** | dernière ligne visible | **position réelle de cette ligne dans le viewport** |
-| Scroll **vers le haut** | première ligne visible | **position réelle de cette ligne dans le viewport** |
+Comme avant, l'aperçu stamp un `data-line="N"` sur chaque bloc rendu
+via `annotateSourceLines()`. paged.js préserve ces attributs lors du
+chunking en pages. Pour aller de `L` (ligne source) à un `y` dans le
+scroller de l'aperçu, on lit le `getBoundingClientRect()` du bloc
+`[data-line=L]` le plus proche et on interpole linéairement entre
+deux entrées si la ligne tombe entre deux blocs.
 
-Subtilité importante sur le `y` du scroll : on ne prend **pas**
-simplement `viewportH` pour le scroll-down (resp. `0` pour le
-scroll-up), mais bien la position réelle où la ligne d'ancrage est
-rendue. Cette nuance unifie le scroll et le clic : *scroller vers le
-bas, c'est cliquer sur la dernière ligne visible à l'endroit exact où
-elle apparaît*. Au milieu du document, la dernière ligne visible
-touche le bas du viewport (`y ≈ viewportH`) ; mais à la fin du
-document, la dernière ligne avec `data-line` n'atteint pas le bord bas
-du viewport (il y a derrière la marge basse de la page, le numéro de
-page, …) et `y` reflète cette position effective pour que le suiveur
-s'aligne correctement.
+Pour le sens inverse (du `y` d'un clic à la ligne du bloc cliqué),
+on remonte du `event.target` au plus proche ancêtre `[data-line]`.
 
-Cas particuliers aux bords du document — clamp explicite, en plus
-de l'algorithme ci-dessus :
+### 14.3. Les quatre points de sync
 
-- Si la vue pilote est à `scrollTop = 0`, on force le suiveur à `0`.
-- Si la vue pilote est à `scrollTop = scrollMax`, on force le suiveur
-  à `scrollMax`.
+| Déclencheur | Source | Cible | Quand |
+|---|---|---|---|
+| `Cmd+Enter` (ou bouton Aperçu) — éditeur → aperçu | curseur de l'éditeur | aperçu | au toggle |
+| `Cmd+Enter` — aperçu → éditeur | (rien) | éditeur (pas de re-scroll) | au toggle |
+| Click dans l'aperçu sur un bloc | bloc cliqué + position du clic | éditeur | au click |
+| Re-paginate alors qu'on est en preview (settings) | curseur de l'éditeur | aperçu | après pagination |
 
-Le clamp est belt-and-suspenders : l'algorithme principal couvre déjà
-la majorité des cas grâce au `y` réel, mais aux extrêmes mathématiques
-exacts (scrollTop = 0 ou = scrollMax) il y a des arrondis sub-pixel
-qui peuvent laisser le suiveur quelques pixels avant le bord. Le clamp
-garantit l'alignement parfait.
+L'ancre **éditeur → aperçu** est lue via
+`editorCursorAnchor(view)` : on prend la ligne du curseur et son top
+relatif au viewport (`block.top - scrollTop`). On la passe ensuite à
+`applyAnchorToPreview(previewEl, anchor)`.
 
-### 14.2. Cartographie ligne-source ↔ position
+L'ancre **aperçu → éditeur** est lue via `previewClickAnchor(e,
+previewEl)` qui remonte au `[data-line]`. Appliquée par
+`applyAnchorToEditor(view, anchor)` qui place le curseur en début de
+ligne et scrolle.
 
-Le rendu de l'aperçu stamp un `data-line="N"` sur chaque bloc rendu
-(paragraphe, titre, liste, math, mermaid, …) où `N` est la ligne
-0-indexée du token marked correspondant dans la source. paged.js
-préserve ces attributs lors du chunking en pages.
+### 14.4. Pas de boucle, pas d'anti-boucle
 
-À chaque cycle de pagination on (re)construit une **table de
-correspondance** triée par ligne source :
+Avec le single-pane, **aucune action utilisateur sur une vue ne
+modifie l'autre vue de façon visible**. La frappe modifie la source
+mais ne touche pas l'aperçu (qui n'est pas affiché de toute façon).
+Le scroll dans l'aperçu reste local. Il n'y a donc plus de boucle de
+feedback à briser, plus d'echo guard, plus de drapeau de
+suppression — le code de sync s'est réduit à quatre fonctions pures
+et un click-handler.
 
-```ts
-type LineMap = Array<{
-  line: number;     // ligne source
-  editorY: number;  // top de la ligne dans le scroller éditeur
-  previewY: number; // top du bloc dans le scroller aperçu
-}>;
+### 14.5. Performance
+
+Chaque application d'ancre lit la `LineMap` (un walk
+`querySelectorAll('[data-line]')` qui produit une table triée). Pour
+un doc de quelques centaines de blocs, c'est imperceptible. La table
+est reconstruite **à la demande** à chaque application d'ancre — pas
+de cache, pas d'invalidation à gérer.
+
+## 15. Numérotation des sections « par l'exemple »
+
+Module `src/numbering.ts`. Commande exposée dans le menu Style et via
+`Cmd/Ctrl + Maj + N`. Réécrit le source en place (un seul transaction,
+donc un seul `Cmd+Z` annule tout).
+
+### 15.1. Détection (premier titre = patron)
+
+Pour chaque niveau (h1 → h6), on regarde le **premier** titre apparu
+dans le document et on en déduit son style de numérotation. Les
+styles reconnus :
+
+| Premier titre | Style appliqué à tous |
+|---|---|
+| pas de préfixe | `none` (rien à numéroter ; le préfixe éventuel des suivants est retiré) |
+| `# 1. X` / `# 1) X` / `# (1) X` | décimal flat avec le suffixe préservé |
+| `# A. X` / `# a. X` | lettre majuscule / minuscule (exclut `I`/`i` qui matchent le Roman) |
+| `# I. X` / `# i. X` | romain majuscule / minuscule |
+| `## 1.1 X` (à un niveau k≥2) | hiérarchique : préfixe = compteurs des ancêtres + propre, séparés par `.` |
+| `## 1.1. X` | hiérarchique avec point final |
+
+### 15.2. Cas du titre du document
+
+Convention LaTeX `article` / GitHub README : si le doc contient
+**exactement un seul `# heading`** ET que celui-ci est la première
+ligne non-vide après une éventuelle frontmatter YAML, alors c'est le
+**titre** du document — pas une section. Dans ce cas la numérotation
+**décale d'un cran** :
+
+- raw `#` (le titre) : laissé tel quel, jamais préfixé ni dépouillé.
+- raw `##` : devient « niveau 1 » logique (premier `##` détermine le
+  style appliqué à tous les `##`).
+- raw `###` : devient « niveau 2 » logique. Etc.
+
+Plusieurs `#` dans le document (ou un `#` qui n'est pas en première
+ligne) → pas de décalage, comportement uniforme.
+
+### 15.3. Renumérotation
+
+Walk linéaire sur les lignes en sautant les fenced code blocks. Pour
+chaque heading :
+1. compteur du niveau effectif += 1, compteurs plus profonds reset.
+2. on strippe le préfixe numéroté existant (s'il y en a un) en
+   utilisant la même regex que pour la détection.
+3. on génère le nouveau préfixe selon le style stocké pour ce
+   niveau et on le préfixe au reste du titre.
+
+Hiérarchique au niveau k : les `k` compteurs des ancêtres (effectifs)
+sont joints par `.`, optionnellement suivis d'un point final.
+
+## 16. Graphiques (```chart)
+
+Module `src/chart.ts`. Self-contained : pas de dépendance externe, le
+SVG est émis inline dans le DOM rendu, donc imprime crispe et stay
+éditable comme un vecteur. Override du renderer `code` pour
+`lang === 'chart'`.
+
+### 16.1. Syntaxe
+
+```
+```chart <type> [Title]
+x-label, y1-label[, y2-label, …]
+x1, y1[, y1', …]
+…
+```
 ```
 
-Pour `editorY`, CodeMirror fournit `coordsAtPos(pos).top` ;
-pour `previewY`, on lit `el.getBoundingClientRect().top -
-container.getBoundingClientRect().top + container.scrollTop`.
+`<type>` ∈ `line` / `bar`. Title optionnel, peut être entre guillemets
+pour préserver de la ponctuation. Première ligne = en-têtes (label X
++ une série Y par colonne supplémentaire). Lignes suivantes = données.
+Multi-séries → palette automatique + légende en haut à droite.
 
-L'interpolation linéaire ligne ↔ pixel **n'est faite qu'entre deux
-entrées consécutives** de la table : elle ne traverse pas les gaps
-inter-pages ni les marges `@page`, parce que ces zones n'ont pas de
-ligne source associée — la table saute simplement par-dessus.
+### 16.2. Parsing CSV-like
 
-### 14.3. Détection de la direction du scroll
+- **Auto-détection du séparateur** sur la première ligne :
+  tab > semicolon > comma.
+- **Smart-comma** quand séparateur = `,` : une virgule entre deux
+  chiffres sans whitespace n'est PAS un séparateur (regex
+  `(?<!\d),|,(?!\d)`). Préserve les nombres FR `3,14`.
+- **Parse number** : la virgule est normalisée en point avant
+  `parseFloat`. `parseFloat("1,2")` retournerait sinon `1` (s'arrête
+  à la virgule), pas NaN — donc le « si NaN, retry » silencieux
+  laissait passer toutes les décimales FR.
 
-À chaque scroll-event sur A, on compare le `scrollTop` courant à celui
-mémorisé du précédent event :
+### 16.3. Trois sortes d'axe X
 
-- `newTop > prevTop` → mouvement **vers le bas** (l'utilisateur
-  approche la fin du document).
-- `newTop < prevTop` → mouvement **vers le haut**.
-- `newTop === prevTop` → ignore (déclenché par un changement de
-  layout, pas un scroll utilisateur).
+- **Numérique** — toutes les valeurs parsent comme nombres. Ticks
+  « nice » (1 / 2 / 5 × pow10).
+- **Date** — toutes les valeurs matchent la regex ISO 8601 stricte
+  (`YYYY-MM-DD` avec heure optionnelle). Granularité (jour / mois /
+  année) choisie selon l'étendue ; bornes alignées (1er jan / 1er du
+  mois / minuit). Les **bar charts** sur un axe date placent un tick
+  par barre (au centre de chaque barre, label format date) plutôt
+  qu'aux bornes calendaires — sinon les ticks tombent dans le vide
+  entre les barres.
+- **Catégoriel** — fallback : positions évenly spaced, label = string
+  brut.
 
-Cas particulier au tout premier event après l'ouverture du doc :
-on prend l'ancrage haut par défaut (le doc est à `scrollTop = 0`).
+### 16.4. Bar charts
 
-### 14.4. Sync par clic / curseur
+Padding de l'axe X de **demi-slot** (= la moitié du plus petit écart
+entre points consécutifs) sur chaque côté, pour que la première et la
+dernière barre aient de l'air et que leurs ticks ne chevauchent pas
+l'axe Y. Largeur des barres = 70 % du slot, calculée en pixels via
+`xToPx(x0 + slot) - xToPx(x0)` plutôt que par division naïve
+`(max-min) / N` (pour respecter le padding qu'on vient d'ajouter).
+Multi-séries : groupes de barres centrés sur l'abscisse, partagés
+en parts égales.
 
-- **Clic dans l'éditeur** (ou déplacement du curseur) à la ligne `L`
-  visible à la position verticale `yc` : on scrolle l'aperçu pour
-  amener le bloc `data-line=L` à `yc` dans son viewport.
-- **Clic dans l'aperçu** sur un bloc `data-line=L` à la position `yc` :
-  on scrolle l'éditeur pour amener cette ligne à `yc` (CodeMirror
-  expose `scrollIntoView(line, "top|center|nearest")` ; on calcule la
-  cible directement en pixels).
+Y minimum forcé à `min(0, dataMin)` pour que la hauteur d'une barre
+soit toujours visuellement proportionnelle à sa valeur depuis 0.
 
-### 14.5. Anti-boucle
+## 17. Notes de bas de page
 
-Une sync programmatique scrolle B, ce qui déclenche son `scroll` event
-qui re-déclencherait une sync vers A. On évite la boucle avec un
-drapeau `syncSource` réglé sur la vue qui pilote au moment de la sync,
-levé ~150 ms après le dernier mouvement programmatique.
+Module dans `src/marked-config.ts`. Deux extensions marked
+(`footnoteDef` block + `footnoteRef` inline) coordonnées via une
+registry au niveau module, et des hooks `preprocess` / `postprocess`
+pour reset et émettre la section finale.
 
-### 14.6. Performances
+### 17.1. Registry partagée
 
-- La `LineMap` est mise à jour seulement après une repagination
-  complète (donc au pire à chaque debounce de 700 ms en frappe
-  active).
-- Pendant le scroll, chaque sync est en O(log N) (recherche binaire
-  dans la table) plus deux lectures DOM. Imperceptible jusqu'à
-  plusieurs centaines de pages.
+```ts
+const footnoteDefs = new Map<string, string>();   // id → contenu raw
+const footnoteSeen: string[] = [];                // ids dans l'ordre de 1ère référence
+let inFootnoteRender = false;                     // garde de réentrance (cf. 17.3)
+```
 
-## 15. À décider plus tard
+`preprocess` clear ces deux entrées au début de chaque parse.
+
+### 17.2. Tokens
+
+- **`footnoteDef`** (block) : matche `^\[\^([^\]\n]+)\]:[ \t]*(.+)`.
+  Single-line en v1. Ne rend rien (output `''`), mais inscrit
+  `id → content` dans `footnoteDefs`. Le token est aussi exclu de
+  `annotateSourceLines` pour ne pas décaler les `data-line`.
+- **`footnoteRef`** (inline) : matche `^\[\^([^\]\n]+)\]`. Ignore les
+  références dont l'`id` n'est pas dans `footnoteDefs` (faute de
+  frappe → tombent en texte brut). Sinon, ajoute `id` à `footnoteSeen`
+  s'il n'y est pas déjà, retourne `<sup class="footnote-ref"><a
+  href="#fn-id"[id="fnref-id"]>N</a></sup>` où `N = seen.indexOf(id)
+  + 1` et l'attribut `id` n'est mis QUE sur la **première**
+  référence (sinon doublons d'ID DOM si l'utilisateur cite plusieurs
+  fois).
+
+### 17.3. postprocess et garde de réentrance
+
+`postprocess` itère `footnoteSeen` en ordre, et pour chaque `id` rend
+le contenu via `marked.parseInline(footnoteDefs.get(id))`, ce qui
+permet **bold / italic / links / math** dans les notes. Mais
+`marked.parseInline` re-déclenche les hooks `preprocess` /
+`postprocess` (détail non-documenté de marked v14) — sans garde, le
+preprocess interne clear la registry à la première itération et
+toutes les notes suivantes se rendent vides.
+
+D'où le drapeau `inFootnoteRender` : armé avant l'itération, désarmé
+à la fin, court-circuite preprocess/postprocess pendant les
+re-entrées.
+
+Le résultat est appendé sous forme `<section class="footnotes"
+role="doc-endnotes"><hr><ol>…</ol></section>` à la fin du HTML.
+
+## 18. Ligatures de saisie
+
+Module `src/editor-ligatures.ts`. Extension CodeMirror
+`updateListener` qui surveille l'entrée utilisateur (frappe + paste)
+et substitue des séquences ASCII en caractères Unicode dans la
+**source** (pas seulement à l'affichage — c'est le `.md` qui contient
+la version Unicode). Compatible avec les outils externes, copiable,
+indexable.
+
+### 18.1. Table
+
+- **Brackets** : `[[` ⟦, `]]` ⟧, `<<` ⟨, `>>` ⟩.
+- **Arrows** : `->` →, `<-` ←, `=>` ⇒.
+- **Comparisons** : `!=` ≠, `<=` ≤, `>=` ≥.
+- **Logic / proof** : `|-` ⊢, `-|` ⊣.
+- **Misc** : `+-` ±, `...` …
+- **Blackboard bold** : `|A` … `|Z`. Les sept lettres avec un
+  codepoint BMP dédié (ℂ ℍ ℕ ℙ ℚ ℝ ℤ) gardent celui-là ; les 19
+  autres viennent du bloc Mathematical Alphanumeric Symbols
+  (`U+1D538+`).
+- **Lettres grecques** : `\alpha` … `\omega`, leurs variantes
+  (`\varepsilon`, `\varphi`, `\vartheta`, `\varpi`, `\varrho`,
+  `\varsigma`), et les majuscules qui diffèrent du latin (`\Gamma`
+  Γ, `\Delta` Δ, `\Theta` Θ, `\Lambda` Λ, `\Xi` Ξ, `\Pi` Π, `\Sigma`
+  Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω). Codepoints alignés
+  sur ce que MathJax rend par défaut pour la commande LaTeX (e.g.
+  `\epsilon` → ϵ lunate, `\varepsilon` → ε normal).
+
+**Contrainte de design** : aucune clé ne peut être préfixe d'une autre.
+Sinon la clé courte tirerait avant que la longue ait pu se former à
+la frappe (`<=` matcherait avant qu'on tape la fin de `<=>`). C'est
+pourquoi des paires comme `<->` / `<==>` / `==>` / `<=>` ne sont pas
+proposées en ligatures dans cette table.
+
+### 18.2. Déclenchement
+
+- **Frappe** (`userEvent: input.type`) : on lit les `MAX_LEN` derniers
+  caractères avant le curseur et on cherche une clé qui termine
+  exactement par cette queue. Première trouvée = remplacement.
+- **Paste** / drop (`userEvent: input.paste` / `input.drop`) : on
+  itère chaque insertion de la transaction et on remplace toutes les
+  clés présentes dans le texte collé en un walk longest-first
+  (`applyLigaturesToString`).
+- `setValue()` programmatique (pas d'`userEvent`) : ignoré, sinon
+  ouvrir un fichier déclencherait des remplacements parasites.
+
+Le remplacement est dispatché via `queueMicrotask` (CodeMirror
+n'autorise pas un dispatch synchrone depuis un updateListener). Un
+`Cmd+Z` immédiatement après défait la substitution — escape hatch
+standard d'une input method.
+
+### 18.3. Contexte
+
+Skip les substitutions à l'intérieur de `FencedCode`, `CodeBlock`,
+`InlineCode` (détectés via `syntaxTree(state).resolveInner(pos, -1)`).
+Exception : un `FencedCode` dont l'`info` est `inference`
+(`LIGATURE_FRIENDLY_FENCES`) **garde les ligatures actives** — le
+contenu sera de toute façon rendu par MathJax qui accepte l'Unicode
+math directement.
+
+## 19. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Choix d'une autre famille de polices que Roboto Condensed dans les
@@ -795,7 +1166,11 @@ levé ~150 ms après le dernier mouvement programmatique.
 - Export d'un HTML autonome.
 - Sauvegarde / chargement de plusieurs documents (multi-doc).
 - Coloration syntaxique des blocs de code.
-- Listes de tâches `- [ ]`, notes de bas de page.
+- Notes de bas de page **multi-paragraphes** (continuations 4-espaces
+  à la Pandoc).
+- Numérotation automatique des admonitions académiques (« Théorème
+  1.2 », « Lemme 3 ») avec compteurs CSS ou DOM.
+- Citations bibliographiques `[@key]` + bibliographie.
 - Préambule MathJax par document via un champ `mathjax-preamble:` en
   frontmatter YAML. Son contenu (typiquement `\newcommand` + ligatures
   `\mathlig`) serait préfixé à chaque source TeX avant `doc.convert()`
