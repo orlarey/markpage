@@ -1157,14 +1157,433 @@ Exception : un `FencedCode` dont l'`info` est `inference`
 contenu sera de toute façon rendu par MathJax qui accepte l'Unicode
 math directement.
 
-## 19. À décider plus tard
+## 19. Documents multiples — draft
+
+**Statut** : design en cours, pas encore implémenté. Les détails
+sont susceptibles d'évoluer après revue.
+
+### 19.1. Modèle
+
+Stockage **content-addressed** uniformément : tout ce qui est un
+"fichier" — markdown source d'un document, image — est stocké sous
+son SHA-256. Les documents tels que vus par l'utilisateur sont une
+**enveloppe légère** (uuid stable, nom, métadonnées) qui *pointe*
+vers le SHA de son contenu courant.
+
+L'app gère **N documents**. Chaque document a :
+
+- un **UUID** stable (identifiant interne, jamais montré),
+- un **nom** affiché (modifiable),
+- un **content-sha** (le SHA-256 du markdown courant),
+- un **horodatage** de dernière modification.
+
+Stockage `localStorage` :
+```
+md2pdf:docs:index   = JSON [{ uuid, name, mtime, content-sha }]
+md2pdf:blobs:<sha>  = string  (le markdown source d'une version)
+md2pdf:current-doc  = uuid    (doc actuellement ouvert)
+md2pdf:settings     = inchangé (réglages globaux, pas par doc)
+```
+
+Sur autosave : on hash le contenu courant, on écrit
+`md2pdf:blobs:<sha>` si nouveau, on met à jour le `content-sha`
+dans l'enveloppe du doc. Le blob précédent reste — il sera
+collecté à la prochaine passe de GC s'il n'est plus référencé.
+
+Effet collatéral utile : deux documents qui ont strictement le même
+contenu partagent un seul blob.
+
+### 19.2. Stockage content-addressed des ressources
+
+Les images sont **content-addressed** par SHA-256 dans IndexedDB
+plutôt qu'identifiées par UUID arbitraire. Les références dans les
+documents passent de `img://<uuid>` à `img://<sha>`.
+
+Effet : deux documents qui contiennent la même image partagent un
+unique blob en stockage. Et il devient mécanique de détecter qu'une
+ressource n'est plus utilisée par aucun document.
+
+Schéma IndexedDB :
+```
+store "blobs"
+  key   = sha (string, hex sha-256)
+  value = { mime, data: Blob }
+```
+
+Insertion d'image :
+1. Calculer `sha = SHA256(blob)`.
+2. Si `blobs[sha]` n'existe pas, l'écrire.
+3. Émettre dans le markdown la référence `img://<sha>`.
+
+Le pipeline d'aperçu / export résout `img://<sha>` en blob URL ou
+en data URL exactement comme avant — seule l'identité de la clé
+change.
+
+#### Migration depuis le schéma legacy
+
+Au premier lancement de la version multi-doc, l'app détecte le
+schéma legacy (`img://<uuid>` sans SHA en IndexedDB). Pour chaque
+image existante :
+1. Lire le blob, calculer son SHA-256.
+2. Stocker à la nouvelle clé `blobs[sha]` (silencieusement
+   dédupliqué si deux images étaient en double).
+3. Réécrire le doc actuel : remplacer `img://<uuid>` par
+   `img://<sha>` partout.
+4. Supprimer l'ancienne entrée `img://<uuid>`.
+
+Migration idempotente (relancer ne casse rien).
+
+### 19.3. Garbage collection
+
+Deux pools de blobs sont GC-és par le même algo :
+
+- les blobs de **contenu de document** dans `localStorage`
+  (`md2pdf:blobs:<sha>`),
+- les blobs de **ressources** dans IndexedDB (`blobs[<sha>]`).
+
+Trigger : à chaque sauvegarde de document, et au démarrage de
+l'app.
+
+Algorithme :
+1. Construire `referenced-content = { content-sha de chaque doc de
+   l'index }`.
+2. Pour chaque doc, charger son contenu (via son content-sha) et
+   parser pour extraire les SHA cités sous forme `img://<sha>` —
+   construire `referenced-resources`.
+3. Pour chaque blob de `md2pdf:blobs:*` dont le SHA n'est pas dans
+   `referenced-content` : supprimer.
+4. Pour chaque blob d'IndexedDB dont le SHA n'est pas dans
+   `referenced-resources` : supprimer.
+
+Le walk est en O(N × taille moyenne de doc) — négligeable pour des
+collections personnelles.
+
+### 19.4. UI
+
+- Nouveau bouton **Documents** dans la toolbar (à gauche de
+  *Ouvrir*, ou en remplacement). Ouvre un panneau / dropdown
+  listant les docs : nom, dernière modif, taille en KB.
+- Pour chaque doc dans la liste : actions **Ouvrir**, **Renommer**,
+  **Dupliquer**, **Supprimer** (avec confirmation).
+- Bouton global **Nouveau document** (vide, nom par défaut
+  *Sans titre N* incrémenté).
+- Le doc courant est mis en évidence dans la liste (fond bleuté,
+  comme le toggle Aperçu).
+
+Comportement au switch : les modifs en cours du doc actuel sont
+écrites en `localStorage` avant de charger le nouveau doc — pas de
+boîte « voulez-vous sauvegarder ? ». La persistance auto suffit
+puisque tout est local.
+
+### 19.5. État au démarrage
+
+`md2pdf:current-doc` mémorise le UUID du dernier doc ouvert.
+Au lancement :
+- index vide → premier run → créer un doc unique avec le contenu de
+  HELP.md, le marquer comme courant.
+- index non vide, current-doc valide → ouvrir.
+- index non vide, current-doc invalide (effacement manuel) →
+  ouvrir le plus récent.
+
+### 19.6. Hors v1
+
+- Versionnage / historique de modifications par doc (snapshots).
+- Tags / dossiers pour organiser.
+- Recherche full-text.
+- Export d'un dossier de docs en bundle zip.
+- Synchronisation cloud entre appareils.
+
+## 20. Polices configurables — draft
+
+**Statut** : design en cours, pas encore implémenté.
+
+### 20.1. Surface utilisateur
+
+Trois sélecteurs dans le panneau **Réglages**, sous une nouvelle
+section *Polices* :
+
+- Police des **titres** (h1-h6)
+- Police du **corps**
+- Police du **code** (inline et blocs)
+
+Chaque sélecteur est un combo recherchable. La sélection s'applique
+en direct dans l'aperçu (et dans le PDF, qui passe par le même
+pipeline).
+
+L'éditeur CodeMirror reste en Roboto Condensed / Roboto Mono
+indépendamment des choix utilisateur — la cohérence visuelle de
+l'éditeur ne doit pas changer à chaque essai de police.
+
+### 20.2. Catalogue
+
+Un fichier statique `src/fonts/google-catalog.json` bundlé au build
+contient un sous-ensemble curé de Google Fonts (~50 entrées),
+typiquement :
+
+```jsonc
+[
+  { "name": "Inter",          "family": "sans",  "weights": [400, 500, 700] },
+  { "name": "Roboto",         "family": "sans",  "weights": [400, 500, 700] },
+  { "name": "Source Sans 3",  "family": "sans",  "weights": [400, 600] },
+  { "name": "Source Serif 4", "family": "serif", "weights": [400, 600] },
+  { "name": "EB Garamond",    "family": "serif", "weights": [400, 700] },
+  { "name": "Merriweather",   "family": "serif", "weights": [400, 700] },
+  { "name": "JetBrains Mono", "family": "mono",  "weights": [400, 500] },
+  { "name": "Fira Code",      "family": "mono",  "weights": [400, 500] },
+  …
+]
+```
+
+Le catalogue est **figé à chaque release** de l'app — pas de fetch
+runtime du catalogue, pas de clé API Google. Si l'utilisateur veut
+une police absente, on l'ajoute à la prochaine release (issue
+GitHub).
+
+Composition du catalogue : 5 polices populaires par famille, équilibré
+entre sans-serif moderne (Inter, Roboto, Open Sans, Lato, Poppins),
+serif académique (Source Serif 4, EB Garamond, Merriweather, Lora,
+PT Serif), monospace (JetBrains Mono, Fira Code, Source Code Pro,
+IBM Plex Mono, Roboto Mono). Plus quelques spécialités : Crimson Pro,
+Cormorant Garamond, Computer Modern (CMU Serif via cm-unicode pour
+l'esthétique TeX).
+
+### 20.3. Chargement
+
+#### Polices bundlées localement
+
+Roboto Condensed et Roboto Mono restent embarquées via `@fontsource/`
+(comme aujourd'hui — disponibles offline, valeurs par défaut). On
+peut bundler 2-3 autres polices populaires si on le souhaite, mais
+on évite l'inflation : chaque police bundlée pèse ~30-100 KB par
+poids.
+
+#### Polices Google chargées à la demande
+
+À la sélection d'une police non-bundlée :
+1. Injecter dynamiquement
+   `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=…&display=swap">`
+   dans `<head>`.
+2. Le navigateur charge les fichiers de police, les met en cache.
+3. L'aperçu se redessine dès que `document.fonts.ready` se résout.
+
+Première utilisation = besoin d'une connexion ; chargements suivants
+servis depuis le cache navigateur. Pour un usage déconnecté
+permanent, l'utilisateur peut rester sur les polices bundlées.
+
+### 20.4. Application
+
+`pagedCss(settings)` génère trois `font-family` (titres / corps /
+code) basées sur les choix utilisateur. Ces règles s'appliquent à la
+fois à l'aperçu paginé et au pipeline d'export PDF (cf. §13). Le
+fallback final reste Roboto Condensed / Roboto Mono pour rester
+cohérent si une police chargée n'arrive pas (réseau, etc.).
+
+### 20.5. Hors v1
+
+- Importer une police personnelle (.woff / .otf depuis le disque).
+- Configuration par niveau de titre (h1 dans une police, h2 dans
+  une autre).
+- Catalogue Google complet via API dynamique + clé.
+- Réglages de fluidification (line-height, letter-spacing) par
+  famille.
+
+## 21. Export LaTeX — draft
+
+**Statut** : design en cours, pas encore implémenté.
+
+### 21.1. Surface utilisateur
+
+Nouveau bouton **Exporter .tex** dans la toolbar (ou item *Exporter
+en LaTeX* dans un sous-menu). Produit un fichier `.tex`
+auto-suffisant, qui compile out-of-the-box avec `pdflatex` ou
+`xelatex`.
+
+Quand le doc référence des images (et / ou des SVG mermaid /
+chart), le téléchargement est un **zip** contenant le `.tex` + un
+dossier `images/` avec les ressources.
+
+### 21.2. Pipeline
+
+```
+markdown source
+   │
+   ▼
+marked.lexer(source)        // tokens, sans rendu HTML
+   │
+   ▼
+walkTokens → emit LaTeX     // notre générateur (src/export-latex.ts)
+   │
+   ▼
+combine avec préambule + closing → fichier .tex
+   │
+   ▼
+collecte des images référencées → bundle zip si > 0
+```
+
+On parse via `marked.lexer()` plutôt que `marked.parse()` pour
+travailler au niveau token et émettre du LaTeX directement, sans
+passer par l'HTML intermédiaire.
+
+### 21.3. Préambule généré
+
+Un préambule auto-suffisant qui inclut tout ce dont nos extensions
+markdown ont besoin :
+
+```latex
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}            % depuis settings.lang quand on l'aura
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tcolorbox}
+  \tcbuselibrary{breakable, skins}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{stmaryrd}                 % \llbracket / \rrbracket
+\usepackage[normalem]{ulem}           % \sout pour ~~strikethrough~~
+
+\newtheorem{theorem}{Théorème}
+\newtheorem{lemma}[theorem]{Lemme}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollaire}
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}
+\newtheorem{example}{Exemple}
+\newtheorem{remark}{Remarque}
+
+\title{<premier h1>}
+\author{<settings.author> \\ <settings.organization>}
+\date{<settings.date>}
+
+\begin{document}
+\maketitle
+…
+\end{document}
+```
+
+### 21.4. Conversion par élément
+
+| Markdown | LaTeX |
+|---|---|
+| premier `# Titre` | `\title{Titre}` (et le titre h1 disparaît du flux) |
+| `# X` (suivants) | `\section{X}` |
+| `## X` | `\subsection{X}` |
+| `### X` | `\subsubsection{X}` |
+| `#### X` | `\paragraph{X}` |
+| `**x**` | `\textbf{x}` |
+| `*x*` | `\emph{x}` |
+| `~~x~~` | `\sout{x}` |
+| `` `x` `` | `\verb|x|` (avec choix de délimiteur si `|` est présent) |
+| ` ``` ` block | `\begin{lstlisting}[language=…]…\end{lstlisting}` |
+| `[texte](url)` | `\href{url}{texte}` |
+| `<url>` autolink | `\url{url}` |
+| `![alt](src)` | `\includegraphics[max width=\textwidth]{images/<basename>}` |
+| `- item` | `itemize` |
+| `1. item` | `enumerate` |
+| `- [ ] item` | `enumitem` avec marker `$\square$` / `$\boxtimes$` |
+| `> texte` | `quote` |
+| `---` | `\hrulefill` (ligne ou skip selon goût) |
+| Pipe table | `tabular` avec `\toprule` / `\midrule` / `\bottomrule` |
+| `$x$` | `$x$` (passe-through) |
+| `$$..$$` | `\[..\]` |
+| ` ```math ` | `\[..\]` |
+| ` ```mermaid ` | `\includegraphics{images/<sha>.svg}` (cf. 21.5) |
+| ` ```chart ` | idem |
+| ` ```csv ` | `tabular` rendered (réutilise la logique de notre csv → table) |
+| ` ```inference ` | `\[\dfrac{prem \quad …}{conc} \quad \textsf{(label)}\]` |
+| `[^id]` ref | `\footnote{<contenu inliné>}` à la première référence ; `\footnotemark[N]` aux suivantes |
+| `[^id]: x` def | omis du flux (déjà absorbé par les références) |
+| `Term\n: def` | `\begin{description}\item[Term] def\end{description}` |
+| `::: note` (générique) | `\begin{tcolorbox}[colback=…, …]…\end{tcolorbox}` (couleur selon classe) |
+| `::: theorem [N]` | `\begin{theorem}[N]…\end{theorem}` |
+| `::: <inconnu>` | `\begin{tcolorbox}…\end{tcolorbox}` neutre |
+
+### 21.5. Ressources graphiques
+
+Trois cas :
+
+1. **Images insérées par l'utilisateur** (`img://<sha>` dans le
+   markdown) : on extrait le blob d'IndexedDB, on l'écrit dans
+   `images/<sha>.<ext>` du zip, on émet
+   `\includegraphics{images/<sha>.<ext>}`.
+
+2. **Mermaid** : on rend le diagramme via la pipeline existante
+   pour obtenir le SVG, on l'écrit dans `images/mermaid-<n>.svg`,
+   on émet `\includegraphics{images/mermaid-<n>.svg}`. Compile avec
+   `xelatex` ou `lualatex` (qui acceptent SVG via le package `svg`).
+   Pour `pdflatex`, on convertirait en PDF via `cairosvg` ou
+   similaire — pas indispensable v1, on documente que `xelatex` est
+   nécessaire.
+
+3. **Chart** : idem mermaid, on écrit le SVG inline qu'on génère.
+
+Le markdown source des blocs `mermaid` / `chart` est aussi inclus
+en commentaire LaTeX juste au-dessus de chaque `\includegraphics`
+pour que l'utilisateur puisse régénérer / ajuster.
+
+### 21.6. Caractères Unicode dans les zones math
+
+Le source des documents md2pdf contient typiquement des caractères
+Unicode mathématiques issus des ligatures (← → ⊢ Γ ℕ ⟦…⟧ etc.).
+LaTeX accepte l'utf-8 en prose avec `inputenc utf8`, mais en mode
+math il faut souvent les commandes traditionnelles pour rendre
+correctement avec Computer Modern.
+
+Une **table de back-conversion** est appliquée *uniquement à
+l'intérieur des zones math* (entre `$..$` ou dans les
+environnements `\[..\]`) :
+
+| Unicode | LaTeX |
+|---|---|
+| → ← ⇒ ⇐ ↔ ↦ | `\to` `\leftarrow` `\Rightarrow` `\Leftarrow` `\leftrightarrow` `\mapsto` |
+| ⊢ ⊣ ⊨ | `\vdash` `\dashv` `\models` |
+| ≤ ≥ ≠ ± × ÷ | `\leq` `\geq` `\neq` `\pm` `\times` `\div` |
+| ∀ ∃ ∈ ∉ ⊂ ⊆ ⊃ ⊇ ∪ ∩ ∅ | `\forall` `\exists` `\in` `\notin` `\subset` `\subseteq` `\supset` `\supseteq` `\cup` `\cap` `\emptyset` |
+| α β γ … ω | `\alpha` `\beta` `\gamma` … `\omega` |
+| Γ Δ … Ω | `\Gamma` `\Delta` … `\Omega` |
+| ℕ ℤ ℚ ℝ ℂ ℙ ℍ | `\mathbb{N}` `\mathbb{Z}` `\mathbb{Q}` `\mathbb{R}` `\mathbb{C}` `\mathbb{P}` `\mathbb{H}` |
+| 𝔸-𝕐 (le reste) | `\mathbb{A}`-`\mathbb{Y}` |
+| ⟦ ⟧ ⟨ ⟩ | `\llbracket` `\rrbracket` `\langle` `\rangle` |
+| … | `\ldots` |
+
+En **prose** (hors math), on laisse les caractères Unicode tels
+quels. `inputenc utf8` + Latin Modern (`lmodern`) couvrent
+l'essentiel.
+
+### 21.7. Métadonnées
+
+`settings.author`, `settings.organization`, `settings.date`
+deviennent `\author{…}` (joints par `\\`) et `\date{…}`. Si
+masqués dans Settings, on émet un `\author{}` vide et `\date{}`.
+
+### 21.8. Limitations connues v1
+
+- Le PDF généré par LaTeX peut différer visuellement de notre PDF
+  natif : typo (Computer Modern par défaut), placement des images
+  (LaTeX flotte, nous pas), césures différentes. C'est attendu —
+  l'export LaTeX est un point de départ pour adapter au style
+  d'un journal, pas un clone du PDF.
+- Pas de bibliographie (les notes deviennent juste `\footnote`).
+- Pas de gestion fine des polices (LaTeX utilise lmodern par
+  défaut). Possible v2 : convertir `settings.fonts` en
+  `\setmainfont`/`\setsansfont`/`\setmonofont` avec `fontspec`
+  (xelatex).
+- La table de back-conversion math ne couvre pas tous les symboles
+  Unicode mathématiques. On affiche un warning à l'export pour
+  chaque caractère non mappé, l'utilisateur peut le remplacer
+  manuellement.
+
+## 22. À décider plus tard
 
 - Recto/verso (marges alternées).
-- Choix d'une autre famille de polices que Roboto Condensed dans les
-  réglages.
 - Mode sombre de l'éditeur.
 - Export d'un HTML autonome.
-- Sauvegarde / chargement de plusieurs documents (multi-doc).
 - Coloration syntaxique des blocs de code.
 - Notes de bas de page **multi-paragraphes** (continuations 4-espaces
   à la Pandoc).
