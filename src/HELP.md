@@ -191,6 +191,33 @@ mathématique :
 | `\|-` | ⊢ | `-\|` | ⊣ |
 | `...` | … | | |
 
+Pour les **lettres grecques**, tapez la commande LaTeX habituelle —
+elle est remplacée immédiatement par le caractère Unicode :
+
+| Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
+|---|---|---|---|---|---|
+| `\alpha` | α | `\iota` | ι | `\rho` | ρ |
+| `\beta` | β | `\kappa` | κ | `\sigma` | σ |
+| `\gamma` | γ | `\lambda` | λ | `\tau` | τ |
+| `\delta` | δ | `\mu` | μ | `\upsilon` | υ |
+| `\epsilon` | ϵ | `\nu` | ν | `\phi` | ϕ |
+| `\zeta` | ζ | `\xi` | ξ | `\chi` | χ |
+| `\eta` | η | `\omicron` | ο | `\psi` | ψ |
+| `\theta` | θ | `\pi` | π | `\omega` | ω |
+
+Variantes typographiques :
+`\varepsilon` ε, `\varphi` φ, `\vartheta` ϑ, `\varpi` ϖ, `\varrho` ϱ,
+`\varsigma` ς.
+
+Majuscules (seulement celles qui diffèrent du latin) :
+`\Gamma` Γ, `\Delta` Δ, `\Theta` Θ, `\Lambda` Λ, `\Xi` Ξ, `\Pi` Π,
+`\Sigma` Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω.
+
+> Si vous voulez écrire `\alpha` *littéralement* en prose (pour
+> documenter la commande LaTeX, par exemple), entourez-le de
+> backticks : `` `\alpha` ``. À l'intérieur d'un bloc code, les
+> ligatures ne s'appliquent pas.
+
 Et pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
 n'importe quelle lettre majuscule donne sa version doublée :
 
