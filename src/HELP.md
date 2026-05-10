@@ -1,130 +1,297 @@
 # Bienvenue dans md2pdf
 
-**md2pdf** est un éditeur de texte qui produit des PDF prêts à imprimer
-ou à partager. Vous écrivez à gauche, vous voyez le résultat formaté à
-droite, et vous cliquez sur **Exporter .pdf** quand c'est prêt.
+**md2pdf** est un éditeur qui produit des PDF prêts à imprimer ou à
+partager. Vous écrivez du texte presque normal, et l'app s'occupe de
+la mise en forme.
 
-Vous lisez actuellement ce tutoriel **dans l'éditeur**. C'est juste un
-document parmi d'autres : modifiez-le librement, enregistrez votre
-travail, ou repartez d'une page blanche en effaçant tout.
+Vous lisez actuellement ce tutoriel **dans l'éditeur** — c'est
+lui-même un document md2pdf. Vous pouvez le modifier librement, ou
+repartir d'une page blanche.
 
-À tout moment, le bouton **Aide** (en haut à droite, sur fond jaune)
-rouvre cette page d'aide originale, sans toucher à votre document.
+Le bouton **Aide** (sur fond jaune) rouvre cette page d'aide à tout
+moment, sans toucher à votre document.
 
-## Écrire du texte
+## Pour commencer
 
-md2pdf utilise la notation **Markdown**. C'est une convention très
-simple : la mise en forme s'écrit avec quelques caractères du texte
-courant, qui sont reconnus tels quels au moment du rendu.
+Vous n'avez besoin que de **cinq ou six outils** pour écrire la
+plupart des documents. Suivez ce tutoriel pas à pas — l'idée est que
+vous écriviez votre premier document tout en lisant.
 
-Par exemple, si vous tapez :
+### Le principe
+
+md2pdf utilise une convention qui s'appelle **Markdown**. Vous écrivez
+du texte presque normal, avec **quelques signes** simples qui indiquent
+la mise en forme. Pas de menus à apprendre, pas de raccourcis
+obligatoires.
+
+Pour vous donner une idée, ce tutoriel lui-même est écrit en Markdown.
+À droite vous voyez la version mise en page (en cliquant sur **Aperçu**),
+et ici à gauche vous voyez la "vraie" source. Vous pouvez à tout
+moment regarder à gauche pour voir « comment c'est fait ».
+
+### Allez-y, écrivez votre premier document
+
+Sélectionnez tout le contenu de l'éditeur (`Cmd/Ctrl + A`) et
+supprimez. La page est blanche. On y va.
+
+### Le titre principal
+
+Sur la première ligne, tapez un dièse (`#`), un espace, puis le titre
+de votre document :
 
 ```
-Mon texte est **important** et un peu *nuancé*.
+# Mon premier document
 ```
 
-…alors le rendu (à droite) montre :
+C'est tout. Le `#` au début de la ligne signifie *« ce qui suit est
+un titre »*. Une seule ligne, pas de point final, pas de fermeture —
+on saute simplement à la ligne quand on a fini.
 
-> Mon texte est **important** et un peu *nuancé*.
+> **À noter** : ce premier titre `#` du document sert de **couverture**
+> dans le PDF (centré, suivi de l'auteur, l'organisation et la date si
+> vous les renseignez dans **Réglages**). Vos sections internes
+> utiliseront donc plutôt `##` (deux dièses) ou `###` (trois).
 
-C'est la philosophie centrale de Markdown : **les caractères que vous
-tapez sont l'instruction de mise en forme**. Rien de caché, rien à
-apprendre par cœur — vous pouvez à tout moment regarder à gauche pour
-voir « comment c'est fait ».
+### Une section
 
-Tout ce que ce logiciel sait afficher peut s'écrire **uniquement avec
-le clavier**, sans jamais ouvrir un menu ni utiliser un raccourci. Les
-boutons et les raccourcis ne sont que des **accélérateurs** : ils
-insèrent les caractères à votre place.
+Sautez une ligne, puis tapez deux dièses suivis du titre de votre
+section :
 
-### La syntaxe Markdown en bref
+```
+## Introduction
+```
 
-| Vous tapez… | Vous obtenez… |
-|---|---|
-| `**gras**` | **gras** |
-| `*italique*` | *italique* |
-| `` `code` `` | `code` |
-| `[lien](https://exemple.fr)` | [lien](https://exemple.fr) |
-| `# Titre 1` (en début de ligne) | titre niveau 1 |
-| `## Titre 2`, `### Titre 3`, `#### Titre 4` | sous-titres |
-| `- élément` (en début de ligne) | • élément (liste à puces) |
-| `1. élément` | 1. élément (liste numérotée) |
-| `> texte` | citation indentée |
-| `---` (sur une ligne seule) | ligne horizontale |
-| `![](image)` | une image |
+### Du texte
 
-Les **titres**, **listes** et **citations** sont des « blocs ». Ils
-doivent être placés en début de ligne pour être reconnus.
+Sous le titre, tapez votre paragraphe normalement, comme dans un mail.
+Sautez une ligne pour faire un nouveau paragraphe.
 
-Le **premier `# Titre 1`** du document, placé tout en haut, joue le
-rôle de **titre principal du document** : il est automatiquement
-centré dans le PDF, et c'est juste en dessous que s'affichent l'auteur,
-l'organisation et la date (si vous les renseignez dans **Réglages**).
-Vos sections internes utilisent donc plutôt `## Titre 2` ou
-`### Titre 3`.
+### Mettre en valeur : *italique* et **gras**
 
-### Si vous préférez ne pas taper les caractères
+Pour mettre un mot en *italique*, entourez-le d'**un** astérisque :
 
-Si la syntaxe vous semble fastidieuse, utilisez les **raccourcis
-clavier** comme dans Word — ils insèrent les caractères pour vous.
-Sélectionnez d'abord le texte, puis :
+```
+Le mot *important* est en italique.
+```
 
-| Pour faire… | Tapez… |
-|---|---|
-| **Gras** | `Cmd/Ctrl` + `B` |
-| *Italique* | `Cmd/Ctrl` + `I` |
-| `Code en ligne` | `Cmd/Ctrl` + `E` |
-| Lien hypertexte | `Cmd/Ctrl` + `K` |
-| Texte normal (retirer titre) | `Cmd/Ctrl` + `0` |
-| Titres 1 à 4 | `Cmd/Ctrl` + `1` à `4` |
-| Liste à puces | `Cmd/Ctrl` + `Maj` + `L` |
-| Liste numérotée | `Cmd/Ctrl` + `Maj` + `O` |
-| Citation | `Cmd/Ctrl` + `Maj` + `Q` |
+Pour le **gras**, entourez de **deux** astérisques :
 
-Le bouton **Style** dans la barre d'outils (et le **clic-droit** dans
-l'éditeur) ouvrent un menu qui propose les mêmes commandes, avec une
-**coche** sur les formats déjà actifs autour du curseur.
+```
+Le mot **important** est en gras.
+```
 
-### Astuce : sélectionner une ligne entière
+> **Astuce** : si les astérisques vous semblent fastidieux à taper,
+> sélectionnez le mot et appuyez sur `Cmd/Ctrl + I` pour l'italique
+> ou `Cmd/Ctrl + B` pour le gras — comme dans Word. Le résultat
+> est exactement le même.
 
-Cliquez sur le **numéro de ligne** dans la marge gauche pour
-sélectionner toute la ligne d'un coup. Glissez pour en sélectionner
-plusieurs.
+### Une sous-section
 
-## Insérer une image
+Trois dièses pour un titre de niveau plus profond :
+
+```
+### Mes idées principales
+```
+
+Vous pouvez descendre jusqu'à six dièses, mais en pratique trois
+suffisent pour la plupart des documents.
+
+### Insérer une image
 
 Trois moyens, au choix :
 
-1. **Glisser-déposer** une image depuis votre Bureau ou un dossier
-   directement dans l'éditeur.
-2. **Coller** une capture d'écran (`Cmd/Ctrl` + `V` après l'avoir
+1. **Glisser-déposer** une image depuis le Bureau directement dans
+   l'éditeur.
+2. **Coller** une capture d'écran (`Cmd/Ctrl + V` après l'avoir
    capturée).
-3. Bouton **Style** → *« Insérer une image… »*, ou raccourci
-   `Cmd/Ctrl` + `Alt` + `I`.
+3. Bouton **Style** dans la toolbar → *« Insérer une image… »*.
 
-Les photos sont automatiquement **redimensionnées et compressées** (max
-2000 pixels de côté) pour que votre document reste léger sans perte
-visible de qualité.
+L'image est automatiquement redimensionnée et compressée (max 2000 px
+de côté), et s'insère à la position du curseur.
 
-Vous pouvez aussi glisser une image directement depuis une page web,
-mais beaucoup de sites bloquent l'accès direct (Google Photos par
-exemple) ; dans ce cas, téléchargez l'image localement d'abord.
+### La toolbar
 
-## Sauvegarder, ouvrir, exporter
+En haut de l'écran, quelques boutons :
+
+- **Ouvrir / Enregistrer** — charger un fichier ou sauvegarder le
+  vôtre.
+- **Style ▾** — un menu de mise en forme (titres, gras, listes,
+  insérer une image…). Le **clic-droit** dans l'éditeur ouvre le
+  même menu.
+- **Aide** (jaune) — ouvre ce tutoriel.
+- **Aperçu** — bascule entre l'éditeur et le rendu paginé.
+- **Exporter .pdf** — produit le PDF final.
+- **Réglages ▾** — personnaliser le rendu PDF (auteur, marges,
+  polices…).
+
+### Voir l'aperçu
+
+Vous écrivez en mode **éditeur** (texte brut). Pour voir à quoi votre
+document ressemblera dans le PDF, basculez en mode **aperçu** :
+
+- raccourci `Cmd/Ctrl + Enter`
+- ou clic sur le bouton **Aperçu**
+
+Vous voyez votre document tel qu'il sera imprimé.
+
+Pour revenir à l'éditeur, **cliquez n'importe où dans l'aperçu** : le
+curseur revient pile sur la ligne cliquée. Pratique : si vous voyez
+une faute, cliquez dessus, vous arrivez direct au mot dans l'éditeur
+pour la corriger. Ou rappuyez sur `Cmd/Ctrl + Enter`.
+
+### Exporter en PDF
+
+Bouton **Exporter .pdf** ou raccourci `Cmd/Ctrl + P`.
+
+Le navigateur ouvre son dialogue d'impression. Choisissez :
+
+- **Destination** : *Enregistrer au format PDF*
+- **Marges** : ⚠ **Aucune** (voir l'encadré ci-dessous)
+
+Cliquez sur **Enregistrer**, donnez un nom au fichier, c'est fait.
+
+> **⚠ Important — sélectionnez "Marges : Aucune"**
+>
+> Dans le dialogue d'impression, ouvrez « Plus de paramètres » et
+> sélectionnez **« Marges : Aucune »**. Sinon, le navigateur ajoute
+> ses propres marges par-dessus celles déjà gérées par md2pdf, ce
+> qui rétrécit la zone imprimable et fait dépasser le contenu. Les
+> marges visibles dans le PDF sont **toujours** celles que vous
+> avez choisies dans **Réglages**, jamais celles du dialogue
+> d'impression.
+
+### Et voilà
+
+Vous savez écrire un document avec md2pdf. La majorité des notes,
+comptes-rendus, articles courts ne demandent rien de plus que ces
+quelques outils.
+
+Si vous avez besoin d'autre chose — listes, citations, tableaux,
+formules mathématiques, diagrammes, encadrés, notes de bas de page,
+graphiques — la suite documente toutes les fonctions avancées. Lisez
+à votre rythme, ou retournez écrire votre document maintenant et
+revenez plus tard.
+
+---
+
+# Pour aller plus loin
+
+Tout ce qui suit est **optionnel**. Picorez selon vos besoins. Chaque
+section est indépendante.
+
+## Encore d'autres éléments Markdown
+
+### Listes
+
+**Listes à puces** : un tiret (`-`) ou un astérisque (`*`) en début de
+ligne :
+
+```
+- Première idée
+- Deuxième idée
+- Troisième idée
+```
+
+**Listes numérotées** : un nombre suivi d'un point :
+
+```
+1. Première étape
+2. Deuxième étape
+3. Troisième étape
+```
+
+(Les numéros que vous tapez n'ont pas d'importance — Markdown
+renumérote ; vous pouvez tout taper en `1.`)
+
+**Listes imbriquées** : indentez de quatre espaces ou d'une
+tabulation pour une sous-liste :
+
+```
+- Idée principale
+    - Sous-idée
+    - Autre sous-idée
+- Deuxième idée
+```
+
+### Citations
+
+Un chevron (`>`) en début de ligne :
+
+```
+> Ce qui se conçoit bien s'énonce clairement.
+> — Boileau
+```
+
+### Liens
+
+```
+Visitez [le site de Boileau](https://exemple.fr).
+```
+
+Le texte entre crochets devient cliquable, vers l'URL entre
+parenthèses. Raccourci : sélectionnez le texte, `Cmd/Ctrl + K`,
+collez l'URL.
+
+### Lignes horizontales
+
+Trois tirets sur une ligne seule :
+
+```
+---
+```
+
+### Code en ligne et blocs de code
+
+Pour du code **en ligne** dans un paragraphe, entourez-le d'accents
+graves : `` `let x = 42` `` donne `let x = 42`.
+
+Pour un **bloc de code** entier, entourez de trois accents graves
+chacune sur sa propre ligne :
+
+````
+```
+function add(a, b) {
+    return a + b;
+}
+```
+````
+
+### Listes de tâches
+
+Une checklist : un tiret, un espace, puis `[ ]` (à faire) ou `[x]`
+(fait) :
+
+```
+- [x] Écrire le brouillon
+- [x] Relire
+- [ ] Envoyer au comité
+- [ ] Préparer la version finale
+```
+
+Les cases sont **purement visuelles** : pour cocher / décocher,
+modifiez le `[ ]` en `[x]` directement dans le markdown.
+
+### Tableaux simples
+
+Markdown classique pour de petits tableaux :
+
+```
+| Nom    | Âge |
+|--------|-----|
+| Alice  | 32  |
+| Bob    | 27  |
+```
+
+(Pour les **tableaux de données denses**, voir la section *Tableaux
+de données (CSV / TSV)* plus bas.)
+
+## Sauvegarder, ouvrir, importer
 
 | Bouton | Raccourci | Effet |
 |---|---|---|
-| **Ouvrir** | `Cmd/Ctrl` + `O` | Charge un fichier `.md`, `.txt`, `.html` ou `.docx` (Word) |
-| **Enregistrer** | `Cmd/Ctrl` + `S` | Télécharge votre document au format Markdown (`.md`) |
-| **Exporter .pdf** | `Cmd/Ctrl` + `P` | Produit le PDF final, prêt à imprimer ou envoyer |
-| **Réglages** | `Cmd/Ctrl` + `,` | Personnalise le rendu PDF |
-
-> **À l'export PDF, sélectionnez "Marges : Aucune"** dans le dialogue
-> d'impression (section *Plus de paramètres*). Sans ça, le navigateur
-> ajoute ses propres marges par-dessus celles du document, ce qui
-> rétrécit la zone imprimable et fait dépasser ou re-scaler le contenu.
-> Les marges visibles dans le PDF sont gérées par md2pdf, pas par le
-> navigateur.
+| **Ouvrir** | `Cmd/Ctrl + O` | Charge un fichier `.md`, `.txt`, `.html` ou `.docx` (Word) |
+| **Enregistrer** | `Cmd/Ctrl + S` | Télécharge votre document au format Markdown (`.md`) |
+| **Exporter .pdf** | `Cmd/Ctrl + P` | Produit le PDF final |
 
 Le format **Markdown** (`.md`) est un format texte ouvert, lisible
 partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
@@ -132,18 +299,18 @@ il l'ouvrira dans n'importe quel éditeur de texte.
 
 > **À noter pour les fichiers Word** : à l'import d'un `.docx`, le
 > texte, les titres, les listes, le gras/italique, les liens et les
-> citations sont récupérés, mais **pas les images**. Si votre document
-> Word contenait des photos ou des illustrations, vous devrez les
-> réinsérer manuellement après import.
+> citations sont récupérés, mais **pas les images**. Si votre
+> document Word contenait des photos, vous devrez les réinsérer
+> manuellement après import.
 
-Votre travail est **automatiquement sauvegardé** dans le navigateur, donc
-si vous fermez l'onglet par accident, tout est récupéré à la prochaine
-ouverture.
+Votre travail est **automatiquement sauvegardé** dans le navigateur,
+donc si vous fermez l'onglet par accident, tout est récupéré à la
+prochaine ouverture.
 
-## Personnaliser le rendu PDF
+## Personnaliser le rendu PDF (Réglages)
 
-Le bouton **Réglages** ouvre un panneau qui permet de configurer le PDF
-sans toucher au contenu :
+Le bouton **Réglages ▾** (raccourci `Cmd/Ctrl + ,`) ouvre un panneau
+qui permet de configurer le PDF sans toucher au contenu :
 
 - **Auteur, organisation, date** affichés sous le titre principal
 - **Format de page** (A4, A5, Letter…)
@@ -159,26 +326,17 @@ sans toucher au contenu :
 Les réglages sont **mémorisés entre vos sessions**. Le bouton
 *Réinitialiser* en bas du panneau revient aux valeurs par défaut.
 
-## Quelques détails utiles
-
-### Page de titre
-
-Le **premier titre niveau 1** (`# Mon titre`) du document est
-automatiquement centré et fait office de titre général. Les
-informations *Auteur / Organisation / Date* s'affichent juste en
-dessous, centrées également.
-
-### Caractères spéciaux et symboles
+## Caractères spéciaux et symboles
 
 Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.
 
-### Ligatures de saisie
+## Ligatures de saisie
 
-Pour vous éviter de chercher chaque symbole Unicode, l'éditeur
-remplace au vol certaines séquences ASCII par leur équivalent
-mathématique :
+Pour vous éviter de chercher chaque symbole Unicode dans une table de
+caractères, l'éditeur **remplace au vol** certaines séquences ASCII
+par leur équivalent mathématique :
 
 | Tapez | Obtenez | Tapez | Obtenez |
 |---|---|---|---|
@@ -214,11 +372,11 @@ Majuscules (seulement celles qui diffèrent du latin) :
 `\Sigma` Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω.
 
 > Si vous voulez écrire `\alpha` *littéralement* en prose (pour
-> documenter la commande LaTeX, par exemple), entourez-le de
-> backticks : `` `\alpha` ``. À l'intérieur d'un bloc code, les
-> ligatures ne s'appliquent pas.
+> documenter la commande LaTeX), entourez-le de backticks :
+> `` `\alpha` ``. À l'intérieur d'un bloc code, les ligatures ne
+> s'appliquent pas.
 
-Et pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
+Pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
 n'importe quelle lettre majuscule donne sa version doublée :
 
 | Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
@@ -241,29 +399,70 @@ Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
 le texte littéral, faites `Cmd/Ctrl + Z` immédiatement après — la
 substitution se défait, le texte ASCII est restauré.
 
-Les ligatures sont **désactivées** dans les blocs de code (` ``` ` et
-` `` `) — taper `=>` dans un fenced JavaScript reste `=>`.
+## Numérotation des sections
 
-### Bloc de code
+Pour numéroter les titres d'un long document sans configurer de menu,
+il suffit de **donner l'exemple sur le premier titre de chaque
+niveau** : la commande **Numéroter les sections**
+(`Cmd/Ctrl + Maj + N`, ou bien menu **Style** → *Numéroter les
+sections*) détecte le style de numérotation que vous avez écrit, puis
+l'applique à tous les autres titres du même niveau.
 
-Pour insérer du code :
+Exemple. Vous écrivez :
 
 ```
-Tout texte placé entre trois accents graves (```) est affiché
-dans une police à largeur fixe, sur fond gris.
+# 1. Introduction
+
+## 1.1 Contexte
+
+## Objectifs
+
+# Méthode
+
+## Données
+
+# Résultats
 ```
 
-## Pour aller plus loin
+…vous lancez la commande, et le document devient :
 
-md2pdf reconnaît la plupart des conventions Markdown classiques :
+```
+# 1. Introduction
 
-- Texte **gras** ou *italique*, ***les deux***
-- Liens : `[texte du lien](https://exemple.fr)`
-- Images de référence
-- Tableaux comme celui ci-dessus
-- Lignes horizontales (trois tirets sur une ligne)
-- Formules mathématiques (voir la section suivante)
-- Diagrammes Mermaid (voir la section suivante)
+## 1.1 Contexte
+
+## 1.2 Objectifs
+
+# 2. Méthode
+
+## 2.1 Données
+
+# 3. Résultats
+```
+
+Le premier `#` (h1) annonce un style décimal plat (`1.`) ; le premier
+`##` (h2) annonce un style hiérarchique (`1.1`). La commande retient
+et applique. Si votre premier titre n'a aucune numérotation, ce
+niveau ne sera pas numéroté du tout, et tout préfixe numérique
+éventuel des titres suivants à ce niveau sera retiré (mise au propre).
+
+**Styles reconnus** par niveau :
+
+| Premier titre | Style appliqué |
+|---|---|
+| `# 1. Foo` | `1.`, `2.`, `3.`, … |
+| `# 1) Foo` | `1)`, `2)`, `3)`, … |
+| `# (1) Foo` | `(1)`, `(2)`, `(3)`, … |
+| `# A. Foo` | `A.`, `B.`, …, `Z.`, `AA.` |
+| `# a. Foo` | `a.`, `b.`, … |
+| `# I. Foo` | `I.`, `II.`, `III.`, … |
+| `# i. Foo` | `i.`, `ii.`, … |
+| `## 1.1 Foo` | hiérarchique : `1.1`, `1.2`, `2.1`, … |
+| `## 1.1. Foo` | hiérarchique avec point final |
+| (sans préfixe) | aucune numérotation pour ce niveau |
+
+La numérotation hiérarchique a besoin que tous les niveaux parents
+soient eux-mêmes numérotés.
 
 ## Formules mathématiques
 
@@ -284,20 +483,6 @@ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 ````
 
 Le rendu est strictement identique à `$$ … $$`.
-
-Par exemple, en tapant :
-
-```
-$$
-x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
-$$
-```
-
-…vous obtenez :
-
-$$
-x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
-$$
 
 ### Exemples utiles
 
@@ -364,12 +549,6 @@ Soit $\epsilon > 0$ tel que…
 
 ### À savoir
 
-- Les **formules inline** (`$…$`) s'affichent dans le flux du
-  paragraphe à l'écran, mais **dans le PDF** elles sont rendues comme
-  des blocs centrés (le paragraphe est coupé avant et repris après la
-  formule). C'est une limitation de la bibliothèque qui produit le PDF.
-  Pour les formules courtes au milieu d'une phrase, l'aperçu HTML
-  correspond donc mieux à votre intention que le PDF.
 - La taille des formules s'aligne sur la taille du texte courant ; si
   vous changez le réglage **Texte normal** dans **Réglages**, les
   formules grandissent ou rétrécissent en proportion.
@@ -381,11 +560,43 @@ Soit $\epsilon > 0$ tel que…
   flèches (`\to`, `\Rightarrow`), environnements `pmatrix` /
   `bmatrix` / `align*`, etc.
 
+## Règles d'inférence
+
+Pour écrire une **règle d'inférence** (déduction logique, sémantique
+opérationnelle, etc.), utilisez un *fenced block* avec le langage
+`inference` :
+
+````
+```inference (MP)
+Γ ⊢ A; Γ ⊢ A → B
+-------------------
+Γ ⊢ B
+```
+````
+
+Le bloc est rendu en LaTeX `\dfrac{prémisses}{conclusion}` via
+MathJax. Une **ligne de tirets** (3 tirets ou plus, seule sur sa
+ligne) sépare les prémisses de la conclusion. Les prémisses sont
+séparées par `;` ou réparties sur plusieurs lignes. L'**étiquette**
+facultative entre parenthèses après le `inference` (ici `(MP)` pour
+modus ponens) apparaît à droite de la barre.
+
+À l'intérieur d'un bloc `inference`, les **ligatures de saisie**
+restent actives — vous pouvez taper `|-`, `->`, `[[`, `|N`, etc. et
+obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
+MathJax sait rendre tels quels en mode math. C'est la seule
+exception au comportement habituel "ligatures désactivées dans les
+blocs de code".
+
+Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
+ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
+`\leq`), tapez-les directement.
+
 ## Diagrammes Mermaid
 
 [Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
-quelques lignes de texte. Placez votre code dans un bloc dont le langage
-est `mermaid` :
+quelques lignes de texte. Placez votre code dans un bloc dont le
+langage est `mermaid` :
 
 ````
 ```mermaid
@@ -445,141 +656,26 @@ pie title Répartition
 
 Autres types reconnus : `stateDiagram`, `gantt`, `mindmap`, etc. — voir
 la [documentation Mermaid](https://mermaid.js.org/) pour la liste
-complète et la syntaxe de chacun.
+complète.
 
 ### Réglages
 
-La section **Diagrammes Mermaid** du panneau **Réglages** propose trois
-contrôles pour adapter la taille des diagrammes dans le PDF :
+La section **Diagrammes Mermaid** du panneau **Réglages** propose
+trois contrôles pour adapter la taille des diagrammes dans le PDF :
 
-- **Agrandissement max.** : facteur d'agrandissement maximal (par
-  défaut 2). Les petits diagrammes sont agrandis jusqu'à ce facteur ;
-  jamais au-delà.
+- **Agrandissement max.** : facteur d'agrandissement maximal
+  (par défaut 2). Les petits diagrammes sont agrandis jusqu'à ce
+  facteur ; jamais au-delà.
 - **Largeur max. (% du texte)** : fraction de la largeur de la page
   (hors marges) que le diagramme peut occuper (par défaut 100 %).
 - **Hauteur max. (% du texte)** : fraction de la hauteur de la page
   (hors marges) que le diagramme peut occuper (par défaut 70 %).
 
-Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
-page suivante en laissant la précédente à moitié vide.
-
-## Numérotation des sections
-
-Pour numéroter les titres d'un long document sans configurer de menu,
-il suffit de **donner l'exemple sur le premier titre de chaque
-niveau** : la commande **Numéroter les sections**
-(`Cmd/Ctrl + Maj + N`, ou bien menu **Style** → *Numéroter les
-sections*) détecte le style de numérotation que vous avez écrit, puis
-l'applique à tous les autres titres du même niveau.
-
-Exemple. Vous écrivez :
-
-```
-# 1. Introduction
-
-## 1.1 Contexte
-
-## Objectifs
-
-# Méthode
-
-## Données
-
-# Résultats
-```
-
-…vous lancez la commande, et le document devient :
-
-```
-# 1. Introduction
-
-## 1.1 Contexte
-
-## 1.2 Objectifs
-
-# 2. Méthode
-
-## 2.1 Données
-
-# 3. Résultats
-```
-
-Le premier `#` (h1) annonce un style décimal plat (`1.`) ; le premier
-`##` (h2) annonce un style hiérarchique (`1.1`, qui combine le numéro
-du parent et le numéro propre). La commande retient et applique. Si
-votre premier titre n'a aucune numérotation, ce niveau ne sera pas
-numéroté du tout — et tout préfixe numérique éventuel des titres
-suivants à ce niveau sera retiré (mise au propre).
-
-**Styles reconnus** par niveau :
-
-| Premier titre | Style appliqué |
-|---|---|
-| `# 1. Foo` | `1.`, `2.`, `3.`, … |
-| `# 1) Foo` | `1)`, `2)`, `3)`, … |
-| `# (1) Foo` | `(1)`, `(2)`, `(3)`, … |
-| `# A. Foo` | `A.`, `B.`, …, `Z.`, `AA.` |
-| `# a. Foo` | `a.`, `b.`, … |
-| `# I. Foo` | `I.`, `II.`, `III.`, … |
-| `# i. Foo` | `i.`, `ii.`, … |
-| `## 1.1 Foo` | hiérarchique : `1.1`, `1.2`, `2.1`, … |
-| `## 1.1. Foo` | hiérarchique avec point final |
-| (sans préfixe) | aucune numérotation pour ce niveau |
-
-La numérotation hiérarchique a besoin que tous les niveaux parents
-soient eux-mêmes numérotés.
-
-## Règles d'inférence
-
-Pour écrire une **règle d'inférence** (déduction logique, sémantique
-opérationnelle, etc.), utilisez un *fenced block* avec le langage
-`inference` :
-
-````
-```inference (MP)
-Γ ⊢ A; Γ ⊢ A → B
--------------------
-Γ ⊢ B
-```
-````
-
-Le bloc est rendu en LaTeX `\dfrac{prémisses}{conclusion}` via
-MathJax. Une **ligne de tirets** (3 tirets ou plus, seule sur sa
-ligne) sépare les prémisses de la conclusion. Les prémisses sont
-séparées par `;` (rendu en `\quad`) ou réparties sur plusieurs lignes
-(idem). L'**étiquette** facultative entre parenthèses après le
-`inference` (ici `(MP)` pour modus ponens) apparaît à droite de la
-barre.
-
-À l'intérieur d'un bloc `inference`, les **ligatures de saisie**
-restent actives — vous pouvez taper `|-`, `->`, `[[`, `|N`, etc. et
-obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
-MathJax sait rendre tels quels en mode math. C'est la seule
-exception au comportement habituel "ligatures désactivées dans les
-blocs de code".
-
-Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
-ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
-`\leq`), tapez-les directement.
-
-## Listes de tâches
-
-Pour une checklist, utilisez la syntaxe GitHub : un tiret ou un astérisque, puis `[ ]` pour une tâche à faire, `[x]` pour une tâche faite.
-
-```
-- [x] Écrire le brouillon
-- [x] Relire
-- [ ] Envoyer au comité
-- [ ] Préparer la version finale
-```
-
-Les cases sont **purement visuelles** : pour cocher / décocher, modifiez le `[ ]` en `[x]` (ou inversement) directement dans le markdown.
-
 ## Tableaux de données (CSV / TSV)
 
-Pour un tableau dense, écrire la syntaxe pipe-style (`| a | b |`) à
-la main est fastidieux. Vous pouvez à la place coller un **CSV** ou un
-**TSV** dans un *fenced block* :
+Pour un tableau dense, écrire la syntaxe pipe-style à la main est
+fastidieux. Vous pouvez à la place coller un **CSV** ou un **TSV**
+dans un *fenced block* :
 
 ````
 ```csv
@@ -606,88 +702,6 @@ Nom, Description
 
 Pour insérer un guillemet littéral dans une cellule entre guillemets,
 doublez-le : `""`.
-
-## Graphiques
-
-Pour tracer une courbe ou un diagramme à partir de données, utilisez
-un *fenced block* `chart` :
-
-````
-```chart line "Latence par taille de buffer"
-buffer, latence (ms)
-64,  12
-128,  8
-256,  5
-512,  3
-1024, 2
-```
-````
-
-Les types disponibles sont **`line`** (courbe) et **`bar`** (histogramme).
-Le titre entre guillemets après le type est facultatif.
-
-La **première ligne** donne les en-têtes : la première colonne devient
-le label de l'axe X, les colonnes suivantes deviennent autant de
-**séries de données** (chacune sa couleur, et une légende automatique
-si plus d'une série).
-
-Les **lignes de données** suivantes contiennent les valeurs. Si la
-première colonne est numérique, l'axe X est continu ; si elle contient
-des labels textuels (mois, catégories…), l'axe X est catégorique.
-
-### Format CSV : virgules françaises
-
-Le séparateur de champ est **détecté automatiquement** sur la première
-ligne :
-- s'il y a une tabulation → séparateur = tabulation,
-- sinon s'il y a un point-virgule → séparateur = `;`,
-- sinon → séparateur = `,`.
-
-Quand le séparateur est `,`, les **virgules entre deux chiffres**
-(sans espace autour) sont reconnues comme **virgules décimales**, donc
-`3,14` reste un seul nombre. La virgule séparatrice s'écrit alors
-suivie d'un espace : `foo, 3,14` donne deux cellules `foo` et `3,14`.
-
-Pour les rares cas ambigus (`1,2,3,4` compact), passez en `;` ou en
-TSV — ou ajoutez des espaces : `1, 2, 3, 4`.
-
-Les nombres dans les cellules acceptent les deux formats (point ou
-virgule décimale) — `3.14` et `3,14` sont équivalents.
-
-### Séries chronologiques
-
-Si la première colonne contient des **dates au format ISO 8601**
-(`YYYY-MM-DD`, éventuellement avec heure), l'axe X est traité comme
-une échelle temporelle. L'app choisit automatiquement les graduations
-appropriées (jour, mois ou année selon l'étendue) :
-
-````
-```chart line "Téléchargements"
-date, total
-2025-01-15, 120
-2025-02-15, 180
-2025-03-15, 245
-2025-04-15, 310
-```
-````
-
-Les formats ambigus (FR `15/01/2025` et US `01/15/2025`) ne sont
-**pas** reconnus — utilisez toujours ISO 8601, qui est sans
-ambiguïté et compatible avec `Date.parse`.
-
-### Plusieurs séries
-
-````
-```chart bar "Comparaison de codecs"
-Codec, Taille (Ko), Temps (ms)
-MP3, 4200, 120
-Opus, 3800, 95
-FLAC, 12500, 280
-```
-````
-
-Deux barres côte à côte par catégorie, avec une légende en haut à
-droite identifiant chaque série.
 
 ## Listes de définitions
 
@@ -761,11 +775,8 @@ Attention, cette opération est irréversible.
 Les noms d'encadrés reconnus se rangent en deux familles :
 
 - **Génériques** (cadre coloré, fond teinté) :
-  - `note` (bleu),
-  - `tip` (vert),
-  - `warning` (orange),
-  - `caution` (rouge),
-  - `important` (violet).
+  `note` (bleu), `tip` (vert), `warning` (orange), `caution` (rouge),
+  `important` (violet).
 - **Académiques** (cadre sobre, titre en italique, façon LaTeX) :
   `theorem`, `lemma`, `proposition`, `corollary`, `definition`,
   `proof`, `example`, `remark`.
@@ -783,11 +794,96 @@ la somme des carrés des deux autres côtés.
 
 Si vous écrivez un encadré avec un nom qui n'est pas dans la liste
 ci-dessus (par exemple `::: aside`), il sera rendu avec un cadre
-neutre — utile pour vos propres conventions de mise en page.
+neutre — utile pour vos propres conventions.
 
-L'intérieur d'un encadré est du Markdown comme le reste : vous pouvez
-y mettre du texte mis en forme, des listes, des formules, voire des
-tableaux.
+L'intérieur d'un encadré est du Markdown comme le reste : texte mis
+en forme, listes, formules, voire des tableaux.
+
+## Graphiques
+
+Pour tracer une courbe ou un diagramme à partir de données, utilisez
+un *fenced block* `chart` :
+
+````
+```chart line "Latence par taille de buffer"
+buffer, latence (ms)
+64,  12
+128,  8
+256,  5
+512,  3
+1024, 2
+```
+````
+
+Les types disponibles sont **`line`** (courbe) et **`bar`**
+(histogramme). Le titre entre guillemets après le type est
+facultatif.
+
+La **première ligne** donne les en-têtes : la première colonne
+devient le label de l'axe X, les colonnes suivantes deviennent autant
+de **séries de données** (chacune sa couleur, et une légende
+automatique si plus d'une série).
+
+Les **lignes de données** suivantes contiennent les valeurs. Si la
+première colonne est numérique, l'axe X est continu ; si elle
+contient des labels textuels (mois, catégories…), l'axe X est
+catégorique.
+
+### Format CSV : virgules françaises
+
+Le séparateur de champ est **détecté automatiquement** sur la
+première ligne :
+
+- s'il y a une tabulation → séparateur = tabulation,
+- sinon s'il y a un point-virgule → séparateur = `;`,
+- sinon → séparateur = `,`.
+
+Quand le séparateur est `,`, les **virgules entre deux chiffres**
+(sans espace autour) sont reconnues comme **virgules décimales**,
+donc `3,14` reste un seul nombre. La virgule séparatrice s'écrit
+alors suivie d'un espace : `foo, 3,14` donne deux cellules `foo` et
+`3,14`.
+
+Pour les rares cas ambigus (`1,2,3,4` compact), passez en `;` ou en
+TSV — ou ajoutez des espaces : `1, 2, 3, 4`.
+
+Les nombres dans les cellules acceptent les deux formats (point ou
+virgule décimale) — `3.14` et `3,14` sont équivalents.
+
+### Séries chronologiques
+
+Si la première colonne contient des **dates au format ISO 8601**
+(`YYYY-MM-DD`, éventuellement avec heure), l'axe X est traité comme
+une échelle temporelle. L'app choisit automatiquement les graduations
+appropriées (jour, mois ou année selon l'étendue) :
+
+````
+```chart line "Téléchargements"
+date, total
+2025-01-15, 120
+2025-02-15, 180
+2025-03-15, 245
+2025-04-15, 310
+```
+````
+
+Les formats ambigus (FR `15/01/2025` et US `01/15/2025`) ne sont
+**pas** reconnus — utilisez toujours ISO 8601, qui est sans
+ambiguïté.
+
+### Plusieurs séries
+
+````
+```chart bar "Comparaison de codecs"
+Codec, Taille (Ko), Temps (ms)
+MP3, 4200, 120
+Opus, 3800, 95
+FLAC, 12500, 280
+```
+````
+
+Deux barres côte à côte par catégorie, avec une légende en haut à
+droite identifiant chaque série.
 
 ## Crédits
 
@@ -823,10 +919,10 @@ Le code source de md2pdf est sur
 
 ---
 
-C'est tout pour le tour rapide. Vous pouvez maintenant :
+C'est tout. Vous pouvez maintenant :
 
 - Effacer ce contenu et commencer à rédiger votre propre document
 - L'enregistrer pour le retrouver plus tard
-- Cliquer sur **Aide** à droite à tout moment pour revoir ce tutoriel
+- Cliquer sur **Aide** à tout moment pour revoir ce tutoriel
 
 Bonne écriture.
