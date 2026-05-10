@@ -48,6 +48,7 @@ import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
 import { openHelp } from './ui/help-window';
 import { openDocMenu } from './ui/doc-menu';
+import { openExportMenu } from './ui/export-menu';
 import { redo, undo } from '@codemirror/commands';
 import helpMd from './HELP.md?raw';
 import {
@@ -384,33 +385,31 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  const handleOpen = (file: File): void => {
-    const current = editor.getValue();
-    const hasContent = current.trim() !== '' && current !== DEFAULT_DOC;
-    if (hasContent) {
-      const ok = globalThis.confirm(
-        'Le contenu actuel sera remplacé. Continuer ?',
-      );
-      if (!ok) return;
-    }
+  // Imports an external file (.md / .docx / .html / .txt) as a *new*
+  // doc in the index, switches to it. Unlike the mono-doc era, this
+  // never overwrites the current doc, so no confirmation is needed.
+  // The new doc's name is derived from the source filename — if the
+  // base name collides with an existing doc, createDoc uniques it.
+  const handleImport = (file: File): void => {
     importFile(file)
       .then(async ({ content, baseName }) => {
-        // Hoist any inline data URLs into IndexedDB and replace them with
-        // short `img://id` refs. Keeps the editor doc readable.
+        // Persist the outgoing doc before we switch focus — debounce
+        // may not have fired yet.
+        await flushSave();
+        // Hoist any inline data URLs into IndexedDB and replace them
+        // with short `img://<sha>` refs. Keeps the new doc readable.
         const cleaned = await extractDataUrlsToStore(content);
+        const desired = baseName.trim() === '' ? 'Document importé' : baseName;
+        const entry = await createDoc(desired, cleaned);
+        currentDoc = entry;
+        setCurrentDocId(entry.uuid);
         editor.setValue(cleaned);
-        await saveDocContent(currentDoc.uuid, cleaned);
-        // Reflect the imported source's filename on the current doc so
-        // exports inherit it. Falls back silently if the trimmed name
-        // is empty — the doc keeps its previous label.
-        const renamed = renameDoc(currentDoc.uuid, baseName);
-        if (renamed) currentDoc = renamed;
-        // Stay in editor mode after import — the user typically wants to
-        // see the markdown they just opened. The preview is dirty and
-        // will repaginate on the next Cmd/Ctrl+Enter.
+        // Stay in editor mode after import — the user typically wants
+        // to see the markdown they just opened. The preview is dirty
+        // and will repaginate on the next Cmd/Ctrl+Enter.
         dirty = true;
         if (viewMode === 'preview') setViewMode('editor');
-        toolbarCtrl.setDocName(currentDoc.name);
+        toolbarCtrl.setDocName(entry.name);
       })
       .catch((err: unknown) => {
         console.error('Import failed', err);
@@ -419,10 +418,10 @@ async function bootstrap(): Promise<void> {
       });
   };
 
-  // Open dialog: creates a transient <input type=file>, lets the user pick a
-  // file, hands it off to handleOpen. Used both by the toolbar's "Ouvrir"
-  // button and by the Cmd/Ctrl+O shortcut so they share one entry point.
-  const triggerOpenDialog = (): void => {
+  // Import dialog: transient <input type=file>, hands the chosen
+  // file to handleImport. Shared by the toolbar [Importer] button
+  // and the Cmd/Ctrl+O shortcut.
+  const triggerImportDialog = (): void => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = ACCEPT_ATTRIBUTE;
@@ -431,7 +430,7 @@ async function bootstrap(): Promise<void> {
     input.addEventListener('change', () => {
       const file = input.files?.[0];
       input.remove();
-      if (file) handleOpen(file);
+      if (file) handleImport(file);
     });
     input.click();
   };
@@ -559,13 +558,17 @@ async function bootstrap(): Promise<void> {
           },
         });
       },
-      onOpen: triggerOpenDialog,
-      onSave: triggerSave,
+      onImport: triggerImportDialog,
       onStyle(anchor) {
         openStyleMenu(editor.view, anchor.x, anchor.y);
       },
       onHelp: triggerHelp,
-      onDownload: triggerDownload,
+      onExport(anchor) {
+        openExportMenu(anchor, {
+          onMarkdown: triggerSave,
+          onPdf: triggerDownload,
+        });
+      },
       onSettings: triggerSettings,
       onTogglePreview: toggleView,
     });
@@ -595,7 +598,7 @@ async function bootstrap(): Promise<void> {
         break;
       case 'o':
         e.preventDefault();
-        triggerOpenDialog();
+        triggerImportDialog();
         break;
       case 'p':
         e.preventDefault();

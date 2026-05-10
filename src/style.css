@@ -410,6 +410,49 @@ body,
   background: var(--bg);
 }
 
+/* ---- Export dropdown ([Exporter ▾]) ---------------------------------- */
+
+.export-menu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  padding: 0.25rem;
+  min-width: 14rem;
+  font: inherit;
+}
+
+.export-menu-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.4rem 0.7rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font: inherit;
+  color: var(--text);
+}
+
+.export-menu-item:hover {
+  background: var(--bg-alt);
+}
+
+.export-menu-label {
+  font-weight: 500;
+}
+
+.export-menu-hint {
+  font-size: 0.8em;
+  color: var(--muted, #6b7280);
+}
+
 /* ---- Help modal ------------------------------------------------------- */
 
 .help-overlay {

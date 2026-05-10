@@ -6,11 +6,12 @@ export interface ToolbarHandlers {
   // Click on the [Mon doc ▾] button. Receives the trigger element so
   // the caller can anchor the dropdown to it without re-querying.
   onDocMenu(anchor: HTMLElement): void;
-  onOpen(): void;
-  onSave(): void;
+  onImport(): void;
   onStyle(anchor: { x: number; y: number }): void;
   onHelp(): void;
-  onDownload(): void;
+  // Click on [Exporter ▾]. Receives the trigger element so the
+  // dropdown anchors to it.
+  onExport(anchor: HTMLElement): void;
   onSettings(): void;
   onTogglePreview(): void;
 }
@@ -44,17 +45,12 @@ export function mountToolbar(
   docBtn.append(docLabel, docCaret);
   docBtn.addEventListener('click', () => handlers.onDocMenu(docBtn));
 
-  const openBtn = document.createElement('button');
-  openBtn.type = 'button';
-  openBtn.textContent = 'Ouvrir';
-  openBtn.title = 'Ouvrir un document (Ctrl+O / Cmd+O)';
-  openBtn.addEventListener('click', () => handlers.onOpen());
-
-  const saveBtn = document.createElement('button');
-  saveBtn.type = 'button';
-  saveBtn.textContent = 'Enregistrer';
-  saveBtn.title = 'Enregistrer le document Markdown (Ctrl+S / Cmd+S)';
-  saveBtn.addEventListener('click', () => handlers.onSave());
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.textContent = 'Importer';
+  importBtn.title =
+    'Importer un fichier (.md / .docx / .html / .txt) comme nouveau document (Ctrl+O / Cmd+O)';
+  importBtn.addEventListener('click', () => handlers.onImport());
 
   const previewBtn = document.createElement('button');
   previewBtn.type = 'button';
@@ -91,11 +87,16 @@ export function mountToolbar(
   helpBtn.title = 'Ouvrir le tutoriel';
   helpBtn.addEventListener('click', () => handlers.onHelp());
 
-  const downloadBtn = document.createElement('button');
-  downloadBtn.type = 'button';
-  downloadBtn.textContent = 'Exporter .pdf';
-  downloadBtn.title = 'Exporter en PDF (Ctrl+P / Cmd+P)';
-  downloadBtn.addEventListener('click', () => handlers.onDownload());
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.className = 'menu-trigger';
+  exportBtn.title = 'Exporter le document (Markdown ou PDF)';
+  const exportLabel = document.createTextNode('Exporter');
+  const exportCaret = document.createElement('span');
+  exportCaret.className = 'menu-caret';
+  exportCaret.textContent = '▾';
+  exportBtn.append(exportLabel, exportCaret);
+  exportBtn.addEventListener('click', () => handlers.onExport(exportBtn));
 
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
@@ -110,7 +111,7 @@ export function mountToolbar(
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(docBtn, openBtn, saveBtn, styleBtn);
+  left.append(docBtn, importBtn, styleBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
@@ -118,7 +119,7 @@ export function mountToolbar(
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(previewBtn, downloadBtn, settingsBtn);
+  right.append(previewBtn, exportBtn, settingsBtn);
 
   parent.append(left, center, right);
 
