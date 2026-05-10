@@ -140,15 +140,23 @@ marked.use({
   // Other languages fall through to the default fenced-code renderer.
   renderer: {
     code(token) {
-      if (token.lang === 'math') {
+      const lang = (token.lang ?? '').trim();
+      if (lang === 'math') {
         const escaped = escapeHtml(token.text);
         return `<div class="math-block" data-math="${escaped}"></div>\n`;
       }
-      if (token.lang === 'csv') {
+      if (lang === 'csv') {
         return renderDataTable(token.text, ',');
       }
-      if (token.lang === 'tsv') {
+      if (lang === 'tsv') {
         return renderDataTable(token.text, '\t');
+      }
+      // ```inference (Label) — premises / dashes / conclusion. The
+      // info string after `inference` is the optional rule label.
+      if (lang === 'inference' || lang.startsWith('inference ')) {
+        const labelMatch = /^inference\s*(.*)$/.exec(lang);
+        const label = labelMatch ? (labelMatch[1] ?? '').trim() : '';
+        return renderInference(token.text, label);
       }
       return false;
     },
@@ -398,6 +406,54 @@ function escapeHtml(s: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+// Renders an ```inference fenced block as a display-math `\dfrac{...}
+// {...}` placeholder, picked up downstream by renderMathBlocks. The
+// block is split on a "horizontal bar" line (3+ dashes, optionally
+// padded), premises above, conclusion below. Multiple premises on a
+// single line are separated by `;` (converted to `\quad` for spacing);
+// premises spread across several lines are joined with `\quad` too.
+//
+// We do NOT pre-substitute ASCII shortcuts like `|-` → `\vdash`: the
+// editor's ligature pass is enabled inside ```inference (an
+// exception in inCodeContext, see editor-ligatures.ts), so the source
+// arriving here already contains the Unicode operators (`⊢`, `→`,
+// `⟦`, …). MathJax 3 with the textmacros / unicode packages renders
+// these directly in math mode.
+function renderInference(src: string, label: string): string {
+  const lines = src.replaceAll(/\r\n?/g, '\n').split('\n');
+  const barIndex = lines.findIndex((l) => /^\s*-{3,}\s*$/.test(l));
+  if (barIndex === -1) {
+    // No bar: treat the whole thing as a fallback display math block
+    // so the user sees *something* instead of nothing.
+    const fallback = escapeHtml(src.trim());
+    return `<div class="math-block" data-math="${fallback}"></div>\n`;
+  }
+  const premiseLines = lines
+    .slice(0, barIndex)
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+  const conclusionLines = lines
+    .slice(barIndex + 1)
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+  const QUAD = String.raw` \quad `;
+  const premises = premiseLines
+    .flatMap((l) => l.split(';').map((s) => s.trim()).filter((s) => s !== ''))
+    .join(QUAD);
+  const conclusion = conclusionLines.join(QUAD);
+  let latex = String.raw`\dfrac{${premises}}{${conclusion}}`;
+  if (label !== '') {
+    // Strip surrounding parens/brackets if the user wrote them — the
+    // renderer adds its own pair so the label always reads as a
+    // parenthesised side note next to the bar.
+    const stripped = label.replaceAll(/^[([{]\s*|\s*[)\]}]$/g, '').trim();
+    if (stripped !== '') {
+      latex += String.raw` \quad \textsf{(${stripped})}`;
+    }
+  }
+  return `<div class="math-block" data-math="${escapeHtml(latex)}"></div>\n`;
 }
 
 // Renders a CSV/TSV fenced block as an HTML <table>. The first

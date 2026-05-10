@@ -436,6 +436,39 @@ contrôles pour adapter la taille des diagrammes dans le PDF :
 Ces deux dernières bornes évitent qu'un diagramme haut ne pousse à la
 page suivante en laissant la précédente à moitié vide.
 
+## Règles d'inférence
+
+Pour écrire une **règle d'inférence** (déduction logique, sémantique
+opérationnelle, etc.), utilisez un *fenced block* avec le langage
+`inference` :
+
+````
+```inference (MP)
+Γ ⊢ A; Γ ⊢ A → B
+-------------------
+Γ ⊢ B
+```
+````
+
+Le bloc est rendu en LaTeX `\dfrac{prémisses}{conclusion}` via
+MathJax. Une **ligne de tirets** (3 tirets ou plus, seule sur sa
+ligne) sépare les prémisses de la conclusion. Les prémisses sont
+séparées par `;` (rendu en `\quad`) ou réparties sur plusieurs lignes
+(idem). L'**étiquette** facultative entre parenthèses après le
+`inference` (ici `(MP)` pour modus ponens) apparaît à droite de la
+barre.
+
+À l'intérieur d'un bloc `inference`, les **ligatures de saisie**
+restent actives — vous pouvez taper `|-`, `->`, `[[`, `|N`, etc. et
+obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
+MathJax sait rendre tels quels en mode math. C'est la seule
+exception au comportement habituel "ligatures désactivées dans les
+blocs de code".
+
+Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
+ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
+`\leq`), tapez-les directement.
+
 ## Listes de tâches
 
 Pour une checklist, utilisez la syntaxe GitHub : un tiret ou un astérisque, puis `[ ]` pour une tâche à faire, `[x]` pour une tâche faite.
