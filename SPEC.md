@@ -165,25 +165,31 @@ Voir §14 pour les détails de la sync par ancre.
   modification (debounce 200 ms). Au prochain démarrage, le doc est
   restauré. Si `localStorage` est vide, c'est `HELP.md` qui est chargé
   comme document par défaut.
-- **Ouvrir** : accepte `.md`, `.markdown`, `.txt`, `.html`, `.htm`,
-  `.docx`. Demande confirmation si le doc courant n'est ni vide ni le
-  HELP. À l'ouverture, les data URLs inlinées sont migrées en IndexedDB.
-  L'app bascule en mode éditeur (si on était en preview) et marque
-  dirty. Limitation DOCX : les images embarquées dans un Word ne sont
-  **pas** importées (mammoth → HTML les sort en data URLs, mais notre
-  filtre Turndown les retire pour rester sur du contenu textuel
-  propre).
-- **Enregistrer** : produit un `.md` portable (data URLs en fin de doc en
-  forme ref-style, voir §6).
-- **Exporter .pdf** : pipeline §13.6, via paged.js.
-- **Aide** : ouvre une modale qui rend le HELP.md original (voir §10).
+- **Importer** : accepte `.md`, `.markdown`, `.txt`, `.html`, `.htm`,
+  `.docx`. Crée toujours un **nouveau document** dans l'index, jette
+  le SHA du contenu dans le pool de blobs, bascule dessus. Pas de
+  confirmation (le doc courant n'est jamais touché). À l'import, les
+  data URLs inlinées sont migrées en IndexedDB. L'app bascule en mode
+  éditeur (si on était en preview) et marque dirty. Limitation DOCX :
+  les images embarquées dans un Word ne sont **pas** importées
+  (mammoth → HTML les sort en data URLs, mais notre filtre Turndown
+  les retire pour rester sur du contenu textuel propre).
+- **Exporter ▾** : dropdown qui regroupe les sorties (cf. §19.4) :
+  - `.md` produit un Markdown portable (data URLs en fin de doc en
+    forme ref-style, voir §6).
+  - `.pdf` exécute le pipeline §13.6 via paged.js.
+  Le nom de fichier est dérivé du nom du doc courant (slugifié).
+- **Aide** : ouvre la fenêtre d'aide séparée (cf. §10).
 - **Style** : ouvre un menu déroulant avec les commandes de mise en forme.
   Même menu disponible au clic-droit dans l'éditeur. Les items déjà
   applicables au curseur courant sont signalés par une coche. Inclut
   également **Numéroter les sections** (cf. §15).
-- **Réglages** : panneau modal pour personnaliser le rendu PDF (§9).
-  Les changements marquent dirty et re-paginent immédiatement si la
-  preview est visible.
+- **Réglages** : ouvre une fenêtre browser séparée (mêmes mécaniques
+  que la fenêtre d'aide, fallback modal si popup bloqué) pour
+  personnaliser le rendu PDF (§9). Les changements marquent dirty et
+  re-paginent immédiatement si la preview est visible — l'idée étant
+  de poser cette fenêtre à côté de l'aperçu et voir l'effet en temps
+  réel.
 - **Sélection ligne entière** : clic sur un numéro de ligne dans la
   gouttière sélectionne la ligne ; glisser-en sélectionne plusieurs.
 - **Insertion d'image** : trois entrées (drag-drop sur l'éditeur, paste
@@ -628,13 +634,19 @@ interface PdfSettings {
 ## 10. Aide intégrée
 
 - Le tutoriel `src/HELP.md` est bundlé via `import helpMd from './HELP.md?raw'`.
-- Au premier lancement (`localStorage` vide), il sert de document par
-  défaut dans l'éditeur. L'utilisateur peut le lire, l'éditer, le
-  sauvegarder ou repartir d'une page blanche.
-- Le **bouton Aide** (jaune pâle, à droite avant *Exporter .pdf*)
-  ouvre une modale avec le HELP.md **d'origine** rendu en HTML, sans
-  toucher au document de l'utilisateur. Échap / clic hors panneau /
-  bouton Fermer pour la refermer.
+- Au premier lancement (`localStorage` vide), il sert de contenu au
+  document « Aide md2pdf » que l'index multi-doc (§19) crée
+  d'office. L'utilisateur peut le lire, l'éditer, le sauvegarder ou
+  repartir d'une page blanche via *+ Nouveau document*.
+- Le **bouton Aide** (jaune pâle, au centre de la toolbar) ouvre une
+  **fenêtre browser séparée** rendant le HELP.md **d'origine** en
+  HTML, sans toucher au document de l'utilisateur. Chaque bloc de
+  code y porte un bouton *Insérer dans le document* qui injecte le
+  code à la position du curseur de l'éditeur. La fenêtre est
+  single-instance (refocus si déjà ouverte) ; fallback automatique
+  sur une modale interne si le popup est bloqué. Cmd/Ctrl+Z et
+  Shift+Cmd/Ctrl+Z forwardés vers l'éditeur depuis la fenêtre
+  d'aide.
 
 ## 11. Déploiement
 
@@ -1157,10 +1169,7 @@ Exception : un `FencedCode` dont l'`info` est `inference`
 contenu sera de toute façon rendu par MathJax qui accepte l'Unicode
 math directement.
 
-## 19. Documents multiples — draft
-
-**Statut** : design en cours, pas encore implémenté. Les détails
-sont susceptibles d'évoluer après revue.
+## 19. Documents multiples
 
 ### 19.1. Modèle
 
@@ -1472,22 +1481,26 @@ dans un autre onglet, recharger ? ».
 - Export d'un dossier de docs en bundle zip.
 - Synchronisation cloud entre appareils.
 
-## 20. Polices configurables — draft
-
-**Statut** : design en cours, pas encore implémenté.
+## 20. Polices configurables
 
 ### 20.1. Surface utilisateur
 
-Trois sélecteurs dans le panneau **Réglages**, sous une nouvelle
-section *Polices* :
+Trois sélecteurs dans le panneau **Réglages**, sous une section
+*Polices* :
 
 - Police des **titres** (h1-h6)
 - Police du **corps**
 - Police du **code** (inline et blocs)
 
-Chaque sélecteur est un combo recherchable. La sélection s'applique
-en direct dans l'aperçu (et dans le PDF, qui passe par le même
-pipeline).
+V1 : trois `<select>` simples filtrés par famille (sans + serif pour
+titres/corps, mono pour code). La spec d'origine prévoyait des
+combos recherchables — non nécessaire avec ~15 entrées ; à
+réintroduire le jour où le catalogue grossit.
+
+La sélection s'applique en direct dans l'aperçu (et dans le PDF, qui
+passe par le même pipeline). Combiné à la fenêtre Réglages détachée
+(§4.3), l'utilisateur peut poser le panneau à côté de l'aperçu et
+voir l'effet en temps réel.
 
 L'éditeur CodeMirror reste en Roboto Condensed / Roboto Mono
 indépendamment des choix utilisateur — la cohérence visuelle de
@@ -1495,8 +1508,9 @@ l'éditeur ne doit pas changer à chaque essai de police.
 
 ### 20.2. Catalogue
 
-Un fichier statique `src/fonts/google-catalog.json` bundlé au build
-contient un sous-ensemble curé de Google Fonts (~50 entrées),
+Un fichier statique `src/assets/google-fonts-catalog.json` bundlé au
+build contient un sous-ensemble curé de Google Fonts (v1 : 16
+entrées — 5 sans + 5 serif + 5 mono + Roboto Condensed bundlé),
 typiquement :
 
 ```jsonc
@@ -1518,13 +1532,12 @@ runtime du catalogue, pas de clé API Google. Si l'utilisateur veut
 une police absente, on l'ajoute à la prochaine release (issue
 GitHub).
 
-Composition du catalogue : 5 polices populaires par famille, équilibré
-entre sans-serif moderne (Inter, Roboto, Open Sans, Lato, Poppins),
-serif académique (Source Serif 4, EB Garamond, Merriweather, Lora,
-PT Serif), monospace (JetBrains Mono, Fira Code, Source Code Pro,
-IBM Plex Mono, Roboto Mono). Plus quelques spécialités : Crimson Pro,
-Cormorant Garamond, Computer Modern (CMU Serif via cm-unicode pour
-l'esthétique TeX).
+Composition v1 : 5 polices par famille, équilibrée entre sans-serif
+moderne (Inter, Roboto, Open Sans, Lato, Poppins), serif académique
+(Source Serif 4, EB Garamond, Merriweather, Lora, PT Serif),
+monospace (JetBrains Mono, Fira Code, Source Code Pro, IBM Plex
+Mono, Roboto Mono — ce dernier bundlé). Le catalogue a vocation à
+grossir au fil des releases en fonction des retours utilisateurs.
 
 ### 20.3. Chargement
 

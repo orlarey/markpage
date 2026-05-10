@@ -113,16 +113,21 @@ de côté), et s'insère à la position du curseur.
 
 En haut de l'écran, quelques boutons :
 
-- **Ouvrir / Enregistrer** — charger un fichier ou sauvegarder le
-  vôtre.
+- **Mon doc ▾** — montre le nom du document courant ; ouvre la liste
+  de vos documents, permet d'en créer / renommer / dupliquer /
+  supprimer.
+- **Importer** — ajoute un fichier (`.md`, `.txt`, `.html`,
+  `.docx`) comme nouveau document, sans toucher au courant.
 - **Style ▾** — un menu de mise en forme (titres, gras, listes,
   insérer une image…). Le **clic-droit** dans l'éditeur ouvre le
   même menu.
 - **Aide** (jaune) — ouvre ce tutoriel.
 - **Aperçu** — bascule entre l'éditeur et le rendu paginé.
-- **Exporter .pdf** — produit le PDF final.
+- **Exporter ▾** — produit un fichier Markdown (`.md`) ou un PDF.
 - **Réglages ▾** — personnaliser le rendu PDF (auteur, marges,
-  polices…).
+  polices…). S'ouvre dans une **fenêtre séparée** que vous pouvez
+  poser à côté de l'aperçu pour voir l'effet de chaque changement
+  en temps réel.
 
 ### Voir l'aperçu
 
@@ -141,7 +146,8 @@ pour la corriger. Ou rappuyez sur `Cmd/Ctrl + Enter`.
 
 ### Exporter en PDF
 
-Bouton **Exporter .pdf** ou raccourci `Cmd/Ctrl + P`.
+Cliquez sur **Exporter ▾** puis **PDF (.pdf)**, ou utilisez le
+raccourci `Cmd/Ctrl + P` directement.
 
 Le navigateur ouvre son dialogue d'impression. Choisissez :
 
@@ -290,17 +296,32 @@ Markdown classique pour de petits tableaux :
 (Pour les **tableaux de données denses**, voir la section *Tableaux
 de données (CSV / TSV)* plus bas.)
 
-## Sauvegarder, ouvrir, importer
+## Gérer plusieurs documents
 
-| Bouton | Raccourci | Effet |
-|---|---|---|
-| **Ouvrir** | `Cmd/Ctrl + O` | Charge un fichier `.md`, `.txt`, `.html` ou `.docx` (Word) |
-| **Enregistrer** | `Cmd/Ctrl + S` | Télécharge votre document au format Markdown (`.md`) |
-| **Exporter .pdf** | `Cmd/Ctrl + P` | Produit le PDF final |
+md2pdf garde **tous vos documents** dans le navigateur. La liste se
+trouve derrière le bouton **Mon doc ▾**, qui affiche aussi le nom
+du document que vous éditez actuellement.
 
-Le format **Markdown** (`.md`) est un format texte ouvert, lisible
-partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
-il l'ouvrira dans n'importe quel éditeur de texte.
+### Le menu Mon doc ▾
+
+- **Renommer le doc courant** : cliquez dans le champ en haut du
+  menu, tapez, validez avec Entrée. (Échap annule.)
+- **+ Nouveau document** : crée un document vide et bascule
+  dessus. Le doc précédent reste en place, vous pouvez y revenir
+  à tout moment.
+- **Liste des autres documents** : triés par date de modification.
+  Cliquez sur un nom pour l'ouvrir. Au survol, trois actions
+  apparaissent :
+  - *Renommer* — édite le nom directement dans la liste.
+  - *Dupliquer* — clone le document.
+  - *Supprimer* — avec une demande de confirmation.
+
+### Importer un fichier
+
+Le bouton **Importer** (raccourci `Cmd/Ctrl + O`) ajoute un fichier
+externe comme **nouveau document** dans la liste, sans toucher à
+celui sur lequel vous travaillez. Formats acceptés : `.md`,
+`.txt`, `.html`, `.docx` (Word).
 
 > **À noter pour les fichiers Word** : à l'import d'un `.docx`, le
 > texte, les titres, les listes, le gras/italique, les liens et les
@@ -308,20 +329,49 @@ il l'ouvrira dans n'importe quel éditeur de texte.
 > document Word contenait des photos, vous devrez les réinsérer
 > manuellement après import.
 
+### Exporter votre document
+
+Le bouton **Exporter ▾** propose deux formats :
+
+| Format | Raccourci | Effet |
+|---|---|---|
+| **Markdown (.md)** | `Cmd/Ctrl + S` | Télécharge votre document au format Markdown |
+| **PDF (.pdf)** | `Cmd/Ctrl + P` | Produit le PDF final |
+
+Le format **Markdown** (`.md`) est un format texte ouvert, lisible
+partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
+il l'ouvrira dans n'importe quel éditeur de texte.
+
+Le nom du fichier exporté reprend le nom de votre document (celui
+affiché sur **Mon doc ▾**).
+
 Votre travail est **automatiquement sauvegardé** dans le navigateur,
 donc si vous fermez l'onglet par accident, tout est récupéré à la
 prochaine ouverture.
 
 ## Personnaliser le rendu PDF (Réglages)
 
-Le bouton **Réglages ▾** (raccourci `Cmd/Ctrl + ,`) ouvre un panneau
-qui permet de configurer le PDF sans toucher au contenu :
+Le bouton **Réglages ▾** (raccourci `Cmd/Ctrl + ,`) ouvre une
+**fenêtre séparée** où vous pouvez configurer le PDF sans toucher
+au contenu. **Astuce** : passez d'abord en mode Aperçu, ouvrez les
+Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
+se reflète en temps réel sur le document paginé.
+
+Ce que vous pouvez régler :
 
 - **Auteur, organisation, date** affichés sous le titre principal
 - **Format de page** (A4, A5, Letter…)
 - **Marges** en millimètres
 - **Justification** du texte
 - **Interligne**
+- **Polices** des titres, du corps et du code — choisies parmi un
+  catalogue de ~15 polices Google Fonts (Inter, EB Garamond,
+  JetBrains Mono…). Les polices sont chargées à la demande ; la
+  première utilisation nécessite une connexion, ensuite le
+  navigateur les met en cache. Roboto Condensed et Roboto Mono
+  sont embarquées et fonctionnent hors-ligne. *Note : l'éditeur
+  lui-même garde toujours Roboto Condensed / Mono, indépendamment
+  de vos choix — la cohérence de la zone de saisie ne change pas.*
 - **Tailles et couleurs** des titres (h1 à h4) et du corps
 - **Style du code** (taille et couleur)
 - **Style de la citation** (taille, couleur du texte, couleur de la
