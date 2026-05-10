@@ -47,18 +47,22 @@ import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsPanel } from './ui/settings-panel';
 import { openHelp } from './ui/help-window';
+import { openDocMenu } from './ui/doc-menu';
 import { redo, undo } from '@codemirror/commands';
 import helpMd from './HELP.md?raw';
-import { loadFilename, saveFilename } from './storage';
 import {
   createDoc,
+  deleteDoc,
+  duplicateDoc,
   gcContentBlobs,
   listDocs,
   loadDocContent,
   migrateLegacyDocIfNeeded,
+  renameDoc,
   resolveCurrentDoc,
   saveDocContent,
   setCurrentDocId,
+  type DocEntry,
 } from './docs';
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
 import { paginate } from './preview-paginated';
@@ -69,18 +73,18 @@ import { exportViaPrint } from './print-export';
 // and HELP stays accessible only via the Aide button.
 const DEFAULT_DOC = helpMd;
 
-const DEFAULT_FILENAME = 'document.pdf';
-
-function ensureFilename(name: string): string {
-  const trimmed = name.trim();
-  if (trimmed === '') return DEFAULT_FILENAME;
-  return /\.pdf$/i.test(trimmed) ? trimmed : `${trimmed}.pdf`;
-}
-
-// Derives the .md filename for "Enregistrer" from the current PDF filename
-// (the user manages a single base name in the toolbar's filename input).
-function mdFilenameFrom(pdfName: string): string {
-  return pdfName.replace(/\.pdf$/i, '') + '.md';
+// Cheap slug for export filenames. Keeps letters / digits / dashes /
+// underscores / dots, replaces anything else with '-', collapses
+// runs, trims dashes from the ends. Falls back to "document" when the
+// result is empty (e.g. an emoji-only doc name).
+function slugifyDocName(name: string): string {
+  const slug = name
+    .normalize('NFKD')
+    .replaceAll(/[̀-ͯ]/g, '')
+    .replaceAll(/[^a-zA-Z0-9._-]+/g, '-')
+    .replaceAll(/-{2,}/g, '-')
+    .replaceAll(/^-+|-+$/g, '');
+  return slug === '' ? 'document' : slug;
 }
 
 function downloadMarkdown(content: string, filename: string): void {
@@ -126,7 +130,6 @@ async function bootstrap(): Promise<void> {
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 
   const state = {
-    filename: loadFilename() ?? DEFAULT_FILENAME,
     settings: loadSettings(),
   };
 
@@ -154,7 +157,10 @@ async function bootstrap(): Promise<void> {
   }
 
   // First run: empty index → seed with the bundled help tutorial.
-  const currentDoc =
+  // `currentDoc` is mutable: switching, creating, or deleting a doc
+  // points it at the new entry, and the toolbar / autosave read its
+  // current value via the closure.
+  let currentDoc: DocEntry =
     resolveCurrentDoc() ?? (await createDoc('Aide md2pdf', DEFAULT_DOC));
   setCurrentDocId(currentDoc.uuid);
   const initialDoc = loadDocContent(currentDoc) ?? '';
@@ -274,6 +280,95 @@ async function bootstrap(): Promise<void> {
     if (anchor) enterEditor(anchor);
   });
 
+  // Flushes the pending autosave: if the current editor content
+  // differs from the saved blob (because the debounce hasn't fired
+  // yet), persist it now. Called before any operation that swaps the
+  // current doc, so we never lose unsaved keystrokes.
+  const flushSave = async (): Promise<void> => {
+    try {
+      await saveDocContent(currentDoc.uuid, editor.getValue());
+    } catch (err) {
+      console.error('Flush save failed', err);
+    }
+  };
+
+  // Loads a different doc into the editor. Saves the outgoing one,
+  // swaps `currentDoc`, refreshes the editor's value, drops back to
+  // editor mode (any preview rendered for the previous doc is
+  // invalid), and notifies the toolbar.
+  const switchToDoc = async (uuid: string): Promise<void> => {
+    if (uuid === currentDoc.uuid) return;
+    await flushSave();
+    const target = listDocs().find((e) => e.uuid === uuid);
+    if (!target) return;
+    currentDoc = target;
+    setCurrentDocId(target.uuid);
+    const content = loadDocContent(target) ?? '';
+    editor.setValue(content);
+    dirty = true;
+    if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setDocName(target.name);
+  };
+
+  const createNewDoc = async (): Promise<void> => {
+    await flushSave();
+    const entry = await createDoc('Sans titre');
+    currentDoc = entry;
+    setCurrentDocId(entry.uuid);
+    editor.setValue('');
+    dirty = true;
+    if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setDocName(entry.name);
+  };
+
+  const renameCurrentDoc = (newName: string): void => {
+    const updated = renameDoc(currentDoc.uuid, newName);
+    if (!updated) return;
+    currentDoc = updated;
+    toolbarCtrl.setDocName(updated.name);
+  };
+
+  const renameOtherDoc = (uuid: string, newName: string): void => {
+    if (uuid === currentDoc.uuid) {
+      renameCurrentDoc(newName);
+      return;
+    }
+    renameDoc(uuid, newName);
+  };
+
+  const duplicateAndSwitch = async (uuid: string): Promise<void> => {
+    if (uuid === currentDoc.uuid) await flushSave();
+    const dup = await duplicateDoc(uuid);
+    if (!dup) return;
+    await switchToDoc(dup.uuid);
+  };
+
+  // Deletes a doc. If it was the current one, fall back to the most
+  // recent remaining doc, or seed a fresh empty one if the list
+  // becomes empty.
+  const deleteAndAdjust = async (uuid: string): Promise<void> => {
+    const wasCurrent = uuid === currentDoc.uuid;
+    deleteDoc(uuid);
+    if (!wasCurrent) {
+        return;
+    }
+    const remaining = listDocs();
+    if (remaining.length === 0) {
+      const fresh = await createDoc('Sans titre');
+      currentDoc = fresh;
+      setCurrentDocId(fresh.uuid);
+      editor.setValue('');
+    } else {
+      const next = remaining[0];
+      currentDoc = next;
+      setCurrentDocId(next.uuid);
+      editor.setValue(loadDocContent(next) ?? '');
+    }
+    dirty = true;
+    if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setDocName(currentDoc.name);
+  };
+
   const handleSettingsChange = (s: PdfSettings) => {
     state.settings = s;
     saveSettings(s);
@@ -305,14 +400,17 @@ async function bootstrap(): Promise<void> {
         const cleaned = await extractDataUrlsToStore(content);
         editor.setValue(cleaned);
         await saveDocContent(currentDoc.uuid, cleaned);
+        // Reflect the imported source's filename on the current doc so
+        // exports inherit it. Falls back silently if the trimmed name
+        // is empty — the doc keeps its previous label.
+        const renamed = renameDoc(currentDoc.uuid, baseName);
+        if (renamed) currentDoc = renamed;
         // Stay in editor mode after import — the user typically wants to
         // see the markdown they just opened. The preview is dirty and
         // will repaginate on the next Cmd/Ctrl+Enter.
         dirty = true;
         if (viewMode === 'preview') setViewMode('editor');
-        state.filename = ensureFilename(baseName);
-        saveFilename(state.filename);
-        renderToolbar();
+        toolbarCtrl.setDocName(currentDoc.name);
       })
       .catch((err: unknown) => {
         console.error('Import failed', err);
@@ -344,7 +442,7 @@ async function bootstrap(): Promise<void> {
       try {
         const refified = refifyImageUrls(source);
         const expanded = await expandRefsToDataUrls(refified);
-        downloadMarkdown(expanded, mdFilenameFrom(state.filename));
+        downloadMarkdown(expanded, `${slugifyDocName(currentDoc.name)}.md`);
       } catch (err) {
         console.error('Save failed', err);
       }
@@ -356,11 +454,14 @@ async function bootstrap(): Promise<void> {
     void (async () => {
       try {
         const expanded = await expandRefsToInlineDataUrls(source);
-        const filename = ensureFilename(state.filename);
         // SPEC §13.6: every export goes through the browser print pipeline.
         // The result is identical to what the paginated preview shows,
         // selectable text included.
-        await exportViaPrint(expanded, state.settings, filename);
+        await exportViaPrint(
+          expanded,
+          state.settings,
+          `${slugifyDocName(currentDoc.name)}.pdf`,
+        );
       } catch (err) {
         console.error('PDF export failed', err);
       }
@@ -436,11 +537,27 @@ async function bootstrap(): Promise<void> {
 
   const renderToolbar = (): void => {
     toolbarCtrl = mountToolbar(toolbarEl, {
-      initialFilename: state.filename,
+      initialDocName: currentDoc.name,
       initialViewMode: viewMode,
-      onFilenameChange(name) {
-        state.filename = name;
-        saveFilename(name);
+      onDocMenu(anchor) {
+        openDocMenu(anchor, {
+          docs: listDocs(),
+          currentUuid: currentDoc.uuid,
+          onSelect(uuid) {
+            void switchToDoc(uuid);
+          },
+          onCreate() {
+            void createNewDoc();
+          },
+          onRenameCurrent: renameCurrentDoc,
+          onRenameOther: renameOtherDoc,
+          onDuplicate(uuid) {
+            void duplicateAndSwitch(uuid);
+          },
+          onDelete(uuid) {
+            void deleteAndAdjust(uuid);
+          },
+        });
       },
       onOpen: triggerOpenDialog,
       onSave: triggerSave,

@@ -220,6 +220,7 @@ export async function migrateLegacyDocIfNeeded(): Promise<void> {
   setCurrentDocId(entry.uuid);
   // Drop the legacy keys so we don't run the migration twice.
   localStorage.removeItem(KEY_LEGACY_DOC);
+  localStorage.removeItem(KEY_LEGACY_FILENAME);
 }
 
 // Set of SHA referenced by at least one doc in the index. Used by the

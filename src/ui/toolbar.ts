@@ -1,20 +1,25 @@
 export type ViewMode = 'editor' | 'preview';
 
 export interface ToolbarHandlers {
+  initialDocName: string;
+  initialViewMode: ViewMode;
+  // Click on the [Mon doc ▾] button. Receives the trigger element so
+  // the caller can anchor the dropdown to it without re-querying.
+  onDocMenu(anchor: HTMLElement): void;
   onOpen(): void;
   onSave(): void;
   onStyle(anchor: { x: number; y: number }): void;
   onHelp(): void;
   onDownload(): void;
-  onFilenameChange(name: string): void;
   onSettings(): void;
   onTogglePreview(): void;
-  initialFilename: string;
-  initialViewMode: ViewMode;
 }
 
 export interface ToolbarControl {
   setViewMode(mode: ViewMode): void;
+  // Update the label shown on [Mon doc ▾] after a rename / switch /
+  // create. The trailing caret stays.
+  setDocName(name: string): void;
 }
 
 export function mountToolbar(
@@ -22,6 +27,22 @@ export function mountToolbar(
   handlers: ToolbarHandlers,
 ): ToolbarControl {
   parent.innerHTML = '';
+
+  // [Mon doc ▾] — fused doc selector + current-name display. Click
+  // delegates to the caller, which opens the doc-menu dropdown
+  // anchored on this button.
+  const docBtn = document.createElement('button');
+  docBtn.type = 'button';
+  docBtn.className = 'menu-trigger doc-trigger';
+  docBtn.title = 'Documents';
+  const docLabel = document.createElement('span');
+  docLabel.className = 'doc-trigger-label';
+  docLabel.textContent = handlers.initialDocName;
+  const docCaret = document.createElement('span');
+  docCaret.className = 'menu-caret';
+  docCaret.textContent = '▾';
+  docBtn.append(docLabel, docCaret);
+  docBtn.addEventListener('click', () => handlers.onDocMenu(docBtn));
 
   const openBtn = document.createElement('button');
   openBtn.type = 'button';
@@ -76,18 +97,6 @@ export function mountToolbar(
   downloadBtn.title = 'Exporter en PDF (Ctrl+P / Cmd+P)';
   downloadBtn.addEventListener('click', () => handlers.onDownload());
 
-  const filenameLabel = document.createElement('label');
-  filenameLabel.textContent = 'Nom : ';
-
-  const filenameInput = document.createElement('input');
-  filenameInput.type = 'text';
-  filenameInput.value = handlers.initialFilename;
-  filenameInput.size = 18;
-  filenameInput.addEventListener('input', () => {
-    handlers.onFilenameChange(filenameInput.value);
-  });
-  filenameLabel.appendChild(filenameInput);
-
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
   settingsBtn.className = 'menu-trigger';
@@ -101,11 +110,11 @@ export function mountToolbar(
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(openBtn, saveBtn, styleBtn, helpBtn);
+  left.append(docBtn, openBtn, saveBtn, styleBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
-  center.append(filenameLabel);
+  center.append(helpBtn);
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
@@ -119,6 +128,9 @@ export function mountToolbar(
         'aria-pressed',
         mode === 'preview' ? 'true' : 'false',
       );
+    },
+    setDocName(name: string) {
+      docLabel.textContent = name;
     },
   };
 }

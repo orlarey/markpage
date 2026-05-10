@@ -260,6 +260,156 @@ body,
   margin: 0.25rem 0;
 }
 
+/* ---- Doc dropdown ([Mon doc ▾]) -------------------------------------- */
+
+#toolbar button.doc-trigger {
+  /* Make the button feel like a "document selector": narrow gap between
+     the doc name and the caret, and let the label truncate so a long
+     doc name doesn't push the rest of the toolbar around. */
+  max-width: 18rem;
+}
+
+#toolbar button.doc-trigger .doc-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.doc-menu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  padding: 0.4rem;
+  min-width: 22rem;
+  max-width: 28rem;
+  font: inherit;
+}
+
+.doc-menu-current {
+  padding: 0.2rem;
+}
+
+.doc-menu-current-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font: inherit;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+.doc-menu-new {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px dashed var(--border);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+}
+
+.doc-menu-new:hover {
+  background: var(--bg-alt);
+}
+
+.doc-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0.4rem 0;
+}
+
+.doc-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.doc-menu-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.doc-menu-row:hover {
+  background: var(--bg-alt);
+}
+
+.doc-menu-row-main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+  min-width: 0;
+}
+
+.doc-menu-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-menu-date {
+  flex-shrink: 0;
+  font-size: 0.85em;
+  color: var(--muted, #6b7280);
+}
+
+.doc-menu-actions {
+  display: none;
+  gap: 0.25rem;
+  padding-right: 0.4rem;
+}
+
+.doc-menu-row:hover .doc-menu-actions,
+.doc-menu-row-renaming .doc-menu-actions {
+  display: flex;
+}
+
+.doc-menu-action {
+  font-size: 0.8em;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.doc-menu-action:hover {
+  background: var(--bg-alt);
+}
+
+.doc-menu-rename-input {
+  flex: 1;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  background: var(--bg);
+}
+
 /* ---- Help modal ------------------------------------------------------- */
 
 .help-overlay {
