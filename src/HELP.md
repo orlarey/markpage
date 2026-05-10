@@ -177,7 +177,12 @@ revenez plus tard.
 # Pour aller plus loin
 
 Tout ce qui suit est **optionnel**. Picorez selon vos besoins. Chaque
-section est indépendante.
+section est indépendante. Cette partie regroupe ce qui sert à
+**rédiger un document riche** : plus d'éléments Markdown, encadrés,
+notes de bas de page, tableaux, graphiques. Pour la **typographie
+scientifique** (formules math, ligatures, règles d'inférence) et les
+**diagrammes Mermaid**, voir la partie suivante *Pour aller encore
+plus loin*.
 
 ## Encore d'autres éléments Markdown
 
@@ -332,73 +337,6 @@ Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.
 
-## Ligatures de saisie
-
-Pour vous éviter de chercher chaque symbole Unicode dans une table de
-caractères, l'éditeur **remplace au vol** certaines séquences ASCII
-par leur équivalent mathématique :
-
-| Tapez | Obtenez | Tapez | Obtenez |
-|---|---|---|---|
-| `[[` | ⟦ | `<<` | ⟨ |
-| `]]` | ⟧ | `>>` | ⟩ |
-| `->` | → | `<-` | ← |
-| `=>` | ⇒ | | |
-| `<=` | ≤ | `>=` | ≥ |
-| `!=` | ≠ | `+-` | ± |
-| `\|-` | ⊢ | `-\|` | ⊣ |
-| `...` | … | | |
-
-Pour les **lettres grecques**, tapez la commande LaTeX habituelle —
-elle est remplacée immédiatement par le caractère Unicode :
-
-| Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
-|---|---|---|---|---|---|
-| `\alpha` | α | `\iota` | ι | `\rho` | ρ |
-| `\beta` | β | `\kappa` | κ | `\sigma` | σ |
-| `\gamma` | γ | `\lambda` | λ | `\tau` | τ |
-| `\delta` | δ | `\mu` | μ | `\upsilon` | υ |
-| `\epsilon` | ϵ | `\nu` | ν | `\phi` | ϕ |
-| `\zeta` | ζ | `\xi` | ξ | `\chi` | χ |
-| `\eta` | η | `\omicron` | ο | `\psi` | ψ |
-| `\theta` | θ | `\pi` | π | `\omega` | ω |
-
-Variantes typographiques :
-`\varepsilon` ε, `\varphi` φ, `\vartheta` ϑ, `\varpi` ϖ, `\varrho` ϱ,
-`\varsigma` ς.
-
-Majuscules (seulement celles qui diffèrent du latin) :
-`\Gamma` Γ, `\Delta` Δ, `\Theta` Θ, `\Lambda` Λ, `\Xi` Ξ, `\Pi` Π,
-`\Sigma` Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω.
-
-> Si vous voulez écrire `\alpha` *littéralement* en prose (pour
-> documenter la commande LaTeX), entourez-le de backticks :
-> `` `\alpha` ``. À l'intérieur d'un bloc code, les ligatures ne
-> s'appliquent pas.
-
-Pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
-n'importe quelle lettre majuscule donne sa version doublée :
-
-| Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
-|---|---|---|---|---|---|
-| `\|A` | 𝔸 | `\|J` | 𝕁 | `\|S` | 𝕊 |
-| `\|B` | 𝔹 | `\|K` | 𝕂 | `\|T` | 𝕋 |
-| `\|C` | ℂ | `\|L` | 𝕃 | `\|U` | 𝕌 |
-| `\|D` | 𝔻 | `\|M` | 𝕄 | `\|V` | 𝕍 |
-| `\|E` | 𝔼 | `\|N` | ℕ | `\|W` | 𝕎 |
-| `\|F` | 𝔽 | `\|O` | 𝕆 | `\|X` | 𝕏 |
-| `\|G` | 𝔾 | `\|P` | ℙ | `\|Y` | 𝕐 |
-| `\|H` | ℍ | `\|Q` | ℚ | `\|Z` | ℤ |
-| `\|I` | 𝕀 | `\|R` | ℝ | | |
-
-Le remplacement modifie le **source** du document (pas seulement
-l'affichage), donc les caractères Unicode sont là si vous copiez le
-texte ailleurs.
-
-Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
-le texte littéral, faites `Cmd/Ctrl + Z` immédiatement après — la
-substitution se défait, le texte ASCII est restauré.
-
 ## Numérotation des sections
 
 Pour numéroter les titres d'un long document sans configurer de menu,
@@ -463,213 +401,6 @@ niveau ne sera pas numéroté du tout, et tout préfixe numérique
 
 La numérotation hiérarchique a besoin que tous les niveaux parents
 soient eux-mêmes numérotés.
-
-## Formules mathématiques
-
-Vous pouvez inclure des **formules en LaTeX**, soit **en bloc** entre
-`$$ … $$` (la formule s'affiche centrée sur sa propre ligne), soit
-**inline** entre `$ … $` au milieu d'une phrase. Le rendu utilise
-[MathJax](https://www.mathjax.org/) et produit un PDF de qualité
-typographique professionnelle.
-
-Pour les blocs, vous pouvez aussi utiliser un *fenced block* avec le
-langage `math` — c'est la convention GitHub et ça évite le piège des
-`$$` qui doivent être seuls sur leur ligne :
-
-````
-```math
-x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
-```
-````
-
-Le rendu est strictement identique à `$$ … $$`.
-
-### Exemples utiles
-
-**Sommes et intégrales**
-
-```
-$$
-\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
-\qquad
-\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
-$$
-```
-
-$$
-\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
-\qquad
-\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
-$$
-
-**Matrice**
-
-```
-$$
-A = \begin{pmatrix}
-1 & 2 & 3 \\
-4 & 5 & 6 \\
-7 & 8 & 9
-\end{pmatrix}
-$$
-```
-
-$$
-A = \begin{pmatrix}
-1 & 2 & 3 \\
-4 & 5 & 6 \\
-7 & 8 & 9
-\end{pmatrix}
-$$
-
-**Système d'équations alignées**
-
-```
-$$
-\begin{align*}
-f(x)   &= ax^2 + bx + c \\
-f'(x)  &= 2ax + b \\
-f''(x) &= 2a
-\end{align*}
-$$
-```
-
-$$
-\begin{align*}
-f(x)   &= ax^2 + bx + c \\
-f'(x)  &= 2ax + b \\
-f''(x) &= 2a
-\end{align*}
-$$
-
-**Formule inline** : tapez par exemple
-`Soit $\epsilon > 0$ tel que…` et vous obtenez :
-
-Soit $\epsilon > 0$ tel que…
-
-### À savoir
-
-- La taille des formules s'aligne sur la taille du texte courant ; si
-  vous changez le réglage **Texte normal** dans **Réglages**, les
-  formules grandissent ou rétrécissent en proportion.
-- Si une formule est plus large que la zone de texte de la page, elle
-  est automatiquement réduite pour tenir.
-- Les commandes LaTeX usuelles fonctionnent : `\frac`, `\sqrt`,
-  `\sum`, `\int`, `\lim`, `\vec`, `\partial`, lettres grecques
-  (`\alpha`, `\beta`, …), opérateurs (`\pm`, `\times`, `\le`),
-  flèches (`\to`, `\Rightarrow`), environnements `pmatrix` /
-  `bmatrix` / `align*`, etc.
-
-## Règles d'inférence
-
-Pour écrire une **règle d'inférence** (déduction logique, sémantique
-opérationnelle, etc.), utilisez un *fenced block* avec le langage
-`inference` :
-
-````
-```inference (MP)
-Γ ⊢ A; Γ ⊢ A → B
--------------------
-Γ ⊢ B
-```
-````
-
-Le bloc est rendu en LaTeX `\dfrac{prémisses}{conclusion}` via
-MathJax. Une **ligne de tirets** (3 tirets ou plus, seule sur sa
-ligne) sépare les prémisses de la conclusion. Les prémisses sont
-séparées par `;` ou réparties sur plusieurs lignes. L'**étiquette**
-facultative entre parenthèses après le `inference` (ici `(MP)` pour
-modus ponens) apparaît à droite de la barre.
-
-À l'intérieur d'un bloc `inference`, les **ligatures de saisie**
-restent actives — vous pouvez taper `|-`, `->`, `[[`, `|N`, etc. et
-obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
-MathJax sait rendre tels quels en mode math. C'est la seule
-exception au comportement habituel "ligatures désactivées dans les
-blocs de code".
-
-Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
-ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
-`\leq`), tapez-les directement.
-
-## Diagrammes Mermaid
-
-[Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
-quelques lignes de texte. Placez votre code dans un bloc dont le
-langage est `mermaid` :
-
-````
-```mermaid
-flowchart LR
-    A[Idée] --> B[Brouillon]
-    B --> C[Document final]
-    C --> D[PDF]
-```
-````
-
-…et vous obtenez :
-
-```mermaid
-flowchart LR
-    A[Idée] --> B[Brouillon]
-    B --> C[Document final]
-    C --> D[PDF]
-```
-
-Le diagramme est rendu en **SVG**, dans l'aperçu **et** dans le PDF
-(qualité vectorielle, sans pixellisation à l'impression).
-
-### Quelques exemples
-
-**Diagramme de séquence** (échange entre deux acteurs) :
-
-```mermaid
-sequenceDiagram
-    participant U as Utilisateur
-    participant S as Serveur
-    U->>S: Requête GET /data
-    S-->>U: 200 OK + JSON
-```
-
-**Diagramme de classes** :
-
-```mermaid
-classDiagram
-    class Animal {
-        +String nom
-        +manger()
-    }
-    class Chien {
-        +aboyer()
-    }
-    Animal <|-- Chien
-```
-
-**Camembert** :
-
-```mermaid
-pie title Répartition
-    "Travail" : 40
-    "Loisir" : 30
-    "Sommeil" : 30
-```
-
-Autres types reconnus : `stateDiagram`, `gantt`, `mindmap`, etc. — voir
-la [documentation Mermaid](https://mermaid.js.org/) pour la liste
-complète.
-
-### Réglages
-
-La section **Diagrammes Mermaid** du panneau **Réglages** propose
-trois contrôles pour adapter la taille des diagrammes dans le PDF :
-
-- **Agrandissement max.** : facteur d'agrandissement maximal
-  (par défaut 2). Les petits diagrammes sont agrandis jusqu'à ce
-  facteur ; jamais au-delà.
-- **Largeur max. (% du texte)** : fraction de la largeur de la page
-  (hors marges) que le diagramme peut occuper (par défaut 100 %).
-- **Hauteur max. (% du texte)** : fraction de la hauteur de la page
-  (hors marges) que le diagramme peut occuper (par défaut 70 %).
 
 ## Tableaux de données (CSV / TSV)
 
@@ -884,6 +615,294 @@ FLAC, 12500, 280
 
 Deux barres côte à côte par catégorie, avec une légende en haut à
 droite identifiant chaque série.
+
+---
+
+# Pour aller encore plus loin
+
+Cette dernière partie regroupe les outils **plus spécialisés** :
+ligatures de saisie qui rendent l'Unicode mathématique confortable à
+taper, formules en LaTeX, règles d'inférence, et diagrammes Mermaid
+(flowcharts, séquences, états, etc., chacun avec sa propre syntaxe).
+Si vous écrivez un article de recherche, un cours, une spec
+d'algorithme, ou de la documentation technique, vous y trouverez votre
+compte. Sinon vous pouvez sauter directement aux Crédits.
+
+## Ligatures de saisie
+
+Pour vous éviter de chercher chaque symbole Unicode dans une table de
+caractères, l'éditeur **remplace au vol** certaines séquences ASCII
+par leur équivalent mathématique :
+
+| Tapez | Obtenez | Tapez | Obtenez |
+|---|---|---|---|
+| `[[` | ⟦ | `<<` | ⟨ |
+| `]]` | ⟧ | `>>` | ⟩ |
+| `->` | → | `<-` | ← |
+| `=>` | ⇒ | | |
+| `<=` | ≤ | `>=` | ≥ |
+| `!=` | ≠ | `+-` | ± |
+| `\|-` | ⊢ | `-\|` | ⊣ |
+| `...` | … | | |
+
+Pour les **lettres grecques**, tapez la commande LaTeX habituelle —
+elle est remplacée immédiatement par le caractère Unicode :
+
+| Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
+|---|---|---|---|---|---|
+| `\alpha` | α | `\iota` | ι | `\rho` | ρ |
+| `\beta` | β | `\kappa` | κ | `\sigma` | σ |
+| `\gamma` | γ | `\lambda` | λ | `\tau` | τ |
+| `\delta` | δ | `\mu` | μ | `\upsilon` | υ |
+| `\epsilon` | ϵ | `\nu` | ν | `\phi` | ϕ |
+| `\zeta` | ζ | `\xi` | ξ | `\chi` | χ |
+| `\eta` | η | `\omicron` | ο | `\psi` | ψ |
+| `\theta` | θ | `\pi` | π | `\omega` | ω |
+
+Variantes typographiques :
+`\varepsilon` ε, `\varphi` φ, `\vartheta` ϑ, `\varpi` ϖ, `\varrho` ϱ,
+`\varsigma` ς.
+
+Majuscules (seulement celles qui diffèrent du latin) :
+`\Gamma` Γ, `\Delta` Δ, `\Theta` Θ, `\Lambda` Λ, `\Xi` Ξ, `\Pi` Π,
+`\Sigma` Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω.
+
+> Si vous voulez écrire `\alpha` *littéralement* en prose (pour
+> documenter la commande LaTeX), entourez-le de backticks :
+> `` `\alpha` ``. À l'intérieur d'un bloc code, les ligatures ne
+> s'appliquent pas.
+
+Pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
+n'importe quelle lettre majuscule donne sa version doublée :
+
+| Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
+|---|---|---|---|---|---|
+| `\|A` | 𝔸 | `\|J` | 𝕁 | `\|S` | 𝕊 |
+| `\|B` | 𝔹 | `\|K` | 𝕂 | `\|T` | 𝕋 |
+| `\|C` | ℂ | `\|L` | 𝕃 | `\|U` | 𝕌 |
+| `\|D` | 𝔻 | `\|M` | 𝕄 | `\|V` | 𝕍 |
+| `\|E` | 𝔼 | `\|N` | ℕ | `\|W` | 𝕎 |
+| `\|F` | 𝔽 | `\|O` | 𝕆 | `\|X` | 𝕏 |
+| `\|G` | 𝔾 | `\|P` | ℙ | `\|Y` | 𝕐 |
+| `\|H` | ℍ | `\|Q` | ℚ | `\|Z` | ℤ |
+| `\|I` | 𝕀 | `\|R` | ℝ | | |
+
+Le remplacement modifie le **source** du document (pas seulement
+l'affichage), donc les caractères Unicode sont là si vous copiez le
+texte ailleurs.
+
+Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
+le texte littéral, faites `Cmd/Ctrl + Z` immédiatement après — la
+substitution se défait, le texte ASCII est restauré.
+
+## Formules mathématiques
+
+Vous pouvez inclure des **formules en LaTeX**, soit **en bloc** entre
+`$$ … $$` (la formule s'affiche centrée sur sa propre ligne), soit
+**inline** entre `$ … $` au milieu d'une phrase. Le rendu utilise
+[MathJax](https://www.mathjax.org/) et produit un PDF de qualité
+typographique professionnelle.
+
+Pour les blocs, vous pouvez aussi utiliser un *fenced block* avec le
+langage `math` — c'est la convention GitHub et ça évite le piège des
+`$$` qui doivent être seuls sur leur ligne :
+
+````
+```math
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+````
+
+Le rendu est strictement identique à `$$ … $$`.
+
+### Exemples utiles
+
+**Sommes et intégrales**
+
+```
+$$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+```
+
+$$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+
+**Matrice**
+
+```
+$$
+A = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+$$
+```
+
+$$
+A = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+$$
+
+**Système d'équations alignées**
+
+```
+$$
+\begin{align*}
+f(x)   &= ax^2 + bx + c \\
+f'(x)  &= 2ax + b \\
+f''(x) &= 2a
+\end{align*}
+$$
+```
+
+$$
+\begin{align*}
+f(x)   &= ax^2 + bx + c \\
+f'(x)  &= 2ax + b \\
+f''(x) &= 2a
+\end{align*}
+$$
+
+**Formule inline** : tapez par exemple
+`Soit $\epsilon > 0$ tel que…` et vous obtenez :
+
+Soit $\epsilon > 0$ tel que…
+
+### À savoir
+
+- La taille des formules s'aligne sur la taille du texte courant ; si
+  vous changez le réglage **Texte normal** dans **Réglages**, les
+  formules grandissent ou rétrécissent en proportion.
+- Si une formule est plus large que la zone de texte de la page, elle
+  est automatiquement réduite pour tenir.
+- Les commandes LaTeX usuelles fonctionnent : `\frac`, `\sqrt`,
+  `\sum`, `\int`, `\lim`, `\vec`, `\partial`, lettres grecques
+  (`\alpha`, `\beta`, …), opérateurs (`\pm`, `\times`, `\le`),
+  flèches (`\to`, `\Rightarrow`), environnements `pmatrix` /
+  `bmatrix` / `align*`, etc.
+
+## Règles d'inférence
+
+Pour écrire une **règle d'inférence** (déduction logique, sémantique
+opérationnelle, etc.), utilisez un *fenced block* avec le langage
+`inference` :
+
+````
+```inference (MP)
+Γ ⊢ A; Γ ⊢ A → B
+-------------------
+Γ ⊢ B
+```
+````
+
+Le bloc est rendu en LaTeX `\dfrac{prémisses}{conclusion}` via
+MathJax. Une **ligne de tirets** (3 tirets ou plus, seule sur sa
+ligne) sépare les prémisses de la conclusion. Les prémisses sont
+séparées par `;` ou réparties sur plusieurs lignes. L'**étiquette**
+facultative entre parenthèses après le `inference` (ici `(MP)` pour
+modus ponens) apparaît à droite de la barre.
+
+À l'intérieur d'un bloc `inference`, les **ligatures de saisie**
+restent actives — vous pouvez taper `|-`, `->`, `[[`, `|N`, etc. et
+obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
+MathJax sait rendre tels quels en mode math. C'est la seule
+exception au comportement habituel "ligatures désactivées dans les
+blocs de code".
+
+Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
+ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
+`\leq`), tapez-les directement.
+
+## Diagrammes Mermaid
+
+[Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
+quelques lignes de texte. Placez votre code dans un bloc dont le
+langage est `mermaid` :
+
+````
+```mermaid
+flowchart LR
+    A[Idée] --> B[Brouillon]
+    B --> C[Document final]
+    C --> D[PDF]
+```
+````
+
+…et vous obtenez :
+
+```mermaid
+flowchart LR
+    A[Idée] --> B[Brouillon]
+    B --> C[Document final]
+    C --> D[PDF]
+```
+
+Le diagramme est rendu en **SVG**, dans l'aperçu **et** dans le PDF
+(qualité vectorielle, sans pixellisation à l'impression).
+
+### Quelques exemples
+
+**Diagramme de séquence** (échange entre deux acteurs) :
+
+```mermaid
+sequenceDiagram
+    participant U as Utilisateur
+    participant S as Serveur
+    U->>S: Requête GET /data
+    S-->>U: 200 OK + JSON
+```
+
+**Diagramme de classes** :
+
+```mermaid
+classDiagram
+    class Animal {
+        +String nom
+        +manger()
+    }
+    class Chien {
+        +aboyer()
+    }
+    Animal <|-- Chien
+```
+
+**Camembert** :
+
+```mermaid
+pie title Répartition
+    "Travail" : 40
+    "Loisir" : 30
+    "Sommeil" : 30
+```
+
+Autres types reconnus : `stateDiagram`, `gantt`, `mindmap`, etc. — voir
+la [documentation Mermaid](https://mermaid.js.org/) pour la liste
+complète.
+
+### Réglages
+
+La section **Diagrammes Mermaid** du panneau **Réglages** propose
+trois contrôles pour adapter la taille des diagrammes dans le PDF :
+
+- **Agrandissement max.** : facteur d'agrandissement maximal
+  (par défaut 2). Les petits diagrammes sont agrandis jusqu'à ce
+  facteur ; jamais au-delà.
+- **Largeur max. (% du texte)** : fraction de la largeur de la page
+  (hors marges) que le diagramme peut occuper (par défaut 100 %).
+- **Hauteur max. (% du texte)** : fraction de la hauteur de la page
+  (hors marges) que le diagramme peut occuper (par défaut 70 %).
+
+---
 
 ## Crédits
 
