@@ -6,6 +6,7 @@
 // marked.lexer() call.
 
 import { marked, type Tokens } from 'marked';
+import { renderChart } from './chart';
 
 interface MathBlockToken {
   type: 'mathBlock';
@@ -157,6 +158,13 @@ marked.use({
         const labelMatch = /^inference\s*(.*)$/.exec(lang);
         const label = labelMatch ? (labelMatch[1] ?? '').trim() : '';
         return renderInference(token.text, label);
+      }
+      // ```chart <type> [Title] — see chart.ts. Everything after the
+      // word "chart" (type + optional title) is forwarded as the info
+      // string; the helper does its own parsing.
+      if (lang === 'chart' || lang.startsWith('chart ')) {
+        const m = /^chart\s*(.*)$/.exec(lang);
+        return renderChart(token.text, m?.[1] ?? '');
       }
       return false;
     },

@@ -607,6 +607,88 @@ Nom, Description
 Pour insérer un guillemet littéral dans une cellule entre guillemets,
 doublez-le : `""`.
 
+## Graphiques
+
+Pour tracer une courbe ou un diagramme à partir de données, utilisez
+un *fenced block* `chart` :
+
+````
+```chart line "Latence par taille de buffer"
+buffer, latence (ms)
+64,  12
+128,  8
+256,  5
+512,  3
+1024, 2
+```
+````
+
+Les types disponibles sont **`line`** (courbe) et **`bar`** (histogramme).
+Le titre entre guillemets après le type est facultatif.
+
+La **première ligne** donne les en-têtes : la première colonne devient
+le label de l'axe X, les colonnes suivantes deviennent autant de
+**séries de données** (chacune sa couleur, et une légende automatique
+si plus d'une série).
+
+Les **lignes de données** suivantes contiennent les valeurs. Si la
+première colonne est numérique, l'axe X est continu ; si elle contient
+des labels textuels (mois, catégories…), l'axe X est catégorique.
+
+### Format CSV : virgules françaises
+
+Le séparateur de champ est **détecté automatiquement** sur la première
+ligne :
+- s'il y a une tabulation → séparateur = tabulation,
+- sinon s'il y a un point-virgule → séparateur = `;`,
+- sinon → séparateur = `,`.
+
+Quand le séparateur est `,`, les **virgules entre deux chiffres**
+(sans espace autour) sont reconnues comme **virgules décimales**, donc
+`3,14` reste un seul nombre. La virgule séparatrice s'écrit alors
+suivie d'un espace : `foo, 3,14` donne deux cellules `foo` et `3,14`.
+
+Pour les rares cas ambigus (`1,2,3,4` compact), passez en `;` ou en
+TSV — ou ajoutez des espaces : `1, 2, 3, 4`.
+
+Les nombres dans les cellules acceptent les deux formats (point ou
+virgule décimale) — `3.14` et `3,14` sont équivalents.
+
+### Séries chronologiques
+
+Si la première colonne contient des **dates au format ISO 8601**
+(`YYYY-MM-DD`, éventuellement avec heure), l'axe X est traité comme
+une échelle temporelle. L'app choisit automatiquement les graduations
+appropriées (jour, mois ou année selon l'étendue) :
+
+````
+```chart line "Téléchargements"
+date, total
+2025-01-15, 120
+2025-02-15, 180
+2025-03-15, 245
+2025-04-15, 310
+```
+````
+
+Les formats ambigus (FR `15/01/2025` et US `01/15/2025`) ne sont
+**pas** reconnus — utilisez toujours ISO 8601, qui est sans
+ambiguïté et compatible avec `Date.parse`.
+
+### Plusieurs séries
+
+````
+```chart bar "Comparaison de codecs"
+Codec, Taille (Ko), Temps (ms)
+MP3, 4200, 120
+Opus, 3800, 95
+FLAC, 12500, 280
+```
+````
+
+Deux barres côte à côte par catégorie, avec une légende en haut à
+droite identifiant chaque série.
+
 ## Listes de définitions
 
 Pour une liste de **termes avec leur définition** (glossaire,

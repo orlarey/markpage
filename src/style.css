@@ -439,6 +439,79 @@ body,
    pagedCss() (preview-paginated.ts) — it computes max-height from the
    user's settings, which we don't know here. */
 
+/* ---- Charts (```chart) ----------------------------------------------- */
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-block {
+  margin: 0.8em auto;
+  text-align: center;
+  break-inside: avoid;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg {
+  max-width: 100%;
+  height: auto;
+  font-family: var(--font-sans);
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-axis {
+  stroke: #444;
+  stroke-width: 1;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-grid {
+  stroke: #e0e0e0;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-line {
+  fill: none;
+  stroke-width: 1.8;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-bar {
+  /* Filled by inline `fill=`. No outline — keeps the print compact. */
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-tick {
+  font-size: 11px;
+  fill: #444;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-tick-y {
+  text-anchor: end;
+}
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-tick-x {
+  text-anchor: middle;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-axis-label {
+  font-size: 12px;
+  fill: #222;
+  text-anchor: middle;
+  font-weight: 500;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-title {
+  font-size: 14px;
+  fill: #222;
+  text-anchor: middle;
+  font-weight: 500;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-legend {
+  font-size: 11px;
+  fill: #222;
+}
+
+:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-error {
+  margin: 0.8em 0;
+  padding: 0.6em 0.9em;
+  border-left: 4px solid #cf222e;
+  background: #ffebe9;
+  color: #82071e;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 /* ---- Data tables (```csv / ```tsv) ----------------------------------- */
 /* Standalone class so we don't fight the user's pipe-tables, which use
    marked's default <table> with no class. */
