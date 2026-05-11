@@ -158,6 +158,28 @@ export function buildSettingsForm(
         }),
       ]),
       section('Styles', [
+        numberField(
+          'Espace au-dessus des titres',
+          current.headingSpacing.above,
+          0,
+          5,
+          (v) => {
+            current.headingSpacing.above = v;
+            emit();
+          },
+          { step: 0.1 },
+        ),
+        numberField(
+          'Espace en dessous des titres',
+          current.headingSpacing.below,
+          0,
+          5,
+          (v) => {
+            current.headingSpacing.below = v;
+            emit();
+          },
+          { step: 0.1 },
+        ),
         styleRow('Titre 1 (h1)', current.styles.h1, (s) => {
           current.styles.h1 = s;
           emit();

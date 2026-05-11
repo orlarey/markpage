@@ -23,15 +23,13 @@ function pagedHeadingExtras(s: TextStyle): string {
 
 // Asymmetric vertical spacing for paged.js / print output. Matches
 // the fluid preview's rule so the editor view stays a faithful
-// proxy of the printed page. `break-after: avoid` lives in its own
-// rule below — paged.js's break-processor parses our selectors and
-// chokes on `:where(...)`, so we keep that rule unscoped.
-const PAGED_HEADING_MARGINS = {
-  h1: 'margin: 2em 0 0.8em;',
-  h2: 'margin: 1.6em 0 0.6em;',
-  h3: 'margin: 1.3em 0 0.5em;',
-  h4: 'margin: 1em 0 0.4em;',
-};
+// proxy of the printed page. break-after: avoid lives in its own
+// rule below (paged.js's break-processor parses our selectors and
+// chokes on :where(...), so that rule stays unscoped).
+function pagedHeadingMargin(settings: PdfSettings): string {
+  const { above, below } = settings.headingSpacing;
+  return `margin: ${above}em 0 ${below}em;`;
+}
 
 interface PagedPage {
   destroy?: () => void;
@@ -248,11 +246,11 @@ export function pagedCss(s: PdfSettings): string {
       ${s.justify ? 'text-align: justify;' : ''}
     }
 
-    ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
-    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} ${PAGED_HEADING_MARGINS.h1} }
-    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} ${PAGED_HEADING_MARGINS.h2} }
-    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} ${PAGED_HEADING_MARGINS.h3} }
-    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} ${PAGED_HEADING_MARGINS.h4} }
+    ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; ${pagedHeadingMargin(s)} }
+    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} }
+    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} }
+    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} }
+    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} }
     /* First heading on the page should never push the body content
        down — paged.js doesn't trim leading margins itself. */
     ${SCOPE} > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }

@@ -24,16 +24,12 @@ function headingExtras(s: TextStyle): string {
 
 // Asymmetric vertical spacing — more above than below — so each
 // heading visually attaches to the section it introduces (Gestalt
-// proximity). Values are in `em` (relative to the heading's own
-// font-size) so the scale tracks the user's size preferences.
-// `break-after: avoid` lives in the paged stylesheet only; the
-// fluid preview is a single column so it would have no effect here.
-const HEADING_MARGINS = {
-  h1: 'margin: 2em 0 0.8em;',
-  h2: 'margin: 1.6em 0 0.6em;',
-  h3: 'margin: 1.3em 0 0.5em;',
-  h4: 'margin: 1em 0 0.4em;',
-};
+// proximity). Two user-tunable ratios (Réglages → Styles), expressed
+// in `em` so the absolute spacing tracks each heading's own font-size.
+function headingMargin(settings: PdfSettings): string {
+  const { above, below } = settings.headingSpacing;
+  return `margin: ${above}em 0 ${below}em;`;
+}
 
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
@@ -286,12 +282,13 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
-    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${HEADING_MARGINS.h1} }
-    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} ${HEADING_MARGINS.h2} }
-    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} ${HEADING_MARGINS.h3} }
-    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${HEADING_MARGINS.h4} }
+    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} ${headingExtras(s.h1)} }
+    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} }
+    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} }
+    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} }
     #preview-pane h5,
-    #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${HEADING_MARGINS.h4} }
+    #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
+    #preview-pane :is(h1, h2, h3, h4, h5, h6) { ${headingMargin(settings)} }
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }

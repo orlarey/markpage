@@ -139,6 +139,11 @@ export interface PdfSettings {
   // URL. They appear in every font picker slot and load on the same
   // pipeline as the bundled catalogue.
   customFonts: CustomFont[];
+  // Vertical spacing around every heading, expressed as multiples of
+  // the heading's own font-size (so `above = 1.6` on a 20pt h2 gives
+  // 32pt of space above). Asymmetric on purpose — see SPEC notes on
+  // Gestalt proximity. Applied uniformly to h1-h6.
+  headingSpacing: { above: number; below: number };
   mermaidMaxScale: number;
   // Maximum width allowed for a mermaid diagram, as a fraction of the
   // content (text) width of a page. 1.0 lets the diagram fill the column.
@@ -177,6 +182,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     style: { fontSize: 9, italics: false, color: '#57606a' },
   },
   customFonts: [],
+  headingSpacing: { above: 1.6, below: 0.6 },
   mermaidMaxScale: 2,
   mermaidMaxWidthPct: 1,
   mermaidMaxHeightPct: 0.7,
@@ -230,6 +236,7 @@ function mergeWithDefaults(input: unknown): PdfSettings {
       style: merge(d.pageNumber.style, obj.pageNumber?.style),
     },
     customFonts: Array.isArray(obj.customFonts) ? obj.customFonts : d.customFonts,
+    headingSpacing: merge(d.headingSpacing, obj.headingSpacing),
     mermaidMaxScale: obj.mermaidMaxScale ?? d.mermaidMaxScale,
     mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
     mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
