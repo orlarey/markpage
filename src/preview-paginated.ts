@@ -16,6 +16,11 @@ function pagedUnderline(s: TextStyle): string {
     : '';
 }
 
+// Per-heading italic + weight for paged.js / print output.
+function pagedHeadingExtras(s: TextStyle): string {
+  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
+}
+
 interface PagedPage {
   destroy?: () => void;
 }
@@ -232,16 +237,15 @@ export function pagedCss(s: PdfSettings): string {
     }
 
     ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
-    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; ${pagedUnderline(styles.h1)} }
-    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} }
-    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} }
-    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} }
+    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} }
+    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} }
+    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} }
+    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} }
 
-    /* We only ship Roboto Condensed Regular (400) and Medium (500), so
-       leaving headings/strong at the default 700 forces the browser to
-       *synthesise* a heavier weight — which prints noticeably heavier
-       than the on-screen rendering. */
-    ${SCOPE} :is(strong, b, h1, h2, h3, h4, h5, h6) { font-weight: 500; }
+    /* Inline emphasis defaults to Medium so we never ask the browser
+       to synthesise Bold from Roboto Condensed (which only ships
+       Regular and Medium). Per-heading weight is set above. */
+    ${SCOPE} :is(strong, b) { font-weight: 500; }
 
     ${SCOPE} :is(code, pre) {
       font-family: ${codeFamily};

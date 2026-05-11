@@ -40,10 +40,25 @@ export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
 export interface TextStyle {
   fontSize: number; // pt
   color: string; // #rrggbb
-  // When true, a heading style draws a thin border-bottom under the
-  // heading. Read only by h1/h2/h3/h4 — body / code / quote ignore it.
+  // The next three apply to headings only (h1/h2/h3/h4); body, code
+  // and quote ignore them and inherit the document's font-weight /
+  // font-style from CSS defaults.
   underline?: boolean;
+  italic?: boolean;
+  weight?: number; // one of WEIGHT_OPTIONS below
 }
+
+// Standard CSS weights surfaced in the Réglages dropdown. Keeping the
+// list tight (no 100 / 200 / 800 / 900) because most Google Fonts
+// only ship a subset of these — anything beyond gets synthesised by
+// the browser, which looks worse than just picking the next slot.
+export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
+  { value: 300, label: 'Light (300)' },
+  { value: 400, label: 'Regular (400)' },
+  { value: 500, label: 'Medium (500)' },
+  { value: 600, label: 'Semibold (600)' },
+  { value: 700, label: 'Bold (700)' },
+];
 
 export interface QuoteStyle extends TextStyle {
   barColor: string; // #rrggbb — the vertical bar at the left of a blockquote
@@ -149,10 +164,10 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   organization: { text: 'Mon organisation', show: true, bold: true },
   date: { mode: 'today', custom: '' },
   styles: {
-    h1: { fontSize: 24, color: '#09438b', underline: true },
-    h2: { fontSize: 20, color: '#09438b', underline: true },
-    h3: { fontSize: 16, color: '#09438b', underline: true },
-    h4: { fontSize: 14, color: '#09438b', underline: false },
+    h1: { fontSize: 24, color: '#09438b', underline: true, italic: false, weight: 500 },
+    h2: { fontSize: 20, color: '#09438b', underline: true, italic: false, weight: 500 },
+    h3: { fontSize: 16, color: '#09438b', underline: true, italic: false, weight: 500 },
+    h4: { fontSize: 14, color: '#09438b', underline: false, italic: false, weight: 500 },
     body: { fontSize: 11, color: '#000000' },
     code: { fontSize: 10, color: '#1f2328' },
     quote: { fontSize: 11, color: '#57606a', barColor: '#d0d7de' },

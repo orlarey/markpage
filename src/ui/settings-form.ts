@@ -10,6 +10,7 @@ import {
   PAGE_NUMBER_POSITIONS,
   PAGE_SIZES,
   PAGE_SIZE_LABELS,
+  WEIGHT_OPTIONS,
   type DateMode,
   type MetadataField,
   type PageNumberPosition,
@@ -160,19 +161,19 @@ export function buildSettingsForm(
         styleRow('Titre 1 (h1)', current.styles.h1, (s) => {
           current.styles.h1 = s;
           emit();
-        }, { underline: true }),
+        }, { underline: true, italic: true, weight: true }),
         styleRow('Titre 2 (h2)', current.styles.h2, (s) => {
           current.styles.h2 = s;
           emit();
-        }, { underline: true }),
+        }, { underline: true, italic: true, weight: true }),
         styleRow('Titre 3 (h3)', current.styles.h3, (s) => {
           current.styles.h3 = s;
           emit();
-        }, { underline: true }),
+        }, { underline: true, italic: true, weight: true }),
         styleRow('Titre 4 (h4)', current.styles.h4, (s) => {
           current.styles.h4 = s;
           emit();
-        }, { underline: true }),
+        }, { underline: true, italic: true, weight: true }),
         styleRow('Texte normal', current.styles.body, (s) => {
           current.styles.body = s;
           emit();
@@ -636,7 +637,7 @@ export function buildSettingsForm(
     label: string,
     value: TextStyle,
     onChange: (s: TextStyle) => void,
-    opts: { underline?: boolean } = {},
+    opts: { underline?: boolean; italic?: boolean; weight?: boolean } = {},
   ): HTMLElement {
     const wrap = doc.createElement('div');
     wrap.className = 'style-row';
@@ -655,6 +656,8 @@ export function buildSettingsForm(
 
     let currentColor = value.color;
     let currentUnderline = value.underline ?? false;
+    let currentItalic = value.italic ?? false;
+    let currentWeight = value.weight ?? 500;
     const fire = (): void => {
       const fs = Number(sizeInput.value);
       const next: TextStyle = {
@@ -662,6 +665,8 @@ export function buildSettingsForm(
         color: currentColor,
       };
       if (opts.underline) next.underline = currentUnderline;
+      if (opts.italic) next.italic = currentItalic;
+      if (opts.weight) next.weight = currentWeight;
       onChange(next);
     };
     sizeInput.addEventListener('input', fire);
@@ -677,9 +682,44 @@ export function buildSettingsForm(
 
     wrap.append(lbl, sizeWrap, picker);
 
+    if (opts.weight) {
+      const select = doc.createElement('select');
+      select.className = 'style-row-weight';
+      select.title = 'Graisse';
+      for (const opt of WEIGHT_OPTIONS) {
+        const o = doc.createElement('option');
+        o.value = String(opt.value);
+        o.textContent = opt.label;
+        if (opt.value === currentWeight) o.selected = true;
+        select.appendChild(o);
+      }
+      select.addEventListener('change', () => {
+        currentWeight = Number(select.value);
+        fire();
+      });
+      wrap.append(select);
+    }
+
+    if (opts.italic) {
+      const italicLbl = doc.createElement('label');
+      italicLbl.className = 'style-row-toggle';
+      italicLbl.title = 'Italique';
+      const cb = doc.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = currentItalic;
+      cb.addEventListener('change', () => {
+        currentItalic = cb.checked;
+        fire();
+      });
+      const i = doc.createElement('i');
+      i.textContent = 'i';
+      italicLbl.append(cb, doc.createTextNode(' '), i);
+      wrap.append(italicLbl);
+    }
+
     if (opts.underline) {
       const underlineLbl = doc.createElement('label');
-      underlineLbl.className = 'style-row-underline';
+      underlineLbl.className = 'style-row-toggle';
       underlineLbl.title = 'Trait sous le titre';
       const cb = doc.createElement('input');
       cb.type = 'checkbox';

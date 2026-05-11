@@ -14,6 +14,14 @@ function underlineRule(s: TextStyle): string {
     : `border-bottom: none;`;
 }
 
+// Per-heading italic + weight. Emits explicit declarations so the
+// dynamic rule overrides the static `font-weight: 500` cascade
+// applied to bold/strong (still useful for `<b>` and `<strong>`,
+// but headings now drive their own weight).
+function headingExtras(s: TextStyle): string {
+  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
+}
+
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
 }
@@ -265,10 +273,10 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
-    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} }
-    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} }
-    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} }
-    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} }
+    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} ${headingExtras(s.h1)} }
+    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} }
+    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} }
+    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} }
     #preview-pane h5,
     #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
     #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
