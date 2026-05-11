@@ -1,0 +1,1361 @@
+% Ce document inclut des diagrammes / graphiques au format SVG.
+% Le package `svg` est nécessaire et inkscape doit être accessible
+% en ligne de commande (passez `--shell-escape` à xelatex).
+
+% md2pdf — export LaTeX (cible : xelatex ou lualatex).
+% La compilation avec pdflatex échouera : fontspec + UTF-8 natif
+% dans les blocs de code requièrent xelatex / lualatex.
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{}
+\IfFontExistsTF{DejaVu Sans}{\setsansfont{DejaVu Sans}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+\usepackage{svg}
+\IfFileExists{french.ldf}{\usepackage[french]{babel}}{}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[normalem]{ulem}
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{newunicodechar}
+
+% DejaVu Serif (our main text font) doesn't ship the Unicode
+% math-bracket / logic glyphs that show up in our prose (e.g.
+% explanations of the editor's ligatures). Redirect each known
+% glyph to its LaTeX command via \ensuremath, so it renders
+% from the math font even when typed in normal text.
+\newunicodechar{⟦}{\ensuremath{\llbracket}}
+\newunicodechar{⟧}{\ensuremath{\rrbracket}}
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+\newunicodechar{⊣}{\ensuremath{\dashv}}
+\newunicodechar{⊨}{\ensuremath{\models}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{∉}{\ensuremath{\notin}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{⊂}{\ensuremath{\subset}}
+\newunicodechar{⊆}{\ensuremath{\subseteq}}
+\newunicodechar{⊃}{\ensuremath{\supset}}
+\newunicodechar{⊇}{\ensuremath{\supseteq}}
+\newunicodechar{∪}{\ensuremath{\cup}}
+\newunicodechar{∩}{\ensuremath{\cap}}
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{¬}{\ensuremath{\neg}}
+\newunicodechar{★}{\ensuremath{\bigstar}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{♥}{\ensuremath{\heartsuit}}
+\newunicodechar{♦}{\ensuremath{\diamondsuit}}
+\newunicodechar{♠}{\ensuremath{\spadesuit}}
+\newunicodechar{♣}{\ensuremath{\clubsuit}}
+\newunicodechar{⚠}{\textbf{[!]}}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+}
+
+% Theorem-like environments matching the ::: admonitions (§17 of
+% the md2pdf SPEC). The shared counter `theorem` keeps lemma /
+% proposition / corollary numbered in the same sequence as the
+% theorems themselves, which is the usual mathematical convention.
+\newtheorem{theorem}{Théorème}
+\newtheorem{lemma}[theorem]{Lemme}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollaire}
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}
+\newtheorem{example}{Exemple}
+\newtheorem{remark}{Remarque}
+
+\title{Bienvenue dans md2pdf}
+\author{Test Author \\ Test Org}
+\date{2026-01-01}
+
+\begin{document}
+\maketitle
+
+\textbf{md2pdf} est un éditeur qui produit des PDF prêts à imprimer ou à
+partager. Vous écrivez du texte presque normal, et l'app s'occupe de
+la mise en forme.
+
+
+Vous lisez actuellement ce tutoriel \textbf{dans l'éditeur} — c'est
+lui-même un document md2pdf. Vous pouvez le modifier librement, ou
+repartir d'une page blanche.
+
+
+Le bouton \textbf{Aide} (sur fond jaune) rouvre cette page d'aide à tout
+moment, sans toucher à votre document.
+
+
+\section{Pour commencer}
+
+Vous n'avez besoin que de \textbf{cinq ou six outils} pour écrire la
+plupart des documents. Suivez ce tutoriel pas à pas — l'idée est que
+vous écriviez votre premier document tout en lisant.
+
+
+\subsection{Le principe}
+
+md2pdf utilise une convention qui s'appelle \textbf{Markdown}. Vous écrivez
+du texte presque normal, avec \textbf{quelques signes} simples qui indiquent
+la mise en forme. Pas de menus à apprendre, pas de raccourcis
+obligatoires.
+
+
+Pour vous donner une idée, ce tutoriel lui-même est écrit en Markdown.
+À droite vous voyez la version mise en page (en cliquant sur \textbf{Aperçu}),
+et ici à gauche vous voyez la "vraie" source. Vous pouvez à tout
+moment regarder à gauche pour voir « comment c'est fait ».
+
+
+\subsection{Allez-y, écrivez votre premier document}
+
+Sélectionnez tout le contenu de l'éditeur (\texttt{Cmd/Ctrl + A}) et
+supprimez. La page est blanche. On y va.
+
+
+\subsection{Le titre principal}
+
+Sur la première ligne, tapez un dièse (\texttt{\#}), un espace, puis le titre
+de votre document :
+
+
+\begin{lstlisting}
+# Mon premier document
+\end{lstlisting}
+
+
+C'est tout. Le \texttt{\#} au début de la ligne signifie \emph{« ce qui suit est
+un titre »}. Une seule ligne, pas de point final, pas de fermeture —
+on saute simplement à la ligne quand on a fini.
+
+
+\begin{quote}
+\textbf{À noter} : ce premier titre \texttt{\#} du document sert de \textbf{couverture}
+dans le PDF (centré, suivi de l'auteur, l'organisation et la date si
+vous les renseignez dans \textbf{Réglages}). Vos sections internes
+utiliseront donc plutôt \texttt{\#\#} (deux dièses) ou \texttt{\#\#\#} (trois).
+\end{quote}
+
+
+\subsection{Une section}
+
+Sautez une ligne, puis tapez deux dièses suivis du titre de votre
+section :
+
+
+\begin{lstlisting}
+## Introduction
+\end{lstlisting}
+
+
+\subsection{Du texte}
+
+Sous le titre, tapez votre paragraphe normalement, comme dans un mail.
+Sautez une ligne pour faire un nouveau paragraphe.
+
+
+\subsection{Mettre en valeur : \emph{italique} et \textbf{gras}}
+
+Pour mettre un mot en \emph{italique}, entourez-le d'\textbf{un} astérisque :
+
+
+\begin{lstlisting}
+Le mot *important* est en italique.
+\end{lstlisting}
+
+
+Pour le \textbf{gras}, entourez de \textbf{deux} astérisques :
+
+
+\begin{lstlisting}
+Le mot **important** est en gras.
+\end{lstlisting}
+
+
+\begin{quote}
+\textbf{Astuce} : si les astérisques vous semblent fastidieux à taper,
+sélectionnez le mot et appuyez sur \texttt{Cmd/Ctrl + I} pour l'italique
+ou \texttt{Cmd/Ctrl + B} pour le gras — comme dans Word. Le résultat
+est exactement le même.
+\end{quote}
+
+
+\subsection{Une sous-section}
+
+Trois dièses pour un titre de niveau plus profond :
+
+
+\begin{lstlisting}
+### Mes idées principales
+\end{lstlisting}
+
+
+Vous pouvez descendre jusqu'à six dièses, mais en pratique trois
+suffisent pour la plupart des documents.
+
+
+\subsection{Insérer une image}
+
+Trois moyens, au choix :
+
+
+\begin{enumerate}
+  \item \textbf{Glisser-déposer} une image depuis le Bureau directement dans
+l'éditeur.
+  \item \textbf{Coller} une capture d'écran (\texttt{Cmd/Ctrl + V} après l'avoir
+capturée).
+  \item Bouton \textbf{Style} dans la toolbar → \emph{« Insérer une image… »}.
+\end{enumerate}
+
+
+L'image est automatiquement redimensionnée et compressée (max 2000 px
+de côté), et s'insère à la position du curseur.
+
+
+\subsection{La toolbar}
+
+En haut de l'écran, quelques boutons :
+
+
+\begin{itemize}
+  \item \textbf{Mon doc ▾} — montre le nom du document courant ; ouvre la liste
+de vos documents, permet d'en créer / renommer / dupliquer /
+supprimer.
+  \item \textbf{Importer} — ajoute un fichier (\texttt{.md}, \texttt{.txt}, \texttt{.html},
+\texttt{.docx}) comme nouveau document, sans toucher au courant.
+  \item \textbf{Style ▾} — un menu de mise en forme (titres, gras, listes,
+insérer une image…). Le \textbf{clic-droit} dans l'éditeur ouvre le
+même menu.
+  \item \textbf{Aide} (jaune) — ouvre ce tutoriel.
+  \item \textbf{Aperçu} — bascule entre l'éditeur et le rendu paginé.
+  \item \textbf{Exporter ▾} — produit un fichier Markdown (\texttt{.md}), un PDF, ou
+un source LaTeX (\texttt{.tex}).
+  \item \textbf{Réglages ▾} — personnaliser le rendu PDF (auteur, marges,
+polices…). S'ouvre dans une \textbf{fenêtre séparée} que vous pouvez
+poser à côté de l'aperçu pour voir l'effet de chaque changement
+en temps réel.
+\end{itemize}
+
+
+\subsection{Voir l'aperçu}
+
+Vous écrivez en mode \textbf{éditeur} (texte brut). Pour voir à quoi votre
+document ressemblera dans le PDF, basculez en mode \textbf{aperçu} :
+
+
+\begin{itemize}
+  \item raccourci \texttt{Cmd/Ctrl + Enter}
+  \item ou clic sur le bouton \textbf{Aperçu}
+\end{itemize}
+
+
+Vous voyez votre document tel qu'il sera imprimé.
+
+
+Pour revenir à l'éditeur, \textbf{cliquez n'importe où dans l'aperçu} : le
+curseur revient pile sur la ligne cliquée. Pratique : si vous voyez
+une faute, cliquez dessus, vous arrivez direct au mot dans l'éditeur
+pour la corriger. Ou rappuyez sur \texttt{Cmd/Ctrl + Enter}.
+
+
+\subsection{Exporter en PDF}
+
+Cliquez sur \textbf{Exporter ▾} puis \textbf{PDF (.pdf)}, ou utilisez le
+raccourci \texttt{Cmd/Ctrl + P} directement.
+
+
+Le navigateur ouvre son dialogue d'impression. Choisissez :
+
+
+\begin{itemize}
+  \item \textbf{Destination} : \emph{Enregistrer au format PDF}
+  \item \textbf{Marges} : ⚠ \textbf{Aucune} (voir l'encadré ci-dessous)
+\end{itemize}
+
+
+Cliquez sur \textbf{Enregistrer}, donnez un nom au fichier, c'est fait.
+
+
+\begin{quote}
+\textbf{⚠ Important — sélectionnez "Marges : Aucune"}
+
+
+Dans le dialogue d'impression, ouvrez « Plus de paramètres » et
+sélectionnez \textbf{« Marges : Aucune »}. Sinon, le navigateur ajoute
+ses propres marges par-dessus celles déjà gérées par md2pdf, ce
+qui rétrécit la zone imprimable et fait dépasser le contenu. Les
+marges visibles dans le PDF sont \textbf{toujours} celles que vous
+avez choisies dans \textbf{Réglages}, jamais celles du dialogue
+d'impression.
+\end{quote}
+
+
+\subsection{Et voilà}
+
+Vous savez écrire un document avec md2pdf. La majorité des notes,
+comptes-rendus, articles courts ne demandent rien de plus que ces
+quelques outils.
+
+
+Si vous avez besoin d'autre chose — listes, citations, tableaux,
+formules mathématiques, diagrammes, encadrés, notes de bas de page,
+graphiques — la suite documente toutes les fonctions avancées. Lisez
+à votre rythme, ou retournez écrire votre document maintenant et
+revenez plus tard.
+
+
+
+\noindent\hrulefill\par
+
+
+\section*{Pour aller plus loin}
+
+Tout ce qui suit est \textbf{optionnel}. Picorez selon vos besoins. Chaque
+section est indépendante. Cette partie regroupe ce qui sert à
+\textbf{rédiger un document riche} : plus d'éléments Markdown, encadrés,
+notes de bas de page, tableaux, graphiques. Pour la \textbf{typographie
+scientifique} (formules math, ligatures, règles d'inférence) et les
+\textbf{diagrammes Mermaid}, voir la partie suivante \emph{Pour aller encore
+plus loin}.
+
+
+\section{Encore d'autres éléments Markdown}
+
+\subsection{Listes}
+
+\textbf{Listes à puces} : un tiret (\texttt{-}) ou un astérisque (\texttt{*}) en début de
+ligne :
+
+
+\begin{lstlisting}
+- Première idée
+- Deuxième idée
+- Troisième idée
+\end{lstlisting}
+
+
+\textbf{Listes numérotées} : un nombre suivi d'un point :
+
+
+\begin{lstlisting}
+1. Première étape
+2. Deuxième étape
+3. Troisième étape
+\end{lstlisting}
+
+
+(Les numéros que vous tapez n'ont pas d'importance — Markdown
+renumérote ; vous pouvez tout taper en \texttt{1.})
+
+
+\textbf{Listes imbriquées} : indentez de quatre espaces ou d'une
+tabulation pour une sous-liste :
+
+
+\begin{lstlisting}
+- Idée principale
+    - Sous-idée
+    - Autre sous-idée
+- Deuxième idée
+\end{lstlisting}
+
+
+\subsection{Citations}
+
+Un chevron (\texttt{>}) en début de ligne :
+
+
+\begin{lstlisting}
+> Ce qui se conçoit bien s'énonce clairement.
+> — Boileau
+\end{lstlisting}
+
+
+\subsection{Liens}
+
+\begin{lstlisting}
+Visitez [le site de Boileau](https://exemple.fr).
+\end{lstlisting}
+
+
+Le texte entre crochets devient cliquable, vers l'URL entre
+parenthèses. Raccourci : sélectionnez le texte, \texttt{Cmd/Ctrl + K},
+collez l'URL.
+
+
+\subsection{Lignes horizontales}
+
+Trois tirets sur une ligne seule :
+
+
+\begin{lstlisting}
+---
+\end{lstlisting}
+
+
+\subsection{Code en ligne et blocs de code}
+
+Pour du code \textbf{en ligne} dans un paragraphe, entourez-le d'accents
+graves : \texttt{`let x = 42`} donne \texttt{let x = 42}.
+
+
+Pour un \textbf{bloc de code} entier, entourez de trois accents graves
+chacune sur sa propre ligne :
+
+
+\begin{lstlisting}
+```
+function add(a, b) {
+    return a + b;
+}
+```
+\end{lstlisting}
+
+
+\subsection{Listes de tâches}
+
+Une checklist : un tiret, un espace, puis \texttt{[ ]} (à faire) ou \texttt{[x]}
+(fait) :
+
+
+\begin{lstlisting}
+- [x] Écrire le brouillon
+- [x] Relire
+- [ ] Envoyer au comité
+- [ ] Préparer la version finale
+\end{lstlisting}
+
+
+Les cases sont \textbf{purement visuelles} : pour cocher / décocher,
+modifiez le \texttt{[ ]} en \texttt{[x]} directement dans le markdown.
+
+
+\subsection{Tableaux simples}
+
+Markdown classique pour de petits tableaux :
+
+
+\begin{lstlisting}
+| Nom    | Âge |
+|--------|-----|
+| Alice  | 32  |
+| Bob    | 27  |
+\end{lstlisting}
+
+
+(Pour les \textbf{tableaux de données denses}, voir la section \emph{Tableaux
+de données (CSV / TSV)} plus bas.)
+
+
+\section{Gérer plusieurs documents}
+
+md2pdf garde \textbf{tous vos documents} dans le navigateur. La liste se
+trouve derrière le bouton \textbf{Mon doc ▾}, qui affiche aussi le nom
+du document que vous éditez actuellement.
+
+
+\subsection{Le menu Mon doc ▾}
+
+\begin{itemize}
+  \item \textbf{Renommer le doc courant} : cliquez dans le champ en haut du
+menu, tapez, validez avec Entrée. (Échap annule.)
+  \item \textbf{+ Nouveau document} : crée un document vide et bascule
+dessus. Le doc précédent reste en place, vous pouvez y revenir
+à tout moment.
+  \item \textbf{Liste des autres documents} : triés par date de modification.
+Cliquez sur un nom pour l'ouvrir. Au survol, trois actions
+apparaissent :
+
+\begin{itemize}
+  \item \emph{Renommer} — édite le nom directement dans la liste.
+  \item \emph{Dupliquer} — clone le document.
+  \item \emph{Supprimer} — avec une demande de confirmation.
+\end{itemize}
+\end{itemize}
+
+
+\subsection{Importer un fichier}
+
+Le bouton \textbf{Importer} (raccourci \texttt{Cmd/Ctrl + O}) ajoute un fichier
+externe comme \textbf{nouveau document} dans la liste, sans toucher à
+celui sur lequel vous travaillez. Formats acceptés : \texttt{.md},
+\texttt{.txt}, \texttt{.html}, \texttt{.docx} (Word).
+
+
+\begin{quote}
+\textbf{À noter pour les fichiers Word} : à l'import d'un \texttt{.docx}, le
+texte, les titres, les listes, le gras/italique, les liens et les
+citations sont récupérés, mais \textbf{pas les images}. Si votre
+document Word contenait des photos, vous devrez les réinsérer
+manuellement après import.
+\end{quote}
+
+
+\subsection{Exporter votre document}
+
+Le bouton \textbf{Exporter ▾} propose trois formats :
+
+
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+  \toprule
+  Format & Raccourci & Effet \\
+  \midrule
+  \textbf{Markdown (.md)} & \texttt{Cmd/Ctrl + S} & Télécharge votre document au format Markdown \\
+  \textbf{PDF (.pdf)} & \texttt{Cmd/Ctrl + P} & Produit le PDF final \\
+  \textbf{LaTeX (.tex)} & — & Produit un source LaTeX compilable avec \texttt{xelatex} \\
+  \bottomrule
+\end{tabularx}
+
+Le format \textbf{Markdown} (\texttt{.md}) est un format texte ouvert, lisible
+partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
+il l'ouvrira dans n'importe quel éditeur de texte.
+
+
+Le format \textbf{LaTeX} (\texttt{.tex}) est utile si vous voulez retoucher
+finement la mise en page avec un compilateur LaTeX, ou soumettre
+votre document à un journal qui demande des sources \texttt{.tex}. Quand
+votre document contient des images ou des diagrammes (mermaid,
+chart), le téléchargement est un \textbf{fichier \texttt{.zip}} contenant le
+\texttt{.tex} et un dossier \texttt{images/}. Compilez avec :
+
+
+\begin{lstlisting}
+xelatex --shell-escape votre-document.tex
+\end{lstlisting}
+
+
+(\texttt{--shell-escape} n'est nécessaire que si le document contient des
+diagrammes, et exige qu'\texttt{inkscape} soit installé.) Le commentaire
+en tête du \texttt{.tex} rappelle ces prérequis.
+
+
+Le nom du fichier exporté reprend le nom de votre document (celui
+affiché sur \textbf{Mon doc ▾}).
+
+
+Votre travail est \textbf{automatiquement sauvegardé} dans le navigateur,
+donc si vous fermez l'onglet par accident, tout est récupéré à la
+prochaine ouverture.
+
+
+\section{Personnaliser le rendu PDF (Réglages)}
+
+Le bouton \textbf{Réglages ▾} (raccourci \texttt{Cmd/Ctrl + ,}) ouvre une
+\textbf{fenêtre séparée} où vous pouvez configurer le PDF sans toucher
+au contenu. \textbf{Astuce} : passez d'abord en mode Aperçu, ouvrez les
+Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
+se reflète en temps réel sur le document paginé.
+
+
+Ce que vous pouvez régler :
+
+
+\begin{itemize}
+  \item \textbf{Auteur, organisation, date} affichés sous le titre principal
+  \item \textbf{Format de page} (A4, A5, Letter…)
+  \item \textbf{Marges} en millimètres
+  \item \textbf{Justification} du texte
+  \item \textbf{Interligne}
+  \item \textbf{Polices} des titres, du corps et du code — choisies parmi un
+catalogue de \textasciitilde{}15 polices Google Fonts (Inter, EB Garamond,
+JetBrains Mono…). Les polices sont chargées à la demande ; la
+première utilisation nécessite une connexion, ensuite le
+navigateur les met en cache. Roboto Condensed et Roboto Mono
+sont embarquées et fonctionnent hors-ligne. \emph{Note : l'éditeur
+lui-même garde toujours Roboto Condensed / Mono, indépendamment
+de vos choix — la cohérence de la zone de saisie ne change pas.}
+  \item \textbf{Tailles et couleurs} des titres (h1 à h4) et du corps
+  \item \textbf{Style du code} (taille et couleur)
+  \item \textbf{Style de la citation} (taille, couleur du texte, couleur de la
+barre verticale)
+  \item \textbf{Numéro de page} : position, taille, couleur, italique
+\end{itemize}
+
+
+Les réglages sont \textbf{mémorisés entre vos sessions}. Le bouton
+\emph{Réinitialiser} en bas du panneau revient aux valeurs par défaut.
+
+
+\section{Caractères spéciaux et symboles}
+
+Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
+symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
+dans le PDF.
+
+
+\section{Numérotation des sections}
+
+Pour numéroter les titres d'un long document sans configurer de menu,
+il suffit de \textbf{donner l'exemple sur le premier titre de chaque
+niveau} : la commande \textbf{Numéroter les sections}
+(\texttt{Cmd/Ctrl + Maj + N}, ou bien menu \textbf{Style} → \emph{Numéroter les
+sections}) détecte le style de numérotation que vous avez écrit, puis
+l'applique à tous les autres titres du même niveau.
+
+
+Exemple. Vous écrivez :
+
+
+\begin{lstlisting}
+# 1. Introduction
+
+## 1.1 Contexte
+
+## Objectifs
+
+# Méthode
+
+## Données
+
+# Résultats
+\end{lstlisting}
+
+
+…vous lancez la commande, et le document devient :
+
+
+\begin{lstlisting}
+# 1. Introduction
+
+## 1.1 Contexte
+
+## 1.2 Objectifs
+
+# 2. Méthode
+
+## 2.1 Données
+
+# 3. Résultats
+\end{lstlisting}
+
+
+Le premier \texttt{\#} (h1) annonce un style décimal plat (\texttt{1.}) ; le premier
+\texttt{\#\#} (h2) annonce un style hiérarchique (\texttt{1.1}). La commande retient
+et applique. Si votre premier titre n'a aucune numérotation, ce
+niveau ne sera pas numéroté du tout, et tout préfixe numérique
+éventuel des titres suivants à ce niveau sera retiré (mise au propre).
+
+
+\textbf{Styles reconnus} par niveau :
+
+
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+  \toprule
+  Premier titre & Style appliqué \\
+  \midrule
+  \texttt{\# 1. Foo} & \texttt{1.}, \texttt{2.}, \texttt{3.}, … \\
+  \texttt{\# 1) Foo} & \texttt{1)}, \texttt{2)}, \texttt{3)}, … \\
+  \texttt{\# (1) Foo} & \texttt{(1)}, \texttt{(2)}, \texttt{(3)}, … \\
+  \texttt{\# A. Foo} & \texttt{A.}, \texttt{B.}, …, \texttt{Z.}, \texttt{AA.} \\
+  \texttt{\# a. Foo} & \texttt{a.}, \texttt{b.}, … \\
+  \texttt{\# I. Foo} & \texttt{I.}, \texttt{II.}, \texttt{III.}, … \\
+  \texttt{\# i. Foo} & \texttt{i.}, \texttt{ii.}, … \\
+  \texttt{\#\# 1.1 Foo} & hiérarchique : \texttt{1.1}, \texttt{1.2}, \texttt{2.1}, … \\
+  \texttt{\#\# 1.1. Foo} & hiérarchique avec point final \\
+  (sans préfixe) & aucune numérotation pour ce niveau \\
+  \bottomrule
+\end{tabularx}
+
+La numérotation hiérarchique a besoin que tous les niveaux parents
+soient eux-mêmes numérotés.
+
+
+\section{Tableaux de données (CSV / TSV)}
+
+Pour un tableau dense, écrire la syntaxe pipe-style à la main est
+fastidieux. Vous pouvez à la place coller un \textbf{CSV} ou un \textbf{TSV}
+dans un \emph{fenced block} :
+
+
+\begin{lstlisting}
+```csv
+Note, Concert pitch (Hz), MIDI
+A4,    440.00, 69
+A#4,   466.16, 70
+B4,    493.88, 71
+```
+\end{lstlisting}
+
+
+Le \textbf{séparateur} est la virgule pour \texttt{csv}, la tabulation pour \texttt{tsv}.
+La \textbf{première ligne} devient l'en-tête du tableau, les suivantes les
+données.
+
+
+Si l'une de vos cellules contient le séparateur (par exemple une
+virgule dans un nom), entourez-la de guillemets doubles :
+
+
+\begin{lstlisting}
+```csv
+Nom, Description
+"Doe, John", "Auteur, fondateur"
+```
+\end{lstlisting}
+
+
+Pour insérer un guillemet littéral dans une cellule entre guillemets,
+doublez-le : \texttt{""}.
+
+
+\section{Listes de définitions}
+
+Pour une liste de \textbf{termes avec leur définition} (glossaire,
+notation, dictionnaire), utilisez la syntaxe Pandoc : un terme sur
+une ligne, puis sa définition sur la ligne suivante préfixée par
+\texttt{:} et au moins une espace.
+
+
+\begin{lstlisting}
+DAG
+:   Directed Acyclic Graph — un graphe orienté sans cycle.
+
+FFT
+:   Fast Fourier Transform, l'algorithme en $O(n \log n)$ de
+    Cooley & Tukey.
+\end{lstlisting}
+
+
+Plusieurs définitions pour le même terme : ajoutez d'autres lignes
+\texttt{:} à la suite.
+
+
+\begin{lstlisting}
+Polynôme
+:   Une expression de la forme $a_0 + a_1 x + \dots + a_n x^n$.
+:   Un objet du langage Faust qui représente la même chose.
+\end{lstlisting}
+
+
+À l'intérieur des termes et des définitions vous pouvez utiliser du
+Markdown inline (gras, italique, code, formules, liens).
+
+
+\section{Notes de bas de page}
+
+Vous pouvez ajouter une \textbf{note de bas de page} avec la syntaxe
+Pandoc : un appel de note \texttt{[\textasciicircum{}id]} dans le texte, et la définition
+\texttt{[\textasciicircum{}id]: contenu} n'importe où dans le document (généralement à la
+fin).
+
+
+\begin{lstlisting}
+La transformée de Fourier discrète[^dft] est l'outil de base pour
+analyser un signal numérique.
+
+[^dft]: Voir Cooley & Tukey (1965) pour l'algorithme rapide.
+\end{lstlisting}
+
+
+L'identifiant \texttt{id} peut être un nombre, un mot, ou un libellé court —
+il sert seulement à relier l'appel à sa définition, et n'apparaît
+nulle part dans le rendu. Les notes sont \textbf{numérotées
+automatiquement} dans l'ordre où elles apparaissent dans le texte
+(pas dans l'ordre des définitions), et regroupées en fin de document.
+
+
+À l'intérieur d'une note vous pouvez utiliser \textbf{\texttt{gras}}, \emph{italique},
+\texttt{code inline}, des liens, ou même \texttt{\$math\$}. Une même note peut être
+référencée plusieurs fois — toutes les occurrences pointent vers la
+même entrée.
+
+
+Cliquer sur l'appel \texttt{¹} saute à la note ; cliquer sur le \texttt{↩} à la
+fin de la note revient à l'appel.
+
+
+\section{Encadrés (notes, théorèmes…)}
+
+Vous pouvez mettre en valeur un passage avec un \textbf{encadré} : ouvrez
+avec \texttt{:::} suivi du nom de l'encadré, écrivez votre contenu, fermez
+avec \texttt{:::} seul sur une ligne. C'est la syntaxe Pandoc des \emph{fenced
+divs}.
+
+
+\begin{lstlisting}
+::: warning
+Attention, cette opération est irréversible.
+:::
+\end{lstlisting}
+
+
+Les noms d'encadrés reconnus se rangent en deux familles :
+
+
+\begin{itemize}
+  \item \textbf{Génériques} (cadre coloré, fond teinté) :
+\texttt{note} (bleu), \texttt{tip} (vert), \texttt{warning} (orange), \texttt{caution} (rouge),
+\texttt{important} (violet).
+  \item \textbf{Académiques} (cadre sobre, titre en italique, façon LaTeX) :
+\texttt{theorem}, \texttt{lemma}, \texttt{proposition}, \texttt{corollary}, \texttt{definition},
+\texttt{proof}, \texttt{example}, \texttt{remark}.
+\end{itemize}
+
+
+Vous pouvez ajouter un \textbf{titre} entre crochets après le nom :
+
+
+\begin{lstlisting}
+::: theorem [Pythagore]
+Dans un triangle rectangle, le carré de l'hypoténuse est égal à
+la somme des carrés des deux autres côtés.
+:::
+\end{lstlisting}
+
+
+…s'affiche avec le titre \textbf{« Théorème — Pythagore »}.
+
+
+Si vous écrivez un encadré avec un nom qui n'est pas dans la liste
+ci-dessus (par exemple \texttt{::: aside}), il sera rendu avec un cadre
+neutre — utile pour vos propres conventions.
+
+
+L'intérieur d'un encadré est du Markdown comme le reste : texte mis
+en forme, listes, formules, voire des tableaux.
+
+
+\section{Graphiques}
+
+Pour tracer une courbe ou un diagramme à partir de données, utilisez
+un \emph{fenced block} \texttt{chart} :
+
+
+\begin{lstlisting}
+```chart line "Latence par taille de buffer"
+buffer, latence (ms)
+64,  12
+128,  8
+256,  5
+512,  3
+1024, 2
+```
+\end{lstlisting}
+
+
+Les types disponibles sont \textbf{\texttt{line}} (courbe) et \textbf{\texttt{bar}}
+(histogramme). Le titre entre guillemets après le type est
+facultatif.
+
+
+La \textbf{première ligne} donne les en-têtes : la première colonne
+devient le label de l'axe X, les colonnes suivantes deviennent autant
+de \textbf{séries de données} (chacune sa couleur, et une légende
+automatique si plus d'une série).
+
+
+Les \textbf{lignes de données} suivantes contiennent les valeurs. Si la
+première colonne est numérique, l'axe X est continu ; si elle
+contient des labels textuels (mois, catégories…), l'axe X est
+catégorique.
+
+
+\subsection{Format CSV : virgules françaises}
+
+Le séparateur de champ est \textbf{détecté automatiquement} sur la
+première ligne :
+
+
+\begin{itemize}
+  \item s'il y a une tabulation → séparateur = tabulation,
+  \item sinon s'il y a un point-virgule → séparateur = \texttt{;},
+  \item sinon → séparateur = \texttt{,}.
+\end{itemize}
+
+
+Quand le séparateur est \texttt{,}, les \textbf{virgules entre deux chiffres}
+(sans espace autour) sont reconnues comme \textbf{virgules décimales},
+donc \texttt{3,14} reste un seul nombre. La virgule séparatrice s'écrit
+alors suivie d'un espace : \texttt{foo, 3,14} donne deux cellules \texttt{foo} et
+\texttt{3,14}.
+
+
+Pour les rares cas ambigus (\texttt{1,2,3,4} compact), passez en \texttt{;} ou en
+TSV — ou ajoutez des espaces : \texttt{1, 2, 3, 4}.
+
+
+Les nombres dans les cellules acceptent les deux formats (point ou
+virgule décimale) — \texttt{3.14} et \texttt{3,14} sont équivalents.
+
+
+\subsection{Séries chronologiques}
+
+Si la première colonne contient des \textbf{dates au format ISO 8601}
+(\texttt{YYYY-MM-DD}, éventuellement avec heure), l'axe X est traité comme
+une échelle temporelle. L'app choisit automatiquement les graduations
+appropriées (jour, mois ou année selon l'étendue) :
+
+
+\begin{lstlisting}
+```chart line "Téléchargements"
+date, total
+2025-01-15, 120
+2025-02-15, 180
+2025-03-15, 245
+2025-04-15, 310
+```
+\end{lstlisting}
+
+
+Les formats ambigus (FR \texttt{15/01/2025} et US \texttt{01/15/2025}) ne sont
+\textbf{pas} reconnus — utilisez toujours ISO 8601, qui est sans
+ambiguïté.
+
+
+\subsection{Plusieurs séries}
+
+\begin{lstlisting}
+```chart bar "Comparaison de codecs"
+Codec, Taille (Ko), Temps (ms)
+MP3, 4200, 120
+Opus, 3800, 95
+FLAC, 12500, 280
+```
+\end{lstlisting}
+
+
+Deux barres côte à côte par catégorie, avec une légende en haut à
+droite identifiant chaque série.
+
+
+
+\noindent\hrulefill\par
+
+
+\section*{Pour aller encore plus loin}
+
+Cette dernière partie regroupe les outils \textbf{plus spécialisés} :
+ligatures de saisie qui rendent l'Unicode mathématique confortable à
+taper, formules en LaTeX, règles d'inférence, et diagrammes Mermaid
+(flowcharts, séquences, états, etc., chacun avec sa propre syntaxe).
+Si vous écrivez un article de recherche, un cours, une spec
+d'algorithme, ou de la documentation technique, vous y trouverez votre
+compte. Sinon vous pouvez sauter directement aux Crédits.
+
+
+\section{Ligatures de saisie}
+
+Pour vous éviter de chercher chaque symbole Unicode dans une table de
+caractères, l'éditeur \textbf{remplace au vol} certaines séquences ASCII
+par leur équivalent mathématique :
+
+
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+  \toprule
+  Tapez & Obtenez & Tapez & Obtenez \\
+  \midrule
+  \texttt{[[} & ⟦ & \texttt{<<} & ⟨ \\
+  \texttt{]]} & ⟧ & \texttt{>>} & ⟩ \\
+  \texttt{->} & → & \texttt{<-} & ← \\
+  \texttt{=>} & ⇒ &  &  \\
+  \texttt{<=} & ≤ & \texttt{>=} & ≥ \\
+  \texttt{!=} & ≠ & \texttt{+-} & ± \\
+  \texttt{|-} & ⊢ & \texttt{-|} & ⊣ \\
+  \texttt{...} & … &  &  \\
+  \bottomrule
+\end{tabularx}
+
+Pour les \textbf{lettres grecques}, tapez la commande LaTeX habituelle —
+elle est remplacée immédiatement par le caractère Unicode :
+
+
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+  \toprule
+  Tapez & Obtenez & Tapez & Obtenez & Tapez & Obtenez \\
+  \midrule
+  \texttt{\textbackslash{}alpha} & α & \texttt{\textbackslash{}iota} & ι & \texttt{\textbackslash{}rho} & ρ \\
+  \texttt{\textbackslash{}beta} & β & \texttt{\textbackslash{}kappa} & κ & \texttt{\textbackslash{}sigma} & σ \\
+  \texttt{\textbackslash{}gamma} & γ & \texttt{\textbackslash{}lambda} & λ & \texttt{\textbackslash{}tau} & τ \\
+  \texttt{\textbackslash{}delta} & δ & \texttt{\textbackslash{}mu} & μ & \texttt{\textbackslash{}upsilon} & υ \\
+  \texttt{\textbackslash{}epsilon} & ϵ & \texttt{\textbackslash{}nu} & ν & \texttt{\textbackslash{}phi} & ϕ \\
+  \texttt{\textbackslash{}zeta} & ζ & \texttt{\textbackslash{}xi} & ξ & \texttt{\textbackslash{}chi} & χ \\
+  \texttt{\textbackslash{}eta} & η & \texttt{\textbackslash{}omicron} & ο & \texttt{\textbackslash{}psi} & ψ \\
+  \texttt{\textbackslash{}theta} & θ & \texttt{\textbackslash{}pi} & π & \texttt{\textbackslash{}omega} & ω \\
+  \bottomrule
+\end{tabularx}
+
+Variantes typographiques :
+\texttt{\textbackslash{}varepsilon} ε, \texttt{\textbackslash{}varphi} φ, \texttt{\textbackslash{}vartheta} ϑ, \texttt{\textbackslash{}varpi} ϖ, \texttt{\textbackslash{}varrho} ϱ,
+\texttt{\textbackslash{}varsigma} ς.
+
+
+Majuscules (seulement celles qui diffèrent du latin) :
+\texttt{\textbackslash{}Gamma} Γ, \texttt{\textbackslash{}Delta} Δ, \texttt{\textbackslash{}Theta} Θ, \texttt{\textbackslash{}Lambda} Λ, \texttt{\textbackslash{}Xi} Ξ, \texttt{\textbackslash{}Pi} Π,
+\texttt{\textbackslash{}Sigma} Σ, \texttt{\textbackslash{}Upsilon} Υ, \texttt{\textbackslash{}Phi} Φ, \texttt{\textbackslash{}Psi} Ψ, \texttt{\textbackslash{}Omega} Ω.
+
+
+\begin{quote}
+Si vous voulez écrire \texttt{\textbackslash{}alpha} \emph{littéralement} en prose (pour
+documenter la commande LaTeX), entourez-le de backticks :
+\texttt{`\textbackslash{}alpha`}. À l'intérieur d'un bloc code, les ligatures ne
+s'appliquent pas.
+\end{quote}
+
+
+Pour les \textbf{lettres "blackboard bold"} (ensembles), \texttt{|} suivi de
+n'importe quelle lettre majuscule donne sa version doublée :
+
+
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
+  \toprule
+  Tapez & Obtenez & Tapez & Obtenez & Tapez & Obtenez \\
+  \midrule
+  \texttt{|A} & 𝔸 & \texttt{|J} & 𝕁 & \texttt{|S} & 𝕊 \\
+  \texttt{|B} & 𝔹 & \texttt{|K} & 𝕂 & \texttt{|T} & 𝕋 \\
+  \texttt{|C} & ℂ & \texttt{|L} & 𝕃 & \texttt{|U} & 𝕌 \\
+  \texttt{|D} & 𝔻 & \texttt{|M} & 𝕄 & \texttt{|V} & 𝕍 \\
+  \texttt{|E} & 𝔼 & \texttt{|N} & ℕ & \texttt{|W} & 𝕎 \\
+  \texttt{|F} & 𝔽 & \texttt{|O} & 𝕆 & \texttt{|X} & 𝕏 \\
+  \texttt{|G} & 𝔾 & \texttt{|P} & ℙ & \texttt{|Y} & 𝕐 \\
+  \texttt{|H} & ℍ & \texttt{|Q} & ℚ & \texttt{|Z} & ℤ \\
+  \texttt{|I} & 𝕀 & \texttt{|R} & ℝ &  &  \\
+  \bottomrule
+\end{tabularx}
+
+Le remplacement modifie le \textbf{source} du document (pas seulement
+l'affichage), donc les caractères Unicode sont là si vous copiez le
+texte ailleurs.
+
+
+Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
+le texte littéral, faites \texttt{Cmd/Ctrl + Z} immédiatement après — la
+substitution se défait, le texte ASCII est restauré.
+
+
+\section{Formules mathématiques}
+
+Vous pouvez inclure des \textbf{formules en LaTeX}, soit \textbf{en bloc} entre
+\texttt{\$\$ … \$\$} (la formule s'affiche centrée sur sa propre ligne), soit
+\textbf{inline} entre \texttt{\$ … \$} au milieu d'une phrase. Le rendu utilise
+\href{https://www.mathjax.org/}{MathJax} et produit un PDF de qualité
+typographique professionnelle.
+
+
+Pour les blocs, vous pouvez aussi utiliser un \emph{fenced block} avec le
+langage \texttt{math} — c'est la convention GitHub et ça évite le piège des
+\texttt{\$\$} qui doivent être seuls sur leur ligne :
+
+
+\begin{lstlisting}
+```math
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+\end{lstlisting}
+
+
+Le rendu est strictement identique à \texttt{\$\$ … \$\$}.
+
+
+\subsection{Exemples utiles}
+
+\textbf{Sommes et intégrales}
+
+
+\begin{lstlisting}
+$$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+\end{lstlisting}
+
+
+\[
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+\]
+
+
+\textbf{Matrice}
+
+
+\begin{lstlisting}
+$$
+A = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+$$
+\end{lstlisting}
+
+
+\[
+A = \begin{pmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{pmatrix}
+\]
+
+
+\textbf{Système d'équations alignées}
+
+
+\begin{lstlisting}
+$$
+\begin{align*}
+f(x)   &= ax^2 + bx + c \\
+f'(x)  &= 2ax + b \\
+f''(x) &= 2a
+\end{align*}
+$$
+\end{lstlisting}
+
+
+\begin{align*}
+f(x)   &= ax^2 + bx + c \\
+f'(x)  &= 2ax + b \\
+f''(x) &= 2a
+\end{align*}
+
+
+\textbf{Formule inline} : tapez par exemple
+\texttt{Soit \$\textbackslash{}epsilon > 0\$ tel que…} et vous obtenez :
+
+
+Soit $\epsilon > 0$ tel que…
+
+
+\subsection{À savoir}
+
+\begin{itemize}
+  \item La taille des formules s'aligne sur la taille du texte courant ; si
+vous changez le réglage \textbf{Texte normal} dans \textbf{Réglages}, les
+formules grandissent ou rétrécissent en proportion.
+  \item Si une formule est plus large que la zone de texte de la page, elle
+est automatiquement réduite pour tenir.
+  \item Les commandes LaTeX usuelles fonctionnent : \texttt{\textbackslash{}frac}, \texttt{\textbackslash{}sqrt},
+\texttt{\textbackslash{}sum}, \texttt{\textbackslash{}int}, \texttt{\textbackslash{}lim}, \texttt{\textbackslash{}vec}, \texttt{\textbackslash{}partial}, lettres grecques
+(\texttt{\textbackslash{}alpha}, \texttt{\textbackslash{}beta}, …), opérateurs (\texttt{\textbackslash{}pm}, \texttt{\textbackslash{}times}, \texttt{\textbackslash{}le}),
+flèches (\texttt{\textbackslash{}to}, \texttt{\textbackslash{}Rightarrow}), environnements \texttt{pmatrix} /
+\texttt{bmatrix} / \texttt{align*}, etc.
+\end{itemize}
+
+
+\section{Règles d'inférence}
+
+Pour écrire une \textbf{règle d'inférence} (déduction logique, sémantique
+opérationnelle, etc.), utilisez un \emph{fenced block} avec le langage
+\texttt{inference} :
+
+
+\begin{lstlisting}
+```inference (MP)
+Γ ⊢ A; Γ ⊢ A → B
+-------------------
+Γ ⊢ B
+```
+\end{lstlisting}
+
+
+Le bloc est rendu en LaTeX \texttt{\textbackslash{}dfrac\{prémisses\}\{conclusion\}} via
+MathJax. Une \textbf{ligne de tirets} (3 tirets ou plus, seule sur sa
+ligne) sépare les prémisses de la conclusion. Les prémisses sont
+séparées par \texttt{;} ou réparties sur plusieurs lignes. L'\textbf{étiquette}
+facultative entre parenthèses après le \texttt{inference} (ici \texttt{(MP)} pour
+modus ponens) apparaît à droite de la barre.
+
+
+À l'intérieur d'un bloc \texttt{inference}, les \textbf{ligatures de saisie}
+restent actives — vous pouvez taper \texttt{|-}, \texttt{->}, \texttt{[[}, \texttt{|N}, etc. et
+obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
+MathJax sait rendre tels quels en mode math. C'est la seule
+exception au comportement habituel "ligatures désactivées dans les
+blocs de code".
+
+
+Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
+ligatures (par exemple \texttt{\textbackslash{}Gamma}, \texttt{\textbackslash{}forall}, \texttt{\textbackslash{}exists}, \texttt{\textbackslash{}Rightarrow},
+\texttt{\textbackslash{}leq}), tapez-les directement.
+
+
+\section{Diagrammes Mermaid}
+
+\href{https://mermaid.js.org/}{Mermaid} permet de décrire un diagramme avec
+quelques lignes de texte. Placez votre code dans un bloc dont le
+langage est \texttt{mermaid} :
+
+
+\begin{lstlisting}
+```mermaid
+flowchart LR
+    A[Idée] --> B[Brouillon]
+    B --> C[Document final]
+    C --> D[PDF]
+```
+\end{lstlisting}
+
+
+…et vous obtenez :
+
+
+% mermaid source:
+% flowchart LR
+%     A[Idée] --> B[Brouillon]
+%     B --> C[Document final]
+%     C --> D[PDF]
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/mermaid-1.svg}
+\end{adjustbox}
+\end{center}
+
+
+Le diagramme est rendu en \textbf{SVG}, dans l'aperçu \textbf{et} dans le PDF
+(qualité vectorielle, sans pixellisation à l'impression).
+
+
+\subsection{Quelques exemples}
+
+\textbf{Diagramme de séquence} (échange entre deux acteurs) :
+
+
+% mermaid source:
+% sequenceDiagram
+%     participant U as Utilisateur
+%     participant S as Serveur
+%     U->>S: Requête GET /data
+%     S-->>U: 200 OK + JSON
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/mermaid-2.svg}
+\end{adjustbox}
+\end{center}
+
+
+\textbf{Diagramme de classes} :
+
+
+% mermaid source:
+% classDiagram
+%     class Animal {
+%         +String nom
+%         +manger()
+%     }
+%     class Chien {
+%         +aboyer()
+%     }
+%     Animal <|-- Chien
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/mermaid-3.svg}
+\end{adjustbox}
+\end{center}
+
+
+\textbf{Camembert} :
+
+
+% mermaid source:
+% pie title Répartition
+%     "Travail" : 40
+%     "Loisir" : 30
+%     "Sommeil" : 30
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/mermaid-4.svg}
+\end{adjustbox}
+\end{center}
+
+
+Autres types reconnus : \texttt{stateDiagram}, \texttt{gantt}, \texttt{mindmap}, etc. — voir
+la \href{https://mermaid.js.org/}{documentation Mermaid} pour la liste
+complète.
+
+
+\subsection{Réglages}
+
+La section \textbf{Diagrammes Mermaid} du panneau \textbf{Réglages} propose
+trois contrôles pour adapter la taille des diagrammes dans le PDF :
+
+
+\begin{itemize}
+  \item \textbf{Agrandissement max.} : facteur d'agrandissement maximal
+(par défaut 2). Les petits diagrammes sont agrandis jusqu'à ce
+facteur ; jamais au-delà.
+  \item \textbf{Largeur max. (\% du texte)} : fraction de la largeur de la page
+(hors marges) que le diagramme peut occuper (par défaut 100 \%).
+  \item \textbf{Hauteur max. (\% du texte)} : fraction de la hauteur de la page
+(hors marges) que le diagramme peut occuper (par défaut 70 \%).
+\end{itemize}
+
+
+
+\noindent\hrulefill\par
+
+
+\section{Crédits}
+
+md2pdf est un projet open source assemblé à partir de logiciels libres.
+Merci à toutes les personnes qui maintiennent ces projets :
+
+
+\begin{itemize}
+  \item \textbf{Édition et rendu} :
+\href{https://codemirror.net/}{CodeMirror} pour l'éditeur,
+\href{https://marked.js.org/}{marked} pour le parser Markdown,
+\href{https://pagedjs.org/}{paged.js} pour la mise en page paginée
+(l'aperçu et le PDF passent par le moteur d'impression du
+navigateur sur ce même rendu).
+  \item \textbf{Diagrammes et formules} :
+\href{https://mermaid.js.org/}{Mermaid} pour les diagrammes,
+\href{https://www.mathjax.org/}{MathJax} pour les formules LaTeX.
+  \item \textbf{Imports} :
+\href{https://github.com/mwilliamson/mammoth.js}{Mammoth.js} pour
+l'import Word (\texttt{.docx}),
+\href{https://github.com/mixmark-io/turndown}{Turndown} pour la conversion
+HTML → Markdown.
+  \item \textbf{Polices} :
+\href{https://fonts.google.com/specimen/Roboto+Condensed}{Roboto Condensed} et
+\href{https://fonts.google.com/specimen/Roboto+Mono}{Roboto Mono}
+(Christian Robertson, Google),
+\href{https://fonts.google.com/noto/specimen/Noto+Sans+Math}{Noto Sans Math} et
+\href{https://fonts.google.com/noto/specimen/Noto+Sans+Symbols}{Noto Sans Symbols}
+(Google) pour les caractères mathématiques et les symboles.
+  \item \textbf{Outils de build} :
+\href{https://vitejs.dev/}{Vite} et \href{https://www.typescriptlang.org/}{TypeScript}.
+\end{itemize}
+
+
+Le code source de md2pdf est sur
+\href{https://github.com/orlarey/md2pdf}{GitHub}.
+
+
+
+\noindent\hrulefill\par
+
+
+C'est tout. Vous pouvez maintenant :
+
+
+\begin{itemize}
+  \item Effacer ce contenu et commencer à rédiger votre propre document
+  \item L'enregistrer pour le retrouver plus tard
+  \item Cliquer sur \textbf{Aide} à tout moment pour revoir ce tutoriel
+\end{itemize}
+
+
+Bonne écriture.
+
+\end{document}

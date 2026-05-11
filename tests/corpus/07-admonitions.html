@@ -1,0 +1,32 @@
+<h1>Admonitions</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A theorem (rendered as an amsthm environment):</p>
+<div data-source="::: theorem
+The sum of angles in a triangle equals $\pi$.
+:::" class="admonition admonition-theorem"><div class="admonition-title">Théorème</div><div class="admonition-body"><p>The sum of angles in a triangle equals <span class="math-inline" data-math="\pi"></span>.</p>
+</div></div>
+<p>A theorem with a custom title:</p>
+<div data-source="::: theorem [Pythagoras]
+For a right triangle, $a^2 + b^2 = c^2$.
+:::" class="admonition admonition-theorem"><div class="admonition-title">Théorème — Pythagoras</div><div class="admonition-body"><p>For a right triangle, <span class="math-inline" data-math="a^2 + b^2 = c^2"></span>.</p>
+</div></div>
+<p>A lemma (shared counter with theorem):</p>
+<div data-source="::: lemma
+Every chain has a maximal element (Zorn-flavoured).
+:::" class="admonition admonition-lemma"><div class="admonition-title">Lemme</div><div class="admonition-body"><p>Every chain has a maximal element (Zorn-flavoured).</p>
+</div></div>
+<p>A note (tcolorbox):</p>
+<div data-source="::: note
+This is a plain note.
+:::" class="admonition admonition-note"><div class="admonition-title">Note</div><div class="admonition-body"><p>This is a plain note.</p>
+</div></div>
+<p>A warning with a custom title:</p>
+<div data-source="::: warning [À lire avant tout]
+Read this carefully before proceeding.
+:::" class="admonition admonition-warning"><div class="admonition-title">Avertissement — À lire avant tout</div><div class="admonition-body"><p>Read this carefully before proceeding.</p>
+</div></div>
+<p>An unknown class (falls back to a neutral tcolorbox with the class name as title):</p>
+<div data-source="::: unknown-class
+This admonition uses a class we don't recognise.
+:::
+" class="admonition admonition-unknown-class"><div class="admonition-body"><p>This admonition uses a class we don't recognise.</p>
+</div></div>

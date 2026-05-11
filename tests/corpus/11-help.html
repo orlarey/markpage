@@ -1,0 +1,1033 @@
+<h1>Bienvenue dans md2pdf</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p><strong>md2pdf</strong> est un éditeur qui produit des PDF prêts à imprimer ou à
+partager. Vous écrivez du texte presque normal, et l'app s'occupe de
+la mise en forme.</p>
+<p>Vous lisez actuellement ce tutoriel <strong>dans l'éditeur</strong> — c'est
+lui-même un document md2pdf. Vous pouvez le modifier librement, ou
+repartir d'une page blanche.</p>
+<p>Le bouton <strong>Aide</strong> (sur fond jaune) rouvre cette page d'aide à tout
+moment, sans toucher à votre document.</p>
+<h2>Pour commencer</h2>
+<p>Vous n'avez besoin que de <strong>cinq ou six outils</strong> pour écrire la
+plupart des documents. Suivez ce tutoriel pas à pas — l'idée est que
+vous écriviez votre premier document tout en lisant.</p>
+<h3>Le principe</h3>
+<p>md2pdf utilise une convention qui s'appelle <strong>Markdown</strong>. Vous écrivez
+du texte presque normal, avec <strong>quelques signes</strong> simples qui indiquent
+la mise en forme. Pas de menus à apprendre, pas de raccourcis
+obligatoires.</p>
+<p>Pour vous donner une idée, ce tutoriel lui-même est écrit en Markdown.
+À droite vous voyez la version mise en page (en cliquant sur <strong>Aperçu</strong>),
+et ici à gauche vous voyez la "vraie" source. Vous pouvez à tout
+moment regarder à gauche pour voir « comment c'est fait ».</p>
+<h3>Allez-y, écrivez votre premier document</h3>
+<p>Sélectionnez tout le contenu de l'éditeur (<code>Cmd/Ctrl + A</code>) et
+supprimez. La page est blanche. On y va.</p>
+<h3>Le titre principal</h3>
+<p>Sur la première ligne, tapez un dièse (<code>#</code>), un espace, puis le titre
+de votre document :</p>
+<pre><code># Mon premier document
+</code></pre>
+<p>C'est tout. Le <code>#</code> au début de la ligne signifie <em>« ce qui suit est
+un titre »</em>. Une seule ligne, pas de point final, pas de fermeture —
+on saute simplement à la ligne quand on a fini.</p>
+<blockquote>
+<p><strong>À noter</strong> : ce premier titre <code>#</code> du document sert de <strong>couverture</strong>
+dans le PDF (centré, suivi de l'auteur, l'organisation et la date si
+vous les renseignez dans <strong>Réglages</strong>). Vos sections internes
+utiliseront donc plutôt <code>##</code> (deux dièses) ou <code>###</code> (trois).</p>
+</blockquote>
+<h3>Une section</h3>
+<p>Sautez une ligne, puis tapez deux dièses suivis du titre de votre
+section :</p>
+<pre><code>## Introduction
+</code></pre>
+<h3>Du texte</h3>
+<p>Sous le titre, tapez votre paragraphe normalement, comme dans un mail.
+Sautez une ligne pour faire un nouveau paragraphe.</p>
+<h3>Mettre en valeur : <em>italique</em> et <strong>gras</strong></h3>
+<p>Pour mettre un mot en <em>italique</em>, entourez-le d'<strong>un</strong> astérisque :</p>
+<pre><code>Le mot *important* est en italique.
+</code></pre>
+<p>Pour le <strong>gras</strong>, entourez de <strong>deux</strong> astérisques :</p>
+<pre><code>Le mot **important** est en gras.
+</code></pre>
+<blockquote>
+<p><strong>Astuce</strong> : si les astérisques vous semblent fastidieux à taper,
+sélectionnez le mot et appuyez sur <code>Cmd/Ctrl + I</code> pour l'italique
+ou <code>Cmd/Ctrl + B</code> pour le gras — comme dans Word. Le résultat
+est exactement le même.</p>
+</blockquote>
+<h3>Une sous-section</h3>
+<p>Trois dièses pour un titre de niveau plus profond :</p>
+<pre><code>### Mes idées principales
+</code></pre>
+<p>Vous pouvez descendre jusqu'à six dièses, mais en pratique trois
+suffisent pour la plupart des documents.</p>
+<h3>Insérer une image</h3>
+<p>Trois moyens, au choix :</p>
+<ol>
+<li><strong>Glisser-déposer</strong> une image depuis le Bureau directement dans
+l'éditeur.</li>
+<li><strong>Coller</strong> une capture d'écran (<code>Cmd/Ctrl + V</code> après l'avoir
+capturée).</li>
+<li>Bouton <strong>Style</strong> dans la toolbar → <em>« Insérer une image… »</em>.</li>
+</ol>
+<p>L'image est automatiquement redimensionnée et compressée (max 2000 px
+de côté), et s'insère à la position du curseur.</p>
+<h3>La toolbar</h3>
+<p>En haut de l'écran, quelques boutons :</p>
+<ul>
+<li><strong>Mon doc ▾</strong> — montre le nom du document courant ; ouvre la liste
+de vos documents, permet d'en créer / renommer / dupliquer /
+supprimer.</li>
+<li><strong>Importer</strong> — ajoute un fichier (<code>.md</code>, <code>.txt</code>, <code>.html</code>,
+<code>.docx</code>) comme nouveau document, sans toucher au courant.</li>
+<li><strong>Style ▾</strong> — un menu de mise en forme (titres, gras, listes,
+insérer une image…). Le <strong>clic-droit</strong> dans l'éditeur ouvre le
+même menu.</li>
+<li><strong>Aide</strong> (jaune) — ouvre ce tutoriel.</li>
+<li><strong>Aperçu</strong> — bascule entre l'éditeur et le rendu paginé.</li>
+<li><strong>Exporter ▾</strong> — produit un fichier Markdown (<code>.md</code>), un PDF, ou
+un source LaTeX (<code>.tex</code>).</li>
+<li><strong>Réglages ▾</strong> — personnaliser le rendu PDF (auteur, marges,
+polices…). S'ouvre dans une <strong>fenêtre séparée</strong> que vous pouvez
+poser à côté de l'aperçu pour voir l'effet de chaque changement
+en temps réel.</li>
+</ul>
+<h3>Voir l'aperçu</h3>
+<p>Vous écrivez en mode <strong>éditeur</strong> (texte brut). Pour voir à quoi votre
+document ressemblera dans le PDF, basculez en mode <strong>aperçu</strong> :</p>
+<ul>
+<li>raccourci <code>Cmd/Ctrl + Enter</code></li>
+<li>ou clic sur le bouton <strong>Aperçu</strong></li>
+</ul>
+<p>Vous voyez votre document tel qu'il sera imprimé.</p>
+<p>Pour revenir à l'éditeur, <strong>cliquez n'importe où dans l'aperçu</strong> : le
+curseur revient pile sur la ligne cliquée. Pratique : si vous voyez
+une faute, cliquez dessus, vous arrivez direct au mot dans l'éditeur
+pour la corriger. Ou rappuyez sur <code>Cmd/Ctrl + Enter</code>.</p>
+<h3>Exporter en PDF</h3>
+<p>Cliquez sur <strong>Exporter ▾</strong> puis <strong>PDF (.pdf)</strong>, ou utilisez le
+raccourci <code>Cmd/Ctrl + P</code> directement.</p>
+<p>Le navigateur ouvre son dialogue d'impression. Choisissez :</p>
+<ul>
+<li><strong>Destination</strong> : <em>Enregistrer au format PDF</em></li>
+<li><strong>Marges</strong> : ⚠ <strong>Aucune</strong> (voir l'encadré ci-dessous)</li>
+</ul>
+<p>Cliquez sur <strong>Enregistrer</strong>, donnez un nom au fichier, c'est fait.</p>
+<blockquote>
+<p><strong>⚠ Important — sélectionnez "Marges : Aucune"</strong></p>
+<p>Dans le dialogue d'impression, ouvrez « Plus de paramètres » et
+sélectionnez <strong>« Marges : Aucune »</strong>. Sinon, le navigateur ajoute
+ses propres marges par-dessus celles déjà gérées par md2pdf, ce
+qui rétrécit la zone imprimable et fait dépasser le contenu. Les
+marges visibles dans le PDF sont <strong>toujours</strong> celles que vous
+avez choisies dans <strong>Réglages</strong>, jamais celles du dialogue
+d'impression.</p>
+</blockquote>
+<h3>Et voilà</h3>
+<p>Vous savez écrire un document avec md2pdf. La majorité des notes,
+comptes-rendus, articles courts ne demandent rien de plus que ces
+quelques outils.</p>
+<p>Si vous avez besoin d'autre chose — listes, citations, tableaux,
+formules mathématiques, diagrammes, encadrés, notes de bas de page,
+graphiques — la suite documente toutes les fonctions avancées. Lisez
+à votre rythme, ou retournez écrire votre document maintenant et
+revenez plus tard.</p>
+<hr>
+<h1>Pour aller plus loin</h1>
+<p>Tout ce qui suit est <strong>optionnel</strong>. Picorez selon vos besoins. Chaque
+section est indépendante. Cette partie regroupe ce qui sert à
+<strong>rédiger un document riche</strong> : plus d'éléments Markdown, encadrés,
+notes de bas de page, tableaux, graphiques. Pour la <strong>typographie
+scientifique</strong> (formules math, ligatures, règles d'inférence) et les
+<strong>diagrammes Mermaid</strong>, voir la partie suivante <em>Pour aller encore
+plus loin</em>.</p>
+<h2>Encore d'autres éléments Markdown</h2>
+<h3>Listes</h3>
+<p><strong>Listes à puces</strong> : un tiret (<code>-</code>) ou un astérisque (<code>*</code>) en début de
+ligne :</p>
+<pre><code>- Première idée
+- Deuxième idée
+- Troisième idée
+</code></pre>
+<p><strong>Listes numérotées</strong> : un nombre suivi d'un point :</p>
+<pre><code>1. Première étape
+2. Deuxième étape
+3. Troisième étape
+</code></pre>
+<p>(Les numéros que vous tapez n'ont pas d'importance — Markdown
+renumérote ; vous pouvez tout taper en <code>1.</code>)</p>
+<p><strong>Listes imbriquées</strong> : indentez de quatre espaces ou d'une
+tabulation pour une sous-liste :</p>
+<pre><code>- Idée principale
+    - Sous-idée
+    - Autre sous-idée
+- Deuxième idée
+</code></pre>
+<h3>Citations</h3>
+<p>Un chevron (<code>&gt;</code>) en début de ligne :</p>
+<pre><code>&gt; Ce qui se conçoit bien s'énonce clairement.
+&gt; — Boileau
+</code></pre>
+<h3>Liens</h3>
+<pre><code>Visitez [le site de Boileau](https://exemple.fr).
+</code></pre>
+<p>Le texte entre crochets devient cliquable, vers l'URL entre
+parenthèses. Raccourci : sélectionnez le texte, <code>Cmd/Ctrl + K</code>,
+collez l'URL.</p>
+<h3>Lignes horizontales</h3>
+<p>Trois tirets sur une ligne seule :</p>
+<pre><code>---
+</code></pre>
+<h3>Code en ligne et blocs de code</h3>
+<p>Pour du code <strong>en ligne</strong> dans un paragraphe, entourez-le d'accents
+graves : <code>`let x = 42`</code> donne <code>let x = 42</code>.</p>
+<p>Pour un <strong>bloc de code</strong> entier, entourez de trois accents graves
+chacune sur sa propre ligne :</p>
+<pre><code>```
+function add(a, b) {
+    return a + b;
+}
+```
+</code></pre>
+<h3>Listes de tâches</h3>
+<p>Une checklist : un tiret, un espace, puis <code>[ ]</code> (à faire) ou <code>[x]</code>
+(fait) :</p>
+<pre><code>- [x] Écrire le brouillon
+- [x] Relire
+- [ ] Envoyer au comité
+- [ ] Préparer la version finale
+</code></pre>
+<p>Les cases sont <strong>purement visuelles</strong> : pour cocher / décocher,
+modifiez le <code>[ ]</code> en <code>[x]</code> directement dans le markdown.</p>
+<h3>Tableaux simples</h3>
+<p>Markdown classique pour de petits tableaux :</p>
+<pre><code>| Nom    | Âge |
+|--------|-----|
+| Alice  | 32  |
+| Bob    | 27  |
+</code></pre>
+<p>(Pour les <strong>tableaux de données denses</strong>, voir la section <em>Tableaux
+de données (CSV / TSV)</em> plus bas.)</p>
+<h2>Gérer plusieurs documents</h2>
+<p>md2pdf garde <strong>tous vos documents</strong> dans le navigateur. La liste se
+trouve derrière le bouton <strong>Mon doc ▾</strong>, qui affiche aussi le nom
+du document que vous éditez actuellement.</p>
+<h3>Le menu Mon doc ▾</h3>
+<ul>
+<li><strong>Renommer le doc courant</strong> : cliquez dans le champ en haut du
+menu, tapez, validez avec Entrée. (Échap annule.)</li>
+<li><strong>+ Nouveau document</strong> : crée un document vide et bascule
+dessus. Le doc précédent reste en place, vous pouvez y revenir
+à tout moment.</li>
+<li><strong>Liste des autres documents</strong> : triés par date de modification.
+Cliquez sur un nom pour l'ouvrir. Au survol, trois actions
+apparaissent :<ul>
+<li><em>Renommer</em> — édite le nom directement dans la liste.</li>
+<li><em>Dupliquer</em> — clone le document.</li>
+<li><em>Supprimer</em> — avec une demande de confirmation.</li>
+</ul>
+</li>
+</ul>
+<h3>Importer un fichier</h3>
+<p>Le bouton <strong>Importer</strong> (raccourci <code>Cmd/Ctrl + O</code>) ajoute un fichier
+externe comme <strong>nouveau document</strong> dans la liste, sans toucher à
+celui sur lequel vous travaillez. Formats acceptés : <code>.md</code>,
+<code>.txt</code>, <code>.html</code>, <code>.docx</code> (Word).</p>
+<blockquote>
+<p><strong>À noter pour les fichiers Word</strong> : à l'import d'un <code>.docx</code>, le
+texte, les titres, les listes, le gras/italique, les liens et les
+citations sont récupérés, mais <strong>pas les images</strong>. Si votre
+document Word contenait des photos, vous devrez les réinsérer
+manuellement après import.</p>
+</blockquote>
+<h3>Exporter votre document</h3>
+<p>Le bouton <strong>Exporter ▾</strong> propose trois formats :</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Raccourci</th>
+<th>Effet</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Markdown (.md)</strong></td>
+<td><code>Cmd/Ctrl + S</code></td>
+<td>Télécharge votre document au format Markdown</td>
+</tr>
+<tr>
+<td><strong>PDF (.pdf)</strong></td>
+<td><code>Cmd/Ctrl + P</code></td>
+<td>Produit le PDF final</td>
+</tr>
+<tr>
+<td><strong>LaTeX (.tex)</strong></td>
+<td>—</td>
+<td>Produit un source LaTeX compilable avec <code>xelatex</code></td>
+</tr>
+</tbody></table>
+<p>Le format <strong>Markdown</strong> (<code>.md</code>) est un format texte ouvert, lisible
+partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
+il l'ouvrira dans n'importe quel éditeur de texte.</p>
+<p>Le format <strong>LaTeX</strong> (<code>.tex</code>) est utile si vous voulez retoucher
+finement la mise en page avec un compilateur LaTeX, ou soumettre
+votre document à un journal qui demande des sources <code>.tex</code>. Quand
+votre document contient des images ou des diagrammes (mermaid,
+chart), le téléchargement est un <strong>fichier <code>.zip</code></strong> contenant le
+<code>.tex</code> et un dossier <code>images/</code>. Compilez avec :</p>
+<pre><code>xelatex --shell-escape votre-document.tex
+</code></pre>
+<p>(<code>--shell-escape</code> n'est nécessaire que si le document contient des
+diagrammes, et exige qu'<code>inkscape</code> soit installé.) Le commentaire
+en tête du <code>.tex</code> rappelle ces prérequis.</p>
+<p>Le nom du fichier exporté reprend le nom de votre document (celui
+affiché sur <strong>Mon doc ▾</strong>).</p>
+<p>Votre travail est <strong>automatiquement sauvegardé</strong> dans le navigateur,
+donc si vous fermez l'onglet par accident, tout est récupéré à la
+prochaine ouverture.</p>
+<h2>Personnaliser le rendu PDF (Réglages)</h2>
+<p>Le bouton <strong>Réglages ▾</strong> (raccourci <code>Cmd/Ctrl + ,</code>) ouvre une
+<strong>fenêtre séparée</strong> où vous pouvez configurer le PDF sans toucher
+au contenu. <strong>Astuce</strong> : passez d'abord en mode Aperçu, ouvrez les
+Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
+se reflète en temps réel sur le document paginé.</p>
+<p>Ce que vous pouvez régler :</p>
+<ul>
+<li><strong>Auteur, organisation, date</strong> affichés sous le titre principal</li>
+<li><strong>Format de page</strong> (A4, A5, Letter…)</li>
+<li><strong>Marges</strong> en millimètres</li>
+<li><strong>Justification</strong> du texte</li>
+<li><strong>Interligne</strong></li>
+<li><strong>Polices</strong> des titres, du corps et du code — choisies parmi un
+catalogue de ~15 polices Google Fonts (Inter, EB Garamond,
+JetBrains Mono…). Les polices sont chargées à la demande ; la
+première utilisation nécessite une connexion, ensuite le
+navigateur les met en cache. Roboto Condensed et Roboto Mono
+sont embarquées et fonctionnent hors-ligne. <em>Note : l'éditeur
+lui-même garde toujours Roboto Condensed / Mono, indépendamment
+de vos choix — la cohérence de la zone de saisie ne change pas.</em></li>
+<li><strong>Tailles et couleurs</strong> des titres (h1 à h4) et du corps</li>
+<li><strong>Style du code</strong> (taille et couleur)</li>
+<li><strong>Style de la citation</strong> (taille, couleur du texte, couleur de la
+barre verticale)</li>
+<li><strong>Numéro de page</strong> : position, taille, couleur, italique</li>
+</ul>
+<p>Les réglages sont <strong>mémorisés entre vos sessions</strong>. Le bouton
+<em>Réinitialiser</em> en bas du panneau revient aux valeurs par défaut.</p>
+<h2>Caractères spéciaux et symboles</h2>
+<p>Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
+symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
+dans le PDF.</p>
+<h2>Numérotation des sections</h2>
+<p>Pour numéroter les titres d'un long document sans configurer de menu,
+il suffit de <strong>donner l'exemple sur le premier titre de chaque
+niveau</strong> : la commande <strong>Numéroter les sections</strong>
+(<code>Cmd/Ctrl + Maj + N</code>, ou bien menu <strong>Style</strong> → <em>Numéroter les
+sections</em>) détecte le style de numérotation que vous avez écrit, puis
+l'applique à tous les autres titres du même niveau.</p>
+<p>Exemple. Vous écrivez :</p>
+<pre><code># 1. Introduction
+
+## 1.1 Contexte
+
+## Objectifs
+
+# Méthode
+
+## Données
+
+# Résultats
+</code></pre>
+<p>…vous lancez la commande, et le document devient :</p>
+<pre><code># 1. Introduction
+
+## 1.1 Contexte
+
+## 1.2 Objectifs
+
+# 2. Méthode
+
+## 2.1 Données
+
+# 3. Résultats
+</code></pre>
+<p>Le premier <code>#</code> (h1) annonce un style décimal plat (<code>1.</code>) ; le premier
+<code>##</code> (h2) annonce un style hiérarchique (<code>1.1</code>). La commande retient
+et applique. Si votre premier titre n'a aucune numérotation, ce
+niveau ne sera pas numéroté du tout, et tout préfixe numérique
+éventuel des titres suivants à ce niveau sera retiré (mise au propre).</p>
+<p><strong>Styles reconnus</strong> par niveau :</p>
+<table>
+<thead>
+<tr>
+<th>Premier titre</th>
+<th>Style appliqué</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code># 1. Foo</code></td>
+<td><code>1.</code>, <code>2.</code>, <code>3.</code>, …</td>
+</tr>
+<tr>
+<td><code># 1) Foo</code></td>
+<td><code>1)</code>, <code>2)</code>, <code>3)</code>, …</td>
+</tr>
+<tr>
+<td><code># (1) Foo</code></td>
+<td><code>(1)</code>, <code>(2)</code>, <code>(3)</code>, …</td>
+</tr>
+<tr>
+<td><code># A. Foo</code></td>
+<td><code>A.</code>, <code>B.</code>, …, <code>Z.</code>, <code>AA.</code></td>
+</tr>
+<tr>
+<td><code># a. Foo</code></td>
+<td><code>a.</code>, <code>b.</code>, …</td>
+</tr>
+<tr>
+<td><code># I. Foo</code></td>
+<td><code>I.</code>, <code>II.</code>, <code>III.</code>, …</td>
+</tr>
+<tr>
+<td><code># i. Foo</code></td>
+<td><code>i.</code>, <code>ii.</code>, …</td>
+</tr>
+<tr>
+<td><code>## 1.1 Foo</code></td>
+<td>hiérarchique : <code>1.1</code>, <code>1.2</code>, <code>2.1</code>, …</td>
+</tr>
+<tr>
+<td><code>## 1.1. Foo</code></td>
+<td>hiérarchique avec point final</td>
+</tr>
+<tr>
+<td>(sans préfixe)</td>
+<td>aucune numérotation pour ce niveau</td>
+</tr>
+</tbody></table>
+<p>La numérotation hiérarchique a besoin que tous les niveaux parents
+soient eux-mêmes numérotés.</p>
+<h2>Tableaux de données (CSV / TSV)</h2>
+<p>Pour un tableau dense, écrire la syntaxe pipe-style à la main est
+fastidieux. Vous pouvez à la place coller un <strong>CSV</strong> ou un <strong>TSV</strong>
+dans un <em>fenced block</em> :</p>
+<pre><code>```csv
+Note, Concert pitch (Hz), MIDI
+A4,    440.00, 69
+A#4,   466.16, 70
+B4,    493.88, 71
+```
+</code></pre>
+<p>Le <strong>séparateur</strong> est la virgule pour <code>csv</code>, la tabulation pour <code>tsv</code>.
+La <strong>première ligne</strong> devient l'en-tête du tableau, les suivantes les
+données.</p>
+<p>Si l'une de vos cellules contient le séparateur (par exemple une
+virgule dans un nom), entourez-la de guillemets doubles :</p>
+<pre><code>```csv
+Nom, Description
+"Doe, John", "Auteur, fondateur"
+```
+</code></pre>
+<p>Pour insérer un guillemet littéral dans une cellule entre guillemets,
+doublez-le : <code>""</code>.</p>
+<h2>Listes de définitions</h2>
+<p>Pour une liste de <strong>termes avec leur définition</strong> (glossaire,
+notation, dictionnaire), utilisez la syntaxe Pandoc : un terme sur
+une ligne, puis sa définition sur la ligne suivante préfixée par
+<code>:</code> et au moins une espace.</p>
+<pre><code>DAG
+:   Directed Acyclic Graph — un graphe orienté sans cycle.
+
+FFT
+:   Fast Fourier Transform, l'algorithme en $O(n \log n)$ de
+    Cooley &amp; Tukey.
+</code></pre>
+<p>Plusieurs définitions pour le même terme : ajoutez d'autres lignes
+<code>:</code> à la suite.</p>
+<pre><code>Polynôme
+:   Une expression de la forme $a_0 + a_1 x + \dots + a_n x^n$.
+:   Un objet du langage Faust qui représente la même chose.
+</code></pre>
+<p>À l'intérieur des termes et des définitions vous pouvez utiliser du
+Markdown inline (gras, italique, code, formules, liens).</p>
+<h2>Notes de bas de page</h2>
+<p>Vous pouvez ajouter une <strong>note de bas de page</strong> avec la syntaxe
+Pandoc : un appel de note <code>[^id]</code> dans le texte, et la définition
+<code>[^id]: contenu</code> n'importe où dans le document (généralement à la
+fin).</p>
+<pre><code>La transformée de Fourier discrète[^dft] est l'outil de base pour
+analyser un signal numérique.
+
+[^dft]: Voir Cooley &amp; Tukey (1965) pour l'algorithme rapide.
+</code></pre>
+<p>L'identifiant <code>id</code> peut être un nombre, un mot, ou un libellé court —
+il sert seulement à relier l'appel à sa définition, et n'apparaît
+nulle part dans le rendu. Les notes sont <strong>numérotées
+automatiquement</strong> dans l'ordre où elles apparaissent dans le texte
+(pas dans l'ordre des définitions), et regroupées en fin de document.</p>
+<p>À l'intérieur d'une note vous pouvez utiliser <strong><code>gras</code></strong>, <em>italique</em>,
+<code>code inline</code>, des liens, ou même <code>$math$</code>. Une même note peut être
+référencée plusieurs fois — toutes les occurrences pointent vers la
+même entrée.</p>
+<p>Cliquer sur l'appel <code>¹</code> saute à la note ; cliquer sur le <code>↩</code> à la
+fin de la note revient à l'appel.</p>
+<h2>Encadrés (notes, théorèmes…)</h2>
+<p>Vous pouvez mettre en valeur un passage avec un <strong>encadré</strong> : ouvrez
+avec <code>:::</code> suivi du nom de l'encadré, écrivez votre contenu, fermez
+avec <code>:::</code> seul sur une ligne. C'est la syntaxe Pandoc des <em>fenced
+divs</em>.</p>
+<pre><code>::: warning
+Attention, cette opération est irréversible.
+:::
+</code></pre>
+<p>Les noms d'encadrés reconnus se rangent en deux familles :</p>
+<ul>
+<li><strong>Génériques</strong> (cadre coloré, fond teinté) :
+<code>note</code> (bleu), <code>tip</code> (vert), <code>warning</code> (orange), <code>caution</code> (rouge),
+<code>important</code> (violet).</li>
+<li><strong>Académiques</strong> (cadre sobre, titre en italique, façon LaTeX) :
+<code>theorem</code>, <code>lemma</code>, <code>proposition</code>, <code>corollary</code>, <code>definition</code>,
+<code>proof</code>, <code>example</code>, <code>remark</code>.</li>
+</ul>
+<p>Vous pouvez ajouter un <strong>titre</strong> entre crochets après le nom :</p>
+<pre><code>::: theorem [Pythagore]
+Dans un triangle rectangle, le carré de l'hypoténuse est égal à
+la somme des carrés des deux autres côtés.
+:::
+</code></pre>
+<p>…s'affiche avec le titre <strong>« Théorème — Pythagore »</strong>.</p>
+<p>Si vous écrivez un encadré avec un nom qui n'est pas dans la liste
+ci-dessus (par exemple <code>::: aside</code>), il sera rendu avec un cadre
+neutre — utile pour vos propres conventions.</p>
+<p>L'intérieur d'un encadré est du Markdown comme le reste : texte mis
+en forme, listes, formules, voire des tableaux.</p>
+<h2>Graphiques</h2>
+<p>Pour tracer une courbe ou un diagramme à partir de données, utilisez
+un <em>fenced block</em> <code>chart</code> :</p>
+<pre><code>```chart line "Latence par taille de buffer"
+buffer, latence (ms)
+64,  12
+128,  8
+256,  5
+512,  3
+1024, 2
+```
+</code></pre>
+<p>Les types disponibles sont <strong><code>line</code></strong> (courbe) et <strong><code>bar</code></strong>
+(histogramme). Le titre entre guillemets après le type est
+facultatif.</p>
+<p>La <strong>première ligne</strong> donne les en-têtes : la première colonne
+devient le label de l'axe X, les colonnes suivantes deviennent autant
+de <strong>séries de données</strong> (chacune sa couleur, et une légende
+automatique si plus d'une série).</p>
+<p>Les <strong>lignes de données</strong> suivantes contiennent les valeurs. Si la
+première colonne est numérique, l'axe X est continu ; si elle
+contient des labels textuels (mois, catégories…), l'axe X est
+catégorique.</p>
+<h3>Format CSV : virgules françaises</h3>
+<p>Le séparateur de champ est <strong>détecté automatiquement</strong> sur la
+première ligne :</p>
+<ul>
+<li>s'il y a une tabulation → séparateur = tabulation,</li>
+<li>sinon s'il y a un point-virgule → séparateur = <code>;</code>,</li>
+<li>sinon → séparateur = <code>,</code>.</li>
+</ul>
+<p>Quand le séparateur est <code>,</code>, les <strong>virgules entre deux chiffres</strong>
+(sans espace autour) sont reconnues comme <strong>virgules décimales</strong>,
+donc <code>3,14</code> reste un seul nombre. La virgule séparatrice s'écrit
+alors suivie d'un espace : <code>foo, 3,14</code> donne deux cellules <code>foo</code> et
+<code>3,14</code>.</p>
+<p>Pour les rares cas ambigus (<code>1,2,3,4</code> compact), passez en <code>;</code> ou en
+TSV — ou ajoutez des espaces : <code>1, 2, 3, 4</code>.</p>
+<p>Les nombres dans les cellules acceptent les deux formats (point ou
+virgule décimale) — <code>3.14</code> et <code>3,14</code> sont équivalents.</p>
+<h3>Séries chronologiques</h3>
+<p>Si la première colonne contient des <strong>dates au format ISO 8601</strong>
+(<code>YYYY-MM-DD</code>, éventuellement avec heure), l'axe X est traité comme
+une échelle temporelle. L'app choisit automatiquement les graduations
+appropriées (jour, mois ou année selon l'étendue) :</p>
+<pre><code>```chart line "Téléchargements"
+date, total
+2025-01-15, 120
+2025-02-15, 180
+2025-03-15, 245
+2025-04-15, 310
+```
+</code></pre>
+<p>Les formats ambigus (FR <code>15/01/2025</code> et US <code>01/15/2025</code>) ne sont
+<strong>pas</strong> reconnus — utilisez toujours ISO 8601, qui est sans
+ambiguïté.</p>
+<h3>Plusieurs séries</h3>
+<pre><code>```chart bar "Comparaison de codecs"
+Codec, Taille (Ko), Temps (ms)
+MP3, 4200, 120
+Opus, 3800, 95
+FLAC, 12500, 280
+```
+</code></pre>
+<p>Deux barres côte à côte par catégorie, avec une légende en haut à
+droite identifiant chaque série.</p>
+<hr>
+<h1>Pour aller encore plus loin</h1>
+<p>Cette dernière partie regroupe les outils <strong>plus spécialisés</strong> :
+ligatures de saisie qui rendent l'Unicode mathématique confortable à
+taper, formules en LaTeX, règles d'inférence, et diagrammes Mermaid
+(flowcharts, séquences, états, etc., chacun avec sa propre syntaxe).
+Si vous écrivez un article de recherche, un cours, une spec
+d'algorithme, ou de la documentation technique, vous y trouverez votre
+compte. Sinon vous pouvez sauter directement aux Crédits.</p>
+<h2>Ligatures de saisie</h2>
+<p>Pour vous éviter de chercher chaque symbole Unicode dans une table de
+caractères, l'éditeur <strong>remplace au vol</strong> certaines séquences ASCII
+par leur équivalent mathématique :</p>
+<table>
+<thead>
+<tr>
+<th>Tapez</th>
+<th>Obtenez</th>
+<th>Tapez</th>
+<th>Obtenez</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>[[</code></td>
+<td>⟦</td>
+<td><code>&lt;&lt;</code></td>
+<td>⟨</td>
+</tr>
+<tr>
+<td><code>]]</code></td>
+<td>⟧</td>
+<td><code>&gt;&gt;</code></td>
+<td>⟩</td>
+</tr>
+<tr>
+<td><code>-&gt;</code></td>
+<td>→</td>
+<td><code>&lt;-</code></td>
+<td>←</td>
+</tr>
+<tr>
+<td><code>=&gt;</code></td>
+<td>⇒</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>&lt;=</code></td>
+<td>≤</td>
+<td><code>&gt;=</code></td>
+<td>≥</td>
+</tr>
+<tr>
+<td><code>!=</code></td>
+<td>≠</td>
+<td><code>+-</code></td>
+<td>±</td>
+</tr>
+<tr>
+<td><code>|-</code></td>
+<td>⊢</td>
+<td><code>-|</code></td>
+<td>⊣</td>
+</tr>
+<tr>
+<td><code>...</code></td>
+<td>…</td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>Pour les <strong>lettres grecques</strong>, tapez la commande LaTeX habituelle —
+elle est remplacée immédiatement par le caractère Unicode :</p>
+<table>
+<thead>
+<tr>
+<th>Tapez</th>
+<th>Obtenez</th>
+<th>Tapez</th>
+<th>Obtenez</th>
+<th>Tapez</th>
+<th>Obtenez</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>\alpha</code></td>
+<td>α</td>
+<td><code>\iota</code></td>
+<td>ι</td>
+<td><code>\rho</code></td>
+<td>ρ</td>
+</tr>
+<tr>
+<td><code>\beta</code></td>
+<td>β</td>
+<td><code>\kappa</code></td>
+<td>κ</td>
+<td><code>\sigma</code></td>
+<td>σ</td>
+</tr>
+<tr>
+<td><code>\gamma</code></td>
+<td>γ</td>
+<td><code>\lambda</code></td>
+<td>λ</td>
+<td><code>\tau</code></td>
+<td>τ</td>
+</tr>
+<tr>
+<td><code>\delta</code></td>
+<td>δ</td>
+<td><code>\mu</code></td>
+<td>μ</td>
+<td><code>\upsilon</code></td>
+<td>υ</td>
+</tr>
+<tr>
+<td><code>\epsilon</code></td>
+<td>ϵ</td>
+<td><code>\nu</code></td>
+<td>ν</td>
+<td><code>\phi</code></td>
+<td>ϕ</td>
+</tr>
+<tr>
+<td><code>\zeta</code></td>
+<td>ζ</td>
+<td><code>\xi</code></td>
+<td>ξ</td>
+<td><code>\chi</code></td>
+<td>χ</td>
+</tr>
+<tr>
+<td><code>\eta</code></td>
+<td>η</td>
+<td><code>\omicron</code></td>
+<td>ο</td>
+<td><code>\psi</code></td>
+<td>ψ</td>
+</tr>
+<tr>
+<td><code>\theta</code></td>
+<td>θ</td>
+<td><code>\pi</code></td>
+<td>π</td>
+<td><code>\omega</code></td>
+<td>ω</td>
+</tr>
+</tbody></table>
+<p>Variantes typographiques :
+<code>\varepsilon</code> ε, <code>\varphi</code> φ, <code>\vartheta</code> ϑ, <code>\varpi</code> ϖ, <code>\varrho</code> ϱ,
+<code>\varsigma</code> ς.</p>
+<p>Majuscules (seulement celles qui diffèrent du latin) :
+<code>\Gamma</code> Γ, <code>\Delta</code> Δ, <code>\Theta</code> Θ, <code>\Lambda</code> Λ, <code>\Xi</code> Ξ, <code>\Pi</code> Π,
+<code>\Sigma</code> Σ, <code>\Upsilon</code> Υ, <code>\Phi</code> Φ, <code>\Psi</code> Ψ, <code>\Omega</code> Ω.</p>
+<blockquote>
+<p>Si vous voulez écrire <code>\alpha</code> <em>littéralement</em> en prose (pour
+documenter la commande LaTeX), entourez-le de backticks :
+<code>`\alpha`</code>. À l'intérieur d'un bloc code, les ligatures ne
+s'appliquent pas.</p>
+</blockquote>
+<p>Pour les <strong>lettres "blackboard bold"</strong> (ensembles), <code>|</code> suivi de
+n'importe quelle lettre majuscule donne sa version doublée :</p>
+<table>
+<thead>
+<tr>
+<th>Tapez</th>
+<th>Obtenez</th>
+<th>Tapez</th>
+<th>Obtenez</th>
+<th>Tapez</th>
+<th>Obtenez</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>|A</code></td>
+<td>𝔸</td>
+<td><code>|J</code></td>
+<td>𝕁</td>
+<td><code>|S</code></td>
+<td>𝕊</td>
+</tr>
+<tr>
+<td><code>|B</code></td>
+<td>𝔹</td>
+<td><code>|K</code></td>
+<td>𝕂</td>
+<td><code>|T</code></td>
+<td>𝕋</td>
+</tr>
+<tr>
+<td><code>|C</code></td>
+<td>ℂ</td>
+<td><code>|L</code></td>
+<td>𝕃</td>
+<td><code>|U</code></td>
+<td>𝕌</td>
+</tr>
+<tr>
+<td><code>|D</code></td>
+<td>𝔻</td>
+<td><code>|M</code></td>
+<td>𝕄</td>
+<td><code>|V</code></td>
+<td>𝕍</td>
+</tr>
+<tr>
+<td><code>|E</code></td>
+<td>𝔼</td>
+<td><code>|N</code></td>
+<td>ℕ</td>
+<td><code>|W</code></td>
+<td>𝕎</td>
+</tr>
+<tr>
+<td><code>|F</code></td>
+<td>𝔽</td>
+<td><code>|O</code></td>
+<td>𝕆</td>
+<td><code>|X</code></td>
+<td>𝕏</td>
+</tr>
+<tr>
+<td><code>|G</code></td>
+<td>𝔾</td>
+<td><code>|P</code></td>
+<td>ℙ</td>
+<td><code>|Y</code></td>
+<td>𝕐</td>
+</tr>
+<tr>
+<td><code>|H</code></td>
+<td>ℍ</td>
+<td><code>|Q</code></td>
+<td>ℚ</td>
+<td><code>|Z</code></td>
+<td>ℤ</td>
+</tr>
+<tr>
+<td><code>|I</code></td>
+<td>𝕀</td>
+<td><code>|R</code></td>
+<td>ℝ</td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>Le remplacement modifie le <strong>source</strong> du document (pas seulement
+l'affichage), donc les caractères Unicode sont là si vous copiez le
+texte ailleurs.</p>
+<p>Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
+le texte littéral, faites <code>Cmd/Ctrl + Z</code> immédiatement après — la
+substitution se défait, le texte ASCII est restauré.</p>
+<h2>Formules mathématiques</h2>
+<p>Vous pouvez inclure des <strong>formules en LaTeX</strong>, soit <strong>en bloc</strong> entre
+<code>$$ … $$</code> (la formule s'affiche centrée sur sa propre ligne), soit
+<strong>inline</strong> entre <code>$ … $</code> au milieu d'une phrase. Le rendu utilise
+<a href="https://www.mathjax.org/">MathJax</a> et produit un PDF de qualité
+typographique professionnelle.</p>
+<p>Pour les blocs, vous pouvez aussi utiliser un <em>fenced block</em> avec le
+langage <code>math</code> — c'est la convention GitHub et ça évite le piège des
+<code>$$</code> qui doivent être seuls sur leur ligne :</p>
+<pre><code>```math
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+```
+</code></pre>
+<p>Le rendu est strictement identique à <code>$$ … $$</code>.</p>
+<h3>Exemples utiles</h3>
+<p><strong>Sommes et intégrales</strong></p>
+<pre><code>$$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$$
+</code></pre>
+<div data-source="$
+\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$" class="math-block" data-math="\sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
+\qquad
+\int_{0}^{\infty} e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}"></div>
+<p><strong>Matrice</strong></p>
+<pre><code>$$
+A = \begin{pmatrix}
+1 &amp; 2 &amp; 3 \\
+4 &amp; 5 &amp; 6 \\
+7 &amp; 8 &amp; 9
+\end{pmatrix}
+$$
+</code></pre>
+<div data-source="$
+A = \begin{pmatrix}
+1 &amp; 2 &amp; 3 \\
+4 &amp; 5 &amp; 6 \\
+7 &amp; 8 &amp; 9
+\end{pmatrix}
+$" class="math-block" data-math="A = \begin{pmatrix}
+1 &amp; 2 &amp; 3 \\
+4 &amp; 5 &amp; 6 \\
+7 &amp; 8 &amp; 9
+\end{pmatrix}"></div>
+<p><strong>Système d'équations alignées</strong></p>
+<pre><code>$$
+\begin{align*}
+f(x)   &amp;= ax^2 + bx + c \\
+f'(x)  &amp;= 2ax + b \\
+f''(x) &amp;= 2a
+\end{align*}
+$$
+</code></pre>
+<div data-source="$
+\begin{align*}
+f(x)   &amp;= ax^2 + bx + c \\
+f'(x)  &amp;= 2ax + b \\
+f''(x) &amp;= 2a
+\end{align*}
+$" class="math-block" data-math="\begin{align*}
+f(x)   &amp;= ax^2 + bx + c \\
+f'(x)  &amp;= 2ax + b \\
+f''(x) &amp;= 2a
+\end{align*}"></div>
+<p><strong>Formule inline</strong> : tapez par exemple
+<code>Soit $\epsilon &gt; 0$ tel que…</code> et vous obtenez :</p>
+<p>Soit <span class="math-inline" data-math="\epsilon > 0"></span> tel que…</p>
+<h3>À savoir</h3>
+<ul>
+<li>La taille des formules s'aligne sur la taille du texte courant ; si
+vous changez le réglage <strong>Texte normal</strong> dans <strong>Réglages</strong>, les
+formules grandissent ou rétrécissent en proportion.</li>
+<li>Si une formule est plus large que la zone de texte de la page, elle
+est automatiquement réduite pour tenir.</li>
+<li>Les commandes LaTeX usuelles fonctionnent : <code>\frac</code>, <code>\sqrt</code>,
+<code>\sum</code>, <code>\int</code>, <code>\lim</code>, <code>\vec</code>, <code>\partial</code>, lettres grecques
+(<code>\alpha</code>, <code>\beta</code>, …), opérateurs (<code>\pm</code>, <code>\times</code>, <code>\le</code>),
+flèches (<code>\to</code>, <code>\Rightarrow</code>), environnements <code>pmatrix</code> /
+<code>bmatrix</code> / <code>align*</code>, etc.</li>
+</ul>
+<h2>Règles d'inférence</h2>
+<p>Pour écrire une <strong>règle d'inférence</strong> (déduction logique, sémantique
+opérationnelle, etc.), utilisez un <em>fenced block</em> avec le langage
+<code>inference</code> :</p>
+<pre><code>```inference (MP)
+Γ ⊢ A; Γ ⊢ A → B
+-------------------
+Γ ⊢ B
+```
+</code></pre>
+<p>Le bloc est rendu en LaTeX <code>\dfrac{prémisses}{conclusion}</code> via
+MathJax. Une <strong>ligne de tirets</strong> (3 tirets ou plus, seule sur sa
+ligne) sépare les prémisses de la conclusion. Les prémisses sont
+séparées par <code>;</code> ou réparties sur plusieurs lignes. L'<strong>étiquette</strong>
+facultative entre parenthèses après le <code>inference</code> (ici <code>(MP)</code> pour
+modus ponens) apparaît à droite de la barre.</p>
+<p>À l'intérieur d'un bloc <code>inference</code>, les <strong>ligatures de saisie</strong>
+restent actives — vous pouvez taper <code>|-</code>, <code>-&gt;</code>, <code>[[</code>, <code>|N</code>, etc. et
+obtenir directement les caractères Unicode (⊢, →, ⟦, ℕ, …) que
+MathJax sait rendre tels quels en mode math. C'est la seule
+exception au comportement habituel "ligatures désactivées dans les
+blocs de code".</p>
+<p>Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
+ligatures (par exemple <code>\Gamma</code>, <code>\forall</code>, <code>\exists</code>, <code>\Rightarrow</code>,
+<code>\leq</code>), tapez-les directement.</p>
+<h2>Diagrammes Mermaid</h2>
+<p><a href="https://mermaid.js.org/">Mermaid</a> permet de décrire un diagramme avec
+quelques lignes de texte. Placez votre code dans un bloc dont le
+langage est <code>mermaid</code> :</p>
+<pre><code>```mermaid
+flowchart LR
+    A[Idée] --&gt; B[Brouillon]
+    B --&gt; C[Document final]
+    C --&gt; D[PDF]
+```
+</code></pre>
+<p>…et vous obtenez :</p>
+<pre><code class="language-mermaid">flowchart LR
+    A[Idée] --&gt; B[Brouillon]
+    B --&gt; C[Document final]
+    C --&gt; D[PDF]
+</code></pre>
+<p>Le diagramme est rendu en <strong>SVG</strong>, dans l'aperçu <strong>et</strong> dans le PDF
+(qualité vectorielle, sans pixellisation à l'impression).</p>
+<h3>Quelques exemples</h3>
+<p><strong>Diagramme de séquence</strong> (échange entre deux acteurs) :</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant U as Utilisateur
+    participant S as Serveur
+    U-&gt;&gt;S: Requête GET /data
+    S--&gt;&gt;U: 200 OK + JSON
+</code></pre>
+<p><strong>Diagramme de classes</strong> :</p>
+<pre><code class="language-mermaid">classDiagram
+    class Animal {
+        +String nom
+        +manger()
+    }
+    class Chien {
+        +aboyer()
+    }
+    Animal &lt;|-- Chien
+</code></pre>
+<p><strong>Camembert</strong> :</p>
+<pre><code class="language-mermaid">pie title Répartition
+    "Travail" : 40
+    "Loisir" : 30
+    "Sommeil" : 30
+</code></pre>
+<p>Autres types reconnus : <code>stateDiagram</code>, <code>gantt</code>, <code>mindmap</code>, etc. — voir
+la <a href="https://mermaid.js.org/">documentation Mermaid</a> pour la liste
+complète.</p>
+<h3>Réglages</h3>
+<p>La section <strong>Diagrammes Mermaid</strong> du panneau <strong>Réglages</strong> propose
+trois contrôles pour adapter la taille des diagrammes dans le PDF :</p>
+<ul>
+<li><strong>Agrandissement max.</strong> : facteur d'agrandissement maximal
+(par défaut 2). Les petits diagrammes sont agrandis jusqu'à ce
+facteur ; jamais au-delà.</li>
+<li><strong>Largeur max. (% du texte)</strong> : fraction de la largeur de la page
+(hors marges) que le diagramme peut occuper (par défaut 100 %).</li>
+<li><strong>Hauteur max. (% du texte)</strong> : fraction de la hauteur de la page
+(hors marges) que le diagramme peut occuper (par défaut 70 %).</li>
+</ul>
+<hr>
+<h2>Crédits</h2>
+<p>md2pdf est un projet open source assemblé à partir de logiciels libres.
+Merci à toutes les personnes qui maintiennent ces projets :</p>
+<ul>
+<li><strong>Édition et rendu</strong> :
+<a href="https://codemirror.net/">CodeMirror</a> pour l'éditeur,
+<a href="https://marked.js.org/">marked</a> pour le parser Markdown,
+<a href="https://pagedjs.org/">paged.js</a> pour la mise en page paginée
+(l'aperçu et le PDF passent par le moteur d'impression du
+navigateur sur ce même rendu).</li>
+<li><strong>Diagrammes et formules</strong> :
+<a href="https://mermaid.js.org/">Mermaid</a> pour les diagrammes,
+<a href="https://www.mathjax.org/">MathJax</a> pour les formules LaTeX.</li>
+<li><strong>Imports</strong> :
+<a href="https://github.com/mwilliamson/mammoth.js">Mammoth.js</a> pour
+l'import Word (<code>.docx</code>),
+<a href="https://github.com/mixmark-io/turndown">Turndown</a> pour la conversion
+HTML → Markdown.</li>
+<li><strong>Polices</strong> :
+<a href="https://fonts.google.com/specimen/Roboto+Condensed">Roboto Condensed</a> et
+<a href="https://fonts.google.com/specimen/Roboto+Mono">Roboto Mono</a>
+(Christian Robertson, Google),
+<a href="https://fonts.google.com/noto/specimen/Noto+Sans+Math">Noto Sans Math</a> et
+<a href="https://fonts.google.com/noto/specimen/Noto+Sans+Symbols">Noto Sans Symbols</a>
+(Google) pour les caractères mathématiques et les symboles.</li>
+<li><strong>Outils de build</strong> :
+<a href="https://vitejs.dev/">Vite</a> et <a href="https://www.typescriptlang.org/">TypeScript</a>.</li>
+</ul>
+<p>Le code source de md2pdf est sur
+<a href="https://github.com/orlarey/md2pdf">GitHub</a>.</p>
+<hr>
+<p>C'est tout. Vous pouvez maintenant :</p>
+<ul>
+<li>Effacer ce contenu et commencer à rédiger votre propre document</li>
+<li>L'enregistrer pour le retrouver plus tard</li>
+<li>Cliquer sur <strong>Aide</strong> à tout moment pour revoir ce tutoriel</li>
+</ul>
+<p>Bonne écriture.</p>

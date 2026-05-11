@@ -1,0 +1,34 @@
+<h1>Tables</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A pipe table:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>foo</td>
+<td>int</td>
+<td>first</td>
+</tr>
+<tr>
+<td>bar</td>
+<td>string</td>
+<td>the second one</td>
+</tr>
+<tr>
+<td>baz</td>
+<td>bool</td>
+<td>with <code>inline code</code></td>
+</tr>
+</tbody></table>
+<p>A CSV fenced block (rendered to a <code>tabularx</code> too):</p>
+<table data-source="```csv
+Name, Age, City
+Alice, 30, Paris
+Bob, 25, Lyon
+Carol, 42, Marseille
+```
+" class="data-table"><thead><tr><th>Name</th><th>Age</th><th>City</th></tr></thead><tbody><tr><td>Alice</td><td>30</td><td>Paris</td></tr><tr><td>Bob</td><td>25</td><td>Lyon</td></tr><tr><td>Carol</td><td>42</td><td>Marseille</td></tr></tbody></table>

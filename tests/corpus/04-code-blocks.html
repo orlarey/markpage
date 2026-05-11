@@ -1,0 +1,18 @@
+<h1>Code blocks</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Python (in the listings whitelist — <code>language=Python</code> should be set):</p>
+<pre><code class="language-python">def greet(name):
+    return f"Hello, {name}!"
+</code></pre>
+<p>C++ (aliased — should resolve to <code>language=C++</code>):</p>
+<pre><code class="language-cpp">int main() { return 0; }
+</code></pre>
+<p>Unknown fence language (must not emit <code>language=</code> — keeps the doc compilable):</p>
+<pre><code class="language-weirdlang">some weird syntax %% &amp;&amp; @@
+</code></pre>
+<p>No language specified:</p>
+<pre><code>plain code block
+</code></pre>
+<p>Code with UTF-8 (xelatex handles it natively):</p>
+<pre><code class="language-python">nom = "café"
+α, β = 1.5, 2.5
+</code></pre>

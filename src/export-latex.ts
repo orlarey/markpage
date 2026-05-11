@@ -655,34 +655,15 @@ function renderFootnoteRef(tok: FootnoteRefToken, ctx: Ctx): string {
   return `\\footnote{${body}}`;
 }
 
-// Footnote bodies live inline so we can't emit \begin{itemize}…
-// Inside one. Use renderInline for the common single-paragraph
-// case ; concatenate paragraph contents with `\par` for anything
-// fancier.
+// Footnote bodies in v1 are single-paragraph (marked-config's
+// footnoteDef tokenizer parses the def's content with `inlineTokens`
+// so `def.tokens` is already a flat inline token list — strong, em,
+// link, codespan, text, etc.). renderInline does the right thing.
 function renderFootnoteBody(
   tokens: Tokens.Generic[],
   ctx: Ctx,
 ): string {
-  const parts: string[] = [];
-  for (const tok of tokens) {
-    if (tok.type === 'paragraph') {
-      parts.push(renderInline((tok as Tokens.Paragraph).tokens ?? [], ctx));
-    } else if (tok.type === 'text') {
-      const t = tok as Tokens.Text;
-      if (t.tokens && t.tokens.length > 0) {
-        parts.push(renderInline(t.tokens, ctx));
-      } else {
-        parts.push(escapeLatex(t.text));
-      }
-    } else if (tok.type === 'space') {
-      // skip
-    } else {
-      // Anything else (lists, code blocks, …) is summarised raw.
-      // Footnotes really aren't meant to host structural content.
-      parts.push(escapeLatex(tok.raw ?? ''));
-    }
-  }
-  return parts.join('\\par ');
+  return renderInline(tokens, ctx);
 }
 
 // ---- definition lists -------------------------------------------------

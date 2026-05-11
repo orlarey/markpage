@@ -306,10 +306,20 @@ marked.use({
         // we'll add that if a real document needs it.
         const match = /^\[\^([^\]\n]+)\]:[ \t]*(.+)/.exec(src);
         if (!match) return undefined;
-        footnoteDefs.set(match[1] ?? '', (match[2] ?? '').trim());
+        const id = match[1] ?? '';
+        const content = (match[2] ?? '').trim();
+        footnoteDefs.set(id, content);
+        // Expose id + pre-parsed inline tokens on the token itself, so
+        // non-HTML consumers (e.g. the LaTeX exporter) can inline the
+        // body into `\footnote{…}` without re-parsing. The HTML
+        // renderer keeps using the global `footnoteDefs` map.
+        const tokens: Tokens.Generic[] = [];
+        this.lexer.inlineTokens(content, tokens);
         return {
           type: 'footnoteDef',
           raw: match[0],
+          id,
+          tokens,
         };
       },
       // Defs don't render in place — they're collected and emitted at
