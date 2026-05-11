@@ -1,0 +1,22 @@
+<h1>Math</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Inline math: <span class="math-inline" data-math="x^2 + y^2 = z^2"></span> and Greek <span class="math-inline" data-math="\alpha + \beta = \gamma"></span>.</p>
+<p>Display math with <code>$$</code>:</p>
+<div data-source="$
+\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+$" class="math-block" data-math="\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}"></div>
+<p>Unicode in math (exercises back-conversion): <span class="math-inline" data-math="α → β"></span>, <span class="math-inline" data-math="ℕ ⊂ ℝ"></span>, <span class="math-inline" data-math="∀x ∈ ⟦0, n⟧"></span>.</p>
+<p>Math fence:</p>
+<div data-source="```math
+\sum_{i=1}^n i = \frac{n(n+1)}{2}
+```" class="math-block" data-math="\sum_{i=1}^n i = \frac{n(n+1)}{2}"></div>
+<p>Pre-wrapped <code>align*</code> inside a math fence (must not be re-wrapped in <code>\[..\]</code>):</p>
+<div data-source="```math
+\begin{align*}
+a &amp;= b + c \\
+d &amp;= e + f
+\end{align*}
+```
+" class="math-block" data-math="\begin{align*}
+a &amp;= b + c \\
+d &amp;= e + f
+\end{align*}"></div>

@@ -1,0 +1,19 @@
+<h1>Diagrams</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A sequence diagram:</p>
+<pre><code class="language-mermaid">sequenceDiagram
+  Alice -&gt;&gt; Bob: Hello
+  Bob --&gt;&gt; Alice: Hi
+</code></pre>
+<p>The same source twice — should bundle one SVG, reference it twice:</p>
+<pre><code class="language-mermaid">sequenceDiagram
+  Alice -&gt;&gt; Bob: Hello
+  Bob --&gt;&gt; Alice: Hi
+</code></pre>
+<p>A chart block:</p>
+<div data-source="```chart bar
+month, sales
+Jan, 100
+Feb, 200
+Mar, 150
+```
+" class="chart-block"><svg class="chart-svg" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="56" y1="36" x2="56" y2="308" class="chart-axis"></line><line x1="56" y1="308" x2="624" y2="308" class="chart-axis"></line><line x1="56" y1="308" x2="624" y2="308" class="chart-grid"></line><text x="48" y="312" class="chart-tick chart-tick-y">0</text><line x1="56" y1="240" x2="624" y2="240" class="chart-grid"></line><text x="48" y="244" class="chart-tick chart-tick-y">50</text><line x1="56" y1="172" x2="624" y2="172" class="chart-grid"></line><text x="48" y="176" class="chart-tick chart-tick-y">100</text><line x1="56" y1="104" x2="624" y2="104" class="chart-grid"></line><text x="48" y="108" class="chart-tick chart-tick-y">150</text><line x1="56" y1="36" x2="624" y2="36" class="chart-grid"></line><text x="48" y="40" class="chart-tick chart-tick-y">200</text><line x1="150.66666666666666" y1="308" x2="150.66666666666666" y2="312" class="chart-axis"></line><text x="150.66666666666666" y="326" class="chart-tick chart-tick-x">Jan</text><line x1="340" y1="308" x2="340" y2="312" class="chart-axis"></line><text x="340" y="326" class="chart-tick chart-tick-x">Feb</text><line x1="529.3333333333334" y1="308" x2="529.3333333333334" y2="312" class="chart-axis"></line><text x="529.3333333333334" y="326" class="chart-tick chart-tick-x">Mar</text><text x="340" y="346" class="chart-axis-label">month</text><text class="chart-axis-label" transform="translate(18 172) rotate(-90)">sales</text><rect x="84.4" y="172.0" width="132.5" height="136.0" class="chart-bar" fill="#4a8cf0"></rect><rect x="273.7" y="36.0" width="132.5" height="272.0" class="chart-bar" fill="#4a8cf0"></rect><rect x="463.1" y="104.0" width="132.5" height="204.0" class="chart-bar" fill="#4a8cf0"></rect></svg></div>

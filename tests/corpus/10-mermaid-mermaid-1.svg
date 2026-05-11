@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+  <defs>
+    
+  </defs>
+  <style>.actor{fill:#eee} .hide{}</style>
+  <g>
+    <rect x="10" y="10" width="80" height="40" class="actor"/>
+    <text class="actor hide" x="50" y="35" style="fill:#333">Actor A</text>
+    
+    <text x="100" y="96" style="fill:#333">Message</text>
+  <text x="50" y="37.7" text-anchor="middle" font-size="22" font-family="DejaVu Sans, sans-serif" fill="#000" style="fill:#333">Actor (HTML)</text></g>
+</svg>
