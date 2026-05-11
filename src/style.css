@@ -591,13 +591,6 @@ body,
   font-weight: 500;
 }
 
-#preview-pane h1,
-#preview-pane h2,
-#preview-pane h3 {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.2em;
-}
-
 #preview-pane code {
   background: var(--bg-alt);
   padding: 0.1em 0.3em;
@@ -1154,10 +1147,20 @@ body,
 
 .settings-form .style-row {
   display: grid;
-  grid-template-columns: 9rem auto auto;
+  grid-template-columns: 9rem auto auto auto;
   align-items: center;
   gap: 0.75rem;
   margin: 0.3rem 0;
+}
+
+.settings-form .style-row .style-row-underline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85em;
+  color: #57606a;
+  cursor: pointer;
+  user-select: none;
 }
 
 .settings-form .style-row .style-size input {

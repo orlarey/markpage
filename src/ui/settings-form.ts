@@ -155,19 +155,19 @@ export function buildSettingsForm(
         styleRow('Titre 1 (h1)', current.styles.h1, (s) => {
           current.styles.h1 = s;
           emit();
-        }),
+        }, { underline: true }),
         styleRow('Titre 2 (h2)', current.styles.h2, (s) => {
           current.styles.h2 = s;
           emit();
-        }),
+        }, { underline: true }),
         styleRow('Titre 3 (h3)', current.styles.h3, (s) => {
           current.styles.h3 = s;
           emit();
-        }),
+        }, { underline: true }),
         styleRow('Titre 4 (h4)', current.styles.h4, (s) => {
           current.styles.h4 = s;
           emit();
-        }),
+        }, { underline: true }),
         styleRow('Texte normal', current.styles.body, (s) => {
           current.styles.body = s;
           emit();
@@ -531,6 +531,7 @@ export function buildSettingsForm(
     label: string,
     value: TextStyle,
     onChange: (s: TextStyle) => void,
+    opts: { underline?: boolean } = {},
   ): HTMLElement {
     const wrap = doc.createElement('div');
     wrap.className = 'style-row';
@@ -548,21 +549,21 @@ export function buildSettingsForm(
     sizeInput.title = 'Taille (pt)';
 
     let currentColor = value.color;
-    const fireSize = (): void => {
+    let currentUnderline = value.underline ?? false;
+    const fire = (): void => {
       const fs = Number(sizeInput.value);
-      onChange({
+      const next: TextStyle = {
         fontSize: Number.isFinite(fs) ? fs : value.fontSize,
         color: currentColor,
-      });
+      };
+      if (opts.underline) next.underline = currentUnderline;
+      onChange(next);
     };
-    sizeInput.addEventListener('input', fireSize);
+    sizeInput.addEventListener('input', fire);
 
     const picker = colorPicker(value.color, (c) => {
       currentColor = c;
-      onChange({
-        fontSize: Number(sizeInput.value) || value.fontSize,
-        color: c,
-      });
+      fire();
     });
 
     const sizeWrap = doc.createElement('span');
@@ -570,6 +571,22 @@ export function buildSettingsForm(
     sizeWrap.append(sizeInput, doc.createTextNode(' pt'));
 
     wrap.append(lbl, sizeWrap, picker);
+
+    if (opts.underline) {
+      const underlineLbl = doc.createElement('label');
+      underlineLbl.className = 'style-row-underline';
+      underlineLbl.title = 'Trait sous le titre';
+      const cb = doc.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = currentUnderline;
+      cb.addEventListener('change', () => {
+        currentUnderline = cb.checked;
+        fire();
+      });
+      underlineLbl.append(cb, doc.createTextNode(' trait'));
+      wrap.append(underlineLbl);
+    }
+
     return wrap;
   }
 

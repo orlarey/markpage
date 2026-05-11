@@ -40,6 +40,9 @@ export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
 export interface TextStyle {
   fontSize: number; // pt
   color: string; // #rrggbb
+  // When true, a heading style draws a thin border-bottom under the
+  // heading. Read only by h1/h2/h3/h4 — body / code / quote ignore it.
+  underline?: boolean;
 }
 
 export interface QuoteStyle extends TextStyle {
@@ -132,10 +135,10 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   organization: { text: 'Mon organisation', show: true, bold: true },
   date: { mode: 'today', custom: '' },
   styles: {
-    h1: { fontSize: 24, color: '#09438b' },
-    h2: { fontSize: 20, color: '#09438b' },
-    h3: { fontSize: 16, color: '#09438b' },
-    h4: { fontSize: 14, color: '#09438b' },
+    h1: { fontSize: 24, color: '#09438b', underline: true },
+    h2: { fontSize: 20, color: '#09438b', underline: true },
+    h3: { fontSize: 16, color: '#09438b', underline: true },
+    h4: { fontSize: 14, color: '#09438b', underline: false },
     body: { fontSize: 11, color: '#000000' },
     code: { fontSize: 10, color: '#1f2328' },
     quote: { fontSize: 11, color: '#57606a', barColor: '#d0d7de' },

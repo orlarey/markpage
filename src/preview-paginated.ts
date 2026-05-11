@@ -4,8 +4,17 @@
 // default; this module is reached only when the user toggles the
 // "Mise en page" button in the toolbar.
 
-import type { PdfSettings } from './settings';
+import type { PdfSettings, TextStyle } from './settings';
 import { quoteFontFamily } from './font-loader';
+
+// Heading underline CSS fragment for paged.js / print output. Uses
+// the GitHub-ish neutral grey to match the historical look — heading
+// colour would feel too saturated under the printed page.
+function pagedUnderline(s: TextStyle): string {
+  return s.underline
+    ? `border-bottom: 1px solid #d0d7de; padding-bottom: 0.2em;`
+    : '';
+}
 
 interface PagedPage {
   destroy?: () => void;
@@ -223,22 +232,16 @@ export function pagedCss(s: PdfSettings): string {
     }
 
     ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
-    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; }
-    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; }
-    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; }
-    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; }
+    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; ${pagedUnderline(styles.h1)} }
+    ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} }
+    ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} }
+    ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} }
 
     /* We only ship Roboto Condensed Regular (400) and Medium (500), so
        leaving headings/strong at the default 700 forces the browser to
        *synthesise* a heavier weight — which prints noticeably heavier
        than the on-screen rendering. */
     ${SCOPE} :is(strong, b, h1, h2, h3, h4, h5, h6) { font-weight: 500; }
-
-    /* Subtle rule below the top-level headings (GitHub-ish look). */
-    ${SCOPE} :is(h1, h2, h3) {
-      border-bottom: 1px solid #d0d7de;
-      padding-bottom: 0.2em;
-    }
 
     ${SCOPE} :is(code, pre) {
       font-family: ${codeFamily};

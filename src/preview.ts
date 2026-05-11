@@ -1,8 +1,18 @@
 import { marked } from 'marked';
-import { metadataLines, type PdfSettings } from './settings';
+import { metadataLines, type PdfSettings, type TextStyle } from './settings';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
 import { quoteFontFamily } from './font-loader';
+
+// Heading underline CSS fragment. Returns either a `border-bottom`
+// declaration in the editor's neutral border colour, or
+// `border-bottom: none` so the rule consistently wins over any
+// earlier static style.
+function underlineRule(s: TextStyle): string {
+  return s.underline
+    ? `border-bottom: 1px solid var(--border); padding-bottom: 0.2em;`
+    : `border-bottom: none;`;
+}
 
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
@@ -255,10 +265,10 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
-    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; border-bottom: none; }
-    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; }
-    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; }
-    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
+    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} }
+    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} }
+    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} }
+    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} }
     #preview-pane h5,
     #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
     #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
