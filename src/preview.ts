@@ -26,13 +26,13 @@ function headingExtras(s: TextStyle): string {
 // heading visually attaches to the section it introduces (Gestalt
 // proximity). Values are in `em` (relative to the heading's own
 // font-size) so the scale tracks the user's size preferences.
-// `break-after: avoid` keeps a heading from ending up alone at the
-// bottom of a page in the paginated view.
+// `break-after: avoid` lives in the paged stylesheet only; the
+// fluid preview is a single column so it would have no effect here.
 const HEADING_MARGINS = {
-  h1: 'margin: 2em 0 0.8em; break-after: avoid;',
-  h2: 'margin: 1.6em 0 0.6em; break-after: avoid;',
-  h3: 'margin: 1.3em 0 0.5em; break-after: avoid;',
-  h4: 'margin: 1em 0 0.4em; break-after: avoid;',
+  h1: 'margin: 2em 0 0.8em;',
+  h2: 'margin: 1.6em 0 0.6em;',
+  h3: 'margin: 1.3em 0 0.5em;',
+  h4: 'margin: 1em 0 0.4em;',
 };
 
 export function renderPreview(target: HTMLElement, source: string): void {
