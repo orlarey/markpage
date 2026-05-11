@@ -1163,6 +1163,84 @@ body,
   user-select: none;
 }
 
+.settings-form .custom-fonts-field {
+  margin: 0.6rem 0 0.3rem;
+}
+
+.settings-form .custom-fonts-label {
+  font-size: 0.85em;
+  color: #57606a;
+  margin-bottom: 0.3rem;
+}
+
+.settings-form .custom-fonts-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.settings-form .custom-fonts-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.85em;
+}
+
+.settings-form .custom-fonts-list .custom-fonts-empty {
+  background: transparent;
+  border: none;
+  color: #8c959f;
+  font-style: italic;
+  padding-left: 0;
+}
+
+.settings-form .custom-fonts-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1em;
+  line-height: 1;
+  color: #8c959f;
+  padding: 0;
+}
+
+.settings-form .custom-fonts-remove:hover {
+  color: #cf222e;
+}
+
+.settings-form .custom-fonts-form {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.settings-form .custom-fonts-url {
+  flex: 1;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--bg);
+  min-width: 0;
+}
+
+.settings-form .custom-fonts-status {
+  font-size: 0.85em;
+  color: #57606a;
+  min-height: 1.2em;
+  margin-top: 0.2rem;
+}
+
+.settings-form .custom-fonts-status.error {
+  color: #cf222e;
+}
+
 .settings-form .style-row .style-size input {
   width: 4rem;
   padding: 0.3rem 0.5rem;

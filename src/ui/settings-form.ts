@@ -16,7 +16,11 @@ import {
   type PdfSettings,
   type TextStyle,
 } from '../settings';
-import { getFontCatalog } from '../font-loader';
+import {
+  getFontCatalog,
+  parseGoogleFontsUrl,
+  registerCustomFonts,
+} from '../font-loader';
 
 export interface SettingsFormHandlers {
   getSettings(): PdfSettings;
@@ -132,6 +136,7 @@ export function buildSettingsForm(
           current.fonts.code = v;
           emit();
         }),
+        customFontsField(),
       ]),
       section('Marges (mm)', [
         numberField('Haut', current.margins.top, 0, 100, (v) => {
@@ -521,10 +526,110 @@ export function buildSettingsForm(
     value: string,
     onChange: (v: string) => void,
   ): HTMLElement {
-    const allowed = getFontCatalog().filter((f) => kinds.includes(f.family));
+    // Custom fonts (user-pasted) appear in every slot regardless of
+    // the requested kinds — we don't know if a Google Fonts URL points
+    // to a sans / serif / mono family and we shouldn't second-guess
+    // the user's intent for their own picks.
+    const allowed = getFontCatalog().filter(
+      (f) => kinds.includes(f.family) || f.custom,
+    );
     const names = allowed.map((f) => f.name);
     if (!names.includes(value)) names.unshift(value);
     return selectField(label, names, value, onChange);
+  }
+
+  // Renders the "Polices personnalisées" sub-row: lists what the user
+  // has already added (with a remove button per entry) plus an inline
+  // form to paste a fonts.googleapis.com URL. Mutations call
+  // registerCustomFonts so the loader and other open pickers see the
+  // change immediately, and emit() to persist + repaint.
+  function customFontsField(): HTMLElement {
+    const wrap = doc.createElement('div');
+    wrap.className = 'custom-fonts-field';
+
+    const lbl = doc.createElement('div');
+    lbl.className = 'custom-fonts-label';
+    lbl.textContent = 'Polices Google personnalisées';
+    wrap.append(lbl);
+
+    const list = doc.createElement('ul');
+    list.className = 'custom-fonts-list';
+    for (const f of current.customFonts) {
+      const li = doc.createElement('li');
+      const name = doc.createElement('span');
+      name.className = 'custom-fonts-name';
+      name.textContent = f.name;
+      const remove = doc.createElement('button');
+      remove.type = 'button';
+      remove.className = 'custom-fonts-remove';
+      remove.textContent = '×';
+      remove.title = `Retirer ${f.name}`;
+      remove.addEventListener('click', () => {
+        current.customFonts = current.customFonts.filter(
+          (g) => g.name !== f.name,
+        );
+        registerCustomFonts(current.customFonts);
+        emit();
+        // Repaint the whole form so the pickers drop the removed font
+        // from their dropdowns.
+        refresh();
+      });
+      li.append(name, remove);
+      list.append(li);
+    }
+    if (current.customFonts.length === 0) {
+      const empty = doc.createElement('li');
+      empty.className = 'custom-fonts-empty';
+      empty.textContent = 'Aucune pour le moment.';
+      list.append(empty);
+    }
+    wrap.append(list);
+
+    const form = doc.createElement('div');
+    form.className = 'custom-fonts-form';
+    const input = doc.createElement('input');
+    input.type = 'url';
+    input.placeholder = 'https://fonts.googleapis.com/css2?family=…';
+    input.className = 'custom-fonts-url';
+    const add = doc.createElement('button');
+    add.type = 'button';
+    add.textContent = 'Ajouter';
+    const status = doc.createElement('div');
+    status.className = 'custom-fonts-status';
+
+    const tryAdd = (): void => {
+      status.textContent = '';
+      const result = parseGoogleFontsUrl(input.value);
+      if (!result.ok) {
+        status.textContent = result.error;
+        status.classList.add('error');
+        return;
+      }
+      const existingNames = new Set(current.customFonts.map((f) => f.name));
+      const added = result.fonts.filter((f) => !existingNames.has(f.name));
+      if (added.length === 0) {
+        status.textContent = 'Déjà ajoutée.';
+        status.classList.add('error');
+        return;
+      }
+      current.customFonts = [...current.customFonts, ...added];
+      registerCustomFonts(current.customFonts);
+      input.value = '';
+      status.classList.remove('error');
+      emit();
+      refresh();
+    };
+    add.addEventListener('click', tryAdd);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        tryAdd();
+      }
+    });
+
+    form.append(input, add);
+    wrap.append(form, status);
+    return wrap;
   }
 
   function styleRow(

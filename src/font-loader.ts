@@ -9,22 +9,76 @@
 // imports in main.ts.
 
 import catalog from './assets/google-fonts-catalog.json';
+import type { CustomFont } from './settings';
 
 export interface FontEntry {
   name: string;
   family: 'sans' | 'serif' | 'mono';
   weights: number[];
   bundled?: boolean;
+  // User-added via the "Polices personnalisées" section, not part of
+  // the curated catalogue. Drives the trash-can affordance in the UI.
+  custom?: boolean;
 }
 
 const CATALOG: FontEntry[] = catalog as FontEntry[];
 
+// User-added fonts. Populated by `registerCustomFonts` at bootstrap
+// and whenever the Réglages panel mutates the list. Kept as module-
+// level mutable state because the loader and the catalogue-getter
+// both read it and we never want them to drift.
+let customFonts: CustomFont[] = [];
+
+// Replace the active custom-font registry. Call sites: app bootstrap
+// (right after loadSettings) and the Réglages add/remove handlers.
+export function registerCustomFonts(fonts: CustomFont[]): void {
+  customFonts = fonts;
+}
+
 export function getFontCatalog(): FontEntry[] {
-  return CATALOG;
+  const customEntries: FontEntry[] = customFonts.map((f) => ({
+    name: f.name,
+    // We don't know the script category a custom Google Font belongs
+    // to; tag it `sans` so it shows up in the headings / body slots
+    // out of the box. The picker also includes custom fonts in the
+    // mono slot via an explicit pass — see `fontField` in settings-form.
+    family: 'sans',
+    weights: [400],
+    custom: true,
+  }));
+  return [...CATALOG, ...customEntries];
 }
 
 export function findFont(name: string): FontEntry | null {
-  return CATALOG.find((f) => f.name === name) ?? null;
+  return getFontCatalog().find((f) => f.name === name) ?? null;
+}
+
+// Pulls one or more `family=` declarations out of a Google Fonts
+// stylesheet URL. Discriminated union so the caller can branch on
+// success vs. validation failure.
+export function parseGoogleFontsUrl(
+  raw: string,
+): { ok: true; fonts: CustomFont[] } | { ok: false; error: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    return { ok: false, error: 'URL invalide' };
+  }
+  if (parsed.host !== 'fonts.googleapis.com') {
+    return { ok: false, error: 'Doit pointer vers fonts.googleapis.com' };
+  }
+  const families = parsed.searchParams.getAll('family');
+  if (families.length === 0) {
+    return { ok: false, error: 'Aucun paramètre "family=" dans l\'URL' };
+  }
+  // Each `family=` value is `Name+With+Spaces[:wght@…][:ital@…]`.
+  // We only care about the name; the rest is the URL's job.
+  const fonts = families.map((f) => ({
+    name: f.split(':')[0].replaceAll('+', ' '),
+    url: raw.trim(),
+  }));
+  return { ok: true, fonts };
 }
 
 // Whether the browser already has this family available without
@@ -62,7 +116,27 @@ function googleCssUrl(entry: FontEntry): string {
 export async function loadGoogleFont(name: string): Promise<void> {
   if (loaded.has(name)) return;
   const cached = inflight.get(name);
-  if (cached) return cached;
+  if (cached !== undefined) return cached;
+  // Custom (user-pasted) fonts: we already have the full CSS URL,
+  // skip the catalogue lookup and inject directly.
+  const customEntry = customFonts.find((f) => f.name === name);
+  if (customEntry !== undefined) {
+    const promise = injectStylesheet(customEntry.url).then(async () => {
+      try {
+        await document.fonts.load(`400 16px "${name}"`);
+      } catch {
+        // Ignore: see comment in the catalogue path below.
+      }
+      loaded.add(name);
+    });
+    inflight.set(name, promise);
+    try {
+      await promise;
+    } finally {
+      inflight.delete(name);
+    }
+    return;
+  }
   const entry = findFont(name);
   if (!entry || entry.bundled) {
     // Either we don't know the font (treat as already loaded — the
@@ -125,7 +199,7 @@ function injectStylesheet(href: string): Promise<void> {
 // is the colon between hostname / port and the path. We escape the
 // quote in case a future entry slips one through.
 function cssEscape(s: string): string {
-  return s.replaceAll('"', '\\"');
+  return s.replaceAll('"', String.raw`\"`);
 }
 
 // Convenience for callers (bootstrap, settings change handler) that

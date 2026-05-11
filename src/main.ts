@@ -14,7 +14,7 @@ import './style.css';
 // shared `marked` instance. Must run before any marked.parse / marked.lexer.
 import './marked-config';
 import { registerFallbackFonts } from './fonts';
-import { loadFontTrio } from './font-loader';
+import { loadFontTrio, registerCustomFonts } from './font-loader';
 import { createEditor } from './editor';
 import {
   renderPreview,
@@ -139,6 +139,11 @@ async function bootstrap(): Promise<void> {
   const state = {
     settings: loadSettings(),
   };
+
+  // Custom fonts must be registered BEFORE loadFontTrio so the loader
+  // sees them when the trio resolves the active heading / body / code
+  // selections (any of which may point at a custom family).
+  registerCustomFonts(state.settings.customFonts);
 
   // Pre-load the user's active font trio (headings / body / code).
   // Fire and forget — the page renders with the bundled fallback
@@ -388,6 +393,11 @@ async function bootstrap(): Promise<void> {
   const handleSettingsChange = (s: PdfSettings) => {
     state.settings = s;
     saveSettings(s);
+    // The settings form mutates its own customFonts list before
+    // calling us, but registering here too keeps things consistent
+    // when a settings change arrives from another path (cross-window
+    // sync, reset-to-defaults, etc.).
+    registerCustomFonts(s.customFonts);
     applyPreviewStyles(s);
     // Kick off loading any newly-selected Google Font in parallel.
     // We don't block on it: the preview repaints with the bundled
