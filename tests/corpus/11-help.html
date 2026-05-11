@@ -136,7 +136,7 @@ graphiques — la suite documente toutes les fonctions avancées. Lisez
 à votre rythme, ou retournez écrire votre document maintenant et
 revenez plus tard.</p>
 <hr>
-<h1>Pour aller plus loin</h1>
+<h2>Pour aller plus loin</h2>
 <p>Tout ce qui suit est <strong>optionnel</strong>. Picorez selon vos besoins. Chaque
 section est indépendante. Cette partie regroupe ce qui sert à
 <strong>rédiger un document riche</strong> : plus d'éléments Markdown, encadrés,
@@ -144,8 +144,8 @@ notes de bas de page, tableaux, graphiques. Pour la <strong>typographie
 scientifique</strong> (formules math, ligatures, règles d'inférence) et les
 <strong>diagrammes Mermaid</strong>, voir la partie suivante <em>Pour aller encore
 plus loin</em>.</p>
-<h2>Encore d'autres éléments Markdown</h2>
-<h3>Listes</h3>
+<h3>Encore d'autres éléments Markdown</h3>
+<h4>Listes</h4>
 <p><strong>Listes à puces</strong> : un tiret (<code>-</code>) ou un astérisque (<code>*</code>) en début de
 ligne :</p>
 <pre><code>- Première idée
@@ -166,22 +166,22 @@ tabulation pour une sous-liste :</p>
     - Autre sous-idée
 - Deuxième idée
 </code></pre>
-<h3>Citations</h3>
+<h4>Citations</h4>
 <p>Un chevron (<code>&gt;</code>) en début de ligne :</p>
 <pre><code>&gt; Ce qui se conçoit bien s'énonce clairement.
 &gt; — Boileau
 </code></pre>
-<h3>Liens</h3>
+<h4>Liens</h4>
 <pre><code>Visitez [le site de Boileau](https://exemple.fr).
 </code></pre>
 <p>Le texte entre crochets devient cliquable, vers l'URL entre
 parenthèses. Raccourci : sélectionnez le texte, <code>Cmd/Ctrl + K</code>,
 collez l'URL.</p>
-<h3>Lignes horizontales</h3>
+<h4>Lignes horizontales</h4>
 <p>Trois tirets sur une ligne seule :</p>
 <pre><code>---
 </code></pre>
-<h3>Code en ligne et blocs de code</h3>
+<h4>Code en ligne et blocs de code</h4>
 <p>Pour du code <strong>en ligne</strong> dans un paragraphe, entourez-le d'accents
 graves : <code>`let x = 42`</code> donne <code>let x = 42</code>.</p>
 <p>Pour un <strong>bloc de code</strong> entier, entourez de trois accents graves
@@ -192,7 +192,7 @@ function add(a, b) {
 }
 ```
 </code></pre>
-<h3>Listes de tâches</h3>
+<h4>Listes de tâches</h4>
 <p>Une checklist : un tiret, un espace, puis <code>[ ]</code> (à faire) ou <code>[x]</code>
 (fait) :</p>
 <pre><code>- [x] Écrire le brouillon
@@ -202,7 +202,7 @@ function add(a, b) {
 </code></pre>
 <p>Les cases sont <strong>purement visuelles</strong> : pour cocher / décocher,
 modifiez le <code>[ ]</code> en <code>[x]</code> directement dans le markdown.</p>
-<h3>Tableaux simples</h3>
+<h4>Tableaux simples</h4>
 <p>Markdown classique pour de petits tableaux :</p>
 <pre><code>| Nom    | Âge |
 |--------|-----|
@@ -211,11 +211,11 @@ modifiez le <code>[ ]</code> en <code>[x]</code> directement dans le markdown.</
 </code></pre>
 <p>(Pour les <strong>tableaux de données denses</strong>, voir la section <em>Tableaux
 de données (CSV / TSV)</em> plus bas.)</p>
-<h2>Gérer plusieurs documents</h2>
+<h3>Gérer plusieurs documents</h3>
 <p>md2pdf garde <strong>tous vos documents</strong> dans le navigateur. La liste se
 trouve derrière le bouton <strong>Mon doc ▾</strong>, qui affiche aussi le nom
 du document que vous éditez actuellement.</p>
-<h3>Le menu Mon doc ▾</h3>
+<h4>Le menu Mon doc ▾</h4>
 <ul>
 <li><strong>Renommer le doc courant</strong> : cliquez dans le champ en haut du
 menu, tapez, validez avec Entrée. (Échap annule.)</li>
@@ -231,7 +231,7 @@ apparaissent :<ul>
 </ul>
 </li>
 </ul>
-<h3>Importer un fichier</h3>
+<h4>Importer un fichier</h4>
 <p>Le bouton <strong>Importer</strong> (raccourci <code>Cmd/Ctrl + O</code>) ajoute un fichier
 externe comme <strong>nouveau document</strong> dans la liste, sans toucher à
 celui sur lequel vous travaillez. Formats acceptés : <code>.md</code>,
@@ -243,7 +243,7 @@ citations sont récupérés, mais <strong>pas les images</strong>. Si votre
 document Word contenait des photos, vous devrez les réinsérer
 manuellement après import.</p>
 </blockquote>
-<h3>Exporter votre document</h3>
+<h4>Exporter votre document</h4>
 <p>Le bouton <strong>Exporter ▾</strong> propose trois formats :</p>
 <table>
 <thead>
@@ -288,7 +288,7 @@ affiché sur <strong>Mon doc ▾</strong>).</p>
 <p>Votre travail est <strong>automatiquement sauvegardé</strong> dans le navigateur,
 donc si vous fermez l'onglet par accident, tout est récupéré à la
 prochaine ouverture.</p>
-<h2>Personnaliser le rendu PDF (Réglages)</h2>
+<h3>Personnaliser le rendu PDF (Réglages)</h3>
 <p>Le bouton <strong>Réglages ▾</strong> (raccourci <code>Cmd/Ctrl + ,</code>) ouvre une
 <strong>fenêtre séparée</strong> où vous pouvez configurer le PDF sans toucher
 au contenu. <strong>Astuce</strong> : passez d'abord en mode Aperçu, ouvrez les
@@ -317,11 +317,11 @@ barre verticale)</li>
 </ul>
 <p>Les réglages sont <strong>mémorisés entre vos sessions</strong>. Le bouton
 <em>Réinitialiser</em> en bas du panneau revient aux valeurs par défaut.</p>
-<h2>Caractères spéciaux et symboles</h2>
+<h3>Caractères spéciaux et symboles</h3>
 <p>Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.</p>
-<h2>Numérotation des sections</h2>
+<h3>Numérotation des sections</h3>
 <p>Pour numéroter les titres d'un long document sans configurer de menu,
 il suffit de <strong>donner l'exemple sur le premier titre de chaque
 niveau</strong> : la commande <strong>Numéroter les sections</strong>
@@ -410,7 +410,7 @@ niveau ne sera pas numéroté du tout, et tout préfixe numérique
 </tbody></table>
 <p>La numérotation hiérarchique a besoin que tous les niveaux parents
 soient eux-mêmes numérotés.</p>
-<h2>Tableaux de données (CSV / TSV)</h2>
+<h3>Tableaux de données (CSV / TSV)</h3>
 <p>Pour un tableau dense, écrire la syntaxe pipe-style à la main est
 fastidieux. Vous pouvez à la place coller un <strong>CSV</strong> ou un <strong>TSV</strong>
 dans un <em>fenced block</em> :</p>
@@ -433,7 +433,7 @@ Nom, Description
 </code></pre>
 <p>Pour insérer un guillemet littéral dans une cellule entre guillemets,
 doublez-le : <code>""</code>.</p>
-<h2>Listes de définitions</h2>
+<h3>Listes de définitions</h3>
 <p>Pour une liste de <strong>termes avec leur définition</strong> (glossaire,
 notation, dictionnaire), utilisez la syntaxe Pandoc : un terme sur
 une ligne, puis sa définition sur la ligne suivante préfixée par
@@ -453,7 +453,7 @@ FFT
 </code></pre>
 <p>À l'intérieur des termes et des définitions vous pouvez utiliser du
 Markdown inline (gras, italique, code, formules, liens).</p>
-<h2>Notes de bas de page</h2>
+<h3>Notes de bas de page</h3>
 <p>Vous pouvez ajouter une <strong>note de bas de page</strong> avec la syntaxe
 Pandoc : un appel de note <code>[^id]</code> dans le texte, et la définition
 <code>[^id]: contenu</code> n'importe où dans le document (généralement à la
@@ -474,7 +474,7 @@ référencée plusieurs fois — toutes les occurrences pointent vers la
 même entrée.</p>
 <p>Cliquer sur l'appel <code>¹</code> saute à la note ; cliquer sur le <code>↩</code> à la
 fin de la note revient à l'appel.</p>
-<h2>Encadrés (notes, théorèmes…)</h2>
+<h3>Encadrés (notes, théorèmes…)</h3>
 <p>Vous pouvez mettre en valeur un passage avec un <strong>encadré</strong> : ouvrez
 avec <code>:::</code> suivi du nom de l'encadré, écrivez votre contenu, fermez
 avec <code>:::</code> seul sur une ligne. C'est la syntaxe Pandoc des <em>fenced
@@ -504,7 +504,7 @@ ci-dessus (par exemple <code>::: aside</code>), il sera rendu avec un cadre
 neutre — utile pour vos propres conventions.</p>
 <p>L'intérieur d'un encadré est du Markdown comme le reste : texte mis
 en forme, listes, formules, voire des tableaux.</p>
-<h2>Graphiques</h2>
+<h3>Graphiques</h3>
 <p>Pour tracer une courbe ou un diagramme à partir de données, utilisez
 un <em>fenced block</em> <code>chart</code> :</p>
 <pre><code>```chart line "Latence par taille de buffer"
@@ -527,7 +527,7 @@ automatique si plus d'une série).</p>
 première colonne est numérique, l'axe X est continu ; si elle
 contient des labels textuels (mois, catégories…), l'axe X est
 catégorique.</p>
-<h3>Format CSV : virgules françaises</h3>
+<h4>Format CSV : virgules françaises</h4>
 <p>Le séparateur de champ est <strong>détecté automatiquement</strong> sur la
 première ligne :</p>
 <ul>
@@ -544,7 +544,7 @@ alors suivie d'un espace : <code>foo, 3,14</code> donne deux cellules <code>foo<
 TSV — ou ajoutez des espaces : <code>1, 2, 3, 4</code>.</p>
 <p>Les nombres dans les cellules acceptent les deux formats (point ou
 virgule décimale) — <code>3.14</code> et <code>3,14</code> sont équivalents.</p>
-<h3>Séries chronologiques</h3>
+<h4>Séries chronologiques</h4>
 <p>Si la première colonne contient des <strong>dates au format ISO 8601</strong>
 (<code>YYYY-MM-DD</code>, éventuellement avec heure), l'axe X est traité comme
 une échelle temporelle. L'app choisit automatiquement les graduations
@@ -560,7 +560,7 @@ date, total
 <p>Les formats ambigus (FR <code>15/01/2025</code> et US <code>01/15/2025</code>) ne sont
 <strong>pas</strong> reconnus — utilisez toujours ISO 8601, qui est sans
 ambiguïté.</p>
-<h3>Plusieurs séries</h3>
+<h4>Plusieurs séries</h4>
 <pre><code>```chart bar "Comparaison de codecs"
 Codec, Taille (Ko), Temps (ms)
 MP3, 4200, 120
@@ -571,7 +571,7 @@ FLAC, 12500, 280
 <p>Deux barres côte à côte par catégorie, avec une légende en haut à
 droite identifiant chaque série.</p>
 <hr>
-<h1>Pour aller encore plus loin</h1>
+<h2>Pour aller encore plus loin</h2>
 <p>Cette dernière partie regroupe les outils <strong>plus spécialisés</strong> :
 ligatures de saisie qui rendent l'Unicode mathématique confortable à
 taper, formules en LaTeX, règles d'inférence, et diagrammes Mermaid
@@ -579,7 +579,7 @@ taper, formules en LaTeX, règles d'inférence, et diagrammes Mermaid
 Si vous écrivez un article de recherche, un cours, une spec
 d'algorithme, ou de la documentation technique, vous y trouverez votre
 compte. Sinon vous pouvez sauter directement aux Crédits.</p>
-<h2>Ligatures de saisie</h2>
+<h3>Ligatures de saisie</h3>
 <p>Pour vous éviter de chercher chaque symbole Unicode dans une table de
 caractères, l'éditeur <strong>remplace au vol</strong> certaines séquences ASCII
 par leur équivalent mathématique :</p>
@@ -823,7 +823,7 @@ texte ailleurs.</p>
 <p>Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
 le texte littéral, faites <code>Cmd/Ctrl + Z</code> immédiatement après — la
 substitution se défait, le texte ASCII est restauré.</p>
-<h2>Formules mathématiques</h2>
+<h3>Formules mathématiques</h3>
 <p>Vous pouvez inclure des <strong>formules en LaTeX</strong>, soit <strong>en bloc</strong> entre
 <code>$$ … $$</code> (la formule s'affiche centrée sur sa propre ligne), soit
 <strong>inline</strong> entre <code>$ … $</code> au milieu d'une phrase. Le rendu utilise
@@ -837,7 +837,7 @@ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 ```
 </code></pre>
 <p>Le rendu est strictement identique à <code>$$ … $$</code>.</p>
-<h3>Exemples utiles</h3>
+<h4>Exemples utiles</h4>
 <p><strong>Sommes et intégrales</strong></p>
 <pre><code>$$
 \sum_{i=1}^{n} i^2 = \frac{n(n+1)(2n+1)}{6}
@@ -895,7 +895,7 @@ f''(x) &amp;= 2a
 <p><strong>Formule inline</strong> : tapez par exemple
 <code>Soit $\epsilon &gt; 0$ tel que…</code> et vous obtenez :</p>
 <p>Soit <span class="math-inline" data-math="\epsilon > 0"></span> tel que…</p>
-<h3>À savoir</h3>
+<h4>À savoir</h4>
 <ul>
 <li>La taille des formules s'aligne sur la taille du texte courant ; si
 vous changez le réglage <strong>Texte normal</strong> dans <strong>Réglages</strong>, les
@@ -908,7 +908,7 @@ est automatiquement réduite pour tenir.</li>
 flèches (<code>\to</code>, <code>\Rightarrow</code>), environnements <code>pmatrix</code> /
 <code>bmatrix</code> / <code>align*</code>, etc.</li>
 </ul>
-<h2>Règles d'inférence</h2>
+<h3>Règles d'inférence</h3>
 <p>Pour écrire une <strong>règle d'inférence</strong> (déduction logique, sémantique
 opérationnelle, etc.), utilisez un <em>fenced block</em> avec le langage
 <code>inference</code> :</p>
@@ -933,7 +933,7 @@ blocs de code".</p>
 <p>Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
 ligatures (par exemple <code>\Gamma</code>, <code>\forall</code>, <code>\exists</code>, <code>\Rightarrow</code>,
 <code>\leq</code>), tapez-les directement.</p>
-<h2>Diagrammes Mermaid</h2>
+<h3>Diagrammes Mermaid</h3>
 <p><a href="https://mermaid.js.org/">Mermaid</a> permet de décrire un diagramme avec
 quelques lignes de texte. Placez votre code dans un bloc dont le
 langage est <code>mermaid</code> :</p>
@@ -952,7 +952,7 @@ flowchart LR
 </code></pre>
 <p>Le diagramme est rendu en <strong>SVG</strong>, dans l'aperçu <strong>et</strong> dans le PDF
 (qualité vectorielle, sans pixellisation à l'impression).</p>
-<h3>Quelques exemples</h3>
+<h4>Quelques exemples</h4>
 <p><strong>Diagramme de séquence</strong> (échange entre deux acteurs) :</p>
 <pre><code class="language-mermaid">sequenceDiagram
     participant U as Utilisateur
@@ -980,7 +980,7 @@ flowchart LR
 <p>Autres types reconnus : <code>stateDiagram</code>, <code>gantt</code>, <code>mindmap</code>, etc. — voir
 la <a href="https://mermaid.js.org/">documentation Mermaid</a> pour la liste
 complète.</p>
-<h3>Réglages</h3>
+<h4>Réglages</h4>
 <p>La section <strong>Diagrammes Mermaid</strong> du panneau <strong>Réglages</strong> propose
 trois contrôles pour adapter la taille des diagrammes dans le PDF :</p>
 <ul>

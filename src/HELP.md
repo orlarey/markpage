@@ -181,7 +181,7 @@ revenez plus tard.
 
 ---
 
-# Pour aller plus loin
+## Pour aller plus loin
 
 Tout ce qui suit est **optionnel**. Picorez selon vos besoins. Chaque
 section est indépendante. Cette partie regroupe ce qui sert à
@@ -191,9 +191,9 @@ scientifique** (formules math, ligatures, règles d'inférence) et les
 **diagrammes Mermaid**, voir la partie suivante *Pour aller encore
 plus loin*.
 
-## Encore d'autres éléments Markdown
+### Encore d'autres éléments Markdown
 
-### Listes
+#### Listes
 
 **Listes à puces** : un tiret (`-`) ou un astérisque (`*`) en début de
 ligne :
@@ -225,7 +225,7 @@ tabulation pour une sous-liste :
 - Deuxième idée
 ```
 
-### Citations
+#### Citations
 
 Un chevron (`>`) en début de ligne :
 
@@ -234,7 +234,7 @@ Un chevron (`>`) en début de ligne :
 > — Boileau
 ```
 
-### Liens
+#### Liens
 
 ```
 Visitez [le site de Boileau](https://exemple.fr).
@@ -244,7 +244,7 @@ Le texte entre crochets devient cliquable, vers l'URL entre
 parenthèses. Raccourci : sélectionnez le texte, `Cmd/Ctrl + K`,
 collez l'URL.
 
-### Lignes horizontales
+#### Lignes horizontales
 
 Trois tirets sur une ligne seule :
 
@@ -252,7 +252,7 @@ Trois tirets sur une ligne seule :
 ---
 ```
 
-### Code en ligne et blocs de code
+#### Code en ligne et blocs de code
 
 Pour du code **en ligne** dans un paragraphe, entourez-le d'accents
 graves : `` `let x = 42` `` donne `let x = 42`.
@@ -268,7 +268,7 @@ function add(a, b) {
 ```
 ````
 
-### Listes de tâches
+#### Listes de tâches
 
 Une checklist : un tiret, un espace, puis `[ ]` (à faire) ou `[x]`
 (fait) :
@@ -283,7 +283,7 @@ Une checklist : un tiret, un espace, puis `[ ]` (à faire) ou `[x]`
 Les cases sont **purement visuelles** : pour cocher / décocher,
 modifiez le `[ ]` en `[x]` directement dans le markdown.
 
-### Tableaux simples
+#### Tableaux simples
 
 Markdown classique pour de petits tableaux :
 
@@ -297,13 +297,13 @@ Markdown classique pour de petits tableaux :
 (Pour les **tableaux de données denses**, voir la section *Tableaux
 de données (CSV / TSV)* plus bas.)
 
-## Gérer plusieurs documents
+### Gérer plusieurs documents
 
 md2pdf garde **tous vos documents** dans le navigateur. La liste se
 trouve derrière le bouton **Mon doc ▾**, qui affiche aussi le nom
 du document que vous éditez actuellement.
 
-### Le menu Mon doc ▾
+#### Le menu Mon doc ▾
 
 - **Renommer le doc courant** : cliquez dans le champ en haut du
   menu, tapez, validez avec Entrée. (Échap annule.)
@@ -317,7 +317,7 @@ du document que vous éditez actuellement.
   - *Dupliquer* — clone le document.
   - *Supprimer* — avec une demande de confirmation.
 
-### Importer un fichier
+#### Importer un fichier
 
 Le bouton **Importer** (raccourci `Cmd/Ctrl + O`) ajoute un fichier
 externe comme **nouveau document** dans la liste, sans toucher à
@@ -330,7 +330,7 @@ celui sur lequel vous travaillez. Formats acceptés : `.md`,
 > document Word contenait des photos, vous devrez les réinsérer
 > manuellement après import.
 
-### Exporter votre document
+#### Exporter votre document
 
 Le bouton **Exporter ▾** propose trois formats :
 
@@ -366,7 +366,7 @@ Votre travail est **automatiquement sauvegardé** dans le navigateur,
 donc si vous fermez l'onglet par accident, tout est récupéré à la
 prochaine ouverture.
 
-## Personnaliser le rendu PDF (Réglages)
+### Personnaliser le rendu PDF (Réglages)
 
 Le bouton **Réglages ▾** (raccourci `Cmd/Ctrl + ,`) ouvre une
 **fenêtre séparée** où vous pouvez configurer le PDF sans toucher
@@ -398,13 +398,13 @@ Ce que vous pouvez régler :
 Les réglages sont **mémorisés entre vos sessions**. Le bouton
 *Réinitialiser* en bas du panneau revient aux valeurs par défaut.
 
-## Caractères spéciaux et symboles
+### Caractères spéciaux et symboles
 
 Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.
 
-## Numérotation des sections
+### Numérotation des sections
 
 Pour numéroter les titres d'un long document sans configurer de menu,
 il suffit de **donner l'exemple sur le premier titre de chaque
@@ -469,7 +469,7 @@ niveau ne sera pas numéroté du tout, et tout préfixe numérique
 La numérotation hiérarchique a besoin que tous les niveaux parents
 soient eux-mêmes numérotés.
 
-## Tableaux de données (CSV / TSV)
+### Tableaux de données (CSV / TSV)
 
 Pour un tableau dense, écrire la syntaxe pipe-style à la main est
 fastidieux. Vous pouvez à la place coller un **CSV** ou un **TSV**
@@ -501,7 +501,7 @@ Nom, Description
 Pour insérer un guillemet littéral dans une cellule entre guillemets,
 doublez-le : `""`.
 
-## Listes de définitions
+### Listes de définitions
 
 Pour une liste de **termes avec leur définition** (glossaire,
 notation, dictionnaire), utilisez la syntaxe Pandoc : un terme sur
@@ -529,7 +529,7 @@ Polynôme
 À l'intérieur des termes et des définitions vous pouvez utiliser du
 Markdown inline (gras, italique, code, formules, liens).
 
-## Notes de bas de page
+### Notes de bas de page
 
 Vous pouvez ajouter une **note de bas de page** avec la syntaxe
 Pandoc : un appel de note `[^id]` dans le texte, et la définition
@@ -557,7 +557,7 @@ même entrée.
 Cliquer sur l'appel `¹` saute à la note ; cliquer sur le `↩` à la
 fin de la note revient à l'appel.
 
-## Encadrés (notes, théorèmes…)
+### Encadrés (notes, théorèmes…)
 
 Vous pouvez mettre en valeur un passage avec un **encadré** : ouvrez
 avec `:::` suivi du nom de l'encadré, écrivez votre contenu, fermez
@@ -597,7 +597,7 @@ neutre — utile pour vos propres conventions.
 L'intérieur d'un encadré est du Markdown comme le reste : texte mis
 en forme, listes, formules, voire des tableaux.
 
-## Graphiques
+### Graphiques
 
 Pour tracer une courbe ou un diagramme à partir de données, utilisez
 un *fenced block* `chart` :
@@ -627,7 +627,7 @@ première colonne est numérique, l'axe X est continu ; si elle
 contient des labels textuels (mois, catégories…), l'axe X est
 catégorique.
 
-### Format CSV : virgules françaises
+#### Format CSV : virgules françaises
 
 Le séparateur de champ est **détecté automatiquement** sur la
 première ligne :
@@ -648,7 +648,7 @@ TSV — ou ajoutez des espaces : `1, 2, 3, 4`.
 Les nombres dans les cellules acceptent les deux formats (point ou
 virgule décimale) — `3.14` et `3,14` sont équivalents.
 
-### Séries chronologiques
+#### Séries chronologiques
 
 Si la première colonne contient des **dates au format ISO 8601**
 (`YYYY-MM-DD`, éventuellement avec heure), l'axe X est traité comme
@@ -669,7 +669,7 @@ Les formats ambigus (FR `15/01/2025` et US `01/15/2025`) ne sont
 **pas** reconnus — utilisez toujours ISO 8601, qui est sans
 ambiguïté.
 
-### Plusieurs séries
+#### Plusieurs séries
 
 ````
 ```chart bar "Comparaison de codecs"
@@ -685,7 +685,7 @@ droite identifiant chaque série.
 
 ---
 
-# Pour aller encore plus loin
+## Pour aller encore plus loin
 
 Cette dernière partie regroupe les outils **plus spécialisés** :
 ligatures de saisie qui rendent l'Unicode mathématique confortable à
@@ -695,7 +695,7 @@ Si vous écrivez un article de recherche, un cours, une spec
 d'algorithme, ou de la documentation technique, vous y trouverez votre
 compte. Sinon vous pouvez sauter directement aux Crédits.
 
-## Ligatures de saisie
+### Ligatures de saisie
 
 Pour vous éviter de chercher chaque symbole Unicode dans une table de
 caractères, l'éditeur **remplace au vol** certaines séquences ASCII
@@ -762,7 +762,7 @@ Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
 le texte littéral, faites `Cmd/Ctrl + Z` immédiatement après — la
 substitution se défait, le texte ASCII est restauré.
 
-## Formules mathématiques
+### Formules mathématiques
 
 Vous pouvez inclure des **formules en LaTeX**, soit **en bloc** entre
 `$$ … $$` (la formule s'affiche centrée sur sa propre ligne), soit
@@ -782,7 +782,7 @@ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 
 Le rendu est strictement identique à `$$ … $$`.
 
-### Exemples utiles
+#### Exemples utiles
 
 **Sommes et intégrales**
 
@@ -845,7 +845,7 @@ $$
 
 Soit $\epsilon > 0$ tel que…
 
-### À savoir
+#### À savoir
 
 - La taille des formules s'aligne sur la taille du texte courant ; si
   vous changez le réglage **Texte normal** dans **Réglages**, les
@@ -858,7 +858,7 @@ Soit $\epsilon > 0$ tel que…
   flèches (`\to`, `\Rightarrow`), environnements `pmatrix` /
   `bmatrix` / `align*`, etc.
 
-## Règles d'inférence
+### Règles d'inférence
 
 Pour écrire une **règle d'inférence** (déduction logique, sémantique
 opérationnelle, etc.), utilisez un *fenced block* avec le langage
@@ -890,7 +890,7 @@ Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
 ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), tapez-les directement.
 
-## Diagrammes Mermaid
+### Diagrammes Mermaid
 
 [Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
 quelques lignes de texte. Placez votre code dans un bloc dont le
@@ -917,7 +917,7 @@ flowchart LR
 Le diagramme est rendu en **SVG**, dans l'aperçu **et** dans le PDF
 (qualité vectorielle, sans pixellisation à l'impression).
 
-### Quelques exemples
+#### Quelques exemples
 
 **Diagramme de séquence** (échange entre deux acteurs) :
 
@@ -956,7 +956,7 @@ Autres types reconnus : `stateDiagram`, `gantt`, `mindmap`, etc. — voir
 la [documentation Mermaid](https://mermaid.js.org/) pour la liste
 complète.
 
-### Réglages
+#### Réglages
 
 La section **Diagrammes Mermaid** du panneau **Réglages** propose
 trois contrôles pour adapter la taille des diagrammes dans le PDF :

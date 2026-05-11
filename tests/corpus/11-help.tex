@@ -327,7 +327,7 @@ revenez plus tard.
 \noindent\hrulefill\par
 
 
-\section*{Pour aller plus loin}
+\section{Pour aller plus loin}
 
 Tout ce qui suit est \textbf{optionnel}. Picorez selon vos besoins. Chaque
 section est indépendante. Cette partie regroupe ce qui sert à
@@ -338,9 +338,9 @@ scientifique} (formules math, ligatures, règles d'inférence) et les
 plus loin}.
 
 
-\section{Encore d'autres éléments Markdown}
+\subsection{Encore d'autres éléments Markdown}
 
-\subsection{Listes}
+\subsubsection{Listes}
 
 \textbf{Listes à puces} : un tiret (\texttt{-}) ou un astérisque (\texttt{*}) en début de
 ligne :
@@ -379,7 +379,7 @@ tabulation pour une sous-liste :
 \end{lstlisting}
 
 
-\subsection{Citations}
+\subsubsection{Citations}
 
 Un chevron (\texttt{>}) en début de ligne :
 
@@ -390,7 +390,7 @@ Un chevron (\texttt{>}) en début de ligne :
 \end{lstlisting}
 
 
-\subsection{Liens}
+\subsubsection{Liens}
 
 \begin{lstlisting}
 Visitez [le site de Boileau](https://exemple.fr).
@@ -402,7 +402,7 @@ parenthèses. Raccourci : sélectionnez le texte, \texttt{Cmd/Ctrl + K},
 collez l'URL.
 
 
-\subsection{Lignes horizontales}
+\subsubsection{Lignes horizontales}
 
 Trois tirets sur une ligne seule :
 
@@ -412,7 +412,7 @@ Trois tirets sur une ligne seule :
 \end{lstlisting}
 
 
-\subsection{Code en ligne et blocs de code}
+\subsubsection{Code en ligne et blocs de code}
 
 Pour du code \textbf{en ligne} dans un paragraphe, entourez-le d'accents
 graves : \texttt{`let x = 42`} donne \texttt{let x = 42}.
@@ -431,7 +431,7 @@ function add(a, b) {
 \end{lstlisting}
 
 
-\subsection{Listes de tâches}
+\subsubsection{Listes de tâches}
 
 Une checklist : un tiret, un espace, puis \texttt{[ ]} (à faire) ou \texttt{[x]}
 (fait) :
@@ -449,7 +449,7 @@ Les cases sont \textbf{purement visuelles} : pour cocher / décocher,
 modifiez le \texttt{[ ]} en \texttt{[x]} directement dans le markdown.
 
 
-\subsection{Tableaux simples}
+\subsubsection{Tableaux simples}
 
 Markdown classique pour de petits tableaux :
 
@@ -466,14 +466,14 @@ Markdown classique pour de petits tableaux :
 de données (CSV / TSV)} plus bas.)
 
 
-\section{Gérer plusieurs documents}
+\subsection{Gérer plusieurs documents}
 
 md2pdf garde \textbf{tous vos documents} dans le navigateur. La liste se
 trouve derrière le bouton \textbf{Mon doc ▾}, qui affiche aussi le nom
 du document que vous éditez actuellement.
 
 
-\subsection{Le menu Mon doc ▾}
+\subsubsection{Le menu Mon doc ▾}
 
 \begin{itemize}
   \item \textbf{Renommer le doc courant} : cliquez dans le champ en haut du
@@ -493,7 +493,7 @@ apparaissent :
 \end{itemize}
 
 
-\subsection{Importer un fichier}
+\subsubsection{Importer un fichier}
 
 Le bouton \textbf{Importer} (raccourci \texttt{Cmd/Ctrl + O}) ajoute un fichier
 externe comme \textbf{nouveau document} dans la liste, sans toucher à
@@ -510,7 +510,7 @@ manuellement après import.
 \end{quote}
 
 
-\subsection{Exporter votre document}
+\subsubsection{Exporter votre document}
 
 Le bouton \textbf{Exporter ▾} propose trois formats :
 
@@ -557,7 +557,7 @@ donc si vous fermez l'onglet par accident, tout est récupéré à la
 prochaine ouverture.
 
 
-\section{Personnaliser le rendu PDF (Réglages)}
+\subsection{Personnaliser le rendu PDF (Réglages)}
 
 Le bouton \textbf{Réglages ▾} (raccourci \texttt{Cmd/Ctrl + ,}) ouvre une
 \textbf{fenêtre séparée} où vous pouvez configurer le PDF sans toucher
@@ -595,14 +595,14 @@ Les réglages sont \textbf{mémorisés entre vos sessions}. Le bouton
 \emph{Réinitialiser} en bas du panneau revient aux valeurs par défaut.
 
 
-\section{Caractères spéciaux et symboles}
+\subsection{Caractères spéciaux et symboles}
 
 Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠), les
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.
 
 
-\section{Numérotation des sections}
+\subsection{Numérotation des sections}
 
 Pour numéroter les titres d'un long document sans configurer de menu,
 il suffit de \textbf{donner l'exemple sur le premier titre de chaque
@@ -679,7 +679,7 @@ La numérotation hiérarchique a besoin que tous les niveaux parents
 soient eux-mêmes numérotés.
 
 
-\section{Tableaux de données (CSV / TSV)}
+\subsection{Tableaux de données (CSV / TSV)}
 
 Pour un tableau dense, écrire la syntaxe pipe-style à la main est
 fastidieux. Vous pouvez à la place coller un \textbf{CSV} ou un \textbf{TSV}
@@ -717,7 +717,7 @@ Pour insérer un guillemet littéral dans une cellule entre guillemets,
 doublez-le : \texttt{""}.
 
 
-\section{Listes de définitions}
+\subsection{Listes de définitions}
 
 Pour une liste de \textbf{termes avec leur définition} (glossaire,
 notation, dictionnaire), utilisez la syntaxe Pandoc : un terme sur
@@ -750,7 +750,7 @@ Polynôme
 Markdown inline (gras, italique, code, formules, liens).
 
 
-\section{Notes de bas de page}
+\subsection{Notes de bas de page}
 
 Vous pouvez ajouter une \textbf{note de bas de page} avec la syntaxe
 Pandoc : un appel de note \texttt{[\textasciicircum{}id]} dans le texte, et la définition
@@ -783,7 +783,7 @@ Cliquer sur l'appel \texttt{¹} saute à la note ; cliquer sur le \texttt{↩} �
 fin de la note revient à l'appel.
 
 
-\section{Encadrés (notes, théorèmes…)}
+\subsection{Encadrés (notes, théorèmes…)}
 
 Vous pouvez mettre en valeur un passage avec un \textbf{encadré} : ouvrez
 avec \texttt{:::} suivi du nom de l'encadré, écrivez votre contenu, fermez
@@ -834,7 +834,7 @@ L'intérieur d'un encadré est du Markdown comme le reste : texte mis
 en forme, listes, formules, voire des tableaux.
 
 
-\section{Graphiques}
+\subsection{Graphiques}
 
 Pour tracer une courbe ou un diagramme à partir de données, utilisez
 un \emph{fenced block} \texttt{chart} :
@@ -869,7 +869,7 @@ contient des labels textuels (mois, catégories…), l'axe X est
 catégorique.
 
 
-\subsection{Format CSV : virgules françaises}
+\subsubsection{Format CSV : virgules françaises}
 
 Le séparateur de champ est \textbf{détecté automatiquement} sur la
 première ligne :
@@ -897,7 +897,7 @@ Les nombres dans les cellules acceptent les deux formats (point ou
 virgule décimale) — \texttt{3.14} et \texttt{3,14} sont équivalents.
 
 
-\subsection{Séries chronologiques}
+\subsubsection{Séries chronologiques}
 
 Si la première colonne contient des \textbf{dates au format ISO 8601}
 (\texttt{YYYY-MM-DD}, éventuellement avec heure), l'axe X est traité comme
@@ -921,7 +921,7 @@ Les formats ambigus (FR \texttt{15/01/2025} et US \texttt{01/15/2025}) ne sont
 ambiguïté.
 
 
-\subsection{Plusieurs séries}
+\subsubsection{Plusieurs séries}
 
 \begin{lstlisting}
 ```chart bar "Comparaison de codecs"
@@ -941,7 +941,7 @@ droite identifiant chaque série.
 \noindent\hrulefill\par
 
 
-\section*{Pour aller encore plus loin}
+\section{Pour aller encore plus loin}
 
 Cette dernière partie regroupe les outils \textbf{plus spécialisés} :
 ligatures de saisie qui rendent l'Unicode mathématique confortable à
@@ -952,7 +952,7 @@ d'algorithme, ou de la documentation technique, vous y trouverez votre
 compte. Sinon vous pouvez sauter directement aux Crédits.
 
 
-\section{Ligatures de saisie}
+\subsection{Ligatures de saisie}
 
 Pour vous éviter de chercher chaque symbole Unicode dans une table de
 caractères, l'éditeur \textbf{remplace au vol} certaines séquences ASCII
@@ -1041,7 +1041,7 @@ le texte littéral, faites \texttt{Cmd/Ctrl + Z} immédiatement après — la
 substitution se défait, le texte ASCII est restauré.
 
 
-\section{Formules mathématiques}
+\subsection{Formules mathématiques}
 
 Vous pouvez inclure des \textbf{formules en LaTeX}, soit \textbf{en bloc} entre
 \texttt{\$\$ … \$\$} (la formule s'affiche centrée sur sa propre ligne), soit
@@ -1065,7 +1065,7 @@ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 Le rendu est strictement identique à \texttt{\$\$ … \$\$}.
 
 
-\subsection{Exemples utiles}
+\subsubsection{Exemples utiles}
 
 \textbf{Sommes et intégrales}
 
@@ -1137,7 +1137,7 @@ f''(x) &= 2a
 Soit $\epsilon > 0$ tel que…
 
 
-\subsection{À savoir}
+\subsubsection{À savoir}
 
 \begin{itemize}
   \item La taille des formules s'aligne sur la taille du texte courant ; si
@@ -1153,7 +1153,7 @@ flèches (\texttt{\textbackslash{}to}, \texttt{\textbackslash{}Rightarrow}), env
 \end{itemize}
 
 
-\section{Règles d'inférence}
+\subsection{Règles d'inférence}
 
 Pour écrire une \textbf{règle d'inférence} (déduction logique, sémantique
 opérationnelle, etc.), utilisez un \emph{fenced block} avec le langage
@@ -1190,7 +1190,7 @@ ligatures (par exemple \texttt{\textbackslash{}Gamma}, \texttt{\textbackslash{}f
 \texttt{\textbackslash{}leq}), tapez-les directement.
 
 
-\section{Diagrammes Mermaid}
+\subsection{Diagrammes Mermaid}
 
 \href{https://mermaid.js.org/}{Mermaid} permet de décrire un diagramme avec
 quelques lignes de texte. Placez votre code dans un bloc dont le
@@ -1226,7 +1226,7 @@ Le diagramme est rendu en \textbf{SVG}, dans l'aperçu \textbf{et} dans le PDF
 (qualité vectorielle, sans pixellisation à l'impression).
 
 
-\subsection{Quelques exemples}
+\subsubsection{Quelques exemples}
 
 \textbf{Diagramme de séquence} (échange entre deux acteurs) :
 
@@ -1284,7 +1284,7 @@ la \href{https://mermaid.js.org/}{documentation Mermaid} pour la liste
 complète.
 
 
-\subsection{Réglages}
+\subsubsection{Réglages}
 
 La section \textbf{Diagrammes Mermaid} du panneau \textbf{Réglages} propose
 trois contrôles pour adapter la taille des diagrammes dans le PDF :
