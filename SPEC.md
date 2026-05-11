@@ -1579,20 +1579,24 @@ cohérent si une police chargée n'arrive pas (réseau, etc.).
 - Réglages de fluidification (line-height, letter-spacing) par
   famille.
 
-## 21. Export LaTeX — draft
+## 21. Export LaTeX
 
-**Statut** : design en cours, pas encore implémenté.
+**Statut** : livré (cf. `src/export-latex.ts`,
+`src/latex-math-symbols.ts`).
 
 ### 21.1. Surface utilisateur
 
-Nouveau bouton **Exporter .tex** dans la toolbar (ou item *Exporter
-en LaTeX* dans un sous-menu). Produit un fichier `.tex`
-auto-suffisant, qui compile out-of-the-box avec `pdflatex` ou
-`xelatex`.
+Item **LaTeX (.tex)** dans le menu *[Exporter ▾]* de la toolbar
+(§19.5). Produit un fichier `.tex` auto-suffisant, qui compile avec
+`xelatex` (ou `lualatex`) ; **pas pdflatex** — le préambule utilise
+`fontspec` et émet l'UTF-8 natif dans les blocs `lstlisting`, deux
+choses que pdflatex ne supporte pas. Le commentaire d'en-tête du
+`.tex` rappelle la cible.
 
 Quand le doc référence des images (et / ou des SVG mermaid /
 chart), le téléchargement est un **zip** contenant le `.tex` + un
-dossier `images/` avec les ressources.
+dossier `images/` avec les ressources. Sans ressources, on télécharge
+le `.tex` seul.
 
 ### 21.2. Pipeline
 
@@ -1618,27 +1622,32 @@ passer par l'HTML intermédiaire.
 
 ### 21.3. Préambule généré
 
-Un préambule auto-suffisant qui inclut tout ce dont nos extensions
-markdown ont besoin :
+Préambule auto-suffisant taillé pour xelatex / lualatex :
 
 ```latex
 \documentclass[11pt,a4paper]{article}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage[french]{babel}            % depuis settings.lang quand on l'aura
-\usepackage{amsmath, amssymb, amsthm}
-\usepackage{bm}
+\usepackage{fontspec}
+\IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{}
+\IfFontExistsTF{DejaVu Sans}{\setsansfont{DejaVu Sans}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+\usepackage{svg}                      % uniquement si le doc a un mermaid/chart
+\IfFileExists{french.ldf}{\usepackage[french]{babel}}{}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}                 % \llbracket / \rrbracket
 \usepackage{graphicx}
+\usepackage[export]{adjustbox}        % `max width=` sur \includegraphics
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{listings}
-\usepackage{tcolorbox}
-  \tcbuselibrary{breakable, skins}
 \usepackage{enumitem}
 \usepackage{booktabs}
-\usepackage{stmaryrd}                 % \llbracket / \rrbracket
+\usepackage{tabularx}                 % colonnes wrap-on-overflow
 \usepackage[normalem]{ulem}           % \sout pour ~~strikethrough~~
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{newunicodechar}           % cf. 21.6
+
+\newunicodechar{⟦}{\ensuremath{\llbracket}}
+… (~30 entrées, cf. 21.6)
 
 \newtheorem{theorem}{Théorème}
 \newtheorem{lemma}[theorem]{Lemme}
@@ -1649,87 +1658,150 @@ markdown ont besoin :
 \newtheorem{example}{Exemple}
 \newtheorem{remark}{Remarque}
 
-\title{<premier h1>}
+\title{<premier h1 ou vide>}
 \author{<settings.author> \\ <settings.organization>}
 \date{<settings.date>}
 
 \begin{document}
-\maketitle
+\maketitle          % omis si le doc n'a pas de h1
 …
 \end{document}
 ```
+
+Quelques choix qui méritent une note :
+
+- **Pas d'`inputenc utf8` ni de `fontenc T1`** : xelatex prend
+  l'UTF-8 nativement, et `fontenc T1` est incompatible avec
+  `fontspec`.
+- **DejaVu** plutôt que lmodern : le glyph coverage de DejaVu
+  attrape les box-drawing, flèches, et symboles divers qu'on a dans
+  le source des docs ; `\IfFontExistsTF` rend l'installation
+  optionnelle (sans DejaVu, on retombe sur la police par défaut de
+  xelatex et on vit avec quelques *Missing character* warnings).
+- **`babel-french` optionnel** : pas dans les installs minimales de
+  TeX Live. `\IfFileExists` garde le doc compilable même quand le
+  paquet n'est pas là.
+- **`svg` conditionnel** : on ne le tire que si le doc contient
+  effectivement un `mermaid` / `chart`. Le paquet exige
+  `--shell-escape` à la compilation et inkscape sur le `$PATH`,
+  donc on évite cette dépendance quand elle n'est pas nécessaire.
+- **`lstset` minimal** : `basicstyle=\ttfamily\small`,
+  `breaklines=true`, `frame=single`. Pas de table `literate=` —
+  xelatex passe l'UTF-8 directement à listings. Le `language=` n'est
+  émis que si le langage de la fence est dans la *whitelist*
+  `LISTINGS_LANGUAGE_MAP` (les noms exacts attendus par listings,
+  pas les alias markdown) ; sinon le bloc est rendu sans coloration
+  pour ne pas casser la compilation.
 
 ### 21.4. Conversion par élément
 
 | Markdown | LaTeX |
 |---|---|
-| premier `# Titre` | `\title{Titre}` (et le titre h1 disparaît du flux) |
-| `# X` (suivants) | `\section{X}` |
-| `## X` | `\subsection{X}` |
-| `### X` | `\subsubsection{X}` |
-| `#### X` | `\paragraph{X}` |
+| premier `# Titre` | `\title{Titre}` (et le titre h1 disparaît du flux ; les niveaux suivants sont décalés d'un cran) |
+| `# X` (suivants) | `\section*{X}` |
+| `## X` | `\section{X}` (ou `\section*` si h1 absent) |
+| `### X` | `\subsection{X}` |
+| `#### X` | `\subsubsection{X}` |
+| `##### X` | `\paragraph{X}` |
 | `**x**` | `\textbf{x}` |
 | `*x*` | `\emph{x}` |
 | `~~x~~` | `\sout{x}` |
-| `` `x` `` | `\verb|x|` (avec choix de délimiteur si `|` est présent) |
-| ` ``` ` block | `\begin{lstlisting}[language=…]…\end{lstlisting}` |
+| `` `x` `` | `\texttt{<escaped>}` (pas `\verb` — il échoue dans les arguments de macro comme les cellules `tabular`) |
+| ` ``` ` block | `\begin{lstlisting}[language=…]…\end{lstlisting}` (`language=` uniquement si le langage est dans la whitelist) |
 | `[texte](url)` | `\href{url}{texte}` |
 | `<url>` autolink | `\url{url}` |
-| `![alt](src)` | `\includegraphics[max width=\textwidth]{images/<basename>}` |
+| `![alt](src)` | `\includegraphics[max width=\textwidth, max totalheight=0.6\textheight]{images/<sha>.<ext>}` (via adjustbox) |
 | `- item` | `itemize` |
 | `1. item` | `enumerate` |
 | `- [ ] item` | `enumitem` avec marker `$\square$` / `$\boxtimes$` |
 | `> texte` | `quote` |
-| `---` | `\hrulefill` (ligne ou skip selon goût) |
-| Pipe table | `tabular` avec `\toprule` / `\midrule` / `\bottomrule` |
-| `$x$` | `$x$` (passe-through) |
-| `$$..$$` | `\[..\]` |
-| ` ```math ` | `\[..\]` |
-| ` ```mermaid ` | `\includegraphics{images/<sha>.svg}` (cf. 21.5) |
-| ` ```chart ` | idem |
-| ` ```csv ` | `tabular` rendered (réutilise la logique de notre csv → table) |
-| ` ```inference ` | `\[\dfrac{prem \quad …}{conc} \quad \textsf{(label)}\]` |
-| `[^id]` ref | `\footnote{<contenu inliné>}` à la première référence ; `\footnotemark[N]` aux suivantes |
-| `[^id]: x` def | omis du flux (déjà absorbé par les références) |
+| `---` | ligne horizontale (skip + `\hrulefill`) |
+| Pipe table | `tabularx` avec `\toprule` / `\midrule` / `\bottomrule` (colonnes `X` pour wrap automatique) |
+| `$x$` | `$<mathBodyToLatex(x)>$` |
+| `$$..$$` | `\[<mathBodyToLatex(...)>\]` (sauf si le corps contient déjà `\begin{align}`/`equation`/…, auquel cas on émet le corps brut sans double-wrap) |
+| ` ```math ` | idem `$$..$$` |
+| ` ```mermaid ` | `\includesvg[…]{images/mermaid-<n>.svg}` |
+| ` ```chart ` | `\includesvg[…]{images/chart-<n>.svg}` |
+| ` ```csv ` | `tabularx` (mêmes options que les pipe tables) |
+| ` ```inference ` | `\[\dfrac{prem_1 \quad …}{conc} \quad \textsf{(label)}\]` |
+| `[^id]` ref | `\footnote{<def inlinée>}` à la première occurrence ; `\footnotemark[N]` aux suivantes |
+| `[^id]: x` def | omis du flux |
 | `Term\n: def` | `\begin{description}\item[Term] def\end{description}` |
-| `::: note` (générique) | `\begin{tcolorbox}[colback=…, …]…\end{tcolorbox}` (couleur selon classe) |
-| `::: theorem [N]` | `\begin{theorem}[N]…\end{theorem}` |
-| `::: <inconnu>` | `\begin{tcolorbox}…\end{tcolorbox}` neutre |
+| `::: theorem` etc. | `\begin{theorem}[titre]…\end{theorem}` (et lemma / proposition / corollary / definition / example / remark) |
+| `::: note` / `tip` / `warning` / `important` / `caution` | `\begin{tcolorbox}[breakable,colback=…,colframe=…,title=…]…\end{tcolorbox}` |
+| `::: <inconnu>` | `tcolorbox` neutre avec le nom de classe comme titre |
 
 ### 21.5. Ressources graphiques
 
-Trois cas :
+Trois cas, tous bundlés dans `images/` du zip :
 
 1. **Images insérées par l'utilisateur** (`img://<sha>` dans le
-   markdown) : on extrait le blob d'IndexedDB, on l'écrit dans
-   `images/<sha>.<ext>` du zip, on émet
-   `\includegraphics{images/<sha>.<ext>}`.
+   markdown) : blob lu depuis IndexedDB, écrit dans
+   `images/<sha>.<ext>`, émis comme
+   `\includegraphics[max width=…, max totalheight=…]{images/<sha>.<ext>}`.
 
-2. **Mermaid** : on rend le diagramme via la pipeline existante
-   pour obtenir le SVG, on l'écrit dans `images/mermaid-<n>.svg`,
-   on émet `\includegraphics{images/mermaid-<n>.svg}`. Compile avec
-   `xelatex` ou `lualatex` (qui acceptent SVG via le package `svg`).
-   Pour `pdflatex`, on convertirait en PDF via `cairosvg` ou
-   similaire — pas indispensable v1, on documente que `xelatex` est
-   nécessaire.
+2. **Mermaid** : SVG rendu via la pipeline existante, sanitizé pour
+   inkscape (cf. 21.5.1), écrit dans `images/mermaid-<n>.svg`,
+   émis comme `\includesvg[…]{images/mermaid-<n>.svg}`. Nécessite
+   `\usepackage{svg}` + inkscape + compilation avec
+   `--shell-escape`.
 
-3. **Chart** : idem mermaid, on écrit le SVG inline qu'on génère.
+3. **Chart** : idem mermaid, fichier `images/chart-<n>.svg`.
 
-Le markdown source des blocs `mermaid` / `chart` est aussi inclus
-en commentaire LaTeX juste au-dessus de chaque `\includegraphics`
-pour que l'utilisateur puisse régénérer / ajuster.
+Les ressources sont préchargées en parallèle (`Promise.all`) avant
+que le walker token-par-token ne tourne — le walker reste synchrone
+et lit les chemins déjà résolus dans des `Map`s du contexte. Les
+images réutilisées (même SHA, ou même source mermaid / chart) ne
+produisent qu'**une entrée** dans le zip ; les multiples sites
+d'inclusion partagent le même `\includegraphics` / `\includesvg`.
 
-### 21.6. Caractères Unicode dans les zones math
+#### 21.5.1. Sanitisation des SVG pour inkscape
+
+Les SVG produits par mermaid s'appuient sur des fonctionnalités
+navigateur qu'inkscape n'implémente pas ou n'honore qu'à moitié.
+Avant d'écrire le SVG dans le zip on applique :
+
+- **Strip de propriétés CSS** sur `[style]` et dans les blocs
+  `<style>` : `max-width`, `background-color`, `display`,
+  `visibility`. Particulièrement `display: none` que mermaid pose
+  sur un `<text>` de secours quand un `<foreignObject>` porte
+  déjà le label — une fois le foreignObject converti (étape
+  suivante), le `<text>` redevient le seul label visible.
+- **Remplacement des `<foreignObject>`** (étiquettes HTML) par un
+  `<text>` centré ajouté en dernier au groupe parent (pour
+  s'assurer qu'il rend par-dessus les `<rect>` siblings, sinon les
+  labels des acteurs de séquence disparaissent derrière le fond
+  de leur boîte).
+- **Suppression des `<filter>`** et des attributs `filter=…` :
+  inkscape ne les applique pas et émet un warning à chaque
+  occurrence.
+- **Fill forcé sur `<text>` / `<tspan>`** : `style="fill:#333"`
+  inline quand l'élément n'a pas déjà un `fill` explicite, parce
+  que la spécificité du combinateur descendant CSS de mermaid
+  (`text.actor>tspan{fill:#333}`) n'est pas toujours honorée par
+  inkscape ; sans ça les labels héritent du gris-clair des rect
+  parents et deviennent invisibles.
+- **Résolution des unités `em`** sur les attributs `dy` / `dx`
+  (inkscape les traite comme 0). Cas particulier : sur un `<text>`
+  (mais pas sur un `<tspan>`), `dy` n'est pas honoré du tout par
+  inkscape ; on absorbe le delta dans la coordonnée `y` de base et
+  on supprime l'attribut `dy`. Sans ce passage, les labels des
+  messages dans les diagrammes de séquence apparaissent
+  systématiquement trop haut.
+
+### 21.6. Caractères Unicode
 
 Le source des documents md2pdf contient typiquement des caractères
 Unicode mathématiques issus des ligatures (← → ⊢ Γ ℕ ⟦…⟧ etc.).
-LaTeX accepte l'utf-8 en prose avec `inputenc utf8`, mais en mode
-math il faut souvent les commandes traditionnelles pour rendre
-correctement avec Computer Modern.
+Deux mécaniques complémentaires les couvrent :
 
-Une **table de back-conversion** est appliquée *uniquement à
-l'intérieur des zones math* (entre `$..$` ou dans les
-environnements `\[..\]`) :
+**(a) Zones math — back-conversion vers les commandes LaTeX.** Dans
+chaque `$..$` / `\[..\]` / ` ```math ` on remplace les caractères
+qu'on connaît par la commande équivalente
+(`src/latex-math-symbols.ts`). Les caractères non ASCII qu'on ne
+sait pas mapper sont conservés tels quels et listés dans un
+commentaire en haut du `.tex` pour que l'utilisateur puisse les
+substituer manuellement si la compilation échoue dessus.
 
 | Unicode | LaTeX |
 |---|---|
@@ -1744,32 +1816,42 @@ environnements `\[..\]`) :
 | ⟦ ⟧ ⟨ ⟩ | `\llbracket` `\rrbracket` `\langle` `\rangle` |
 | … | `\ldots` |
 
-En **prose** (hors math), on laisse les caractères Unicode tels
-quels. `inputenc utf8` + Latin Modern (`lmodern`) couvrent
-l'essentiel.
+**(b) Prose — redirection via `newunicodechar`.** En dehors des
+zones math, on laisse les caractères Unicode tels quels mais le
+préambule déclare un `\newunicodechar{X}{\ensuremath{\cmd}}` pour
+chaque glyph qui manque à DejaVu Serif et qu'on sait rendre via
+une commande math (≈ 30 entrées : crochets sémantiques, logique,
+ensembles, symboles divers). Sans ça xelatex émet une *Missing
+character* warning et le glyph ne sort pas dans le PDF.
 
 ### 21.7. Métadonnées
 
 `settings.author`, `settings.organization`, `settings.date`
 deviennent `\author{…}` (joints par `\\`) et `\date{…}`. Si
-masqués dans Settings, on émet un `\author{}` vide et `\date{}`.
+masqués via les toggles `show` dans Settings, on émet `\author{}`
+ou `\date{}` vide. Si le doc commence par un `# H1`, le titre
+alimente `\title{}` et `\maketitle` est émis ; sinon les deux sont
+omis.
 
 ### 21.8. Limitations connues v1
 
-- Le PDF généré par LaTeX peut différer visuellement de notre PDF
-  natif : typo (Computer Modern par défaut), placement des images
-  (LaTeX flotte, nous pas), césures différentes. C'est attendu —
-  l'export LaTeX est un point de départ pour adapter au style
-  d'un journal, pas un clone du PDF.
-- Pas de bibliographie (les notes deviennent juste `\footnote`).
-- Pas de gestion fine des polices (LaTeX utilise lmodern par
-  défaut). Possible v2 : convertir `settings.fonts` en
-  `\setmainfont`/`\setsansfont`/`\setmonofont` avec `fontspec`
-  (xelatex).
-- La table de back-conversion math ne couvre pas tous les symboles
-  Unicode mathématiques. On affiche un warning à l'export pour
-  chaque caractère non mappé, l'utilisateur peut le remplacer
-  manuellement.
+- **xelatex / lualatex obligatoires** : pas de support pdflatex
+  (fontspec + UTF-8 natif dans listings).
+- **Polices** : DejaVu en dur, on ne dérive pas (encore) la
+  sélection depuis `settings.fonts`. Si DejaVu n'est pas installé,
+  xelatex tombe sur la police par défaut et émet des warnings
+  *Missing character* sur tout ce qui sort de l'ASCII étendu.
+- **Diagrammes** : `mermaid` / `chart` exigent `\usepackage{svg}` +
+  inkscape sur le `$PATH` + compilation avec `--shell-escape`.
+- **Pas de bibliographie** : les notes restent des `\footnote` /
+  `\footnotemark`.
+- **PDF visuellement différent** du natif paged.js : LaTeX flotte
+  les figures, hyphène différemment, choisit ses sauts de page —
+  c'est attendu, l'export LaTeX est un point de départ pour
+  adapter au style d'un journal, pas un clone du PDF.
+- **Back-conversion math non exhaustive** : tout caractère non
+  mappé est conservé tel quel et listé dans le commentaire d'en-
+  tête du `.tex`.
 
 ## 22. À décider plus tard
 

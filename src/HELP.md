@@ -123,7 +123,8 @@ En haut de l'écran, quelques boutons :
   même menu.
 - **Aide** (jaune) — ouvre ce tutoriel.
 - **Aperçu** — bascule entre l'éditeur et le rendu paginé.
-- **Exporter ▾** — produit un fichier Markdown (`.md`) ou un PDF.
+- **Exporter ▾** — produit un fichier Markdown (`.md`), un PDF, ou
+  un source LaTeX (`.tex`).
 - **Réglages ▾** — personnaliser le rendu PDF (auteur, marges,
   polices…). S'ouvre dans une **fenêtre séparée** que vous pouvez
   poser à côté de l'aperçu pour voir l'effet de chaque changement
@@ -331,16 +332,32 @@ celui sur lequel vous travaillez. Formats acceptés : `.md`,
 
 ### Exporter votre document
 
-Le bouton **Exporter ▾** propose deux formats :
+Le bouton **Exporter ▾** propose trois formats :
 
 | Format | Raccourci | Effet |
 |---|---|---|
 | **Markdown (.md)** | `Cmd/Ctrl + S` | Télécharge votre document au format Markdown |
 | **PDF (.pdf)** | `Cmd/Ctrl + P` | Produit le PDF final |
+| **LaTeX (.tex)** | — | Produit un source LaTeX compilable avec `xelatex` |
 
 Le format **Markdown** (`.md`) est un format texte ouvert, lisible
 partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
 il l'ouvrira dans n'importe quel éditeur de texte.
+
+Le format **LaTeX** (`.tex`) est utile si vous voulez retoucher
+finement la mise en page avec un compilateur LaTeX, ou soumettre
+votre document à un journal qui demande des sources `.tex`. Quand
+votre document contient des images ou des diagrammes (mermaid,
+chart), le téléchargement est un **fichier `.zip`** contenant le
+`.tex` et un dossier `images/`. Compilez avec :
+
+```
+xelatex --shell-escape votre-document.tex
+```
+
+(`--shell-escape` n'est nécessaire que si le document contient des
+diagrammes, et exige qu'`inkscape` soit installé.) Le commentaire
+en tête du `.tex` rappelle ces prérequis.
 
 Le nom du fichier exporté reprend le nom de votre document (celui
 affiché sur **Mon doc ▾**).
