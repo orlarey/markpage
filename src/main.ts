@@ -69,6 +69,7 @@ import {
 import { loadSettings, saveSettings, type PdfSettings } from './settings';
 import { paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
+import { exportLatex } from './export-latex';
 
 // First-run document is the bundled HELP.md tutorial. The user can edit
 // or erase it; once a doc lives in localStorage, that one wins on reopen
@@ -89,8 +90,12 @@ function slugifyDocName(name: string): string {
   return slug === '' ? 'document' : slug;
 }
 
-function downloadMarkdown(content: string, filename: string): void {
-  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+function downloadTextFile(
+  content: string,
+  filename: string,
+  mime: string,
+): void {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -458,9 +463,49 @@ async function bootstrap(): Promise<void> {
       try {
         const refified = refifyImageUrls(source);
         const expanded = await expandRefsToDataUrls(refified);
-        downloadMarkdown(expanded, `${slugifyDocName(currentDoc.name)}.md`);
+        downloadTextFile(
+          expanded,
+          `${slugifyDocName(currentDoc.name)}.md`,
+          'text/markdown',
+        );
       } catch (err) {
         console.error('Save failed', err);
+      }
+    })();
+  };
+
+  // SPEC §21 — Markdown → LaTeX conversion via marked.lexer + our
+  // own token walker (export-latex.ts). Single `.tex` when the doc
+  // references no images / mermaid / chart blocks ; otherwise a
+  // `.zip` carrying the .tex plus an `images/` folder with every
+  // resource at its content-addressed name (or numbered slot, for
+  // mermaid / chart SVGs).
+  const triggerLatexExport = (): void => {
+    const source = editor.getValue();
+    void (async () => {
+      try {
+        const slug = slugifyDocName(currentDoc.name);
+        const { tex, resources } = await exportLatex(source, state.settings);
+        if (resources.size === 0) {
+          downloadTextFile(tex, `${slug}.tex`, 'application/x-tex');
+          return;
+        }
+        const { default: JSZip } = await import('jszip');
+        const zip = new JSZip();
+        zip.file(`${slug}.tex`, tex);
+        for (const [path, blob] of resources) zip.file(path, blob);
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${slug}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('LaTeX export failed', err);
+        globalThis.alert(
+          `Échec de l'export LaTeX : ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     })();
   };
@@ -584,6 +629,7 @@ async function bootstrap(): Promise<void> {
         openExportMenu(anchor, {
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
+          onLatex: triggerLatexExport,
         });
       },
       onSettings: triggerSettings,

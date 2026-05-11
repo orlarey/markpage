@@ -7,6 +7,7 @@ const MENU_ID = 'export-menu';
 export interface ExportMenuOptions {
   onMarkdown(): void;
   onPdf(): void;
+  onLatex(): void;
 }
 
 export function openExportMenu(
@@ -63,6 +64,7 @@ export function openExportMenu(
   menu.append(
     item('Markdown (.md)', 'Cmd/Ctrl + S', opts.onMarkdown),
     item('PDF (.pdf)', 'Cmd/Ctrl + P', opts.onPdf),
+    item('LaTeX (.tex)', '', opts.onLatex),
   );
 
   document.body.appendChild(menu);
