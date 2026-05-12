@@ -341,6 +341,61 @@ arrive avant la fin du précédent.
 L'éditeur voit toujours **inline** ; le fichier sauvegardé est toujours
 **ref-style** (lisible dans un éditeur externe). Round-trip propre.
 
+### 5.3. Tests de régression
+
+Harness `vitest` + `happy-dom` (cf. `vitest.config.ts`). Deux suites
+parcourent un **corpus** de fichiers markdown sous `tests/corpus/` et
+comparent chaque sortie à un golden checké-in. Modifier le corpus ou
+le code de rendu fait dériver les goldens ; `npm run test:update`
+régénère, on relit le diff, on commit.
+
+Scripts :
+
+| Commande              | Effet                                         |
+| --------------------- | --------------------------------------------- |
+| `npm test`            | vérifie les goldens, échoue à la moindre dérive |
+| `npm run test:watch`  | re-lance à chaque sauvegarde (dev)             |
+| `npm run test:update` | régénère les goldens                           |
+
+Suites :
+
+- `tests/export-latex.test.ts` — pour chaque `<name>.md`, appelle
+  `exportLatex(md, TEST_SETTINGS)` et snapshot `<name>.tex`. Si
+  le doc contient un mermaid, snapshot aussi `<name>-mermaid-1.svg`
+  (le SVG sanitisé qui finirait dans le zip — preuve que la
+  sanitisation pour inkscape reste correcte).
+- `tests/render-preview.test.ts` — pour chaque `<name>.md`, appelle
+  `renderPreview` + `applyPreviewMetadata` sur un `<div>` happy-dom
+  et snapshot `<name>.html` (la sortie marked structurelle, sans
+  post-processing math / mermaid).
+
+Mocks au niveau module (`vi.mock`) :
+
+- `renderMermaid` → SVG-piège fabriqué exprès pour exercer les six
+  branches de `sanitizeSvgForInkscape` (foreignObject, em-unit `dy`
+  sur `<text>`, `display:none`, filter, max-width, fill forcing).
+- `renderChart` → SVG fixe simple.
+- `getImage` → blob PNG fictif.
+
+Ces stubs garantissent que les tests testent **notre** code (parser
+markdown, convertisseurs, sanitiseur SVG, application des settings)
+sans dépendre d'une version donnée de mermaid ni d'un vrai moteur
+de layout. Les goldens restent reproductibles sur toute machine.
+
+Le corpus actuel couvre : titres, formatage inline, listes, blocs de
+code (whitelist `language=`), math (back-conversion Unicode +
+`align*` pré-emballé), tables (pipe / csv), admonitions (env amsthm
++ tcolorbox), notes de bas de page + def lists, règles d'inférence,
+mermaid + chart, plus une copie de `HELP.md` comme cas
+« tout-en-un » (~1000 lignes). Couverture étendue au fil des
+features ajoutées.
+
+`TEST_SETTINGS` (cf. `tests/fixtures/settings.ts`) fige date, auteur
+et organisation : `DEFAULT_SETTINGS` avec `date.custom = '2026-01-01'`
+et `author/organization` à `Test Author` / `Test Org`. Sans ce pin,
+les goldens divergeraient à chaque jour calendaire ou changement
+local des Réglages.
+
 ## 6. Stockage et gestion des images
 
 ### 6.1. Format interne
@@ -554,23 +609,43 @@ HTML pour visualiser leur effet sans exporter.
 ### 9.1. Schéma
 
 ```ts
+interface TextStyle {
+  fontSize: number;
+  color: string;
+  // Headings (h1-h4) seulement — lus par les rendus preview + paged.
+  underline?: boolean; // border-bottom sous le titre
+  italic?: boolean;
+  weight?: number;     // 300 / 400 / 500 / 600 / 700
+}
+
+interface CustomFont {
+  name: string; // family CSS, ex. "Tangerine"
+  url: string;  // URL Google Fonts complète (css2?family=…)
+}
+
 interface PdfSettings {
   pageSize: 'A3' | 'A4' | 'A5' | 'B5' | 'LETTER' | 'LEGAL';
   margins: { top: number; bottom: number; left: number; right: number }; // mm
   justify: boolean;
   lineHeight: number; // multiplier "à la CSS", défaut 1.25
+  fonts: { headings: string; body: string; code: string };
+  customFonts: CustomFont[]; // §20.6
   author:       { text: string; show: boolean; bold: boolean };
   organization: { text: string; show: boolean; bold: boolean };
   date: { mode: 'none' | 'today' | 'custom'; custom: string };
   styles: {
-    h1:    { fontSize: number; color: string };
-    h2:    { fontSize: number; color: string };
-    h3:    { fontSize: number; color: string };
-    h4:    { fontSize: number; color: string };
-    body:  { fontSize: number; color: string };
-    code:  { fontSize: number; color: string };
-    quote: { fontSize: number; color: string; barColor: string };
+    h1:    TextStyle; // peut porter underline / italic / weight
+    h2:    TextStyle;
+    h3:    TextStyle;
+    h4:    TextStyle;
+    body:  TextStyle; // underline / italic / weight ignorés
+    code:  TextStyle;
+    quote: TextStyle & { barColor: string };
   };
+  // Espacements verticaux, en em (multiple de la taille de l'élément
+  // visé). Cf. §9.2.
+  headingSpacing: { above: number; below: number };
+  paragraphSpacing: number;
   pageNumber: {
     position:
       | 'none'
@@ -587,12 +662,31 @@ interface PdfSettings {
 
 ### 9.2. Comportements
 
-- Les **titres** sont toujours en gras (Roboto Medium 500), choix non
-  exposé dans l'UI.
+- **Graisse, italique, trait sous le titre** réglables par niveau h1-h4
+  (champ `weight` / `italic` / `underline` de `TextStyle`). Choix dans
+  la dropdown de graisse : `300 Light / 400 Regular / 500 Medium /
+  600 Semibold / 700 Bold`. Si la police choisie ne fournit pas la
+  variante demandée, le navigateur **synthétise** un faux gras /
+  italique (rendu moins propre — limitation documentée).
 - Le **h1** est traité comme titre du document : toujours **centré**.
 - h2..h6 sont toujours alignés à gauche, indépendamment de l'option
   « Justifier le texte ».
-- h5 et h6 héritent automatiquement des réglages de h4.
+- h5 et h6 héritent automatiquement des réglages typographiques de h4.
+- **Espacement vertical des titres** (`headingSpacing.above` / `below`,
+  en `em` de la taille du titre) appliqué uniformément à h1-h6, plus
+  une règle `:first-child` pour ne pas pousser le premier titre du
+  document vers le bas.
+- **Espacement entre paragraphes** (`paragraphSpacing`, en `em` du
+  corps) émis comme marge symétrique sur `<p>`. Les listes,
+  blockquotes, blocs de code etc. conservent leurs marges navigateur
+  par défaut — collapse de marges en jeu, donc l'espace adjacent à un
+  `<ul>` reste à ~1em même si `paragraphSpacing = 0`.
+- En sortie paginée (paged.js / PDF), une règle `break-after: avoid`
+  est posée sur h1-h6 pour éviter qu'un titre se retrouve seul en bas
+  de page. La règle est **non scopée** (sélecteur simple) parce que
+  le break-processor de paged.js parse le CSS lui-même et bute sur
+  `:where(...)` ; un selector simple le contourne sans effet de bord
+  (`break-after` n'a d'effet qu'en contexte paginé).
 - Le **bloc métadonnées** (auteur / organisation / date) est centré et
   inséré juste après le premier h1 du document (ou en tête si pas de
   h1). N'apparaît que pour les éléments dont la case « Afficher » est
@@ -613,6 +707,19 @@ interface PdfSettings {
   haute ou basse selon la position. Format : entier seul (ex. « 12 »).
 - Bouton **Réinitialiser** revient aux valeurs par défaut.
 
+#### Disposition de la fenêtre Réglages
+
+La fenêtre Réglages (détachée par défaut, modale en fallback popup
+bloqué) utilise un **CSS grid responsive** : chaque section est une
+piste `minmax(30rem, 1fr)` avec `auto-fit`, ce qui donne
+automatiquement 1 colonne en dessous de ~1020px, 2 colonnes au-delà,
+3 colonnes au-delà de ~1560px. La section historique « Styles » a été
+éclatée en trois cartes plus digestes (`Espacement`, `Titres`,
+`Corps`) pour mieux saturer la grille — sinon un seul bloc géant
+restait coincé tout en haut d'une colonne pendant que les autres
+étaient vides. La fenêtre détachée s'ouvre à 1080×820 par défaut,
+juste assez pour deux colonnes confortables.
+
 ### 9.3. Valeurs par défaut
 
 | Réglage              | Valeur                                       |
@@ -625,10 +732,16 @@ interface PdfSettings {
 | Organisation         | « Mon organisation », affichée, grasse       |
 | Date                 | Date du jour                                 |
 | h1 / h2 / h3 / h4    | 24 / 20 / 16 / 14 pt, couleur #09438b        |
+| h1-h3 / h4 — trait sous le titre | activé / désactivé              |
+| h1-h4 — italique     | désactivé                                    |
+| h1-h4 — graisse      | Medium (500)                                 |
+| Espace titres (au-dessus / en dessous) | 1.6 / 0.6 em             |
+| Espace entre paragraphes | 1.0 em                                   |
 | Texte normal         | 11 pt, couleur #000000                       |
 | Code                 | 10 pt, couleur #1f2328, fond #f6f8fa (fixe)  |
 | Citation             | 11 pt, couleur #57606a, barre #d0d7de        |
 | Numéro de page       | bas centre, 9 pt, non italique, #57606a      |
+| Polices personnalisées | aucune (liste vide)                        |
 | Mermaid (scale max / largeur / hauteur) | 2 / 100 % / 70 %                |
 
 ## 10. Aide intégrée
@@ -1578,6 +1691,50 @@ cohérent si une police chargée n'arrive pas (réseau, etc.).
 - Catalogue Google complet via API dynamique + clé.
 - Réglages de fluidification (line-height, letter-spacing) par
   famille.
+
+### 20.6. Polices Google personnalisées
+
+Pour les familles qui ne sont pas dans notre catalogue, l'utilisateur
+peut coller dans Réglages une **URL Google Fonts** complète, par
+exemple :
+
+```
+https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap
+```
+
+`parseGoogleFontsUrl` (dans `font-loader.ts`) valide que l'host est
+`fonts.googleapis.com` puis extrait chaque paramètre `family=` du
+querystring ; le nom CSS est ce qui précède `:` (les `+` deviennent
+des espaces). Une seule URL peut déclarer plusieurs familles
+(`?family=A&family=B`) ; on crée une entrée par famille, toutes
+pointant vers la même URL.
+
+Les entrées sont stockées dans `settings.customFonts` (cf. §9.1) et
+exposées via une **chip-list** sous les trois sélecteurs Titres /
+Corps / Code dans Réglages (avec une croix pour retirer). Les
+familles ajoutées apparaissent **dans les trois sélecteurs**
+indépendamment de leur catégorie (sans / serif / mono) — on ne peut
+pas déduire de manière fiable la catégorie d'une URL pastée, donc on
+laisse l'utilisateur juger.
+
+Côté chargement, `loadGoogleFont(name)` court-circuite la fabrication
+d'URL à partir du catalogue quand `name` correspond à une entrée
+`customFonts` : on injecte directement l'URL fournie par
+l'utilisateur, puis on attend `document.fonts.load('400 16px
+"<name>"')` comme pour les autres familles.
+
+L'export LaTeX **ignore** les polices personnalisées (le préambule
+généré reste sur DejaVu via `fontspec`, cf. §21.3). C'est documenté
+comme une limitation : le `.tex` est un point de départ pour
+adapter avec sa propre chaîne TeX, pas un clone du PDF.
+
+#### Hors scope custom fonts v1
+
+- URLs venant d'autres CDN (Adobe Fonts, Bunny, Fontshare…). À
+  ouvrir si la demande remonte — le filtrage actuel sur
+  `fonts.googleapis.com` empêche d'injecter du CSS arbitraire.
+- Mapping vers `\setmainfont{...}` en LaTeX (fragile, la police
+  doit aussi être installée sur la machine qui compile).
 
 ## 21. Export LaTeX
 

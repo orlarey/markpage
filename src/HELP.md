@@ -374,6 +374,12 @@ au contenu. **Astuce** : passez d'abord en mode Aperçu, ouvrez les
 Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
 se reflète en temps réel sur le document paginé.
 
+La fenêtre s'organise en plusieurs **cartes** (Auteur et date, Page,
+Polices, Marges, Espacement, Titres, Corps, Numéro de page,
+Diagrammes Mermaid). Si vous élargissez la fenêtre, les cartes
+**passent automatiquement sur deux ou trois colonnes** côte à côte
+pour réduire le scroll.
+
 Ce que vous pouvez régler :
 
 - **Auteur, organisation, date** affichés sous le titre principal
@@ -389,11 +395,32 @@ Ce que vous pouvez régler :
   sont embarquées et fonctionnent hors-ligne. *Note : l'éditeur
   lui-même garde toujours Roboto Condensed / Mono, indépendamment
   de vos choix — la cohérence de la zone de saisie ne change pas.*
-- **Tailles et couleurs** des titres (h1 à h4) et du corps
-- **Style du code** (taille et couleur)
-- **Style de la citation** (taille, couleur du texte, couleur de la
-  barre verticale)
+- **Polices Google personnalisées** — pour une famille hors
+  catalogue, copiez l'URL Google Fonts (par exemple
+  `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)
+  dans le champ « + Ajouter », validez. La police apparaît
+  immédiatement dans les trois sélecteurs (Titres / Corps / Code)
+  et peut être retirée d'un clic sur la croix de sa chip.
+- **Espacement** — trois ratios qui contrôlent la densité verticale
+  du document :
+  - *Au-dessus / en dessous des titres* (`1.6` / `0.6` par défaut) :
+    l'espace au-dessus d'un titre de taille T est `ratio × T`.
+    Asymétrique exprès — plus d'air au-dessus, pour que le titre
+    « appartienne » à la section qui suit.
+  - *Entre paragraphes* (`1.0` par défaut) : marge symétrique
+    appliquée à chaque paragraphe.
+- **Titres (h1 à h4)** — pour chacun : taille, couleur, **graisse**
+  (Light / Regular / Medium / Semibold / Bold), **italique**, et
+  **trait** (border-bottom sous le titre). Si la police choisie ne
+  fournit pas la graisse ou l'italique demandée, le navigateur
+  *synthétise* un faux gras / italique, en général moins joli — la
+  solution est de choisir une police plus complète, ou d'inclure
+  le poids voulu dans votre URL Google Fonts personnalisée.
+- **Corps** — taille et couleur du texte normal, du code, et de la
+  citation (avec sa barre verticale).
 - **Numéro de page** : position, taille, couleur, italique
+- **Diagrammes Mermaid** : agrandissement max, largeur max,
+  hauteur max (cf. section *Diagrammes Mermaid* plus bas).
 
 Les réglages sont **mémorisés entre vos sessions**. Le bouton
 *Réinitialiser* en bas du panneau revient aux valeurs par défaut.

@@ -566,6 +566,13 @@ Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
 se reflète en temps réel sur le document paginé.
 
 
+La fenêtre s'organise en plusieurs \textbf{cartes} (Auteur et date, Page,
+Polices, Marges, Espacement, Titres, Corps, Numéro de page,
+Diagrammes Mermaid). Si vous élargissez la fenêtre, les cartes
+\textbf{passent automatiquement sur deux ou trois colonnes} côte à côte
+pour réduire le scroll.
+
+
 Ce que vous pouvez régler :
 
 
@@ -583,11 +590,35 @@ navigateur les met en cache. Roboto Condensed et Roboto Mono
 sont embarquées et fonctionnent hors-ligne. \emph{Note : l'éditeur
 lui-même garde toujours Roboto Condensed / Mono, indépendamment
 de vos choix — la cohérence de la zone de saisie ne change pas.}
-  \item \textbf{Tailles et couleurs} des titres (h1 à h4) et du corps
-  \item \textbf{Style du code} (taille et couleur)
-  \item \textbf{Style de la citation} (taille, couleur du texte, couleur de la
-barre verticale)
+  \item \textbf{Polices Google personnalisées} — pour une famille hors
+catalogue, copiez l'URL Google Fonts (par exemple
+\texttt{https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700\&display=swap})
+dans le champ « + Ajouter », validez. La police apparaît
+immédiatement dans les trois sélecteurs (Titres / Corps / Code)
+et peut être retirée d'un clic sur la croix de sa chip.
+  \item \textbf{Espacement} — trois ratios qui contrôlent la densité verticale
+du document :
+
+\begin{itemize}
+  \item \emph{Au-dessus / en dessous des titres} (\texttt{1.6} / \texttt{0.6} par défaut) :
+l'espace au-dessus d'un titre de taille T est \texttt{ratio × T}.
+Asymétrique exprès — plus d'air au-dessus, pour que le titre
+« appartienne » à la section qui suit.
+  \item \emph{Entre paragraphes} (\texttt{1.0} par défaut) : marge symétrique
+appliquée à chaque paragraphe.
+\end{itemize}
+  \item \textbf{Titres (h1 à h4)} — pour chacun : taille, couleur, \textbf{graisse}
+(Light / Regular / Medium / Semibold / Bold), \textbf{italique}, et
+\textbf{trait} (border-bottom sous le titre). Si la police choisie ne
+fournit pas la graisse ou l'italique demandée, le navigateur
+\emph{synthétise} un faux gras / italique, en général moins joli — la
+solution est de choisir une police plus complète, ou d'inclure
+le poids voulu dans votre URL Google Fonts personnalisée.
+  \item \textbf{Corps} — taille et couleur du texte normal, du code, et de la
+citation (avec sa barre verticale).
   \item \textbf{Numéro de page} : position, taille, couleur, italique
+  \item \textbf{Diagrammes Mermaid} : agrandissement max, largeur max,
+hauteur max (cf. section \emph{Diagrammes Mermaid} plus bas).
 \end{itemize}
 
 
