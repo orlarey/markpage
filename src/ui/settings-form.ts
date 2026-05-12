@@ -173,6 +173,16 @@ export function buildSettingsForm(
           },
           (v) => PAGE_SIZE_LABELS[v],
         ),
+        selectField<Language>(
+          t('settings.field.doc-language'),
+          ['fr', 'en'],
+          current.language,
+          (v) => {
+            current.language = v;
+            emit();
+          },
+          (v) => (v === 'fr' ? 'Français' : 'English'),
+        ),
         checkboxField(t('settings.field.justify'), current.justify, (v) => {
           current.justify = v;
           emit();

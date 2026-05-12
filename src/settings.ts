@@ -151,6 +151,11 @@ export interface PdfSettings {
   // so the actual space before a list won't fall below ~1em even at
   // paragraphSpacing=0.
   paragraphSpacing: number;
+  // Document language. Distinct from the user's UI language (which
+  // lives in localStorage). Drives the LaTeX `\usepackage[…]{babel}`
+  // line, the theorem-env names emitted in the preamble, and the
+  // Intl format of the "Date du jour" metadata block.
+  language: 'fr' | 'en';
   mermaidMaxScale: number;
   // Maximum width allowed for a mermaid diagram, as a fraction of the
   // content (text) width of a page. 1.0 lets the diagram fill the column.
@@ -191,6 +196,11 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   customFonts: [],
   headingSpacing: { above: 1.6, below: 0.6 },
   paragraphSpacing: 1,
+  // First-launch default for the doc language. Re-resolved at the
+  // creation of a fresh profile via `detectLanguage()` so a user
+  // landing in an `en-*` browser gets English defaults. Existing
+  // profiles keep whatever was previously persisted.
+  language: 'fr',
   mermaidMaxScale: 2,
   mermaidMaxWidthPct: 1,
   mermaidMaxHeightPct: 0.7,
@@ -246,6 +256,7 @@ function mergeWithDefaults(input: unknown): PdfSettings {
     customFonts: Array.isArray(obj.customFonts) ? obj.customFonts : d.customFonts,
     headingSpacing: merge(d.headingSpacing, obj.headingSpacing),
     paragraphSpacing: obj.paragraphSpacing ?? d.paragraphSpacing,
+    language: obj.language ?? d.language,
     mermaidMaxScale: obj.mermaidMaxScale ?? d.mermaidMaxScale,
     mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
     mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
@@ -259,11 +270,21 @@ export function mmToPt(mm: number): number {
   return mm * MM_TO_PT;
 }
 
-const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+// Per-locale long-date formatters, lazily cached. Driven by the
+// document's language (PdfSettings.language) so an English doc shows
+// "May 11, 2026" and a French one "11 mai 2026" — regardless of the
+// user's UI locale, which is independent.
+const DATE_FORMATTERS: Record<'fr' | 'en', Intl.DateTimeFormat> = {
+  fr: new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }),
+  en: new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }),
+};
 
-export function formatDate(d: DateSetting): string | null {
+export function formatDate(
+  d: DateSetting,
+  language: 'fr' | 'en' = 'fr',
+): string | null {
   if (d.mode === 'none') return null;
-  if (d.mode === 'today') return dateFormatter.format(new Date());
+  if (d.mode === 'today') return DATE_FORMATTERS[language].format(new Date());
   const trimmed = d.custom.trim();
   return trimmed === '' ? null : trimmed;
 }
@@ -287,7 +308,7 @@ export function metadataLines(s: PdfSettings): MetadataLine[] {
       bold: s.organization.bold,
     });
   }
-  const d = formatDate(s.date);
+  const d = formatDate(s.date, s.language);
   if (d) lines.push({ text: d, bold: false });
   return lines;
 }

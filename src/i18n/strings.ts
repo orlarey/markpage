@@ -68,6 +68,7 @@ const FR = {
   'settings.section.page-number': 'Numéro de page',
   'settings.section.mermaid': 'Diagrammes Mermaid',
   'settings.section.ui-language': 'Langue de l’interface',
+  'settings.field.doc-language': 'Langue du document',
 
   // ---- help window --------------------------------------------------
   'help.window-title': 'Aide markpage',
@@ -237,6 +238,7 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.section.page-number': 'Page number',
   'settings.section.mermaid': 'Mermaid diagrams',
   'settings.section.ui-language': 'Interface language',
+  'settings.field.doc-language': 'Document language',
 
   // ---- help window --------------------------------------------------
   'help.window-title': 'markpage help',

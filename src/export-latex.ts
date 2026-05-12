@@ -171,21 +171,39 @@ function buildDocument(ctx: Ctx, body: string): string {
 // before compiling: math characters we didn't back-convert,
 // presence of SVG diagrams that need a SVG-aware compile chain.
 function buildWarningBanner(ctx: Ctx): string {
+  const fr = ctx.settings.language === 'fr';
   const lines: string[] = [];
   if (ctx.unmappedMath.size > 0) {
     const chars = [...ctx.unmappedMath].join(' ');
-    lines.push(
-      '% Caractères math non mappés (laissés tels quels — remplacez-les',
-      `% par la commande LaTeX adéquate si la compilation échoue) :`,
-      `%   ${chars}`,
-    );
+    if (fr) {
+      lines.push(
+        '% Caractères math non mappés (laissés tels quels — remplacez-les',
+        `% par la commande LaTeX adéquate si la compilation échoue) :`,
+        `%   ${chars}`,
+      );
+    } else {
+      lines.push(
+        '% Math characters left as-is because we have no LaTeX mapping for',
+        '% them. Replace each one with the appropriate command if the',
+        '% compilation fails on them:',
+        `%   ${chars}`,
+      );
+    }
   }
   if (ctx.mermaidCount > 0 || ctx.chartCount > 0) {
-    lines.push(
-      '% Ce document inclut des diagrammes / graphiques au format SVG.',
-      '% Le package `svg` est nécessaire et inkscape doit être accessible',
-      '% en ligne de commande (passez `--shell-escape` à xelatex).',
-    );
+    if (fr) {
+      lines.push(
+        '% Ce document inclut des diagrammes / graphiques au format SVG.',
+        '% Le package `svg` est nécessaire et inkscape doit être accessible',
+        '% en ligne de commande (passez `--shell-escape` à xelatex).',
+      );
+    } else {
+      lines.push(
+        '% This document embeds SVG diagrams / charts. The `svg` LaTeX',
+        '% package is required and inkscape must be on the $PATH (pass',
+        '% `--shell-escape` to xelatex).',
+      );
+    }
   }
   return lines.length === 0 ? '' : `${lines.join('\n')}\n\n`;
 }
@@ -837,6 +855,45 @@ function convertMath(input: string, ctx: Ctx): string {
   return result.text;
 }
 
+// Returns the `\newtheorem{…}{…}` lines (plus the trailing
+// `\theoremstyle{definition}` block) localised to the document's
+// language. The amsthm env names themselves (`theorem`, `lemma`, …)
+// are stable across locales — only the **display names** in `{…}`
+// move, so the body of the document (`\begin{theorem}…\end{theorem}`)
+// never has to know about the language switch.
+function theoremEnvLines(language: 'fr' | 'en'): string[] {
+  const names =
+    language === 'fr'
+      ? {
+          theorem: 'Théorème',
+          lemma: 'Lemme',
+          proposition: 'Proposition',
+          corollary: 'Corollaire',
+          definition: 'Définition',
+          example: 'Exemple',
+          remark: 'Remarque',
+        }
+      : {
+          theorem: 'Theorem',
+          lemma: 'Lemma',
+          proposition: 'Proposition',
+          corollary: 'Corollary',
+          definition: 'Definition',
+          example: 'Example',
+          remark: 'Remark',
+        };
+  return [
+    `\\newtheorem{theorem}{${names.theorem}}`,
+    `\\newtheorem{lemma}[theorem]{${names.lemma}}`,
+    `\\newtheorem{proposition}[theorem]{${names.proposition}}`,
+    `\\newtheorem{corollary}[theorem]{${names.corollary}}`,
+    `\\theoremstyle{definition}`,
+    `\\newtheorem{definition}{${names.definition}}`,
+    `\\newtheorem{example}{${names.example}}`,
+    `\\newtheorem{remark}{${names.remark}}`,
+  ];
+}
+
 function buildPreamble(ctx: Ctx): string {
   const s = ctx.settings;
   const authorLines = metadataAuthor(s);
@@ -847,10 +904,20 @@ function buildPreamble(ctx: Ctx): string {
   // don't need it.
   const needsSvg = ctx.mermaidCount > 0 || ctx.chartCount > 0;
   const svgLine = needsSvg ? `\\usepackage{svg}` : '';
+  const headerComment =
+    s.language === 'fr'
+      ? [
+          `% markpage — export LaTeX (cible : xelatex ou lualatex).`,
+          `% La compilation avec pdflatex échouera : fontspec + UTF-8 natif`,
+          `% dans les blocs de code requièrent xelatex / lualatex.`,
+        ]
+      : [
+          `% markpage — LaTeX export (target: xelatex or lualatex).`,
+          `% Compilation with pdflatex will fail: fontspec + native UTF-8`,
+          `% inside code blocks both require xelatex / lualatex.`,
+        ];
   return [
-    `% markpage — export LaTeX (cible : xelatex ou lualatex).`,
-    `% La compilation avec pdflatex échouera : fontspec + UTF-8 natif`,
-    `% dans les blocs de code requièrent xelatex / lualatex.`,
+    ...headerComment,
     `\\documentclass[11pt,a4paper]{article}`,
     `\\usepackage{fontspec}`,
     // Latin Modern ships with xelatex but lacks box-drawing and a
@@ -862,10 +929,14 @@ function buildPreamble(ctx: Ctx): string {
     `\\IfFontExistsTF{DejaVu Sans}{\\setsansfont{DejaVu Sans}}{}`,
     `\\IfFontExistsTF{DejaVu Sans Mono}{\\setmonofont{DejaVu Sans Mono}}{}`,
     svgLine,
-    // babel-french lives in texlive-lang-french; skip it
-    // silently when absent so the document still compiles on a
-    // minimal install (the user keeps English-style spacing).
-    `\\IfFileExists{french.ldf}{\\usepackage[french]{babel}}{}`,
+    // Language-specific babel package. Both `french.ldf` and the
+    // default `english.ldf` ship with the texlive-langfra /
+    // texlive-langenglish packages on stock installs. We guard with
+    // `\IfFileExists` so the doc still compiles on a minimal install
+    // (the user keeps the default English-ish spacing).
+    s.language === 'fr'
+      ? `\\IfFileExists{french.ldf}{\\usepackage[french]{babel}}{}`
+      : `\\IfFileExists{english.ldf}{\\usepackage[english]{babel}}{}`,
     `\\usepackage{amsmath,amssymb,amsthm}`,
     `\\usepackage{stmaryrd}`,
     `\\usepackage{graphicx}`,
@@ -924,14 +995,7 @@ function buildPreamble(ctx: Ctx): string {
     `% the markpage SPEC). The shared counter \`theorem\` keeps lemma /`,
     `% proposition / corollary numbered in the same sequence as the`,
     `% theorems themselves, which is the usual mathematical convention.`,
-    `\\newtheorem{theorem}{Théorème}`,
-    `\\newtheorem{lemma}[theorem]{Lemme}`,
-    `\\newtheorem{proposition}[theorem]{Proposition}`,
-    `\\newtheorem{corollary}[theorem]{Corollaire}`,
-    `\\theoremstyle{definition}`,
-    `\\newtheorem{definition}{Définition}`,
-    `\\newtheorem{example}{Exemple}`,
-    `\\newtheorem{remark}{Remarque}`,
+    ...theoremEnvLines(s.language),
     ``,
     `\\title{${escapeLatex(title)}}`,
     `\\author{${authorLines}}`,

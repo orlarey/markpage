@@ -367,13 +367,23 @@ export async function migrateLegacySettingsIfNeeded(): Promise<void> {
 // bootstrap to guarantee the rest of the app always has *some*
 // settings to render against. Run migrateLegacySettingsIfNeeded
 // before this so a legacy install lands in the right place.
-export async function ensureActiveProfile(): Promise<ProfileEntry> {
+//
+// `seedLanguage` controls the doc language baked into the brand-new
+// "Par défaut" profile we create when the index is empty; callers
+// pass the detected UI locale so an English user lands with English
+// defaults. Existing profiles are untouched.
+export async function ensureActiveProfile(
+  seedLanguage: 'fr' | 'en' = 'fr',
+): Promise<ProfileEntry> {
   const existing = resolveCurrentProfile();
   if (existing) {
     setCurrentProfileId(existing.uuid);
     return existing;
   }
-  const entry = await createProfile(DEFAULT_PROFILE_NAME, DEFAULT_SETTINGS);
+  const entry = await createProfile(DEFAULT_PROFILE_NAME, {
+    ...DEFAULT_SETTINGS,
+    language: seedLanguage,
+  });
   setCurrentProfileId(entry.uuid);
   return entry;
 }

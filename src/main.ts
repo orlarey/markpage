@@ -164,7 +164,7 @@ async function bootstrap(): Promise<void> {
   // Resolve the UI locale before any component reads `t(...)` at
   // construction time. First-launch detection via navigator.language;
   // subsequent runs read the value the user pinned via Réglages.
-  initLocale();
+  const uiLocale = initLocale();
 
   // Register the Noto fallback fonts (full TTFs, not subsetted) so the HTML
   // preview's font cascade has the same coverage as the PDF. Fire and
@@ -182,7 +182,10 @@ async function bootstrap(): Promise<void> {
   // schema, then guarantee at least one profile exists so the rest of
   // bootstrap has *some* settings to render against.
   await migrateLegacySettingsIfNeeded();
-  const activeProfile = await ensureActiveProfile();
+  // Seed the very first profile's doc language with whatever locale
+  // we resolved for the UI (above) — `en-*` users get an English doc
+  // (English babel, English-style date) by default.
+  const activeProfile = await ensureActiveProfile(uiLocale);
   const state: {
     settings: PdfSettings;
     profileId: string;
