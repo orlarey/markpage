@@ -746,94 +746,106 @@ juste assez pour deux colonnes confortables.
 
 ### 9.4. Multi-profil de réglages
 
-Pour qu'un même utilisateur puisse maintenir plusieurs jeux de
-`PdfSettings` (article scientifique sobre / note de cours aérée /
-diaporama vertical, etc.) et les partager, les réglages sont gérés
-comme une **bibliothèque de profils nommés** parallèle à la
-bibliothèque de documents (§19). Le modèle est volontairement
-calqué sur `docs.ts` : index léger + blobs content-addressed, pour
-que deux profils au contenu identique ne mangent qu'une seule entrée
-de blob.
+Un utilisateur maintient plusieurs jeux de `PdfSettings` (article
+scientifique sobre / note de cours aérée / diaporama vertical, etc.)
+dans une **bibliothèque de profils nommés**, parallèle à celle des
+documents (§19). Un seul profil est actif à la fois et s'applique à
+tous les documents.
 
-#### Modèle de stockage
+#### 9.4.1 Modèle de domaine
 
-Trois clés localStorage :
+Un profil est une paire `p = (name, content)` où :
 
-```
-md2pdf:settings-profiles:index    → JSON ProfileEntry[]
-md2pdf:settings-profiles:blob:<sha>  → JSON PdfSettings
-md2pdf:settings-profiles:current  → uuid
-```
+- **`name`** : libellé utilisateur, **unique** dans la bibliothèque.
+- **`content`** : un `PdfSettings` (cf. §9.1).
 
-```ts
-interface ProfileEntry {
-  uuid: string;         // identité opaque, stable pour les UI
-  name: string;         // libellé utilisateur (unique sur l'index)
-  mtime: number;        // ms epoch, sert au tri par récence
-  settingsSha: string;  // SHA-256 hex du JSON PdfSettings stocké
-}
-```
+Ces deux dimensions sont **logiquement indépendantes**. La relation
+`name → content` est une fonction (un nom mappe vers un unique
+contenu), mais `content → name` est un-à-plusieurs (plusieurs
+profils peuvent avoir le même contenu — typiquement parce qu'on a
+dupliqué pour garder un filet avant de modifier). Il n'y a donc pas
+de bijection.
 
-L'identité **technique** d'un profil est son `uuid`. Son identité
-**logique** pour l'utilisateur est son `name` (unique dans l'index ;
-collisions auto-renommées « Mon profil 2 »). Le `settingsSha` est la
-clé du blob ; deux profils peuvent légitimement partager une même
-SHA (cas d'usage : on duplique un profil pour le renommer avant de
-le modifier).
+#### 9.4.2 Opérations (API publique)
 
-La clé legacy `md2pdf:settings` (mono-profil) est migrée au premier
-lancement vers un profil nommé « Par défaut », puis supprimée.
+Chaque opération mute soit le **nom**, soit le **contenu**, soit le
+**pointeur courant**, jamais plusieurs dimensions atomiquement. Pour
+renommer-et-éditer, l'utilisateur fait deux pas séparés.
 
-#### Invariants
+| Opération                       | Touche le nom                | Touche le contenu                            | Pointeur courant                       |
+| ------------------------------- | ---------------------------- | -------------------------------------------- | -------------------------------------- |
+| `switch(name)`                  | —                            | —                                            | `current ← name`                       |
+| `rename(oldName, newName)`      | mute (collision auto-renommée) | —                                          | suit si `oldName === current`          |
+| `edit(content)`                 | —                            | rewrite du contenu du profil **courant**     | —                                      |
+| `reset()`                       | —                            | `edit(DEFAULT_SETTINGS)`                     | —                                      |
+| `create(name, content)`         | ajoute (collision auto-renommée) | ajoute                                   | optionnel — l'UI switche typiquement vers le nouveau |
+| `duplicate(name)`               | ajoute « Copie de `name` »   | **partage** le contenu du profil source      | optionnel                              |
+| `delete(name)`                  | retire ; refuse si dernier   | — (le contenu reste si d'autres noms le référencent) | si `name === current`, retombe sur le plus récent |
+| `importJson(json)`              | ajoute (depuis `json.name`)  | ajoute (depuis `json.settings`)              | optionnel                              |
+| `exportJson(name)`              | lit                          | lit                                          | —                                      |
+| `migrateLegacy()`               | crée une entrée « Par défaut » la première fois | importe `md2pdf:settings`         | la pointe                              |
 
-1. L'index contient **au moins un** profil après bootstrap. Si le
-   schéma est vide et qu'aucune migration n'est possible, on crée un
-   profil « Par défaut » avec `DEFAULT_SETTINGS`.
-2. La clé `current` pointe **toujours** sur un uuid présent dans
-   l'index ; sinon le résolveur retombe sur l'entrée la plus
-   récente.
-3. Pour toute entrée du index, le blob `md2pdf:settings-profiles:blob:<settingsSha>`
-   existe. Un blob non référencé est éligible au GC mais sa présence
-   transitoire n'a pas de conséquence fonctionnelle (lecture
-   content-addressed = idempotente).
+Trois propriétés qui tombent de cette décomposition :
 
-#### Opérations abstraites
+1. **`edit` n'a pas de paramètre `name`** : le panneau Réglages
+   n'affiche qu'un seul profil à la fois (le courant). Pour modifier
+   un autre profil, on `switch(name)` puis on `edit(...)`.
+2. **`duplicate` partage le contenu** : c'est observable seulement
+   comme une optimisation de stockage. Sémantiquement, modifier le
+   profil dupliqué n'affecte **pas** le profil d'origine
+   (copy-on-write).
+3. **Aucune opération ne supprime un contenu directement.** Un
+   contenu n'existe que parce qu'au moins un nom le référence ; le
+   contenu disparaît implicitement quand son dernier référent est
+   supprimé.
 
-| Opération                  | Signature                                        | Effet                                                                                                            |
-| -------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `list()`                   | `() → ProfileEntry[]`                            | renvoie l'index trié par `mtime` desc                                                                            |
-| `resolveCurrent()`         | `() → ProfileEntry`                              | profil actif, fallback sur le plus récent si `current` invalide ; crée « Par défaut » si l'index est vide        |
-| `read(uuid)`               | `(uuid) → PdfSettings`                           | charge le blob via `settingsSha` ; `DEFAULT_SETTINGS` si introuvable (filet de sécurité, ne devrait pas arriver) |
-| `mutate(uuid, settings)`   | `(uuid, PdfSettings) → ProfileEntry`             | hash `settings`, écrit le blob si nouveau, met à jour `settingsSha` + `mtime`. **No-op silencieux** si SHA inchangée |
-| `create(name, settings)`   | `(name, PdfSettings) → ProfileEntry`             | hash, écrit le blob si nouveau, crée une entrée avec un nouvel uuid ; `name` dé-dupliqué                         |
-| `rename(uuid, newName)`    | `(uuid, name) → ProfileEntry \| null`            | mute le seul champ `name` (no-op si inchangé) ; null si uuid inconnu ; collision auto-renommée                   |
-| `duplicate(uuid)`          | `(uuid) → ProfileEntry \| null`                  | crée une entrée avec le même `settingsSha` (donc même blob) sous un nom « Copie de … »                            |
-| `delete(uuid)`             | `(uuid) → boolean`                               | retire l'entrée. **Refuse** s'il ne reste qu'un profil. Si `current === uuid`, ré-affecte au plus récent restant |
-| `setCurrent(uuid)`         | `(uuid) → void`                                  | déplace le pointeur ; le caller émet ensuite un repaint                                                          |
-| `gc()`                     | `() → number`                                    | supprime tous les blobs dont la SHA n'est référencée par aucune entrée. Renvoie le nombre supprimé              |
-| `exportJson(uuid)`         | `(uuid) → string \| null`                        | sérialise `{ version, name, settings }` en JSON ; null si uuid inconnu                                            |
-| `importJson(json)`         | `(json) → { ok: true; profile } \| { ok: false; error }` | parse, valide la `version`, valide la présence de `name` / `settings`, appelle `create()`. Aucune mutation de `current` |
-| `migrateLegacy()`          | `() → void`                                      | idempotent ; convertit `md2pdf:settings` en premier profil + supprime la clé legacy                              |
+#### 9.4.3 Invariants
 
-#### Dédup content-addressed
+- L'index contient **au moins un profil** à tout moment (post
+  bootstrap). Si le schéma est vide et qu'aucune migration n'est
+  possible, on crée un profil « Par défaut » avec
+  `DEFAULT_SETTINGS`.
+- Le pointeur `current` désigne **toujours** un profil existant.
+  Toute opération qui pourrait l'invalider (delete) le ré-affecte
+  immédiatement.
+- Les `name` sont **uniques** dans la bibliothèque. Toute opération
+  qui en ajouterait un en collision auto-renomme (`Mon profil` →
+  `Mon profil 2`).
 
-Toutes les écritures passent par `writeBlob(sha, settings)` qui
-**n'écrase pas** un blob existant à la même SHA. Conséquences :
+#### 9.4.4 Surface utilisateur
 
-- `duplicate(uuid)` ne stocke pas une copie : c'est juste une
-  nouvelle entrée pointant sur la même SHA. Coût en localStorage =
-  ~100 octets (taille de l'entrée), pas la taille du blob.
-- Si l'utilisateur mute un profil A et qu'il obtient par
-  coïncidence le même contenu qu'un profil B existant, leurs deux
-  entrées partagent transparente le blob. Aucune fusion des
-  entrées ; les noms restent distincts.
-- Un import qui ramène un blob déjà connu (cas d'usage : ré-importer
-  un export local) n'écrit pas de second blob, juste une nouvelle
-  entrée. Si on veut éviter une seconde entrée de même contenu,
-  c'est la responsabilité de l'utilisateur (renommer / supprimer
-  après import).
+Un dropdown `[<nom du profil courant> ▾]` ancré dans la barre de
+titre de la fenêtre Réglages. Pattern **switch-en-un-clic** :
 
-#### Format d'import / export
+- **En-tête** : un input éditable contenant le nom du profil
+  courant. `Enter` = `rename(current, value)` puis fermer. `Esc` =
+  annuler sans muter.
+- **`+ Nouveau profil`** : `create(« Nouveau profil », currentContent)`
+  + `switch(nouveau)`. Amorcer sur le contenu courant économise un
+  paramétrage de zéro quand on veut tester une variante.
+- **Liste des autres profils** : une ligne par profil, un clic =
+  `switch(name)`. Pas de boutons hover, pas d'actions secondaires
+  inlinées.
+- **Séparateur**, puis trois actions qui s'appliquent au **profil
+  courant uniquement** :
+  - `Dupliquer` → `duplicate(current)` + `switch(copie)`.
+  - `Supprimer` → `delete(current)` (désactivé s'il ne reste qu'un
+    profil ; le nouveau courant devient le plus récent restant).
+  - `Réinitialiser` → `reset()` (équivalent du bouton historique
+    *Réinitialiser*, qu'on supprime du footer).
+- **Séparateur**, puis `Importer…` (file picker `.json` →
+  `importJson`) et `Exporter…` (`exportJson(current)` + téléchargement
+  de `<slug du nom>.json`).
+
+Le pattern doc-menu (actions Renommer / Dupliquer / Supprimer
+révélées au hover par ligne) est délibérément abandonné ici : on a
+typiquement 3-5 profils, l'action principale est *switcher*, et
+agréger les actions du profil courant en bas du menu garde une
+seule ligne par profil. Pour agir sur un autre profil, on switche
+puis on agit — un clic de plus, mais beaucoup moins de bruit
+visuel.
+
+#### 9.4.5 Format d'import / export
 
 Un fichier JSON par profil. Enveloppe versionnée pour permettre des
 migrations futures :
@@ -849,41 +861,67 @@ migrations futures :
 - `version > 1` côté reader → erreur explicite « mise à jour de
   md2pdf nécessaire ».
 - `name` ou `settings` manquant → erreur de validation.
-- Le `name` à l'import sert d'**indice** : si une entrée avec ce nom
-  existe déjà, on auto-renomme (`Mon profil 2`).
+- Le `name` à l'import sert d'**indice** ; si une entrée avec ce nom
+  existe déjà, l'auto-rename de `create` produit `Mon profil 2`.
+  Re-importer un export local crée donc une seconde entrée
+  (pointant probablement vers le même contenu de façon transparente —
+  cf. §9.4.6) ; à l'utilisateur de supprimer la seconde s'il préfère.
 
-#### Surface utilisateur
+#### 9.4.6 Stockage et dédup (implémentation)
 
-Un dropdown `[<nom du profil courant> ▾]` dans la barre de titre de
-la fenêtre Réglages (à gauche du bouton Fermer dans la modale
-fallback). Le menu suit le pattern **switch-en-un-clic** :
+L'API publique ci-dessus ne mentionne ni SHA, ni blob. Sous le
+capot, l'implémentation est **content-addressed**, calquée sur
+`docs.ts` :
 
-- **En-tête** : un input éditable contenant le nom du profil courant.
-  `Enter` = renommer + fermer. `Esc` = annuler.
-- **`+ Nouveau profil`** : crée un profil amorcé avec les réglages
-  *courants* (pour qu'un utilisateur qui aime presque sa config
-  puisse partir de là), bascule dessus.
-- **Liste des autres profils** : un clic = `setCurrent` + repaint.
-  Une seule action par ligne — pas de boutons hover.
-- **Séparateur**, puis trois actions sur le **profil courant**
-  uniquement : `Dupliquer`, `Supprimer` (désactivé s'il ne reste
-  qu'un profil), `Réinitialiser` (revient à `DEFAULT_SETTINGS` sans
-  changer le nom — l'option *Réinitialiser* historique).
-- **Séparateur**, puis `Importer…` (ouvre un file picker `.json`)
-  et `Exporter…` (télécharge `<slug du nom>.json`).
+Trois familles de clés `localStorage` :
 
-Le pattern doc-menu (actions Renommer / Dupliquer / Supprimer
-révélées au hover par ligne) est délibérément abandonné ici : on a
-typiquement 3-5 profils, l'action principale est *switcher*, et
-agréger les actions du profil courant en bas du menu garde une
-seule ligne par profil. Pour agir sur un autre profil, on switche
-puis on agit — un clic de plus, beaucoup moins de bruit visuel.
+```
+md2pdf:settings-profiles:index       → JSON ProfileEntry[]
+md2pdf:settings-profiles:blob:<sha>  → JSON PdfSettings
+md2pdf:settings-profiles:current     → uuid
+```
 
-#### Liaison aux documents
+```ts
+interface ProfileEntry {
+  uuid: string;         // handle interne, stable à travers les renommages
+  name: string;         // unique dans l'index
+  mtime: number;        // ms epoch
+  contentSha: string;   // SHA-256 hex du JSON PdfSettings → clé du blob
+}
+```
 
-V1 : **profil global actif**. Un seul profil actif à la fois, partagé
-par tous les documents. Switcher de profil applique immédiatement les
-nouveaux réglages à l'aperçu en cours et au prochain export.
+Conséquences :
+
+- **`duplicate` ne copie pas le contenu** : c'est une nouvelle entrée
+  pointant sur la même SHA. Coût en localStorage = la taille de
+  l'entrée (~120 octets), pas la taille du blob.
+- **`create` / `importJson` dédupliquent automatiquement** : si la
+  SHA du contenu fourni existe déjà, on n'écrit pas le blob une
+  seconde fois.
+- **`edit` est idempotent** sur no-op : si le contenu produit la
+  même SHA que celui d'avant, on ne touche ni au blob ni à `mtime`.
+  (Évite que le tri par récence ne flippe en permanence pendant que
+  l'utilisateur passe la souris sur une checkbox déjà cochée.)
+- **GC** : `gc()` supprime tous les blobs dont la SHA n'est plus
+  référencée par aucune entrée. Cheap, idempotent ; on l'invoque au
+  bootstrap et après chaque `delete`.
+
+L'`uuid` interne sert à : (a) parler à un profil de façon stable
+quand son nom est en cours de mutation, (b) router les callbacks UI
+(« la ligne cliquée » → quelle entrée ?). Il n'apparaît jamais dans
+l'API publique ni dans le format d'export.
+
+La clé legacy `md2pdf:settings` (mono-profil) est convertie au
+premier lancement par `migrateLegacy` en un profil nommé « Par
+défaut », puis supprimée. Opération idempotente : si l'index existe
+déjà, on n'y touche pas.
+
+#### 9.4.7 Liaison aux documents
+
+V1 : **profil global actif**. Un seul profil actif à la fois,
+partagé par tous les documents. Switcher de profil applique
+immédiatement les nouveaux réglages à l'aperçu en cours et au
+prochain export.
 
 Hors v1 : binding par document (un doc se souvient de son profil),
 nécessiterait un champ `settingsProfileId` sur `DocEntry` et une
