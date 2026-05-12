@@ -2,6 +2,8 @@
 // style-menu / doc-menu: one transient div, dismissed on outside
 // click, Escape, or window resize.
 
+import { t } from '../i18n/strings';
+
 const MENU_ID = 'export-menu';
 
 export interface ExportMenuOptions {
@@ -62,9 +64,9 @@ export function openExportMenu(
   };
 
   menu.append(
-    item('Markdown (.md)', 'Cmd/Ctrl + S', opts.onMarkdown),
-    item('PDF (.pdf)', 'Cmd/Ctrl + P', opts.onPdf),
-    item('LaTeX (.tex)', '', opts.onLatex),
+    item(t('export-menu.markdown'), 'Cmd/Ctrl + S', opts.onMarkdown),
+    item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),
+    item(t('export-menu.latex'), '', opts.onLatex),
   );
 
   document.body.appendChild(menu);

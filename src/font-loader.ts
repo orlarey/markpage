@@ -9,6 +9,7 @@
 // imports in main.ts.
 
 import catalog from './assets/google-fonts-catalog.json';
+import { t } from './i18n/strings';
 import type { CustomFont } from './settings';
 
 export interface FontEntry {
@@ -63,14 +64,14 @@ export function parseGoogleFontsUrl(
   try {
     parsed = new URL(raw.trim());
   } catch {
-    return { ok: false, error: 'URL invalide' };
+    return { ok: false, error: t('fonts.custom-fonts-invalid-url') };
   }
   if (parsed.host !== 'fonts.googleapis.com') {
-    return { ok: false, error: 'Doit pointer vers fonts.googleapis.com' };
+    return { ok: false, error: t('fonts.custom-fonts-bad-host') };
   }
   const families = parsed.searchParams.getAll('family');
   if (families.length === 0) {
-    return { ok: false, error: 'Aucun paramètre "family=" dans l\'URL' };
+    return { ok: false, error: t('fonts.custom-fonts-no-family') };
   }
   // Each `family=` value is `Name+With+Spaces[:wght@…][:ital@…]`.
   // We only care about the name; the rest is the URL's job.

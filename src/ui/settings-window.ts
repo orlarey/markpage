@@ -8,6 +8,7 @@
 
 import { buildSettingsForm, type SettingsProfileHandlers } from './settings-form';
 import { openSettingsPanel } from './settings-panel';
+import { t } from '../i18n/strings';
 import type { PdfSettings } from '../settings';
 // Bundling the whole app stylesheet keeps the popup visually
 // consistent with the parent — same colours, same field layout.
@@ -52,7 +53,7 @@ export function openSettingsWindow(
   }
   currentWindow = win;
 
-  win.document.title = 'Réglages markpage';
+  win.document.title = t('settings.window-title');
   win.document.documentElement.lang = 'fr';
   win.document.head.innerHTML = `
     <meta charset="UTF-8">

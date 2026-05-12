@@ -11,6 +11,7 @@ import {
   toggleItalic,
   toggleNumberedList,
 } from '../editor-commands';
+import { t } from '../i18n/strings';
 import { pickAndInsertImage } from '../image';
 
 const MENU_ID = 'style-menu';
@@ -103,24 +104,24 @@ export function openStyleMenu(
   };
 
   menu.append(
-    item('Normal', () => setHeading(view, 0), sel.heading === 0),
-    item('Titre 1', () => setHeading(view, 1), sel.heading === 1),
-    item('Titre 2', () => setHeading(view, 2), sel.heading === 2),
-    item('Titre 3', () => setHeading(view, 3), sel.heading === 3),
-    item('Titre 4', () => setHeading(view, 4), sel.heading === 4),
+    item(t('style-menu.normal'), () => setHeading(view, 0), sel.heading === 0),
+    item(t('style-menu.h1'), () => setHeading(view, 1), sel.heading === 1),
+    item(t('style-menu.h2'), () => setHeading(view, 2), sel.heading === 2),
+    item(t('style-menu.h3'), () => setHeading(view, 3), sel.heading === 3),
+    item(t('style-menu.h4'), () => setHeading(view, 4), sel.heading === 4),
     sep(),
-    item('Gras', () => toggleBold(view), sel.bold),
-    item('Italique', () => toggleItalic(view), sel.italic),
-    item('Code en ligne', () => toggleInlineCode(view), sel.code),
+    item(t('style-menu.bold'), () => toggleBold(view), sel.bold),
+    item(t('style-menu.italic'), () => toggleItalic(view), sel.italic),
+    item(t('style-menu.code'), () => toggleInlineCode(view), sel.code),
     sep(),
-    item('Liste à puces', () => toggleBulletList(view), sel.bullet),
-    item('Liste numérotée', () => toggleNumberedList(view), sel.numbered),
-    item('Citation', () => toggleBlockquote(view), sel.quote),
+    item(t('style-menu.bullet'), () => toggleBulletList(view), sel.bullet),
+    item(t('style-menu.numbered'), () => toggleNumberedList(view), sel.numbered),
+    item(t('style-menu.quote'), () => toggleBlockquote(view), sel.quote),
     sep(),
-    item('Insérer un lien…', () => insertLink(view)),
-    item('Insérer une image…', () => pickAndInsertImage(view)),
+    item(t('style-menu.link'), () => insertLink(view)),
+    item(t('style-menu.image'), () => pickAndInsertImage(view)),
     sep(),
-    item('Numéroter les sections', () => renumberHeadings(view)),
+    item(t('style-menu.numbering'), () => renumberHeadings(view)),
   );
 
   document.body.appendChild(menu);

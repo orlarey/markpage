@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import { t } from '../i18n/strings';
 import {
   renderMathBlocks,
   renderMathInlines,
@@ -30,11 +31,11 @@ export function openHelpModal(
   const panel = document.createElement('div');
   panel.className = 'help-panel';
   panel.setAttribute('role', 'dialog');
-  panel.setAttribute('aria-label', 'Aide');
+  panel.setAttribute('aria-label', t('help.aria-label'));
 
   const header = document.createElement('header');
   const title = document.createElement('h2');
-  title.textContent = 'Aide';
+  title.textContent = t('help.title-suffix');
 
   const actions = document.createElement('div');
   actions.className = 'actions';
@@ -43,19 +44,19 @@ export function openHelpModal(
     const pdfBtn = document.createElement('button');
     pdfBtn.type = 'button';
     pdfBtn.className = 'export-pdf';
-    pdfBtn.textContent = 'Exporter .pdf';
+    pdfBtn.textContent = t('help.export-pdf');
     pdfBtn.addEventListener('click', () => {
       const cb = options.onExportPdf;
       if (!cb) return;
       pdfBtn.disabled = true;
-      pdfBtn.textContent = 'Génération…';
+      pdfBtn.textContent = t('help.generating');
       void cb()
         .catch((err: unknown) => {
           console.error('Help PDF export failed', err);
         })
         .finally(() => {
           pdfBtn.disabled = false;
-          pdfBtn.textContent = 'Exporter .pdf';
+          pdfBtn.textContent = t('help.export-pdf');
         });
     });
     actions.append(pdfBtn);
@@ -64,7 +65,7 @@ export function openHelpModal(
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'close';
-  closeBtn.textContent = 'Fermer';
+  closeBtn.textContent = t('help.close');
   actions.append(closeBtn);
 
   header.append(title, actions);

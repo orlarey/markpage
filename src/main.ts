@@ -24,6 +24,7 @@ import {
   migrateLocalStorageBranding,
 } from './branding-migration';
 import { initLocale } from './i18n/locale';
+import { t } from './i18n/strings';
 import { registerFallbackFonts } from './fonts';
 import { loadFontTrio, registerCustomFonts } from './font-loader';
 import { createEditor } from './editor';
@@ -232,7 +233,7 @@ async function bootstrap(): Promise<void> {
   // points it at the new entry, and the toolbar / autosave read its
   // current value via the closure.
   let currentDoc: DocEntry =
-    resolveCurrentDoc() ?? (await createDoc('Aide markpage', DEFAULT_DOC));
+    resolveCurrentDoc() ?? (await createDoc(t('default.help-doc-name'), DEFAULT_DOC));
   setCurrentDocId(currentDoc.uuid);
   const initialDoc = loadDocContent(currentDoc) ?? '';
 
@@ -500,7 +501,7 @@ async function bootstrap(): Promise<void> {
       .catch((err: unknown) => {
         console.error('Import failed', err);
         const msg = err instanceof Error ? err.message : String(err);
-        globalThis.alert(`Échec de l'import : ${msg}`);
+        globalThis.alert(t('import.failed', { msg }));
       });
   };
 
@@ -568,7 +569,9 @@ async function bootstrap(): Promise<void> {
       } catch (err) {
         console.error('LaTeX export failed', err);
         globalThis.alert(
-          `Échec de l'export LaTeX : ${err instanceof Error ? err.message : String(err)}`,
+          t('latex-export.failed', {
+            msg: err instanceof Error ? err.message : String(err),
+          }),
         );
       }
     })();
@@ -623,7 +626,7 @@ async function bootstrap(): Promise<void> {
       void (async () => {
         // Seed a new profile from the active one so the user keeps
         // their current look as a starting point.
-        const entry = await createProfile('Nouveau profil', {
+        const entry = await createProfile(t('default.new-profile-name'), {
           ...state.settings,
         });
         applyProfile(entry);
@@ -670,7 +673,9 @@ async function bootstrap(): Promise<void> {
           const text = await file.text();
           const result = await importProfileJson(text);
           if (!result.ok) {
-            globalThis.alert(`Import du profil échoué : ${result.error}`);
+            globalThis.alert(
+              t('profile-menu.import-failed', { error: result.error }),
+            );
             return;
           }
           applyProfile(result.profile);

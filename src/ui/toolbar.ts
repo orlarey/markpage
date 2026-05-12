@@ -1,3 +1,4 @@
+import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 
 export type ViewMode = 'editor' | 'preview';
@@ -37,7 +38,7 @@ export function mountToolbar(
   const docBtn = document.createElement('button');
   docBtn.type = 'button';
   docBtn.className = 'menu-trigger doc-trigger';
-  docBtn.title = 'Documents';
+  docBtn.title = t('toolbar.docs-title');
   const docLabel = document.createElement('span');
   docLabel.className = 'doc-trigger-label';
   docLabel.textContent = handlers.initialDocName;
@@ -49,16 +50,15 @@ export function mountToolbar(
 
   const importBtn = document.createElement('button');
   importBtn.type = 'button';
-  importBtn.textContent = 'Importer';
-  importBtn.title =
-    'Importer un fichier (.md / .docx / .html / .txt) comme nouveau document (Ctrl+O / Cmd+O)';
+  importBtn.textContent = t('toolbar.import');
+  importBtn.title = t('toolbar.import-title');
   importBtn.addEventListener('click', () => handlers.onImport());
 
   const previewBtn = document.createElement('button');
   previewBtn.type = 'button';
   previewBtn.className = 'preview-toggle';
-  previewBtn.textContent = 'Aperçu';
-  previewBtn.title = 'Basculer entre éditeur et aperçu (Ctrl+Enter / Cmd+Enter)';
+  previewBtn.textContent = t('toolbar.preview');
+  previewBtn.title = t('toolbar.preview-title');
   previewBtn.setAttribute(
     'aria-pressed',
     handlers.initialViewMode === 'preview' ? 'true' : 'false',
@@ -68,8 +68,8 @@ export function mountToolbar(
   const styleBtn = document.createElement('button');
   styleBtn.type = 'button';
   styleBtn.className = 'menu-trigger';
-  styleBtn.title = 'Mise en forme (titres, gras, listes…)';
-  const styleLabel = document.createTextNode('Style');
+  styleBtn.title = t('toolbar.style-title');
+  const styleLabel = document.createTextNode(t('toolbar.style'));
   const styleCaret = document.createElement('span');
   styleCaret.className = 'menu-caret';
   styleCaret.textContent = '▾';
@@ -85,15 +85,15 @@ export function mountToolbar(
   const helpBtn = document.createElement('button');
   helpBtn.type = 'button';
   helpBtn.className = 'help-btn';
-  helpBtn.textContent = 'Aide';
-  helpBtn.title = 'Ouvrir le tutoriel';
+  helpBtn.textContent = t('toolbar.help');
+  helpBtn.title = t('toolbar.help-title');
   helpBtn.addEventListener('click', () => handlers.onHelp());
 
   const exportBtn = document.createElement('button');
   exportBtn.type = 'button';
   exportBtn.className = 'menu-trigger';
-  exportBtn.title = 'Exporter le document (Markdown ou PDF)';
-  const exportLabel = document.createTextNode('Exporter');
+  exportBtn.title = t('toolbar.export-title');
+  const exportLabel = document.createTextNode(t('toolbar.export'));
   const exportCaret = document.createElement('span');
   exportCaret.className = 'menu-caret';
   exportCaret.textContent = '▾';
@@ -103,8 +103,8 @@ export function mountToolbar(
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
   settingsBtn.className = 'menu-trigger';
-  settingsBtn.title = 'Ouvrir le panneau de réglages (Ctrl+, / Cmd+,)';
-  const settingsLabel = document.createTextNode('Réglages');
+  settingsBtn.title = t('toolbar.settings-title');
+  const settingsLabel = document.createTextNode(t('toolbar.settings'));
   const settingsCaret = document.createElement('span');
   settingsCaret.className = 'menu-caret';
   settingsCaret.textContent = '▾';

@@ -19,6 +19,8 @@ import {
   renderMermaidBlocks,
 } from '../preview';
 import { openHelpModal, type HelpModalOptions } from './help-modal';
+import { getLanguage } from '../i18n/locale';
+import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 // Vite returns the processed CSS string for the `?inline` query.
 // Bundling the whole app stylesheet keeps the help window visually
@@ -102,8 +104,8 @@ function buildHelpWindow(
   helpMarkdown: string,
   options: HelpWindowOptions,
 ): void {
-  win.document.title = 'Aide markpage';
-  win.document.documentElement.lang = 'fr';
+  win.document.title = t('help.window-title');
+  win.document.documentElement.lang = getLanguage();
   win.document.head.innerHTML = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -112,10 +114,10 @@ function buildHelpWindow(
   `;
   win.document.body.innerHTML = `
     <header class="help-window-header">
-      <h1><span class="markpage-logo" id="help-window-logo"></span> &mdash; Aide</h1>
+      <h1><span class="markpage-logo" id="help-window-logo"></span> &mdash; ${t('help.title-suffix')}</h1>
       <div class="help-window-actions">
-        ${options.onExportPdf ? '<button type="button" class="export-pdf">Exporter .pdf</button>' : ''}
-        <button type="button" class="close">Fermer</button>
+        ${options.onExportPdf ? `<button type="button" class="export-pdf">${t('help.export-pdf')}</button>` : ''}
+        <button type="button" class="close">${t('help.close')}</button>
       </div>
     </header>
     <main class="help-body" id="help-body"></main>
@@ -165,7 +167,7 @@ function buildHelpWindow(
       const cb = options.onExportPdf;
       if (!cb) return;
       pdfBtn.disabled = true;
-      pdfBtn.textContent = 'Génération…';
+      pdfBtn.textContent = t('help.generating');
       void cb()
         .catch((err: unknown) => {
           // eslint-disable-next-line no-console
@@ -173,7 +175,7 @@ function buildHelpWindow(
         })
         .finally(() => {
           pdfBtn.disabled = false;
-          pdfBtn.textContent = 'Exporter .pdf';
+          pdfBtn.textContent = t('help.export-pdf');
         });
     });
   }

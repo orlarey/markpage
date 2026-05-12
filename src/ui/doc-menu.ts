@@ -1,4 +1,5 @@
 import type { DocEntry } from '../docs';
+import { t } from '../i18n/strings';
 
 const MENU_ID = 'doc-menu';
 
@@ -86,7 +87,7 @@ export function openDocMenu(
   const newBtn = document.createElement('button');
   newBtn.type = 'button';
   newBtn.className = 'doc-menu-new';
-  newBtn.textContent = '+ Nouveau document';
+  newBtn.textContent = t('doc-menu.new');
   newBtn.addEventListener('click', () => {
     opts.onCreate();
     close();
@@ -154,15 +155,15 @@ function buildOtherRow(
   const actions = document.createElement('div');
   actions.className = 'doc-menu-actions';
 
-  const renameBtn = actionBtn('Renommer', () => {
+  const renameBtn = actionBtn(t('doc-menu.rename'), () => {
     enterInlineRename(row, nameEl, doc, opts);
   });
-  const dupBtn = actionBtn('Dupliquer', () => {
+  const dupBtn = actionBtn(t('doc-menu.duplicate'), () => {
     opts.onDuplicate(doc.uuid);
     close();
   });
-  const delBtn = actionBtn('Supprimer', () => {
-    if (globalThis.confirm(`Supprimer « ${doc.name} » ?`)) {
+  const delBtn = actionBtn(t('doc-menu.delete'), () => {
+    if (globalThis.confirm(t('doc-menu.delete-confirm', { name: doc.name }))) {
       opts.onDelete(doc.uuid);
       close();
     }

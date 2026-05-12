@@ -10,6 +10,7 @@
 // handful, primary intent is *switch*, and per-row actions added
 // visual noise that didn't pay back.
 
+import { t } from '../i18n/strings';
 import type { ProfileEntry } from '../settings-profiles';
 
 const MENU_ID = 'profile-menu';
@@ -92,7 +93,7 @@ export function openProfileMenu(
   const newBtn = doc.createElement('button');
   newBtn.type = 'button';
   newBtn.className = 'profile-menu-new';
-  newBtn.textContent = '+ Nouveau profil';
+  newBtn.textContent = t('profile-menu.new');
   newBtn.addEventListener('click', () => {
     opts.onCreate();
     close();
@@ -132,30 +133,30 @@ export function openProfileMenu(
 
   const allowDelete = opts.profiles.length > 1;
   footer.append(
-    footerButton(doc, 'Dupliquer', () => {
+    footerButton(doc, t('profile-menu.duplicate'), () => {
       opts.onDuplicateCurrent();
       close();
     }),
     footerButton(
       doc,
-      'Supprimer',
+      t('profile-menu.delete'),
       () => {
         const w = doc.defaultView ?? globalThis;
         if (!current) return;
-        if (w.confirm(`Supprimer le profil « ${current.name} » ?`)) {
+        if (
+          w.confirm(
+            t('profile-menu.delete-confirm', { name: current.name }),
+          )
+        ) {
           opts.onDeleteCurrent();
           close();
         }
       },
       !allowDelete,
     ),
-    footerButton(doc, 'Réinitialiser', () => {
+    footerButton(doc, t('profile-menu.reset'), () => {
       const w = doc.defaultView ?? globalThis;
-      if (
-        w.confirm(
-          'Revenir aux réglages par défaut pour ce profil ? Le nom est conservé.',
-        )
-      ) {
+      if (w.confirm(t('profile-menu.reset-confirm'))) {
         opts.onResetCurrent();
         close();
       }
@@ -170,11 +171,11 @@ export function openProfileMenu(
   const io = doc.createElement('div');
   io.className = 'profile-menu-io';
   io.append(
-    footerButton(doc, 'Importer…', () => {
+    footerButton(doc, t('profile-menu.import'), () => {
       opts.onImport();
       close();
     }),
-    footerButton(doc, 'Exporter…', () => {
+    footerButton(doc, t('profile-menu.export'), () => {
       opts.onExport();
       close();
     }),

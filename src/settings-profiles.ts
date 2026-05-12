@@ -24,6 +24,7 @@
 //   - markpage:settings-profiles:blob:<uuid> (uuid-keyed blobs from
 //     the §9.4 draft implementation) → re-stored under their SHA.
 
+import { t } from './i18n/strings';
 import { sha256Hex } from './image-store';
 import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
 
@@ -416,20 +417,17 @@ export async function importProfileJson(json: string): Promise<ImportResult> {
   try {
     parsed = JSON.parse(json);
   } catch {
-    return { ok: false, error: 'JSON invalide' };
+    return { ok: false, error: t('profile-import.invalid-json') };
   }
   if (!parsed || typeof parsed !== 'object') {
-    return { ok: false, error: 'Format inattendu' };
+    return { ok: false, error: t('profile-import.unexpected-format') };
   }
   const env = parsed as Partial<ExportEnvelope>;
   if (typeof env.version !== 'number' || env.version > EXPORT_VERSION) {
-    return {
-      ok: false,
-      error: 'Version d’export non reconnue (mise à jour de markpage nécessaire ?)',
-    };
+    return { ok: false, error: t('profile-import.unknown-version') };
   }
   if (typeof env.name !== 'string' || !env.settings) {
-    return { ok: false, error: 'Champ "name" ou "settings" manquant' };
+    return { ok: false, error: t('profile-import.missing-fields') };
   }
   const profile = await createProfile(env.name, env.settings);
   return { ok: true, profile };

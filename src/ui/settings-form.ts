@@ -22,6 +22,8 @@ import {
   registerCustomFonts,
 } from '../font-loader';
 import type { ProfileEntry } from '../settings-profiles';
+import { getLanguage, setLanguage, type Language } from '../i18n/locale';
+import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 import { openProfileMenu } from './profile-menu';
 
@@ -53,21 +55,24 @@ export interface SettingsForm {
   refresh(): void;
 }
 
-const POSITION_LABELS: Record<PageNumberPosition, string> = {
-  none: 'aucun',
-  'top-left': 'haut gauche',
-  'top-center': 'haut centre',
-  'top-right': 'haut droite',
-  'bottom-left': 'bas gauche',
-  'bottom-center': 'bas centre',
-  'bottom-right': 'bas droite',
-};
+// Both label maps are functions so each call respects the active
+// locale — relevant when the user picks a fresh locale and we
+// rebuild the form before the page reload kicks in.
+const POSITION_LABELS = (): Record<PageNumberPosition, string> => ({
+  none: t('position.none'),
+  'top-left': t('position.top-left'),
+  'top-center': t('position.top-center'),
+  'top-right': t('position.top-right'),
+  'bottom-left': t('position.bottom-left'),
+  'bottom-center': t('position.bottom-center'),
+  'bottom-right': t('position.bottom-right'),
+});
 
-const DATE_MODE_LABELS: Record<DateMode, string> = {
-  none: 'Pas de date',
-  today: 'Date du jour',
-  custom: 'Date personnalisée',
-};
+const DATE_MODE_LABELS = (): Record<DateMode, string> => ({
+  none: t('date.none'),
+  today: t('date.today'),
+  custom: t('date.custom'),
+});
 
 const DATE_MODES: DateMode[] = ['none', 'today', 'custom'];
 
@@ -80,7 +85,7 @@ export function buildSettingsForm(
   const root = doc.createElement('div');
   root.className = 'settings-panel';
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', 'Réglages PDF');
+  root.setAttribute('aria-label', t('settings.h1'));
 
   let current: PdfSettings = clone(handlers.getSettings());
 
@@ -100,7 +105,7 @@ export function buildSettingsForm(
     // the popup window reads "[markpage] — Réglages" at a glance.
     title.append(
       makeLogo(doc, 'full'),
-      doc.createTextNode(' — Réglages'),
+      doc.createTextNode(` — ${t('settings.h1')}`),
     );
     header.append(title);
 
@@ -113,7 +118,7 @@ export function buildSettingsForm(
     const trigger = doc.createElement('button');
     trigger.type = 'button';
     trigger.className = 'profile-trigger';
-    trigger.textContent = `${currentProfile?.name ?? 'Profil'} ▾`;
+    trigger.textContent = `${currentProfile?.name ?? 'Profile'} ▾`;
     trigger.addEventListener('click', () => {
       const currentUuid = handlers.getCurrentProfileId();
       openProfileMenu(trigger, {
@@ -135,12 +140,19 @@ export function buildSettingsForm(
     form.className = 'settings-form';
 
     form.append(
-      section('Auteur et date', [
-        metadataField('Auteur', current.author, (v) => {
+      // UI language sits at the very top because it's the one
+      // setting that doesn't belong to the PdfSettings profile — it
+      // lives in the user's localStorage and applies to every doc /
+      // profile. Changing it reloads the page (cf. setLanguage).
+      section(t('settings.section.ui-language'), [
+        uiLanguageField(),
+      ]),
+      section(t('settings.section.author-date'), [
+        metadataField(t('settings.field.author'), current.author, (v) => {
           current.author = v;
           emit();
         }),
-        metadataField('Organisation', current.organization, (v) => {
+        metadataField(t('settings.field.organization'), current.organization, (v) => {
           current.organization = v;
           emit();
         }),
@@ -150,9 +162,9 @@ export function buildSettingsForm(
           refresh();
         }),
       ]),
-      section('Page', [
+      section(t('settings.section.page'), [
         selectField(
-          'Format',
+          t('settings.field.page-size'),
           PAGE_SIZES,
           current.pageSize,
           (v) => {
@@ -161,12 +173,12 @@ export function buildSettingsForm(
           },
           (v) => PAGE_SIZE_LABELS[v],
         ),
-        checkboxField('Justifier le texte', current.justify, (v) => {
+        checkboxField(t('settings.field.justify'), current.justify, (v) => {
           current.justify = v;
           emit();
         }),
         numberField(
-          'Interligne',
+          t('settings.field.line-height'),
           current.lineHeight,
           1,
           2.5,
@@ -177,42 +189,42 @@ export function buildSettingsForm(
           { step: 0.05 },
         ),
       ]),
-      section('Polices', [
-        fontField('Titres', ['sans', 'serif'], current.fonts.headings, (v) => {
+      section(t('settings.section.fonts'), [
+        fontField(t('settings.field.font-headings'), ['sans', 'serif'], current.fonts.headings, (v) => {
           current.fonts.headings = v;
           emit();
         }),
-        fontField('Corps', ['sans', 'serif'], current.fonts.body, (v) => {
+        fontField(t('settings.field.font-body'), ['sans', 'serif'], current.fonts.body, (v) => {
           current.fonts.body = v;
           emit();
         }),
-        fontField('Code', ['mono'], current.fonts.code, (v) => {
+        fontField(t('settings.field.font-code'), ['mono'], current.fonts.code, (v) => {
           current.fonts.code = v;
           emit();
         }),
         customFontsField(),
       ]),
-      section('Marges (mm)', [
-        numberField('Haut', current.margins.top, 0, 100, (v) => {
+      section(t('settings.section.margins'), [
+        numberField(t('settings.field.margin-top'), current.margins.top, 0, 100, (v) => {
           current.margins.top = v;
           emit();
         }),
-        numberField('Bas', current.margins.bottom, 0, 100, (v) => {
+        numberField(t('settings.field.margin-bottom'), current.margins.bottom, 0, 100, (v) => {
           current.margins.bottom = v;
           emit();
         }),
-        numberField('Gauche', current.margins.left, 0, 100, (v) => {
+        numberField(t('settings.field.margin-left'), current.margins.left, 0, 100, (v) => {
           current.margins.left = v;
           emit();
         }),
-        numberField('Droite', current.margins.right, 0, 100, (v) => {
+        numberField(t('settings.field.margin-right'), current.margins.right, 0, 100, (v) => {
           current.margins.right = v;
           emit();
         }),
       ]),
-      section('Espacement', [
+      section(t('settings.section.spacing'), [
         numberField(
-          'Au-dessus des titres',
+          t('settings.field.heading-spacing-above'),
           current.headingSpacing.above,
           0,
           5,
@@ -223,7 +235,7 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
         numberField(
-          'En dessous des titres',
+          t('settings.field.heading-spacing-below'),
           current.headingSpacing.below,
           0,
           5,
@@ -234,7 +246,7 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
         numberField(
-          'Entre paragraphes',
+          t('settings.field.paragraph-spacing'),
           current.paragraphSpacing,
           0,
           3,
@@ -245,35 +257,35 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
       ]),
-      section('Titres', [
-        styleRow('Titre 1 (h1)', current.styles.h1, (s) => {
+      section(t('settings.section.headings'), [
+        styleRow(t('settings.field.h1'), current.styles.h1, (s) => {
           current.styles.h1 = s;
           emit();
         }, { underline: true, italic: true, weight: true }),
-        styleRow('Titre 2 (h2)', current.styles.h2, (s) => {
+        styleRow(t('settings.field.h2'), current.styles.h2, (s) => {
           current.styles.h2 = s;
           emit();
         }, { underline: true, italic: true, weight: true }),
-        styleRow('Titre 3 (h3)', current.styles.h3, (s) => {
+        styleRow(t('settings.field.h3'), current.styles.h3, (s) => {
           current.styles.h3 = s;
           emit();
         }, { underline: true, italic: true, weight: true }),
-        styleRow('Titre 4 (h4)', current.styles.h4, (s) => {
+        styleRow(t('settings.field.h4'), current.styles.h4, (s) => {
           current.styles.h4 = s;
           emit();
         }, { underline: true, italic: true, weight: true }),
       ]),
-      section('Corps', [
-        styleRow('Texte normal', current.styles.body, (s) => {
+      section(t('settings.section.body'), [
+        styleRow(t('settings.field.body-text'), current.styles.body, (s) => {
           current.styles.body = s;
           emit();
         }),
-        styleRow('Code', current.styles.code, (s) => {
+        styleRow(t('settings.field.code-text'), current.styles.code, (s) => {
           current.styles.code = s;
           emit();
         }),
         styleRow(
-          'Citation',
+          t('settings.field.quote'),
           {
             fontSize: current.styles.quote.fontSize,
             color: current.styles.quote.color,
@@ -288,7 +300,7 @@ export function buildSettingsForm(
           },
         ),
         colorField(
-          'Barre de citation',
+          t('settings.field.quote-bar'),
           current.styles.quote.barColor,
           (v) => {
             current.styles.quote.barColor = v;
@@ -296,19 +308,19 @@ export function buildSettingsForm(
           },
         ),
       ]),
-      section('Numéro de page', [
+      section(t('settings.section.page-number'), [
         selectField<PageNumberPosition>(
-          'Position',
+          t('settings.field.position'),
           PAGE_NUMBER_POSITIONS,
           current.pageNumber.position,
           (v) => {
             current.pageNumber.position = v;
             emit();
           },
-          (v) => POSITION_LABELS[v],
+          (v) => POSITION_LABELS()[v],
         ),
         numberField(
-          'Taille (pt)',
+          t('settings.field.size-pt'),
           current.pageNumber.style.fontSize,
           5,
           24,
@@ -319,7 +331,7 @@ export function buildSettingsForm(
           { disabled: current.pageNumber.position === 'none' },
         ),
         checkboxField(
-          'Italique',
+          t('settings.field.italic'),
           current.pageNumber.style.italics,
           (v) => {
             current.pageNumber.style.italics = v;
@@ -328,7 +340,7 @@ export function buildSettingsForm(
           current.pageNumber.position === 'none',
         ),
         colorField(
-          'Couleur',
+          t('settings.field.color'),
           current.pageNumber.style.color,
           (v) => {
             current.pageNumber.style.color = v;
@@ -337,9 +349,9 @@ export function buildSettingsForm(
           current.pageNumber.position === 'none',
         ),
       ]),
-      section('Diagrammes Mermaid', [
+      section(t('settings.section.mermaid'), [
         numberField(
-          'Agrandissement max.',
+          t('settings.field.mermaid-scale'),
           current.mermaidMaxScale,
           1,
           4,
@@ -350,7 +362,7 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
         numberField(
-          'Largeur max. (% du texte)',
+          t('settings.field.mermaid-width'),
           Math.round(current.mermaidMaxWidthPct * 100),
           10,
           100,
@@ -361,7 +373,7 @@ export function buildSettingsForm(
           { step: 5 },
         ),
         numberField(
-          'Hauteur max. (% du texte)',
+          t('settings.field.mermaid-height'),
           Math.round(current.mermaidMaxHeightPct * 100),
           10,
           100,
@@ -432,7 +444,10 @@ export function buildSettingsForm(
 
     const toggles = doc.createElement('div');
     toggles.className = 'toggles';
-    toggles.append(labeled(showCb, 'Afficher'), labeled(boldCb, 'Gras'));
+    toggles.append(
+      labeled(showCb, t('settings.metadata.show')),
+      labeled(boldCb, t('settings.metadata.bold')),
+    );
 
     wrap.append(span, text, toggles);
     return wrap;
@@ -466,13 +481,13 @@ export function buildSettingsForm(
     wrap.className = 'field date-field';
 
     const span = doc.createElement('span');
-    span.textContent = 'Date';
+    span.textContent = t('date.field-label');
 
     const select = doc.createElement('select');
     for (const m of DATE_MODES) {
       const o = doc.createElement('option');
       o.value = m;
-      o.textContent = DATE_MODE_LABELS[m];
+      o.textContent = DATE_MODE_LABELS()[m];
       if (m === mode) o.selected = true;
       select.appendChild(o);
     }
@@ -607,6 +622,20 @@ export function buildSettingsForm(
     return row(label, select);
   }
 
+  // UI-language selector. Picking a different value reloads the page
+  // (see `setLanguage` in i18n/locale.ts) — every UI component reads
+  // `t(...)` at construction time, so a reload is cheaper than
+  // tracking each translated text node for invalidation.
+  function uiLanguageField(): HTMLElement {
+    return selectField<Language>(
+      t('settings.field.ui-language'),
+      ['fr', 'en'],
+      getLanguage(),
+      (lang) => setLanguage(lang),
+      (lang) => (lang === 'fr' ? 'Français' : 'English'),
+    );
+  }
+
   function fontField(
     label: string,
     kinds: readonly ('sans' | 'serif' | 'mono')[],
@@ -636,7 +665,7 @@ export function buildSettingsForm(
 
     const lbl = doc.createElement('div');
     lbl.className = 'custom-fonts-label';
-    lbl.textContent = 'Polices Google personnalisées';
+    lbl.textContent = t('fonts.custom-fonts-label');
     wrap.append(lbl);
 
     const list = doc.createElement('ul');
@@ -667,7 +696,7 @@ export function buildSettingsForm(
     if (current.customFonts.length === 0) {
       const empty = doc.createElement('li');
       empty.className = 'custom-fonts-empty';
-      empty.textContent = 'Aucune pour le moment.';
+      empty.textContent = t('fonts.custom-fonts-empty');
       list.append(empty);
     }
     wrap.append(list);
@@ -676,11 +705,11 @@ export function buildSettingsForm(
     form.className = 'custom-fonts-form';
     const input = doc.createElement('input');
     input.type = 'url';
-    input.placeholder = 'https://fonts.googleapis.com/css2?family=…';
+    input.placeholder = t('settings.custom-fonts-placeholder');
     input.className = 'custom-fonts-url';
     const add = doc.createElement('button');
     add.type = 'button';
-    add.textContent = 'Ajouter';
+    add.textContent = t('fonts.custom-fonts-add');
     const status = doc.createElement('div');
     status.className = 'custom-fonts-status';
 
@@ -695,7 +724,7 @@ export function buildSettingsForm(
       const existingNames = new Set(current.customFonts.map((f) => f.name));
       const added = result.fonts.filter((f) => !existingNames.has(f.name));
       if (added.length === 0) {
-        status.textContent = 'Déjà ajoutée.';
+        status.textContent = t('fonts.custom-fonts-already-added');
         status.classList.add('error');
         return;
       }
@@ -764,18 +793,26 @@ export function buildSettingsForm(
 
     const sizeWrap = doc.createElement('span');
     sizeWrap.className = 'style-size';
-    sizeWrap.append(sizeInput, doc.createTextNode(' pt'));
+    sizeWrap.append(sizeInput, doc.createTextNode(` ${t('settings.unit.pt')}`));
 
     wrap.append(lbl, sizeWrap, picker);
 
     if (opts.weight) {
       const select = doc.createElement('select');
       select.className = 'style-row-weight';
-      select.title = 'Graisse';
+      select.title = t('settings.style-row.weight-title');
       for (const opt of WEIGHT_OPTIONS) {
         const o = doc.createElement('option');
         o.value = String(opt.value);
-        o.textContent = opt.label;
+        // Translate the label via the dedicated `weight.<value>` keys
+        // rather than trusting whatever was bundled in WEIGHT_OPTIONS.
+        const labelKey = `weight.${opt.value}` as
+          | 'weight.300'
+          | 'weight.400'
+          | 'weight.500'
+          | 'weight.600'
+          | 'weight.700';
+        o.textContent = t(labelKey);
         if (opt.value === currentWeight) o.selected = true;
         select.appendChild(o);
       }
@@ -789,7 +826,7 @@ export function buildSettingsForm(
     if (opts.italic) {
       const italicLbl = doc.createElement('label');
       italicLbl.className = 'style-row-toggle';
-      italicLbl.title = 'Italique';
+      italicLbl.title = t('settings.style-row.italic-title');
       const cb = doc.createElement('input');
       cb.type = 'checkbox';
       cb.checked = currentItalic;
@@ -806,7 +843,7 @@ export function buildSettingsForm(
     if (opts.underline) {
       const underlineLbl = doc.createElement('label');
       underlineLbl.className = 'style-row-toggle';
-      underlineLbl.title = 'Trait sous le titre';
+      underlineLbl.title = t('settings.style-row.underline-title');
       const cb = doc.createElement('input');
       cb.type = 'checkbox';
       cb.checked = currentUnderline;
@@ -814,7 +851,10 @@ export function buildSettingsForm(
         currentUnderline = cb.checked;
         fire();
       });
-      underlineLbl.append(cb, doc.createTextNode(' trait'));
+      underlineLbl.append(
+        cb,
+        doc.createTextNode(` ${t('settings.style-row.underline')}`),
+      );
       wrap.append(underlineLbl);
     }
 

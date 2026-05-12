@@ -21,7 +21,9 @@ const FR = {
   'toolbar.style': 'Style',
   'toolbar.style-title': 'Mise en forme (titres, gras, listes…)',
   'toolbar.help': 'Aide',
+  'toolbar.help-title': 'Ouvrir le tutoriel',
   'toolbar.export': 'Exporter',
+  'toolbar.export-title': 'Exporter le document (Markdown ou PDF)',
   'toolbar.settings': 'Réglages',
   'toolbar.settings-title': 'Ouvrir le panneau de réglages (Ctrl+, / Cmd+,)',
 
@@ -43,6 +45,10 @@ const FR = {
   'profile-menu.import': 'Importer…',
   'profile-menu.export': 'Exporter…',
   'profile-menu.import-failed': 'Import du profil échoué : {error}',
+  'import.failed': 'Échec de l’import : {msg}',
+  'latex-export.failed': 'Échec de l’export LaTeX : {msg}',
+  'default.help-doc-name': 'Aide markpage',
+  'default.new-profile-name': 'Nouveau profil',
 
   // ---- export menu --------------------------------------------------
   'export-menu.markdown': 'Markdown (.md)',
@@ -68,6 +74,7 @@ const FR = {
   'help.title-suffix': 'Aide',
   'help.close': 'Fermer',
   'help.export-pdf': 'Exporter .pdf',
+  'help.generating': 'Génération…',
 
   // ---- profile / settings import-export errors ---------------------
   'profile-import.invalid-json': 'JSON invalide',
@@ -84,6 +91,89 @@ const FR = {
   'fonts.custom-fonts-invalid-url': 'URL invalide',
   'fonts.custom-fonts-bad-host': 'Doit pointer vers fonts.googleapis.com',
   'fonts.custom-fonts-no-family': 'Aucun paramètre "family=" dans l’URL',
+
+  // ---- style menu --------------------------------------------------
+  'style-menu.normal': 'Normal',
+  'style-menu.h1': 'Titre 1',
+  'style-menu.h2': 'Titre 2',
+  'style-menu.h3': 'Titre 3',
+  'style-menu.h4': 'Titre 4',
+  'style-menu.bold': 'Gras',
+  'style-menu.italic': 'Italique',
+  'style-menu.code': 'Code en ligne',
+  'style-menu.bullet': 'Liste à puces',
+  'style-menu.numbered': 'Liste numérotée',
+  'style-menu.quote': 'Citation',
+  'style-menu.link': 'Insérer un lien…',
+  'style-menu.image': 'Insérer une image…',
+  'style-menu.numbering': 'Numéroter les sections',
+
+  // ---- help modal --------------------------------------------------
+  'help.aria-label': 'Aide',
+
+  // ---- date modes --------------------------------------------------
+  'date.none': 'Pas de date',
+  'date.today': 'Date du jour',
+  'date.custom': 'Date personnalisée',
+  'date.field-label': 'Date',
+
+  // ---- page-number positions ---------------------------------------
+  'position.none': 'aucun',
+  'position.top-left': 'haut gauche',
+  'position.top-center': 'haut centre',
+  'position.top-right': 'haut droite',
+  'position.bottom-left': 'bas gauche',
+  'position.bottom-center': 'bas centre',
+  'position.bottom-right': 'bas droite',
+
+  // ---- settings field labels ---------------------------------------
+  'settings.field.author': 'Auteur',
+  'settings.field.organization': 'Organisation',
+  'settings.field.page-size': 'Format',
+  'settings.field.justify': 'Justifier le texte',
+  'settings.field.line-height': 'Interligne',
+  'settings.field.font-headings': 'Titres',
+  'settings.field.font-body': 'Corps',
+  'settings.field.font-code': 'Code',
+  'settings.field.margin-top': 'Haut',
+  'settings.field.margin-bottom': 'Bas',
+  'settings.field.margin-left': 'Gauche',
+  'settings.field.margin-right': 'Droite',
+  'settings.field.heading-spacing-above': 'Au-dessus des titres',
+  'settings.field.heading-spacing-below': 'En dessous des titres',
+  'settings.field.paragraph-spacing': 'Entre paragraphes',
+  'settings.field.h1': 'Titre 1 (h1)',
+  'settings.field.h2': 'Titre 2 (h2)',
+  'settings.field.h3': 'Titre 3 (h3)',
+  'settings.field.h4': 'Titre 4 (h4)',
+  'settings.field.body-text': 'Texte normal',
+  'settings.field.code-text': 'Code',
+  'settings.field.quote': 'Citation',
+  'settings.field.quote-bar': 'Barre de citation',
+  'settings.field.position': 'Position',
+  'settings.field.size-pt': 'Taille (pt)',
+  'settings.field.italic': 'Italique',
+  'settings.field.color': 'Couleur',
+  'settings.field.mermaid-scale': 'Agrandissement max.',
+  'settings.field.mermaid-width': 'Largeur max. (% du texte)',
+  'settings.field.mermaid-height': 'Hauteur max. (% du texte)',
+  'settings.field.ui-language': 'Langue',
+  'settings.metadata.show': 'Afficher',
+  'settings.metadata.bold': 'Gras',
+  'settings.style-row.weight-title': 'Graisse',
+  'settings.style-row.italic-title': 'Italique',
+  'settings.style-row.underline': 'trait',
+  'settings.style-row.underline-title': 'Trait sous le titre',
+  'settings.unit.pt': 'pt',
+  'settings.custom-fonts-placeholder':
+    'https://fonts.googleapis.com/css2?family=…',
+
+  // ---- weight options (dropdown) -----------------------------------
+  'weight.300': 'Light (300)',
+  'weight.400': 'Regular (400)',
+  'weight.500': 'Medium (500)',
+  'weight.600': 'Semibold (600)',
+  'weight.700': 'Bold (700)',
 } as const;
 
 // EN must declare exactly the same keys. Typed via `Record<keyof typeof
@@ -100,7 +190,9 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.style': 'Style',
   'toolbar.style-title': 'Formatting (headings, bold, lists…)',
   'toolbar.help': 'Help',
+  'toolbar.help-title': 'Open the tutorial',
   'toolbar.export': 'Export',
+  'toolbar.export-title': 'Export the document (Markdown or PDF)',
   'toolbar.settings': 'Settings',
   'toolbar.settings-title': 'Open the settings panel (Ctrl+, / Cmd+,)',
 
@@ -122,6 +214,10 @@ const EN: Record<keyof typeof FR, string> = {
   'profile-menu.import': 'Import…',
   'profile-menu.export': 'Export…',
   'profile-menu.import-failed': 'Profile import failed: {error}',
+  'import.failed': 'Import failed: {msg}',
+  'latex-export.failed': 'LaTeX export failed: {msg}',
+  'default.help-doc-name': 'markpage Help',
+  'default.new-profile-name': 'New profile',
 
   // ---- export menu --------------------------------------------------
   'export-menu.markdown': 'Markdown (.md)',
@@ -147,6 +243,7 @@ const EN: Record<keyof typeof FR, string> = {
   'help.title-suffix': 'Help',
   'help.close': 'Close',
   'help.export-pdf': 'Export .pdf',
+  'help.generating': 'Generating…',
 
   // ---- profile / settings import-export errors ---------------------
   'profile-import.invalid-json': 'Invalid JSON',
@@ -163,6 +260,89 @@ const EN: Record<keyof typeof FR, string> = {
   'fonts.custom-fonts-invalid-url': 'Invalid URL',
   'fonts.custom-fonts-bad-host': 'Must point at fonts.googleapis.com',
   'fonts.custom-fonts-no-family': 'No "family=" parameter in the URL',
+
+  // ---- style menu --------------------------------------------------
+  'style-menu.normal': 'Normal',
+  'style-menu.h1': 'Heading 1',
+  'style-menu.h2': 'Heading 2',
+  'style-menu.h3': 'Heading 3',
+  'style-menu.h4': 'Heading 4',
+  'style-menu.bold': 'Bold',
+  'style-menu.italic': 'Italic',
+  'style-menu.code': 'Inline code',
+  'style-menu.bullet': 'Bullet list',
+  'style-menu.numbered': 'Numbered list',
+  'style-menu.quote': 'Quote',
+  'style-menu.link': 'Insert link…',
+  'style-menu.image': 'Insert image…',
+  'style-menu.numbering': 'Number sections',
+
+  // ---- help modal --------------------------------------------------
+  'help.aria-label': 'Help',
+
+  // ---- date modes --------------------------------------------------
+  'date.none': 'No date',
+  'date.today': 'Today’s date',
+  'date.custom': 'Custom date',
+  'date.field-label': 'Date',
+
+  // ---- page-number positions ---------------------------------------
+  'position.none': 'none',
+  'position.top-left': 'top left',
+  'position.top-center': 'top centre',
+  'position.top-right': 'top right',
+  'position.bottom-left': 'bottom left',
+  'position.bottom-center': 'bottom centre',
+  'position.bottom-right': 'bottom right',
+
+  // ---- settings field labels ---------------------------------------
+  'settings.field.author': 'Author',
+  'settings.field.organization': 'Organisation',
+  'settings.field.page-size': 'Size',
+  'settings.field.justify': 'Justify text',
+  'settings.field.line-height': 'Line height',
+  'settings.field.font-headings': 'Headings',
+  'settings.field.font-body': 'Body',
+  'settings.field.font-code': 'Code',
+  'settings.field.margin-top': 'Top',
+  'settings.field.margin-bottom': 'Bottom',
+  'settings.field.margin-left': 'Left',
+  'settings.field.margin-right': 'Right',
+  'settings.field.heading-spacing-above': 'Above headings',
+  'settings.field.heading-spacing-below': 'Below headings',
+  'settings.field.paragraph-spacing': 'Between paragraphs',
+  'settings.field.h1': 'Heading 1 (h1)',
+  'settings.field.h2': 'Heading 2 (h2)',
+  'settings.field.h3': 'Heading 3 (h3)',
+  'settings.field.h4': 'Heading 4 (h4)',
+  'settings.field.body-text': 'Body text',
+  'settings.field.code-text': 'Code',
+  'settings.field.quote': 'Quote',
+  'settings.field.quote-bar': 'Quote bar',
+  'settings.field.position': 'Position',
+  'settings.field.size-pt': 'Size (pt)',
+  'settings.field.italic': 'Italic',
+  'settings.field.color': 'Colour',
+  'settings.field.mermaid-scale': 'Max upscale',
+  'settings.field.mermaid-width': 'Max width (% of text)',
+  'settings.field.mermaid-height': 'Max height (% of text)',
+  'settings.field.ui-language': 'Language',
+  'settings.metadata.show': 'Show',
+  'settings.metadata.bold': 'Bold',
+  'settings.style-row.weight-title': 'Weight',
+  'settings.style-row.italic-title': 'Italic',
+  'settings.style-row.underline': 'rule',
+  'settings.style-row.underline-title': 'Rule below the heading',
+  'settings.unit.pt': 'pt',
+  'settings.custom-fonts-placeholder':
+    'https://fonts.googleapis.com/css2?family=…',
+
+  // ---- weight options (dropdown) -----------------------------------
+  'weight.300': 'Light (300)',
+  'weight.400': 'Regular (400)',
+  'weight.500': 'Medium (500)',
+  'weight.600': 'Semibold (600)',
+  'weight.700': 'Bold (700)',
 };
 
 const STRINGS = { fr: FR, en: EN } as const;
