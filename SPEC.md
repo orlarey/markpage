@@ -1467,100 +1467,130 @@ math directement.
 
 ## 19. Documents multiples
 
-### 19.1. Modèle
+### 19.1. Modèle de domaine
 
-Stockage **content-addressed** uniformément : tout ce qui est un
-"fichier" — markdown source d'un document, image — est stocké sous
-son SHA-256. Les documents tels que vus par l'utilisateur sont une
-**enveloppe légère** (uuid stable, nom, métadonnées) qui *pointe*
-vers le SHA de son contenu courant.
+Un document est une paire `d = (name, content)` où :
 
-L'app gère **N documents**. Chaque document a :
+- **`name`** : libellé utilisateur, **unique** dans la bibliothèque.
+- **`content`** : la source markdown du document (chaîne UTF-8).
+  Cette chaîne peut contenir des références à des **ressources**
+  (images) sous la forme `img://<id>` ; chaque ressource est un blob
+  partagé entre documents.
 
-- un **UUID** stable (identifiant interne, jamais montré),
-- un **nom** affiché (modifiable),
-- un **content-sha** (le SHA-256 du markdown courant),
-- un **horodatage** de dernière modification.
+Comme pour les profils de réglages (§9.4.1), les deux dimensions
+sont logiquement indépendantes : `name → content` est une fonction,
+`content → name` est un-à-plusieurs (deux documents peuvent
+légitimement contenir le même markdown). Il n'y a pas de bijection.
 
-Stockage `localStorage` :
+Les ressources ajoutent une **deuxième couche** un-à-plusieurs :
+plusieurs `content` distincts peuvent référencer la même ressource
+(un logo réutilisé dans dix documents), et un même `content` peut
+référencer 0..n ressources.
+
+#### Opérations (API publique)
+
+Mêmes principes que §9.4.2 : aucune opération ne mute à la fois nom
+et contenu d'une même entrée.
+
+| Opération                  | Touche le nom               | Touche le contenu                            | Pointeur courant                       |
+| -------------------------- | --------------------------- | -------------------------------------------- | -------------------------------------- |
+| `switch(name)`             | —                           | —                                            | `current ← name`                       |
+| `rename(oldName, newName)` | mute (collision auto-renommée) | —                                          | suit si `oldName === current`          |
+| `edit(content)`            | —                           | rewrite du contenu du doc **courant** (autosave) | —                                  |
+| `create(name, content?)`   | ajoute (collision auto-renommée) | ajoute (ou doc vide si `content` omis)  | optionnel — l'UI switche vers le nouveau |
+| `duplicate(name)`          | ajoute « Copie de `name` »  | **partage** le contenu et toutes les ressources référencées | optionnel              |
+| `delete(name)`             | retire ; **autorise même le dernier** (l'UI crée alors un doc vide pour repartir) | — | si `name === current`, retombe sur le plus récent ou sur la nouvelle entrée vide |
+| `importMd(file)`           | ajoute (depuis le nom du fichier) | ajoute (contenu du fichier, ressources data: extraites) | optionnel               |
+| `exportMd(name)`           | lit                         | sérialise + inline les `img://<sha>` en ref-style | —                                |
+
+L'édition n'a de sens que sur le doc **courant** : l'éditeur n'en
+affiche qu'un à la fois. Pour modifier un autre doc, on `switch`
+puis on `edit`.
+
+#### Invariants
+
+- L'index contient **au moins un** document après bootstrap.
+  Contrairement aux profils, `delete` du dernier est **autorisé** ;
+  l'UI compense en créant immédiatement un doc « Sans titre » vide
+  (l'utilisateur a toujours une zone d'édition non nulle).
+- Le pointeur `current` désigne **toujours** un document existant.
+- Les `name` sont uniques dans la bibliothèque (auto-rename sur
+  collision).
+- Pour toute ressource référencée par un `content` actif, le blob
+  de cette ressource existe (sinon l'image se rend en placeholder).
+
+### 19.2. Stockage et dédup (implémentation)
+
+L'API §19.1 ne mentionne ni SHA, ni clé `localStorage`. Sous le
+capot, les deux couches (documents + ressources) sont
+**content-addressed** par SHA-256, comme pour les profils (§9.4.6) :
+
 ```
-md2pdf:docs:index   = JSON [{ uuid, name, mtime, content-sha }]
-md2pdf:blobs:<sha>  = string  (le markdown source d'une version)
-md2pdf:current-doc  = uuid    (doc actuellement ouvert)
-md2pdf:settings     = inchangé (réglages globaux, pas par doc)
+md2pdf:docs:index   = JSON [{ uuid, name, mtime, contentSha }]
+md2pdf:blobs:<sha>  = string                  (markdown source)
+md2pdf:current-doc  = uuid                    (doc ouvert)
 ```
 
-Sur autosave : on hash le contenu courant, on écrit
-`md2pdf:blobs:<sha>` si nouveau, on met à jour le `content-sha`
-dans l'enveloppe du doc. Le blob précédent reste — il sera
-collecté à la prochaine passe de GC s'il n'est plus référencé.
-
-Effet collatéral utile : deux documents qui ont strictement le même
-contenu partagent un seul blob.
-
-### 19.2. Stockage content-addressed des ressources
-
-Les images sont **content-addressed** par SHA-256 dans IndexedDB
-plutôt qu'identifiées par UUID arbitraire. Les références dans les
-documents passent de `img://<uuid>` à `img://<sha>`.
-
-Effet : deux documents qui contiennent la même image partagent un
-unique blob en stockage. Et il devient mécanique de détecter qu'une
-ressource n'est plus utilisée par aucun document.
-
-Schéma IndexedDB :
+```ts
+interface DocEntry {
+  uuid: string;       // handle interne, stable à travers les renommages
+  name: string;       // unique dans l'index
+  mtime: number;      // ms epoch
+  contentSha: string; // SHA-256 hex → clé du blob de contenu
+}
 ```
-store "blobs"
+
+Les **ressources** vivent dans un pool séparé, indexé en IndexedDB
+plutôt qu'en `localStorage` à cause de leur taille :
+
+```
+IDB store "blobs"
   key   = sha (string, hex sha-256)
   value = { mime, data: Blob }
 ```
 
-Insertion d'image :
-1. Calculer `sha = SHA256(blob)`.
-2. Si `blobs[sha]` n'existe pas, l'écrire.
-3. Émettre dans le markdown la référence `img://<sha>`.
+Conséquences :
 
-Le pipeline d'aperçu / export résout `img://<sha>` en blob URL ou
-en data URL exactement comme avant — seule l'identité de la clé
-change.
+- **`duplicate` ne copie pas le contenu** : nouvelle entrée
+  d'index, même `contentSha`. Les ressources référencées par ce
+  SHA sont automatiquement « partagées » parce qu'elles vivent
+  dans leur propre pool global.
+- **`edit` est idempotent** sur no-op : si le contenu produit la
+  même SHA, ni le blob ni `mtime` ne bougent.
+- Les images sont émises dans le markdown sous la forme
+  `img://<sha>` (la SHA de l'image). Insertion : `SHA = SHA256(blob)`,
+  écrire `blobs[SHA]` si nouveau, émettre la référence.
 
 #### Migration depuis le schéma legacy
 
-Au premier lancement de la version multi-doc, l'app détecte le
-schéma legacy (`img://<uuid>` sans SHA en IndexedDB). Pour chaque
-image existante :
-1. Lire le blob, calculer son SHA-256.
-2. Stocker à la nouvelle clé `blobs[sha]` (silencieusement
-   dédupliqué si deux images étaient en double).
-3. Réécrire le doc actuel : remplacer `img://<uuid>` par
-   `img://<sha>` partout.
-4. Supprimer l'ancienne entrée `img://<uuid>`.
+Premier lancement multi-doc :
 
-Migration idempotente (relancer ne casse rien).
+- `md2pdf:doc` (mono-doc) → entrée d'index + blob de contenu, clé
+  legacy supprimée.
+- `img://<uuid>` en IDB → re-stocker chaque image sous sa nouvelle
+  clé SHA, réécrire le doc pour passer toutes les URL en
+  `img://<sha>`, supprimer les entrées IDB obsolètes.
+
+Idempotent : relancer ne casse rien (le schéma cible est détecté
+par la présence de la clé `md2pdf:docs:index`).
 
 ### 19.3. Garbage collection
 
-Deux pools de blobs sont GC-és par le même algo :
+Deux pools sont GC-és par le même algo, déclenché à chaque
+sauvegarde et au démarrage :
 
 - les blobs de **contenu de document** dans `localStorage`
   (`md2pdf:blobs:<sha>`),
 - les blobs de **ressources** dans IndexedDB (`blobs[<sha>]`).
 
-Trigger : à chaque sauvegarde de document, et au démarrage de
-l'app.
-
 Algorithme :
-1. Construire `referenced-content = { content-sha de chaque doc de
-   l'index }`.
-2. Pour chaque doc, charger son contenu (via son content-sha) et
-   parser pour extraire les SHA cités sous forme `img://<sha>` —
-   construire `referenced-resources`.
-3. Pour chaque blob de `md2pdf:blobs:*` dont le SHA n'est pas dans
-   `referenced-content` : supprimer.
-4. Pour chaque blob d'IndexedDB dont le SHA n'est pas dans
-   `referenced-resources` : supprimer.
+1. `referencedContent = { entry.contentSha | entry ∈ index }`.
+2. Pour chaque entry, charger son contenu et scanner les
+   `img://<sha>` → `referencedResources`.
+3. Drop tout blob `md2pdf:blobs:<sha>` ∉ `referencedContent`.
+4. Drop toute entrée IDB `blobs[<sha>]` ∉ `referencedResources`.
 
-Le walk est en O(N × taille moyenne de doc) — négligeable pour des
+Walk en O(N × taille moyenne de doc) — négligeable pour des
 collections personnelles.
 
 ### 19.4. Toolbar
