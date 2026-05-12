@@ -208,31 +208,33 @@ export const PLAYGROUND_ENTRY: ShowcaseEntry = {
   source: '',
 };
 
-// Rich snippet used by the showcase hero iframe. Designed to land
-// one page of A4 visibly packed with several markpage features
-// (display math, inline math, list, callout with inline math) so a
-// first-time visitor sees the engine doing real work above the
-// fold, instead of an empty page.
+// Rich-but-friendly snippet used by the showcase hero iframe. Aimed
+// at total-beginner visitors: a short, ordinary-looking document
+// (meeting notes) that demonstrates the most common Markdown
+// constructs — H1, H2, bold, italic, ordered list, bullet list,
+// blockquote — without any scientific syntax. The point is to
+// show that producing a clean PDF doesn't require math or LaTeX
+// fluency; the advanced features come further down the page.
 export const HERO_DEMO_ENTRY: ShowcaseEntry = {
   id: 'hero',
   title: '',
   description: '',
-  source: String.raw`The **Cauchy–Schwarz inequality** states that for any real vectors
-$u$ and $v$,
+  source: `# Meeting notes — 12 May
 
-$$
-\bigl| \langle u, v \rangle \bigr| \le \lVert u \rVert \cdot \lVert v \rVert.
-$$
+**Present:** Alice, Bob, Carole.
 
-Equality holds iff $u$ and $v$ are linearly dependent. Three
-classical proofs use:
+Three topics on the agenda:
 
-- the quadratic discriminant of $\lVert u + t v \rVert^2$;
-- the Gram–Schmidt orthogonalisation process;
-- Schwarz's original argument for integrals.
+1. December delivery schedule
+2. The new remote-work policy
+3. Feedback on the internal survey
 
-::: theorem [Polarisation identity]
-$\displaystyle \langle u, v \rangle = \tfrac{1}{4}\bigl( \lVert u + v \rVert^2 - \lVert u - v \rVert^2 \bigr)$.
-:::
+## Decisions
+
+- Hold the December 15 deadline.
+- Two remote days per week starting in January.
+- Extend the survey until the end of the month.
+
+> *Next meeting: Tuesday 17, 14:00.*
 `,
 };

@@ -29,6 +29,33 @@ body {
   line-height: 1.55;
 }
 
+/* Full-page scroll: one segment fills the viewport, scrolling snaps
+   to the next. CSS-native (no scroll-jacking JS); the visitor can
+   still use keyboard / wheel naturally — they just get a magnetic
+   stop at each section boundary.
+
+   We gate snapping on a minimum viewport height: on small laptops
+   (< 700 px tall) the segments would overflow and `mandatory`
+   snapping fights the user. Below that threshold we fall back to
+   ordinary scroll. */
+@media (min-height: 700px) {
+  html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+  }
+
+  .hero,
+  .showcase-section,
+  .showcase-footer {
+    min-height: 100vh;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
 a {
   color: var(--brand);
   text-decoration: none;
