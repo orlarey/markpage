@@ -2223,7 +2223,106 @@ omis.
   mappé est conservé tel quel et listé dans le commentaire d'en-
   tête du `.tex`.
 
-## 22. À décider plus tard
+## 22. Internationalisation (FR / EN)
+
+### 22.1 Deux langues, deux axes
+
+Deux dimensions distinctes, gérées séparément :
+
+- **Langue de l'interface** (UI lang) : libellés des boutons, menus,
+  panneaux, dialogs. C'est une **préférence utilisateur**, persistée
+  dans `localStorage` sous `markpage:ui-lang`. Indépendante du
+  document — un utilisateur français peut produire un PDF anglais
+  et inversement.
+- **Langue du document** (doc lang) : champ `language: 'fr' | 'en'`
+  de `PdfSettings` (§9.1), donc **profile-aware** (chaque profil
+  peut viser une langue de doc différente). Pilote le préambule
+  LaTeX (`babel`, noms `\newtheorem`) et le format `Intl` de la date
+  du bloc métadonnées.
+
+Au premier lancement, les deux sont initialisées sur la même valeur
+détectée via `navigator.language` (fr-* → 'fr', tout le reste →
+'en'). Ensuite chacune évolue indépendamment.
+
+### 22.2 Module i18n (côté UI)
+
+`src/i18n/locale.ts` :
+
+- `initLocale()` : appelé au bootstrap. Lit `markpage:ui-lang`, ou
+  détecte via `navigator.language` au premier lancement. Renvoie la
+  langue résolue (pour passer à `ensureActiveProfile` comme seed).
+- `getLanguage()` / `setLanguage(lang)` : accesseurs. Le setter
+  persiste et **recharge la page** — chaque composant lit `t(...)`
+  à la construction, c'est plus simple que d'invalider chaque nœud
+  DOM traduit.
+
+`src/i18n/strings.ts` :
+
+- `FR` est la **référence**, un record `{ [key]: string }`.
+- `EN` est typé via `Record<keyof typeof FR, string>` — toute clé
+  manquante ou en surplus côté EN échoue à la compilation.
+- `t(key, params?)` lit la locale active, retombe sur EN en filet
+  de sécurité, et interpole les placeholders `{name}`.
+
+Les clés sont à plat avec un namespace par point (`'toolbar.import'`,
+`'menu.profile.delete-confirm'`). Simple à lire, simple à grep.
+
+### 22.3 Langue du document (côté LaTeX et dates)
+
+`PdfSettings.language` est lu par :
+
+- `formatDate(d, language)` dans `src/settings.ts` : sélectionne le
+  formatter `Intl.DateTimeFormat` adéquat (`fr-FR` ou `en-US`).
+- `buildPreamble(ctx)` dans `src/export-latex.ts` : choisit
+  `\usepackage[french]{babel}` ou `\usepackage[english]{babel}`, et
+  émet `theoremEnvLines(language)` pour produire « Théorème /
+  Lemme / … » ou « Theorem / Lemma / … ». Le commentaire d'en-tête
+  du `.tex` et les warnings (caractères math non mappés, présence de
+  SVG) sont aussi localisés.
+
+Les **identifiants** des environnements amsthm (`theorem`, `lemma`,
+…) restent identiques entre les locales — seuls leurs **noms
+d'affichage** changent. Donc un `\begin{theorem}…\end{theorem}`
+dans le corps fonctionne quelle que soit la langue choisie.
+
+### 22.4 HELP.md → HELP.fr.md + HELP.en.md
+
+Le tutoriel intégré existe en deux versions, bundlées via
+`import helpMdFr from './HELP.fr.md?raw'` et `helpMdEn`. Sélection
+à `helpMdForLocale(uiLocale)` :
+
+- Au premier lancement, sert de contenu pour le doc « Aide markpage »
+  (ou son équivalent EN).
+- À chaque clic sur le bouton **Aide**, la version correspondant à
+  la langue UI courante est rouverte.
+
+Les deux fichiers ont la même structure (mêmes titres, mêmes
+blocs de code, mêmes exemples), seul le texte rédactionnel change.
+La référence est `HELP.fr.md` ; `HELP.en.md` doit suivre quand on
+modifie l'une ou l'autre.
+
+### 22.5 Tests
+
+`tests/export-latex.test.ts` reste sur la locale par défaut (`fr`)
+pour la couverture principale. `tests/export-latex-en.test.ts`
+reprend un sous-ensemble du corpus (`01-headings`, `07-admonitions`,
+`10-mermaid`) avec `TEST_SETTINGS_EN`, snapshote sous le suffixe
+`.en.tex`. Trois cas suffisent — ils exercent l'intégralité des
+parties **language-aware** du préambule (babel, noms theorem,
+bannière, warning SVG).
+
+### 22.6 Hors v1
+
+- Langues au-delà de FR / EN (l'archi le permet : ajouter une clé à
+  `STRINGS`, traduire toutes les entrées, étendre `Language` type).
+- Préférence UI ↔ doc lang dé-couplées dans une UX qui rappelle le
+  lien (par exemple « la langue de votre doc est différente de
+  l'UI — vraiment ? »). Pas évident que ça vaille le coût.
+- Format de date personnalisable (style court / médium / long, ou
+  même un pattern custom à la `moment.js`). Aujourd'hui figé à
+  `dateStyle: 'long'`.
+
+## 23. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Mode sombre de l'éditeur.

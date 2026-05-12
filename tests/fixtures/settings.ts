@@ -9,3 +9,12 @@ export const TEST_SETTINGS: PdfSettings = {
   organization: { text: 'Test Org', show: true, bold: true },
   date: { mode: 'custom', custom: '2026-01-01' },
 };
+
+// English-locale settings, used by the small EN corpus that locks
+// in the language-aware bits of the LaTeX export (English babel,
+// English theorem env names, English banner / warning comments).
+// Everything else matches TEST_SETTINGS.
+export const TEST_SETTINGS_EN: PdfSettings = {
+  ...TEST_SETTINGS,
+  language: 'en',
+};
