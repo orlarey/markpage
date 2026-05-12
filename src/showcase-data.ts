@@ -198,11 +198,41 @@ export function findShowcaseEntry(id: string): ShowcaseEntry | undefined {
   return SHOWCASE_DATA.find((e) => e.id === id);
 }
 
-// `playground` is a synthetic entry — empty snippet — used by the
-// hero iframe so visitors can type their own Markdown from scratch.
+// `playground` is the empty fallback used when the URL specifies an
+// id we don't recognise. Kept around for potential reuse later (e.g.
+// an editable mode where the visitor types from scratch).
 export const PLAYGROUND_ENTRY: ShowcaseEntry = {
   id: 'playground',
   title: '',
   description: '',
   source: '',
+};
+
+// Rich snippet used by the showcase hero iframe. Designed to land
+// one page of A4 visibly packed with several markpage features
+// (display math, inline math, list, callout with inline math) so a
+// first-time visitor sees the engine doing real work above the
+// fold, instead of an empty page.
+export const HERO_DEMO_ENTRY: ShowcaseEntry = {
+  id: 'hero',
+  title: '',
+  description: '',
+  source: String.raw`The **Cauchy–Schwarz inequality** states that for any real vectors
+$u$ and $v$,
+
+$$
+\bigl| \langle u, v \rangle \bigr| \le \lVert u \rVert \cdot \lVert v \rVert.
+$$
+
+Equality holds iff $u$ and $v$ are linearly dependent. Three
+classical proofs use:
+
+- the quadratic discriminant of $\lVert u + t v \rVert^2$;
+- the Gram–Schmidt orthogonalisation process;
+- Schwarz's original argument for integrals.
+
+::: theorem [Polarisation identity]
+$\displaystyle \langle u, v \rangle = \tfrac{1}{4}\bigl( \lVert u + v \rVert^2 - \lVert u - v \rVert^2 \bigr)$.
+:::
+`,
 };

@@ -38,8 +38,10 @@ import { paginate } from './preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   findShowcaseEntry,
+  HERO_DEMO_ENTRY,
   PLAYGROUND_ENTRY,
 } from './showcase-data';
+import type { ShowcaseEntry } from './showcase-types';
 
 async function run(): Promise<void> {
   const params = new URLSearchParams(globalThis.location.search);
@@ -55,10 +57,16 @@ async function run(): Promise<void> {
 
   document.body.classList.add('demo-frame-body');
 
-  const entry =
-    id === 'playground'
-      ? PLAYGROUND_ENTRY
-      : findShowcaseEntry(id) ?? PLAYGROUND_ENTRY;
+  // Hero iframe gets a curated rich snippet so the hero looks
+  // populated above the fold (cf. showcase.ts). `playground` keeps
+  // the empty-canvas slot. Everything else looks up the curated
+  // section snippets.
+  const resolveEntry = (): ShowcaseEntry => {
+    if (id === 'hero') return HERO_DEMO_ENTRY;
+    if (id === 'playground') return PLAYGROUND_ENTRY;
+    return findShowcaseEntry(id) ?? PLAYGROUND_ENTRY;
+  };
+  const entry = resolveEntry();
 
   // The demo runs on default typography but blanks the metadata
   // (author / organisation / date) — the snippet is a feature

@@ -76,16 +76,16 @@ function buildHero(): HTMLElement {
     ...HERO.bullets.map((b) => el('li', {}, b)),
   );
 
-  // Live playground iframe — empty doc, no `?id=` so demo.ts falls
-  // back to PLAYGROUND_ENTRY (empty source). The visitor can type
-  // straight into it. Lazy-mounted like the section ones.
-  const playgroundWrap = el('div', {
+  // Hero iframe — loads `?id=hero` so demo.ts picks up the curated
+  // rich snippet (Cauchy–Schwarz + callout, see showcase-data.ts).
+  // Visitor sees a typeset page above the fold, not an empty canvas.
+  const heroIframe = el('div', {
     class: 'hero-playground',
-    'data-demo-src': './demo.html?id=playground',
+    'data-demo-src': './demo.html?id=hero',
   });
-  playgroundWrap.appendChild(el('iframe', { title: 'markpage playground' }));
+  heroIframe.appendChild(el('iframe', { title: 'markpage rendering' }));
 
-  hero.append(brand, tagline, subtagline, bullets, cta, playgroundWrap);
+  hero.append(brand, tagline, subtagline, bullets, cta, heroIframe);
   return hero;
 }
 
