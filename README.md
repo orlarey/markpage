@@ -3,8 +3,10 @@
 A Markdown editor that produces print-ready PDFs, **entirely
 client-side, in your browser**.
 
-You write Markdown on the left, you see the paginated PDF rendering
-on the right. When you're done you save as `.pdf`, `.md`, or `.tex`.
+You write Markdown in the editor; one click switches to a paginated
+preview that matches the PDF exactly — click anywhere in the
+preview to jump back to the editor at that spot. When you're done
+you save as `.pdf`, `.md`, or `.tex`.
 
 ## What's different
 
