@@ -28,13 +28,13 @@ export function openSettingsWindow(handlers: SettingsWindowHandlers): void {
   }
 
   // Opening at a width that comfortably fits two columns of the
-  // settings grid (minmax 26rem ≈ 416px each, plus gaps + padding).
+  // settings grid (minmax 30rem ≈ 480px each, plus gaps + padding).
   // The user can shrink to a single column if they want; resizing
   // wider triggers a third column on very wide displays.
   const win = globalThis.open(
     '',
     'md2pdf-settings',
-    'width=920,height=820,scrollbars=yes,resizable=yes',
+    'width=1080,height=820,scrollbars=yes,resizable=yes',
   );
   if (!win) {
     // Popup blocked — fall back to the modal so the user still has
@@ -92,6 +92,12 @@ function windowSpecificCss(): string {
       font-family: var(--font-sans, system-ui);
     }
     body.settings-window-body .settings-panel {
+      /* The base rule pins .settings-panel at min(560px, 92vw) for
+         the modal overlay. In the detached window we want it to
+         fill the popup so the inner grid can actually use the
+         horizontal space — without this override, widening the
+         window just adds empty space to the right of a 560px panel. */
+      width: 100%;
       max-width: none;
       max-height: none;
       box-shadow: none;

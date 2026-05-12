@@ -1048,7 +1048,7 @@ body,
   padding: 1rem;
   overflow: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(30rem, 1fr));
   gap: 0.6rem 1.25rem;
   align-content: start;
 }
@@ -1084,6 +1084,12 @@ body,
   border-radius: 6px;
   font: inherit;
   background: var(--bg);
+  /* Inputs in a CSS grid track default to `min-content` width that
+     includes the browser's intrinsic input minimum (~150px). That
+     pushes our auto-sized toggle column off the right edge of the
+     section card. min-width: 0 lets the input shrink to whatever
+     space the 1fr track actually gives it. */
+  min-width: 0;
 }
 
 .settings-form .field input[type='color'] {
