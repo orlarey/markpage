@@ -1039,12 +1039,25 @@ body,
   font: inherit;
 }
 
+/* Responsive masonry: each section sits in an auto-fit grid track, so
+   the form stays single-column at narrow widths and reflows into 2 (or
+   3) columns automatically when the panel is widened. The minmax floor
+   matches the worst-case section width — the heading style rows with
+   size/colour/weight/italic/trait controls. */
 .settings-form {
   padding: 1rem;
   overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+  gap: 0.6rem 1.25rem;
+  align-content: start;
+}
+
+.settings-form > section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem 0.6rem;
 }
 
 .settings-form section h3 {

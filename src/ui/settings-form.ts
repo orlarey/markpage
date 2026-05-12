@@ -157,9 +157,9 @@ export function buildSettingsForm(
           emit();
         }),
       ]),
-      section('Styles', [
+      section('Espacement', [
         numberField(
-          'Espace au-dessus des titres',
+          'Au-dessus des titres',
           current.headingSpacing.above,
           0,
           5,
@@ -170,7 +170,7 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
         numberField(
-          'Espace en dessous des titres',
+          'En dessous des titres',
           current.headingSpacing.below,
           0,
           5,
@@ -181,7 +181,7 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
         numberField(
-          'Espace entre paragraphes',
+          'Entre paragraphes',
           current.paragraphSpacing,
           0,
           3,
@@ -191,6 +191,8 @@ export function buildSettingsForm(
           },
           { step: 0.1 },
         ),
+      ]),
+      section('Titres', [
         styleRow('Titre 1 (h1)', current.styles.h1, (s) => {
           current.styles.h1 = s;
           emit();
@@ -207,6 +209,8 @@ export function buildSettingsForm(
           current.styles.h4 = s;
           emit();
         }, { underline: true, italic: true, weight: true }),
+      ]),
+      section('Corps', [
         styleRow('Texte normal', current.styles.body, (s) => {
           current.styles.body = s;
           emit();

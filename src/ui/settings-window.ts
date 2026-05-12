@@ -27,10 +27,14 @@ export function openSettingsWindow(handlers: SettingsWindowHandlers): void {
     return;
   }
 
+  // Opening at a width that comfortably fits two columns of the
+  // settings grid (minmax 26rem ≈ 416px each, plus gaps + padding).
+  // The user can shrink to a single column if they want; resizing
+  // wider triggers a third column on very wide displays.
   const win = globalThis.open(
     '',
     'md2pdf-settings',
-    'width=520,height=820,scrollbars=yes,resizable=yes',
+    'width=920,height=820,scrollbars=yes,resizable=yes',
   );
   if (!win) {
     // Popup blocked — fall back to the modal so the user still has
