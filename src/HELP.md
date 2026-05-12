@@ -422,8 +422,45 @@ Ce que vous pouvez régler :
 - **Diagrammes Mermaid** : agrandissement max, largeur max,
   hauteur max (cf. section *Diagrammes Mermaid* plus bas).
 
-Les réglages sont **mémorisés entre vos sessions**. Le bouton
-*Réinitialiser* en bas du panneau revient aux valeurs par défaut.
+Les réglages sont **mémorisés entre vos sessions**. Pour revenir aux
+valeurs par défaut, ouvrez le menu **Profil** en haut de la fenêtre
+Réglages (cf. section suivante) et cliquez sur *Réinitialiser*.
+
+### Plusieurs profils de réglages
+
+Vous pouvez maintenir **plusieurs jeux de réglages** sous des noms
+différents — par exemple un profil « Article scientifique » sobre, un
+autre « Notes de cours » aéré, un troisième « Diaporama A5 » — et
+basculer de l'un à l'autre en un clic. Un seul profil est actif à la
+fois et s'applique à tous vos documents.
+
+Le dropdown du profil courant se trouve **en haut de la fenêtre
+Réglages**, à côté du titre. Il affiche le nom du profil actif suivi
+de `▾`.
+
+À l'intérieur du menu :
+
+- **Le nom courant est éditable** en haut. Tapez, validez par
+  `Entrée`, le profil est renommé.
+- **+ Nouveau profil** crée un profil à partir de la copie des
+  réglages actuels (utile pour tester une variante sans casser
+  l'existant) et bascule dessus.
+- **La liste en dessous** liste les autres profils. **Un clic =
+  bascule** vers ce profil. L'aperçu et le PDF s'adaptent
+  immédiatement.
+- En **bas du menu**, trois actions s'appliquent au **profil courant
+  uniquement** :
+  - *Dupliquer* — crée une copie nommée « Copie de … » et bascule
+    dessus.
+  - *Supprimer* (avec confirmation) — désactivé s'il ne reste qu'un
+    profil ; le profil le plus récent restant devient le nouveau
+    courant.
+  - *Réinitialiser* — revient aux valeurs par défaut **sans changer
+    le nom**, équivalent du Reset historique.
+- **Importer…** ouvre un sélecteur de fichier `.json` (export d'un
+  profil de votre collègue, par exemple). **Exporter…** télécharge
+  le profil courant comme `<nom-du-profil>.json`. Format auto-suffisant
+  et lisible à la main si besoin.
 
 ### Caractères spéciaux et symboles
 
