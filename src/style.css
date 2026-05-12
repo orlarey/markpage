@@ -1468,3 +1468,24 @@ body,
   cursor: pointer;
   font: inherit;
 }
+
+/* ---- demo iframe body (showcase) -------------------------------- */
+
+/* When demo.html is loaded inside a showcase iframe we want the
+   paged.js A4 page to fit the iframe width without producing a
+   horizontal scrollbar. `zoom: 0.7` scales every descendant — text,
+   page boundaries, math glyphs — so an A4 page (≈ 793 px wide at
+   96 dpi) lands inside the iframe column. The `.demo-frame-body`
+   class is added by demo.ts; the rules live here (not in
+   showcase.css) because the iframe loads style.css. */
+
+body.demo-frame-body {
+  margin: 0;
+  background: #fff;
+  zoom: 0.7;
+}
+
+body.demo-frame-body #preview-pane {
+  margin: 0;
+  padding: 1rem;
+}

@@ -202,13 +202,6 @@ a:hover {
   border-top: 1px solid var(--border);
 }
 
-.showcase-section:nth-child(even) {
-  background: var(--bg-alt);
-  margin: 0 -1.5rem;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
-}
-
 .showcase-intro {
   max-width: 50rem;
   margin: 0 auto 1.5rem;
@@ -319,28 +312,5 @@ a:hover {
   margin: 0.3rem 0;
 }
 
-/* ---- demo.html iframe body (the runner) -------------------------- */
-
-/* When demo.html is loaded inside a showcase iframe, we want the
-   paged.js A4 page to fit the iframe width without producing a
-   horizontal scrollbar. `zoom: 0.7` scales every descendant — text,
-   page boundaries, math glyphs — down to 70 %, which lands an A4
-   page (≈ 793 px wide at 96 dpi) inside a ~ 555 px iframe column.
-   The `.demo-frame-body` class is added by demo.ts so these rules
-   don't leak to the main app. */
-
-body.demo-frame-body {
-  margin: 0;
-  background: #fff;
-  zoom: 0.7;
-}
-
-body.demo-frame-body #preview-pane {
-  margin: 0;
-  padding: 1rem;
-}
-
-/* paged.js renders its `.pagedjs_pages` container with fixed mm
-   dimensions. With the `zoom` above it lands the right width
-   straightaway; vertical scroll inside the iframe is left alone
-   so the visitor can see longer snippets. */
+/* The demo iframe's body styling lives in src/style.css next to
+   `.demo-frame-body` (the iframe loads style.css, not this file). */
