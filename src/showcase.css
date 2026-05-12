@@ -27,74 +27,96 @@ body {
   font-family: 'Roboto', system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.55;
+  height: 100%;
+  /* Slide-deck mode: no page scroll. Navigation happens via
+     wheel / keyboard / touch, handled in showcase.ts. */
+  overflow: hidden;
 }
 
-/* Full-page scroll: one segment fills the viewport, scrolling snaps
-   to the next. CSS-native (no scroll-jacking JS); the visitor can
-   still use keyboard / wheel naturally — they just get a magnetic
-   stop at each section boundary.
+/* All segments share the same position — only `.is-active` is
+   visible at any time. Switching the active class cross-fades the
+   leaving and incoming segment on the same z-layer.
 
-   We gate snapping on a minimum viewport height: on small laptops
-   (< 700 px tall) the segments would overflow and `mandatory`
-   snapping fights the user. Below that threshold we fall back to
-   ordinary scroll. */
-@media (min-height: 700px) {
-  html {
-    /* `proximity` only snaps when the visitor's scroll has actually
-       slowed near a section boundary — natural feel rather than
-       enforced jumps. Smooth scroll-behaviour applies to
-       programmatic scrolls too (keyboard nav below). */
-    scroll-snap-type: y proximity;
-    scroll-behavior: smooth;
-  }
+   - Opacity transitions both directions (incoming fades in, outgoing
+     fades out over the same 3 s).
+   - The grow-into-place effect runs ONLY on the incoming segment, via
+     a keyframe `animation` on `.is-active`. The outgoing segment
+     keeps its full size while fading out (it has no transform
+     transition in the base rule).
 
-  .hero,
-  .showcase-section,
-  .showcase-footer {
-    min-height: 100vh;
-    scroll-snap-align: start;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-}
-
-/* ---- Segment fade-slide-in animation ------------------------------ */
-
-/* Each segment starts hidden + slightly translated, then animates to
-   opaque + in-place when it enters the viewport. The
-   `.is-active` class is toggled by an IntersectionObserver in
-   showcase.ts. Once shown, segments stay visible — so scrolling
-   back doesn't re-trigger the animation. */
+   `pointer-events: none` on inactive slides keeps their (still-
+   mounted) iframes and links from intercepting clicks intended for
+   the visible slide. */
 .hero,
 .showcase-section,
 .showcase-footer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
   opacity: 0;
-  transform: translateY(40px);
-  transition:
-    opacity 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    transform 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+  transition: opacity 3000ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hero.is-active,
 .showcase-section.is-active,
 .showcase-footer.is-active {
   opacity: 1;
-  transform: translateY(0);
+  pointer-events: auto;
+  animation: slide-grow-in 3000ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@keyframes slide-grow-in {
+  from { transform: scale(0.85); }
+  to { transform: scale(1); }
+}
+
+/* Hero: each child (logo, tagline, bullets) fades up in sequence
+   when the section becomes active. The logo lands first, the
+   tagline answers, then the bullets pop in one by one. */
+.hero-brand,
+.hero-tagline,
+.hero-bullets li {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.hero.is-active .hero-brand,
+.hero.is-active .hero-tagline,
+.hero.is-active .hero-bullets li {
+  opacity: 1;
+  transform: none;
+}
+
+.hero.is-active .hero-brand { transition-delay: 300ms; }
+.hero.is-active .hero-tagline { transition-delay: 1600ms; }
+.hero.is-active .hero-bullets li:nth-child(1) { transition-delay: 2900ms; }
+.hero.is-active .hero-bullets li:nth-child(2) { transition-delay: 3900ms; }
+.hero.is-active .hero-bullets li:nth-child(3) { transition-delay: 4900ms; }
+.hero.is-active .hero-bullets li:nth-child(4) { transition-delay: 5900ms; }
+
 /* Respect the visitor's motion preference — disable the entrance
-   animation and the smooth scroll alike. */
+   animations entirely (cross-fade + hero stagger). */
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
   .hero,
   .showcase-section,
-  .showcase-footer {
+  .showcase-footer,
+  .hero-brand,
+  .hero-tagline,
+  .hero-bullets li {
     transition: none;
     transform: none;
-    opacity: 1;
+  }
+  .hero.is-active .hero-brand,
+  .hero.is-active .hero-tagline,
+  .hero.is-active .hero-bullets li {
+    transition-delay: 0ms;
   }
 }
 
@@ -111,6 +133,8 @@ a:hover {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1.5rem;
+  position: relative;
+  height: 100%;
 }
 
 /* ---- Brand mark --------------------------------------------------- */
@@ -142,23 +166,17 @@ a:hover {
 }
 
 .hero-logo {
-  font-size: 2.25rem;
+  font-size: 3.75rem;
 }
 
 .hero-tagline {
   font-family: 'Roboto Condensed', system-ui, sans-serif;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 500;
   line-height: 1.15;
-  margin: 0 0 0.75rem;
+  margin: 2rem auto;
   color: var(--brand);
-}
-
-.hero-subtagline {
-  font-size: 1.15rem;
-  color: var(--text-muted);
   max-width: 42rem;
-  margin: 0 auto 2rem;
 }
 
 .hero-bullets {
@@ -185,59 +203,10 @@ a:hover {
   font-weight: 700;
 }
 
-.hero-cta {
-  display: inline-block;
-  padding: 0.7rem 1.4rem;
-  background: var(--brand);
-  color: #fff;
-  border-radius: 8px;
-  font-weight: 500;
-  margin-bottom: 3rem;
-}
-
-.hero-cta:hover {
-  background: #062e60;
-  text-decoration: none;
-}
-
-/* Playground iframe — generous, full-width on the desktop layout */
-
-.hero-playground {
-  width: 100%;
-  height: 640px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--bg-alt);
-  box-shadow: var(--shadow);
-  position: relative;
-}
-
-.hero-playground::before {
-  content: 'Loading editor…';
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-style: italic;
-  pointer-events: none;
-}
-
-.hero-playground iframe {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: var(--bg);
-}
-
 /* ---- Sections ----------------------------------------------------- */
 
 .showcase-section {
   padding: 3rem 0;
-  border-top: 1px solid var(--border);
 }
 
 .showcase-intro {
@@ -342,8 +311,6 @@ a:hover {
   text-align: center;
   color: var(--text-muted);
   font-size: 0.95rem;
-  border-top: 1px solid var(--border);
-  margin-top: 2rem;
 }
 
 .showcase-footer p {

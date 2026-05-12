@@ -20,9 +20,7 @@ import { SHOWCASE_DATA } from './showcase-data';
 import type { ShowcaseEntry } from './showcase-types';
 
 const HERO = {
-  tagline: 'Markdown, in your browser, to PDF.',
-  subtagline:
-    'A Markdown editor that produces print-ready PDFs entirely client-side. No installation, no account, no server.',
+  tagline: 'The fast path from Markdown to print-ready PDFs.',
   bullets: [
     'No installation, no account, no subscription.',
     'Nothing leaves your machine — every byte stays in your browser.',
@@ -62,13 +60,6 @@ function buildHero(): HTMLElement {
   );
 
   const tagline = el('h1', { class: 'hero-tagline' }, HERO.tagline);
-  const subtagline = el('p', { class: 'hero-subtagline' }, HERO.subtagline);
-
-  const cta = el(
-    'a',
-    { class: 'hero-cta', href: './index.html' },
-    'Open the editor →',
-  );
 
   const bullets = el(
     'ul',
@@ -76,16 +67,7 @@ function buildHero(): HTMLElement {
     ...HERO.bullets.map((b) => el('li', {}, b)),
   );
 
-  // Hero iframe — loads `?id=hero` so demo.ts picks up the curated
-  // rich snippet (Cauchy–Schwarz + callout, see showcase-data.ts).
-  // Visitor sees a typeset page above the fold, not an empty canvas.
-  const heroIframe = el('div', {
-    class: 'hero-playground',
-    'data-demo-src': './demo.html?id=hero',
-  });
-  heroIframe.appendChild(el('iframe', { title: 'markpage rendering' }));
-
-  hero.append(brand, tagline, subtagline, bullets, cta, heroIframe);
+  hero.append(brand, tagline, bullets);
   return hero;
 }
 
@@ -137,10 +119,18 @@ function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
 }
 
 function buildFooter(): HTMLElement {
+  const logo = (() => {
+    const wrap = el('span', { class: 'markpage-logo' });
+    const mark = el('span', { class: 'markpage-logo-mark' }, 'mark');
+    const page = el('span', { class: 'markpage-logo-page' }, 'page');
+    wrap.append(mark, page);
+    return wrap;
+  })();
+
   return el(
     'footer',
     { class: 'showcase-footer' },
-    el('p', {}, 'markpage is free software, MIT-licensed.'),
+    el('p', {}, logo, ' is libre software, MIT-licensed.'),
     el(
       'p',
       {},
@@ -151,59 +141,15 @@ function buildFooter(): HTMLElement {
   );
 }
 
-function mountLazyIframes(): void {
-  // Only set `src` when the wrapper enters the viewport (with a
-  // 300px head-start so the iframe has a head start on loading
-  // before the visitor actually arrives). One-shot — once mounted
-  // we stop observing, so scrolling back doesn't reset anything.
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const wrap = entry.target as HTMLElement;
-        const src = wrap.dataset['demoSrc'];
-        const iframe = wrap.querySelector('iframe');
-        if (src && iframe && !iframe.getAttribute('src')) {
-          iframe.setAttribute('src', src);
-        }
-        observer.unobserve(wrap);
-      }
-    },
-    { rootMargin: '300px 0px' },
-  );
-
-  for (const wrap of document.querySelectorAll<HTMLElement>(
-    '[data-demo-src]',
-  )) {
-    observer.observe(wrap);
-  }
-}
-
-// Reveals each segment with a fade + slide-up the first time it
-// enters the viewport. One-shot — segments stay visible once
-// revealed, so scrolling back doesn't trigger the animation again.
-function mountSegmentReveal(): void {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add('is-active');
-        observer.unobserve(entry.target);
-      }
-    },
-    { threshold: 0.2 },
-  );
-  for (const seg of document.querySelectorAll<HTMLElement>(
-    '.hero, .showcase-section, .showcase-footer',
-  )) {
-    observer.observe(seg);
-  }
-}
-
-// Space / arrows / page-up-down / Home / End jump between segments.
-// We rely on the browser's smooth scroll (scroll-behavior in CSS) +
-// scroll-snap to land each jump on a clean segment boundary.
-function mountKeyboardNavigation(): void {
+// Slide-deck navigation: all segments are stacked at the same
+// position, only the `.is-active` one is visible. Wheel / keyboard /
+// touch all funnel through `setIndex` to swap the active class,
+// which the CSS turns into a cross-fade.
+//
+// Also handles iframe lazy-mounting: an iframe's `src` is only set
+// when its segment is first activated (and the next one's, so the
+// upcoming preview is preloaded by the time the visitor reaches it).
+function mountSlideShow(): void {
   const segments = Array.from(
     document.querySelectorAll<HTMLElement>(
       '.hero, .showcase-section, .showcase-footer',
@@ -211,59 +157,95 @@ function mountKeyboardNavigation(): void {
   );
   if (segments.length === 0) return;
 
-  // Which segment is currently the "anchor" — the one whose top is
-  // closest to the viewport top (most visible). Used as the pivot
-  // for next/prev jumps.
-  const currentIndex = (): number => {
-    let best = 0;
-    let bestDistance = Infinity;
-    segments.forEach((seg, i) => {
-      const distance = Math.abs(seg.getBoundingClientRect().top);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = i;
-      }
-    });
-    return best;
+  const mountIframesIn = (seg: HTMLElement): void => {
+    for (const wrap of seg.querySelectorAll<HTMLElement>('[data-demo-src]')) {
+      const iframe = wrap.querySelector('iframe');
+      if (!iframe || iframe.getAttribute('src')) continue;
+      const src = wrap.dataset['demoSrc'];
+      if (src) iframe.setAttribute('src', src);
+    }
   };
 
-  const scrollTo = (i: number): void => {
-    const target = segments[Math.max(0, Math.min(segments.length - 1, i))];
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  let current = 0;
+  segments[0].classList.add('is-active');
+  mountIframesIn(segments[0]);
+  if (segments[1]) mountIframesIn(segments[1]);
+
+  const setIndex = (i: number): void => {
+    const next = Math.max(0, Math.min(segments.length - 1, i));
+    if (next === current) return;
+    segments[current].classList.remove('is-active');
+    segments[next].classList.add('is-active');
+    mountIframesIn(segments[next]);
+    if (segments[next + 1]) mountIframesIn(segments[next + 1]);
+    current = next;
   };
+
+  // Wheel: one gesture = one slide. We lock navigation for the
+  // cross-fade duration so a continuous trackpad scroll can't
+  // chain a third slide while the previous transition is still
+  // playing (which would leave three segments visible at once).
+  let wheelLockedUntil = 0;
+  globalThis.addEventListener(
+    'wheel',
+    (e) => {
+      const now = performance.now();
+      if (now < wheelLockedUntil) return;
+      if (Math.abs(e.deltaY) < 10) return;
+      wheelLockedUntil = now + 3000;
+      setIndex(current + (e.deltaY > 0 ? 1 : -1));
+    },
+    { passive: true },
+  );
+
+  // Touch: vertical swipe past a small threshold changes slide.
+  let touchStartY = 0;
+  globalThis.addEventListener(
+    'touchstart',
+    (e) => {
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    },
+    { passive: true },
+  );
+  globalThis.addEventListener(
+    'touchend',
+    (e) => {
+      const endY = e.changedTouches[0]?.clientY ?? touchStartY;
+      const dy = endY - touchStartY;
+      if (Math.abs(dy) < 50) return;
+      setIndex(current + (dy < 0 ? 1 : -1));
+    },
+    { passive: true },
+  );
 
   globalThis.addEventListener('keydown', (e) => {
-    // If the focus is somewhere editable, let it through. Iframes
-    // are separate browsing contexts so this listener doesn't fire
-    // while they have focus anyway, but we keep the check for the
-    // showcase page's own inputs (if any get added later).
     const t = e.target;
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) {
       return;
     }
 
     switch (e.key) {
-      case ' ': // Space: forward, Shift+Space: back (slide-deck convention)
+      case ' ':
         e.preventDefault();
-        scrollTo(currentIndex() + (e.shiftKey ? -1 : 1));
+        setIndex(current + (e.shiftKey ? -1 : 1));
         break;
       case 'ArrowDown':
       case 'PageDown':
         e.preventDefault();
-        scrollTo(currentIndex() + 1);
+        setIndex(current + 1);
         break;
       case 'ArrowUp':
       case 'PageUp':
         e.preventDefault();
-        scrollTo(currentIndex() - 1);
+        setIndex(current - 1);
         break;
       case 'Home':
         e.preventDefault();
-        scrollTo(0);
+        setIndex(0);
         break;
       case 'End':
         e.preventDefault();
-        scrollTo(segments.length - 1);
+        setIndex(segments.length - 1);
         break;
       default:
         break;
@@ -280,9 +262,7 @@ function run(): void {
     root.append(buildSection(entry, i));
   });
   root.append(buildFooter());
-  mountLazyIframes();
-  mountSegmentReveal();
-  mountKeyboardNavigation();
+  mountSlideShow();
 }
 
 run();
