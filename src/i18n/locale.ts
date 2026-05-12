@@ -44,10 +44,32 @@ export function getLanguage(): Language {
   return current;
 }
 
-// Persists the new locale and reloads the page. Reload keeps the
-// app's wiring simple: every component reads `t(...)` at construction
-// time and we don't have to invalidate cached DOM trees.
+// Subscribers called whenever the active locale changes. Used so the
+// long-lived UI elements (toolbar, open help window, …) can rebuild
+// themselves with the new strings without a full page reload — the
+// reload approach broke the moment the change came from the
+// detached Réglages popup (it reloaded the popup, not the parent).
+const subscribers = new Set<() => void>();
+
+export function onLanguageChange(cb: () => void): () => void {
+  subscribers.add(cb);
+  return () => subscribers.delete(cb);
+}
+
+// Persists the new locale, updates the module cache, mirrors onto
+// <html lang>, and fires every subscriber so each long-lived UI
+// surface can repaint. Caller (typically the Réglages form's UI-lang
+// select) is responsible for refreshing **itself** — the subscribers
+// model handles the rest of the app.
 export function setLanguage(lang: Language): void {
+  if (lang === current) return;
   localStorage.setItem(KEY, lang);
-  globalThis.location?.reload();
+  current = lang;
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang;
+  }
+  // Snapshot first — a subscriber unsubscribing during iteration
+  // would otherwise mutate the live Set.
+  const callbacks = [...subscribers];
+  for (const cb of callbacks) cb();
 }

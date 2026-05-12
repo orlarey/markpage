@@ -632,16 +632,20 @@ export function buildSettingsForm(
     return row(label, select);
   }
 
-  // UI-language selector. Picking a different value reloads the page
-  // (see `setLanguage` in i18n/locale.ts) — every UI component reads
-  // `t(...)` at construction time, so a reload is cheaper than
-  // tracking each translated text node for invalidation.
+  // UI-language selector. Switching mutates the locale module's
+  // cache + notifies subscribers (cf. setLanguage in i18n/locale.ts).
+  // We then refresh() **this** form so the popup (or modal) the
+  // user is currently looking at picks up the new strings in place;
+  // subscribers handle the rest of the app (toolbar, …).
   function uiLanguageField(): HTMLElement {
     return selectField<Language>(
       t('settings.field.ui-language'),
       ['fr', 'en'],
       getLanguage(),
-      (lang) => setLanguage(lang),
+      (lang) => {
+        setLanguage(lang);
+        refresh();
+      },
       (lang) => (lang === 'fr' ? 'Français' : 'English'),
     );
   }

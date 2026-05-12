@@ -23,7 +23,7 @@ import {
   migrateIDBBranding,
   migrateLocalStorageBranding,
 } from './branding-migration';
-import { initLocale } from './i18n/locale';
+import { initLocale, onLanguageChange } from './i18n/locale';
 import { t } from './i18n/strings';
 import { registerFallbackFonts } from './fonts';
 import { loadFontTrio, registerCustomFonts } from './font-loader';
@@ -850,6 +850,14 @@ async function bootstrap(): Promise<void> {
   globalThis.addEventListener('keydown', onAppKeydown);
 
   renderToolbar();
+
+  // When the UI language changes (typically from the Réglages
+  // popup's "Langue de l'interface" select), rebuild the toolbar so
+  // its labels translate in place. The Réglages form itself
+  // refreshes locally; long-lived UI elements subscribe here.
+  onLanguageChange(() => {
+    renderToolbar();
+  });
 }
 
 await bootstrap();
