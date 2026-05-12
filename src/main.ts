@@ -23,6 +23,7 @@ import {
   migrateIDBBranding,
   migrateLocalStorageBranding,
 } from './branding-migration';
+import { initLocale } from './i18n/locale';
 import { registerFallbackFonts } from './fonts';
 import { loadFontTrio, registerCustomFonts } from './font-loader';
 import { createEditor } from './editor';
@@ -158,6 +159,11 @@ async function bootstrap(): Promise<void> {
   await migrateIDBBranding().catch((err: unknown) => {
     console.error('IDB branding migration failed', err);
   });
+
+  // Resolve the UI locale before any component reads `t(...)` at
+  // construction time. First-launch detection via navigator.language;
+  // subsequent runs read the value the user pinned via Réglages.
+  initLocale();
 
   // Register the Noto fallback fonts (full TTFs, not subsetted) so the HTML
   // preview's font cascade has the same coverage as the PDF. Fire and
