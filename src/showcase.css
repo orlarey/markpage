@@ -317,5 +317,91 @@ a:hover {
   margin: 0.3rem 0;
 }
 
+/* ---- Persistent nav overlay -------------------------------------- */
+
+/* Fixed overlay above every slide: brand mark top-left (→ editor),
+   GitHub icon top-right (→ repo), animated chevron at bottom-centre
+   that also doubles as a "next slide" button. The container itself
+   is non-interactive so it doesn't intercept wheel/click on the
+   slide; each child re-enables pointer events. */
+.nav-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.nav-overlay > * {
+  pointer-events: auto;
+  position: absolute;
+}
+
+.nav-logo {
+  top: 1.5rem;
+  left: 1.5rem;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.nav-logo:hover {
+  text-decoration: none;
+}
+
+.nav-github {
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0.7;
+  transition: opacity 200ms ease;
+}
+
+.nav-github:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+
+.nav-hint {
+  bottom: 1.5rem;
+  left: 50%;
+  background: none;
+  border: 0;
+  padding: 0.4rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  transition:
+    opacity 600ms ease,
+    color 200ms ease;
+  animation: nav-hint-bounce 1.8s ease-in-out infinite;
+}
+
+.nav-hint:hover {
+  opacity: 1;
+  color: var(--brand);
+}
+
+.nav-overlay.is-end .nav-hint {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes nav-hint-bounce {
+  0%,
+  100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-hint {
+    animation: none;
+    transform: translate(-50%, 0);
+  }
+}
+
 /* The demo iframe's body styling lives in src/style.css next to
    `.demo-frame-body` (the iframe loads style.css, not this file). */

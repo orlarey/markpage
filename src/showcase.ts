@@ -50,13 +50,7 @@ function buildHero(): HTMLElement {
   const brand = el(
     'div',
     { class: 'hero-brand' },
-    (() => {
-      const wrap = el('span', { class: 'markpage-logo hero-logo' });
-      const mark = el('span', { class: 'markpage-logo-mark' }, 'mark');
-      const page = el('span', { class: 'markpage-logo-page' }, 'page');
-      wrap.append(mark, page);
-      return wrap;
-    })(),
+    makeLogoSpan('hero-logo'),
   );
 
   const tagline = el('h1', { class: 'hero-tagline' }, HERO.tagline);
@@ -118,14 +112,18 @@ function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
   return section;
 }
 
+function makeLogoSpan(extraClass = ''): HTMLSpanElement {
+  const wrap = el('span', {
+    class: extraClass ? `markpage-logo ${extraClass}` : 'markpage-logo',
+  });
+  const mark = el('span', { class: 'markpage-logo-mark' }, 'mark');
+  const page = el('span', { class: 'markpage-logo-page' }, 'page');
+  wrap.append(mark, page);
+  return wrap;
+}
+
 function buildFooter(): HTMLElement {
-  const logo = (() => {
-    const wrap = el('span', { class: 'markpage-logo' });
-    const mark = el('span', { class: 'markpage-logo-mark' }, 'mark');
-    const page = el('span', { class: 'markpage-logo-page' }, 'page');
-    wrap.append(mark, page);
-    return wrap;
-  })();
+  const logo = makeLogoSpan();
 
   return el(
     'footer',
@@ -139,6 +137,50 @@ function buildFooter(): HTMLElement {
       el('a', { href: './index.html' }, 'Open the editor'),
     ),
   );
+}
+
+// Persistent overlay shown on every slide: brand logo (top-left,
+// links to the editor), GitHub mark (top-right, links to the repo),
+// and an animated chevron (bottom-centre) that doubles as a "next
+// slide" button. mountSlideShow toggles `.is-end` on the overlay so
+// the chevron disappears on the final slide.
+const GITHUB_ICON_SVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.111.82-.261.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>`;
+const CHEVRON_DOWN_SVG = `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+function buildNavOverlay(): HTMLElement {
+  const overlay = el('div', { class: 'nav-overlay' });
+
+  const logoLink = el(
+    'a',
+    {
+      class: 'nav-logo',
+      href: './index.html',
+      title: 'Open the editor',
+      'aria-label': 'Open the editor',
+    },
+    makeLogoSpan(),
+  );
+
+  const githubLink = el('a', {
+    class: 'nav-github',
+    href: 'https://github.com/orlarey/markpage',
+    title: 'View source on GitHub',
+    'aria-label': 'View source on GitHub',
+    target: '_blank',
+    rel: 'noopener noreferrer',
+  });
+  githubLink.innerHTML = GITHUB_ICON_SVG;
+
+  const hint = el('button', {
+    class: 'nav-hint',
+    type: 'button',
+    title: 'Next slide',
+    'aria-label': 'Next slide',
+  });
+  hint.innerHTML = CHEVRON_DOWN_SVG;
+
+  overlay.append(logoLink, githubLink, hint);
+  return overlay;
 }
 
 // Slide-deck navigation: all segments are stacked at the same
@@ -166,10 +208,18 @@ function mountSlideShow(): void {
     }
   };
 
+  const overlay = document.querySelector<HTMLElement>('.nav-overlay');
+  const hint = overlay?.querySelector<HTMLButtonElement>('.nav-hint');
+
+  const updateOverlayState = (i: number): void => {
+    overlay?.classList.toggle('is-end', i >= segments.length - 1);
+  };
+
   let current = 0;
   segments[0].classList.add('is-active');
   mountIframesIn(segments[0]);
   if (segments[1]) mountIframesIn(segments[1]);
+  updateOverlayState(current);
 
   const setIndex = (i: number): void => {
     const next = Math.max(0, Math.min(segments.length - 1, i));
@@ -179,7 +229,12 @@ function mountSlideShow(): void {
     mountIframesIn(segments[next]);
     if (segments[next + 1]) mountIframesIn(segments[next + 1]);
     current = next;
+    updateOverlayState(current);
   };
+
+  hint?.addEventListener('click', () => {
+    setIndex(current + 1);
+  });
 
   // Wheel: one gesture = one slide. We lock navigation for the
   // cross-fade duration so a continuous trackpad scroll can't
@@ -262,6 +317,7 @@ function run(): void {
     root.append(buildSection(entry, i));
   });
   root.append(buildFooter());
+  document.body.append(buildNavOverlay());
   mountSlideShow();
 }
 
