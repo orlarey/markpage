@@ -79,6 +79,7 @@ import {
   loadProfileSettings,
   migrateLegacySettingsIfNeeded,
   renameProfile,
+  resetProfile,
   saveProfileSettings,
   setCurrentProfileId,
   type ProfileEntry,
@@ -155,8 +156,8 @@ async function bootstrap(): Promise<void> {
   // Bring any legacy single-settings install into the multi-profile
   // schema, then guarantee at least one profile exists so the rest of
   // bootstrap has *some* settings to render against.
-  migrateLegacySettingsIfNeeded();
-  const activeProfile = ensureActiveProfile();
+  await migrateLegacySettingsIfNeeded();
+  const activeProfile = await ensureActiveProfile();
   const state: {
     settings: PdfSettings;
     profileId: string;
@@ -417,7 +418,11 @@ async function bootstrap(): Promise<void> {
 
   const handleSettingsChange = (s: PdfSettings) => {
     state.settings = s;
-    saveProfileSettings(state.profileId, s);
+    // Fire-and-forget: the SHA hash + localStorage write is fast and
+    // the form's onChange is sync. Any error stays in the console.
+    void saveProfileSettings(state.profileId, s).catch((err: unknown) => {
+      console.error('Profile save failed', err);
+    });
     // The settings form mutates its own customFonts list before
     // calling us, but registering here too keeps things consistent
     // when a settings change arrives from another path (cross-window
@@ -591,10 +596,14 @@ async function bootstrap(): Promise<void> {
       if (entry) applyProfile(entry);
     },
     onCreateProfile: () => {
-      // Seed a new profile from the active one so the user keeps
-      // their current look as a starting point.
-      const entry = createProfile('Nouveau profil', { ...state.settings });
-      applyProfile(entry);
+      void (async () => {
+        // Seed a new profile from the active one so the user keeps
+        // their current look as a starting point.
+        const entry = await createProfile('Nouveau profil', {
+          ...state.settings,
+        });
+        applyProfile(entry);
+      })();
     },
     onRenameProfile: (uuid: string, name: string) => {
       renameProfile(uuid, name);
@@ -617,6 +626,15 @@ async function bootstrap(): Promise<void> {
         refreshSettingsForm?.();
       }
     },
+    onResetProfile: () => {
+      // resetProfile = saveProfileSettings(current, DEFAULT_SETTINGS).
+      // We go through applyProfile so the preview / PDF / font-loader
+      // see the reset settings without a manual repaint.
+      void (async () => {
+        const entry = await resetProfile(state.profileId);
+        if (entry) applyProfile(entry);
+      })();
+    },
     onImportProfile: () => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -626,7 +644,7 @@ async function bootstrap(): Promise<void> {
         if (!file) return;
         void (async () => {
           const text = await file.text();
-          const result = importProfileJson(text);
+          const result = await importProfileJson(text);
           if (!result.ok) {
             globalThis.alert(`Import du profil échoué : ${result.error}`);
             return;

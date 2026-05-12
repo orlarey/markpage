@@ -1,26 +1,36 @@
-// Multi-profile settings store. Mirrors the multi-doc store from
-// docs.ts: a lightweight index (uuid + name + mtime) lives alongside
-// one localStorage entry per profile blob. The user toggles between
-// profiles from the dropdown in the Réglages window header; the
-// active profile drives the preview / PDF render. Cf. SPEC §9.4.
+// Library of named PdfSettings profiles, parallel to the multi-doc
+// store from docs.ts. The user toggles between profiles from the
+// [Mon profil ▾] dropdown in the Réglages window header; the active
+// profile drives the preview / PDF / LaTeX render. Cf. SPEC §9.4.
+//
+// Two-layer design (cf. SPEC §9.4.6):
+//   - Public API: every operation is parameterised by uuid (handle)
+//     and named in the docs.ts style (createProfile, renameProfile,
+//     etc.). The API thinks in (name, content) pairs and never
+//     exposes SHA / blobs.
+//   - Storage layer: content-addressed by SHA-256 of the serialised
+//     PdfSettings, mirroring how docs.ts stores markdown blobs.
+//     Two profiles with identical content share a single blob; a
+//     duplicate is a new entry pointing at the same SHA.
 //
 // On-disk schema (localStorage):
 //   md2pdf:settings-profiles:index       → JSON ProfileEntry[]
-//   md2pdf:settings-profiles:blob:<uuid> → JSON PdfSettings
+//   md2pdf:settings-profiles:blob:<sha>  → JSON PdfSettings
 //   md2pdf:settings-profiles:current     → uuid
 //
-// Legacy key `md2pdf:settings` (single-profile world) is migrated on
-// first multi-profile run, then removed.
+// Legacy keys migrated on first run with the SHA-based schema:
+//   - md2pdf:settings (mono-profile, pre-§9.4) → first profile
+//     named "Par défaut".
+//   - md2pdf:settings-profiles:blob:<uuid> (uuid-keyed blobs from
+//     the §9.4 draft implementation) → re-stored under their SHA.
 
-import {
-  DEFAULT_SETTINGS,
-  type PdfSettings,
-} from './settings';
+import { sha256Hex } from './image-store';
+import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
 
 const KEY_INDEX = 'md2pdf:settings-profiles:index';
 const KEY_BLOB_PREFIX = 'md2pdf:settings-profiles:blob:';
 const KEY_CURRENT = 'md2pdf:settings-profiles:current';
-const KEY_LEGACY = 'md2pdf:settings';
+const KEY_LEGACY_SETTINGS = 'md2pdf:settings';
 
 const DEFAULT_PROFILE_NAME = 'Par défaut';
 
@@ -28,6 +38,7 @@ export interface ProfileEntry {
   uuid: string;
   name: string;
   mtime: number;
+  contentSha: string;
 }
 
 // ---- index ------------------------------------------------------------
@@ -54,7 +65,8 @@ function isProfileEntry(x: unknown): x is ProfileEntry {
   return (
     typeof e.uuid === 'string' &&
     typeof e.name === 'string' &&
-    typeof e.mtime === 'number'
+    typeof e.mtime === 'number' &&
+    typeof e.contentSha === 'string'
   );
 }
 
@@ -64,12 +76,12 @@ export function listProfiles(): ProfileEntry[] {
 
 // ---- blobs ------------------------------------------------------------
 
-function blobKey(uuid: string): string {
-  return KEY_BLOB_PREFIX + uuid;
+function blobKey(sha: string): string {
+  return KEY_BLOB_PREFIX + sha;
 }
 
-function readBlob(uuid: string): PdfSettings | null {
-  const raw = localStorage.getItem(blobKey(uuid));
+function readBlob(sha: string): PdfSettings | null {
+  const raw = localStorage.getItem(blobKey(sha));
   if (!raw) return null;
   try {
     return JSON.parse(raw) as PdfSettings;
@@ -78,12 +90,16 @@ function readBlob(uuid: string): PdfSettings | null {
   }
 }
 
-function writeBlob(uuid: string, settings: PdfSettings): void {
-  localStorage.setItem(blobKey(uuid), JSON.stringify(settings));
+// Idempotent: skips the write when the same SHA is already on disk.
+// Content-addressed = bytes at the key would be identical anyway.
+function writeBlob(sha: string, settings: PdfSettings): void {
+  if (localStorage.getItem(blobKey(sha)) === null) {
+    localStorage.setItem(blobKey(sha), JSON.stringify(settings));
+  }
 }
 
-function deleteBlob(uuid: string): void {
-  localStorage.removeItem(blobKey(uuid));
+async function hashSettings(settings: PdfSettings): Promise<string> {
+  return sha256Hex(new Blob([JSON.stringify(settings)]));
 }
 
 // ---- current profile --------------------------------------------------
@@ -97,9 +113,9 @@ export function setCurrentProfileId(uuid: string): void {
 }
 
 // Resolves the profile the app should activate on this run. Falls
-// back to the freshest entry when current-profile is missing or
-// invalid. Returns null only if the index is genuinely empty (caller
-// is then expected to call ensureAtLeastOneProfile).
+// back to the freshest entry when `current` is missing or invalid.
+// Returns null only if the index is genuinely empty — the caller
+// must follow with `ensureActiveProfile` in that case.
 export function resolveCurrentProfile(): ProfileEntry | null {
   const index = readIndex();
   if (index.length === 0) return null;
@@ -110,7 +126,7 @@ export function resolveCurrentProfile(): ProfileEntry | null {
   return sorted[0] ?? null;
 }
 
-// ---- create / rename / delete / duplicate -----------------------------
+// ---- name helpers -----------------------------------------------------
 
 function uniqueName(base: string, taken: Set<string>): string {
   if (!taken.has(base)) return base;
@@ -119,13 +135,16 @@ function uniqueName(base: string, taken: Set<string>): string {
   return `${base} ${n}`;
 }
 
-// Creates a profile with the given (or default) settings. Returns
-// the index entry. The caller decides whether to call
-// `setCurrentProfileId` afterwards.
-export function createProfile(
+// ---- create / rename / duplicate / delete ------------------------------
+
+// Hashes `settings`, writes the blob if new, appends an entry with a
+// fresh uuid. Auto-renames on name collision.
+export async function createProfile(
   desiredName: string,
-  settings: PdfSettings = DEFAULT_SETTINGS,
-): ProfileEntry {
+  settings: PdfSettings,
+): Promise<ProfileEntry> {
+  const sha = await hashSettings(settings);
+  writeBlob(sha, settings);
   const index = readIndex();
   const taken = new Set(index.map((e) => e.name));
   const name = uniqueName(desiredName.trim() || 'Profil', taken);
@@ -133,13 +152,16 @@ export function createProfile(
     uuid: crypto.randomUUID(),
     name,
     mtime: Date.now(),
+    contentSha: sha,
   };
-  writeBlob(entry.uuid, settings);
   index.push(entry);
   writeIndex(index);
   return entry;
 }
 
+// Index-only mutation: name field, no blob touched. Returns null if
+// the uuid is unknown. No-op (returns the existing entry untouched)
+// when the new name is identical to the old one.
 export function renameProfile(
   uuid: string,
   newName: string,
@@ -149,9 +171,6 @@ export function renameProfile(
   const index = readIndex();
   const i = index.findIndex((e) => e.uuid === uuid);
   if (i < 0) return null;
-  // Disambiguate against the other entries' names. If the user
-  // didn't change the name, skip the uniqueness check so we don't
-  // accidentally append " 2" when the input is unchanged.
   if (index[i].name === trimmed) return index[i];
   const taken = new Set(
     index.filter((e) => e.uuid !== uuid).map((e) => e.name),
@@ -163,105 +182,204 @@ export function renameProfile(
   return updated;
 }
 
-// Removes a profile. Refuses to drop the last remaining one — the
-// caller's UI should disable the action in that case anyway.
-// Returns true when the deletion went through.
-export function deleteProfile(uuid: string): boolean {
-  const index = readIndex();
-  if (index.length <= 1) return false;
-  const remaining = index.filter((e) => e.uuid !== uuid);
-  if (remaining.length === index.length) return false;
-  writeIndex(remaining);
-  deleteBlob(uuid);
-  if (getCurrentProfileId() === uuid) {
-    // Hand the active slot to the freshest survivor so the next
-    // render doesn't flap to whatever the runtime picks.
-    const next = remaining.slice().sort((a, b) => b.mtime - a.mtime)[0];
-    if (next) setCurrentProfileId(next.uuid);
-  }
-  return true;
-}
-
+// New entry pointing at the same blob (same SHA). Cheap: no second
+// blob written, just the index entry.
 export function duplicateProfile(uuid: string): ProfileEntry | null {
   const index = readIndex();
   const src = index.find((e) => e.uuid === uuid);
   if (!src) return null;
-  const settings = readBlob(uuid) ?? DEFAULT_SETTINGS;
   const taken = new Set(index.map((e) => e.name));
   const name = uniqueName(`Copie de ${src.name}`, taken);
   const entry: ProfileEntry = {
     uuid: crypto.randomUUID(),
     name,
     mtime: Date.now(),
+    contentSha: src.contentSha,
   };
-  writeBlob(entry.uuid, settings);
   index.push(entry);
   writeIndex(index);
   return entry;
 }
 
-// ---- read / write the active settings ---------------------------------
-
-// Returns the settings for the named profile (or DEFAULT_SETTINGS as a
-// last-resort fallback). Always goes through mergeWithDefaults via
-// the json shape so legacy fields are tolerated.
-export function loadProfileSettings(uuid: string): PdfSettings {
-  return readBlob(uuid) ?? DEFAULT_SETTINGS;
+// Removes the profile. **Refuses to delete the last remaining one**
+// (callers should disable the action in that case anyway). Hands the
+// active slot to the freshest survivor when the deleted profile was
+// current. Returns true when the deletion went through.
+export function deleteProfile(uuid: string): boolean {
+  const index = readIndex();
+  if (index.length <= 1) return false;
+  const remaining = index.filter((e) => e.uuid !== uuid);
+  if (remaining.length === index.length) return false;
+  writeIndex(remaining);
+  // The deleted entry's blob might still be referenced by another
+  // entry (typical after a duplicate); only GC it if it's truly
+  // orphan now.
+  gcProfileBlobs();
+  if (getCurrentProfileId() === uuid) {
+    const next = remaining.slice().sort((a, b) => b.mtime - a.mtime)[0];
+    if (next) setCurrentProfileId(next.uuid);
+  }
+  return true;
 }
 
-export function saveProfileSettings(
+// ---- read / write the content of an entry ------------------------------
+
+export function loadProfileSettings(uuid: string): PdfSettings {
+  const index = readIndex();
+  const entry = index.find((e) => e.uuid === uuid);
+  if (!entry) return DEFAULT_SETTINGS;
+  return readBlob(entry.contentSha) ?? DEFAULT_SETTINGS;
+}
+
+// Edits the content of the named profile. Idempotent: when the new
+// content hashes to the same SHA as the existing one, leaves both
+// the blob and the entry's mtime untouched — keeps the dropdown's
+// recency sort from flipping while the user just hovers around the
+// form. Returns the (possibly unchanged) entry.
+export async function saveProfileSettings(
   uuid: string,
   settings: PdfSettings,
-): ProfileEntry | null {
+): Promise<ProfileEntry | null> {
+  const sha = await hashSettings(settings);
   const index = readIndex();
   const i = index.findIndex((e) => e.uuid === uuid);
   if (i < 0) return null;
-  writeBlob(uuid, settings);
-  // Bump mtime so the dropdown reorders by recency.
-  const updated: ProfileEntry = { ...index[i], mtime: Date.now() };
+  writeBlob(sha, settings);
+  if (index[i].contentSha === sha) return index[i];
+  const updated: ProfileEntry = {
+    ...index[i],
+    contentSha: sha,
+    mtime: Date.now(),
+  };
   index[i] = updated;
   writeIndex(index);
+  // The old SHA may now be orphan; cheap to check.
+  gcProfileBlobs();
   return updated;
+}
+
+// Convenience: edit content to DEFAULT_SETTINGS without touching the
+// name. Behaves exactly like saveProfileSettings(uuid, DEFAULT_SETTINGS)
+// but reads better at the call site.
+export async function resetProfile(
+  uuid: string,
+): Promise<ProfileEntry | null> {
+  return saveProfileSettings(uuid, DEFAULT_SETTINGS);
+}
+
+// ---- garbage collection -----------------------------------------------
+
+// Drops every blob whose SHA isn't referenced by any entry. Cheap
+// linear walk over the localStorage keys with our prefix. Returns
+// the number of blobs removed.
+export function gcProfileBlobs(): number {
+  const referenced = new Set(readIndex().map((e) => e.contentSha));
+  let removed = 0;
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const k = localStorage.key(i);
+    if (!k?.startsWith(KEY_BLOB_PREFIX)) continue;
+    const sha = k.slice(KEY_BLOB_PREFIX.length);
+    if (referenced.has(sha)) continue;
+    localStorage.removeItem(k);
+    removed += 1;
+    // Removing a key shifts the index in some browsers; rewind by 1
+    // so we don't skip the next entry.
+    i -= 1;
+  }
+  return removed;
 }
 
 // ---- bootstrap --------------------------------------------------------
 
-// One-shot migration of the mono-profile schema (md2pdf:settings)
-// into the multi-profile index. Idempotent — once the index exists
-// this returns without touching anything.
-export function migrateLegacySettingsIfNeeded(): void {
-  if (localStorage.getItem(KEY_INDEX) !== null) return;
-  const legacy = localStorage.getItem(KEY_LEGACY);
+// Idempotent migration from the mono-profile world: the legacy
+// `md2pdf:settings` key (a single PdfSettings JSON) becomes the
+// first profile named "Par défaut".
+async function migrateMonoProfile(): Promise<void> {
+  const legacy = localStorage.getItem(KEY_LEGACY_SETTINGS);
   if (legacy === null) return;
   let parsed: PdfSettings;
   try {
     parsed = JSON.parse(legacy) as PdfSettings;
   } catch {
+    localStorage.removeItem(KEY_LEGACY_SETTINGS);
     return;
   }
-  const entry = createProfile(DEFAULT_PROFILE_NAME, parsed);
+  const entry = await createProfile(DEFAULT_PROFILE_NAME, parsed);
   setCurrentProfileId(entry.uuid);
-  localStorage.removeItem(KEY_LEGACY);
+  localStorage.removeItem(KEY_LEGACY_SETTINGS);
+}
+
+// Idempotent migration from the uuid-keyed blob schema (the §9.4
+// draft, commit 24c009d). For each index entry without contentSha,
+// look up its uuid-keyed blob, hash it, store under SHA, attach
+// contentSha. The old uuid-keyed blob is then dropped.
+async function migrateUuidKeyedBlobs(): Promise<void> {
+  // Index entries from the draft schema lacked `contentSha`. We
+  // detect them by reading the raw JSON (since isProfileEntry now
+  // rejects them).
+  const raw = localStorage.getItem(KEY_INDEX);
+  if (!raw) return;
+  let entries: Array<Partial<ProfileEntry> & { uuid: string }>;
+  try {
+    entries = JSON.parse(raw) as typeof entries;
+  } catch {
+    return;
+  }
+  if (!Array.isArray(entries)) return;
+  const needsMigration = entries.some((e) => typeof e.contentSha !== 'string');
+  if (!needsMigration) return;
+  const migrated: ProfileEntry[] = [];
+  for (const e of entries) {
+    if (typeof e.contentSha === 'string') {
+      migrated.push(e as ProfileEntry);
+      continue;
+    }
+    const oldBlobKey = KEY_BLOB_PREFIX + e.uuid;
+    const blob = localStorage.getItem(oldBlobKey);
+    const settings: PdfSettings = blob
+      ? (JSON.parse(blob) as PdfSettings)
+      : DEFAULT_SETTINGS;
+    const sha = await hashSettings(settings);
+    writeBlob(sha, settings);
+    if (blob) localStorage.removeItem(oldBlobKey);
+    migrated.push({
+      uuid: e.uuid,
+      name: typeof e.name === 'string' ? e.name : 'Profil',
+      mtime: typeof e.mtime === 'number' ? e.mtime : Date.now(),
+      contentSha: sha,
+    });
+  }
+  writeIndex(migrated);
+}
+
+// Runs every supported migration in order. Both inner migrations are
+// no-ops when their respective trigger is absent, so this is cheap
+// and idempotent — safe to call at every bootstrap.
+export async function migrateLegacySettingsIfNeeded(): Promise<void> {
+  await migrateUuidKeyedBlobs();
+  if (localStorage.getItem(KEY_INDEX) === null) {
+    await migrateMonoProfile();
+  }
 }
 
 // Returns the existing or freshly-created active profile. Called at
 // bootstrap to guarantee the rest of the app always has *some*
 // settings to render against. Run migrateLegacySettingsIfNeeded
 // before this so a legacy install lands in the right place.
-export function ensureActiveProfile(): ProfileEntry {
+export async function ensureActiveProfile(): Promise<ProfileEntry> {
   const existing = resolveCurrentProfile();
   if (existing) {
-    setCurrentProfileId(existing.uuid); // pin in case it was fallback'd
+    setCurrentProfileId(existing.uuid);
     return existing;
   }
-  const entry = createProfile(DEFAULT_PROFILE_NAME, DEFAULT_SETTINGS);
+  const entry = await createProfile(DEFAULT_PROFILE_NAME, DEFAULT_SETTINGS);
   setCurrentProfileId(entry.uuid);
   return entry;
 }
 
 // ---- JSON import / export --------------------------------------------
 
-// Format on disk (v1):
+// Wire format (v1):
 //   {
 //     "version": 1,
 //     "name": "Mon profil",
@@ -279,7 +397,7 @@ export function exportProfileJson(uuid: string): string | null {
   const index = readIndex();
   const entry = index.find((e) => e.uuid === uuid);
   if (!entry) return null;
-  const settings = readBlob(uuid);
+  const settings = readBlob(entry.contentSha);
   if (!settings) return null;
   const envelope: ExportEnvelope = {
     version: EXPORT_VERSION,
@@ -293,10 +411,7 @@ export type ImportResult =
   | { ok: true; profile: ProfileEntry }
   | { ok: false; error: string };
 
-// Parses a profile JSON file and adds it as a new profile. Doesn't
-// switch the active profile — caller decides. The new profile is
-// renamed if a profile with the same name already exists.
-export function importProfileJson(json: string): ImportResult {
+export async function importProfileJson(json: string): Promise<ImportResult> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -316,6 +431,6 @@ export function importProfileJson(json: string): ImportResult {
   if (typeof env.name !== 'string' || !env.settings) {
     return { ok: false, error: 'Champ "name" ou "settings" manquant' };
   }
-  const entry = createProfile(env.name, env.settings);
-  return { ok: true, profile: entry };
+  const profile = await createProfile(env.name, env.settings);
+  return { ok: true, profile };
 }

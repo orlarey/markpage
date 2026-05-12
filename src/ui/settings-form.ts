@@ -6,7 +6,6 @@
 // from window A can't be appended into window B.
 
 import {
-  DEFAULT_SETTINGS,
   PAGE_NUMBER_POSITIONS,
   PAGE_SIZES,
   PAGE_SIZE_LABELS,
@@ -31,8 +30,12 @@ export interface SettingsProfileHandlers {
   onSwitchProfile(uuid: string): void;
   onCreateProfile(): void;
   onRenameProfile(uuid: string, name: string): void;
+  // The next four all act on the *current* profile only — the menu
+  // surfaces them in its footer, callers know the uuid via
+  // `getCurrentProfileId`.
   onDuplicateProfile(uuid: string): void;
   onDeleteProfile(uuid: string): void;
+  onResetProfile(): void;
   onImportProfile(): void;
   onExportProfile(): void;
 }
@@ -106,16 +109,16 @@ export function buildSettingsForm(
     trigger.className = 'profile-trigger';
     trigger.textContent = `${currentProfile?.name ?? 'Profil'} ▾`;
     trigger.addEventListener('click', () => {
+      const currentUuid = handlers.getCurrentProfileId();
       openProfileMenu(trigger, {
         profiles: handlers.listProfiles(),
-        currentUuid: handlers.getCurrentProfileId(),
+        currentUuid,
         onSelect: (uuid) => handlers.onSwitchProfile(uuid),
         onCreate: () => handlers.onCreateProfile(),
-        onRenameCurrent: (name) =>
-          handlers.onRenameProfile(handlers.getCurrentProfileId(), name),
-        onRenameOther: (uuid, name) => handlers.onRenameProfile(uuid, name),
-        onDuplicate: (uuid) => handlers.onDuplicateProfile(uuid),
-        onDelete: (uuid) => handlers.onDeleteProfile(uuid),
+        onRenameCurrent: (name) => handlers.onRenameProfile(currentUuid, name),
+        onDuplicateCurrent: () => handlers.onDuplicateProfile(currentUuid),
+        onDeleteCurrent: () => handlers.onDeleteProfile(currentUuid),
+        onResetCurrent: () => handlers.onResetProfile(),
         onImport: () => handlers.onImportProfile(),
         onExport: () => handlers.onExportProfile(),
       });
@@ -365,16 +368,12 @@ export function buildSettingsForm(
       ]),
     );
 
-    const footer = doc.createElement('footer');
-    const resetBtn = button('Réinitialiser', () => {
-      current = clone(DEFAULT_SETTINGS);
-      emit();
-      refresh();
-    });
-    resetBtn.classList.add('reset');
-    footer.append(resetBtn);
-
-    return [header, form, footer];
+    // The historical Reset button used to live in a footer here.
+    // It moved into the profile dropdown as the "Réinitialiser"
+    // footer action (cf. SPEC §9.4.4) — it only ever meant
+    // "reset the active profile to defaults", which is now
+    // explicit at the call site.
+    return [header, form];
   };
 
   // ---- helpers (closures capturing `doc`) ------------------------------
@@ -814,14 +813,6 @@ export function buildSettingsForm(
     }
 
     return wrap;
-  }
-
-  function button(label: string, onClick: () => void): HTMLButtonElement {
-    const b = doc.createElement('button');
-    b.type = 'button';
-    b.textContent = label;
-    b.addEventListener('click', onClick);
-    return b;
   }
 
   refresh();

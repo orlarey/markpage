@@ -1,9 +1,14 @@
 // Dropdown that manages the settings-profile library, anchored to
-// the [Mon profil ▾] button in the Réglages window header. Mirrors
-// the doc-menu pattern (transient div, dismiss on outside click /
-// Escape / window resize) — the menu lives inside the Réglages
-// popup (or the modal), so we use the *anchor's* owner document
-// when mounting and listening, rather than the global `document`.
+// the [<nom> ▾] button in the Réglages window header. Cf. SPEC §9.4.4.
+//
+// Pattern: switch-en-un-clic. Each "other profile" row is a single
+// action — clicking switches to that profile. Actions that need a
+// confirmed target (Dupliquer / Supprimer / Réinitialiser / Importer /
+// Exporter) apply to the **current** profile only and live in a
+// footer block. The user-doc-menu pattern (hover-revealed per-row
+// actions) is deliberately not reused: profiles are typically a
+// handful, primary intent is *switch*, and per-row actions added
+// visual noise that didn't pay back.
 
 import type { ProfileEntry } from '../settings-profiles';
 
@@ -15,9 +20,9 @@ export interface ProfileMenuOptions {
   onSelect(uuid: string): void;
   onCreate(): void;
   onRenameCurrent(name: string): void;
-  onRenameOther(uuid: string, name: string): void;
-  onDuplicate(uuid: string): void;
-  onDelete(uuid: string): void;
+  onDuplicateCurrent(): void;
+  onDeleteCurrent(): void;
+  onResetCurrent(): void;
   onImport(): void;
   onExport(): void;
 }
@@ -50,7 +55,7 @@ export function openProfileMenu(
     if (e.key === 'Escape') close();
   };
 
-  // ---- Current profile: editable name input --------------------------
+  // ---- Header: editable current-profile name ------------------------
   const current = opts.profiles.find((p) => p.uuid === opts.currentUuid);
   if (current) {
     const row = doc.createElement('div');
@@ -83,7 +88,7 @@ export function openProfileMenu(
     }, 0);
   }
 
-  // ---- "+ Nouveau profil" --------------------------------------------
+  // ---- "+ Nouveau profil" -------------------------------------------
   const newBtn = doc.createElement('button');
   newBtn.type = 'button';
   newBtn.className = 'profile-menu-new';
@@ -94,7 +99,7 @@ export function openProfileMenu(
   });
   menu.append(newBtn);
 
-  // ---- Other profiles ------------------------------------------------
+  // ---- Other profiles (switch-on-click) -----------------------------
   const others = opts.profiles.filter((p) => p.uuid !== opts.currentUuid);
   if (others.length > 0) {
     const sep = doc.createElement('div');
@@ -103,31 +108,78 @@ export function openProfileMenu(
 
     const list = doc.createElement('div');
     list.className = 'profile-menu-list';
-    const allowDelete = opts.profiles.length > 1;
     for (const p of others) {
-      list.append(buildOtherRow(doc, p, opts, close, allowDelete));
+      const btn = doc.createElement('button');
+      btn.type = 'button';
+      btn.className = 'profile-menu-row';
+      btn.textContent = p.name;
+      btn.addEventListener('click', () => {
+        opts.onSelect(p.uuid);
+        close();
+      });
+      list.append(btn);
     }
     menu.append(list);
   }
 
-  // ---- Import / Export footer ---------------------------------------
-  const footerSep = doc.createElement('div');
-  footerSep.className = 'profile-menu-sep';
-  menu.append(footerSep);
+  // ---- Footer: actions on the current profile -----------------------
+  const sep1 = doc.createElement('div');
+  sep1.className = 'profile-menu-sep';
+  menu.append(sep1);
 
-  const ioRow = doc.createElement('div');
-  ioRow.className = 'profile-menu-io';
-  ioRow.append(
-    ioButton(doc, 'Importer…', () => {
+  const footer = doc.createElement('div');
+  footer.className = 'profile-menu-footer';
+
+  const allowDelete = opts.profiles.length > 1;
+  footer.append(
+    footerButton(doc, 'Dupliquer', () => {
+      opts.onDuplicateCurrent();
+      close();
+    }),
+    footerButton(
+      doc,
+      'Supprimer',
+      () => {
+        const w = doc.defaultView ?? globalThis;
+        if (!current) return;
+        if (w.confirm(`Supprimer le profil « ${current.name} » ?`)) {
+          opts.onDeleteCurrent();
+          close();
+        }
+      },
+      !allowDelete,
+    ),
+    footerButton(doc, 'Réinitialiser', () => {
+      const w = doc.defaultView ?? globalThis;
+      if (
+        w.confirm(
+          'Revenir aux réglages par défaut pour ce profil ? Le nom est conservé.',
+        )
+      ) {
+        opts.onResetCurrent();
+        close();
+      }
+    }),
+  );
+  menu.append(footer);
+
+  const sep2 = doc.createElement('div');
+  sep2.className = 'profile-menu-sep';
+  menu.append(sep2);
+
+  const io = doc.createElement('div');
+  io.className = 'profile-menu-io';
+  io.append(
+    footerButton(doc, 'Importer…', () => {
       opts.onImport();
       close();
     }),
-    ioButton(doc, 'Exporter…', () => {
+    footerButton(doc, 'Exporter…', () => {
       opts.onExport();
       close();
     }),
   );
-  menu.append(ioRow);
+  menu.append(io);
 
   doc.body.appendChild(menu);
 
@@ -145,116 +197,17 @@ export function openProfileMenu(
   }, 0);
 }
 
-function buildOtherRow(
-  doc: Document,
-  profile: ProfileEntry,
-  opts: ProfileMenuOptions,
-  close: () => void,
-  allowDelete: boolean,
-): HTMLElement {
-  const row = doc.createElement('div');
-  row.className = 'profile-menu-row';
-
-  const main = doc.createElement('button');
-  main.type = 'button';
-  main.className = 'profile-menu-row-main';
-  const nameEl = doc.createElement('span');
-  nameEl.className = 'profile-menu-name';
-  nameEl.textContent = profile.name;
-  main.append(nameEl);
-  main.addEventListener('click', () => {
-    opts.onSelect(profile.uuid);
-    close();
-  });
-  row.append(main);
-
-  const actions = doc.createElement('div');
-  actions.className = 'profile-menu-actions';
-
-  const renameBtn = actionBtn(doc, 'Renommer', () => {
-    enterInlineRename(row, nameEl, profile, opts);
-  });
-  const dupBtn = actionBtn(doc, 'Dupliquer', () => {
-    opts.onDuplicate(profile.uuid);
-    close();
-  });
-  const delBtn = actionBtn(doc, 'Supprimer', () => {
-    const win = doc.defaultView ?? globalThis;
-    if (win.confirm(`Supprimer le profil « ${profile.name} » ?`)) {
-      opts.onDelete(profile.uuid);
-      close();
-    }
-  });
-  if (!allowDelete) delBtn.disabled = true;
-  actions.append(renameBtn, dupBtn, delBtn);
-  row.append(actions);
-
-  return row;
-}
-
-function actionBtn(
+function footerButton(
   doc: Document,
   label: string,
   onClick: () => void,
+  disabled = false,
 ): HTMLButtonElement {
   const b = doc.createElement('button');
   b.type = 'button';
-  b.className = 'profile-menu-action';
+  b.className = 'profile-menu-footer-btn';
   b.textContent = label;
-  b.addEventListener('click', (e) => {
-    e.stopPropagation();
-    onClick();
-  });
-  return b;
-}
-
-function ioButton(
-  doc: Document,
-  label: string,
-  onClick: () => void,
-): HTMLButtonElement {
-  const b = doc.createElement('button');
-  b.type = 'button';
-  b.className = 'profile-menu-io-btn';
-  b.textContent = label;
+  b.disabled = disabled;
   b.addEventListener('click', onClick);
   return b;
-}
-
-function enterInlineRename(
-  row: HTMLElement,
-  nameEl: HTMLElement,
-  profile: ProfileEntry,
-  opts: ProfileMenuOptions,
-): void {
-  const doc = row.ownerDocument;
-  const input = doc.createElement('input');
-  input.type = 'text';
-  input.value = profile.name;
-  input.className = 'profile-menu-rename-input';
-  input.spellcheck = false;
-  const original = profile.name;
-  let committed = false;
-  const commit = (name: string): void => {
-    if (committed) return;
-    committed = true;
-    if (name !== original) opts.onRenameOther(profile.uuid, name);
-    nameEl.textContent = name || original;
-    input.replaceWith(nameEl);
-  };
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commit(input.value);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      commit(original);
-    }
-    e.stopPropagation();
-  });
-  input.addEventListener('blur', () => commit(input.value));
-  nameEl.replaceWith(input);
-  input.focus();
-  input.select();
-  row.classList.add('profile-menu-row-renaming');
 }
