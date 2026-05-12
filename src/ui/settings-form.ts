@@ -22,6 +22,7 @@ import {
   registerCustomFonts,
 } from '../font-loader';
 import type { ProfileEntry } from '../settings-profiles';
+import { makeLogo } from './logo';
 import { openProfileMenu } from './profile-menu';
 
 export interface SettingsProfileHandlers {
@@ -95,7 +96,12 @@ export function buildSettingsForm(
   const buildContent = (): HTMLElement[] => {
     const header = doc.createElement('header');
     const title = doc.createElement('h2');
-    title.textContent = 'Réglages PDF';
+    // The h2 hosts the brand mark followed by the section name, so
+    // the popup window reads "[markpage] — Réglages" at a glance.
+    title.append(
+      makeLogo(doc, 'full'),
+      doc.createTextNode(' — Réglages'),
+    );
     header.append(title);
 
     // [Mon profil ▾] trigger anchored in the header, between the

@@ -41,7 +41,7 @@ export function openSettingsWindow(
   // wider triggers a third column on very wide displays.
   const win = globalThis.open(
     '',
-    'md2pdf-settings',
+    'markpage-settings',
     'width=1080,height=820,scrollbars=yes,resizable=yes',
   );
   if (!win) {
@@ -52,7 +52,7 @@ export function openSettingsWindow(
   }
   currentWindow = win;
 
-  win.document.title = 'Réglages md2pdf';
+  win.document.title = 'Réglages markpage';
   win.document.documentElement.lang = 'fr';
   win.document.head.innerHTML = `
     <meta charset="UTF-8">

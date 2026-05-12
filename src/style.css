@@ -66,6 +66,35 @@ body,
   justify-self: end;
 }
 
+/* ---- markpage brand mark -------------------------------------------- */
+
+/* Inline two-tone wordmark. The host element decides font-size; we
+   only set typeface, weight, colour, and a tiny negative letter-
+   spacing so the mono/sans pair sits tight. */
+.markpage-logo {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+.markpage-logo-mark {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  color: #09438b;
+}
+
+.markpage-logo-page {
+  font-family: 'Roboto', system-ui, sans-serif;
+  color: #000;
+}
+
+/* Toolbar slot: a little bigger than the surrounding buttons, with a
+   short right gap so it reads as a brand, not as a control. */
+#toolbar .markpage-logo-slot {
+  font-size: 1.15rem;
+  padding: 0 0.7rem 0 0.2rem;
+  line-height: 1;
+}
+
 #toolbar button {
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--border);
@@ -748,74 +777,74 @@ body,
   color: var(--accent);
 }
 
-/* Image sizing for both #preview-pane and #md2pdf-print-target lives in
+/* Image sizing for both #preview-pane and #markpage-print-target lives in
    pagedCss() (preview-paginated.ts) — it computes max-height from the
    user's settings, which we don't know here. */
 
 /* ---- Charts (```chart) ----------------------------------------------- */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-block {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-block {
   margin: 0.8em auto;
   text-align: center;
   break-inside: avoid;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg {
   max-width: 100%;
   height: auto;
   font-family: var(--font-sans);
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-axis {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-axis {
   stroke: #444;
   stroke-width: 1;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-grid {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-grid {
   stroke: #e0e0e0;
   stroke-width: 1;
   stroke-dasharray: 2 3;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-line {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-line {
   fill: none;
   stroke-width: 1.8;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-bar {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-bar {
   /* Filled by inline `fill=`. No outline — keeps the print compact. */
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-tick {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-tick {
   font-size: 11px;
   fill: #444;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-tick-y {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-tick-y {
   text-anchor: end;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-tick-x {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-tick-x {
   text-anchor: middle;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-axis-label {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-axis-label {
   font-size: 12px;
   fill: #222;
   text-anchor: middle;
   font-weight: 500;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-title {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-title {
   font-size: 14px;
   fill: #222;
   text-anchor: middle;
   font-weight: 500;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-svg .chart-legend {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-legend {
   font-size: 11px;
   fill: #222;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .chart-error {
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-error {
   margin: 0.8em 0;
   padding: 0.6em 0.9em;
   border-left: 4px solid #cf222e;
@@ -828,27 +857,27 @@ body,
 /* ---- Data tables (```csv / ```tsv) ----------------------------------- */
 /* Standalone class so we don't fight the user's pipe-tables, which use
    marked's default <table> with no class. */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table {
+:where(#preview-pane, #markpage-print-target, .help-body) .data-table {
   border-collapse: collapse;
   margin: 0.8em 0;
   font-size: 0.95em;
   border: 1px solid var(--border);
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table th,
-:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table td {
+:where(#preview-pane, #markpage-print-target, .help-body) .data-table th,
+:where(#preview-pane, #markpage-print-target, .help-body) .data-table td {
   padding: 0.35em 0.7em;
   border: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table thead th {
+:where(#preview-pane, #markpage-print-target, .help-body) .data-table thead th {
   background: var(--bg-alt);
   font-weight: 500;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .data-table tbody tr:nth-child(even) {
+:where(#preview-pane, #markpage-print-target, .help-body) .data-table tbody tr:nth-child(even) {
   background: rgba(0, 0, 0, 0.02);
 }
 
@@ -859,7 +888,7 @@ body,
    checkbox is sized up and aligned so it reads as a real list marker
    rather than the tiny browser-default control. Nested lists of
    regular bullets keep their default style. */
-:where(#preview-pane, #md2pdf-print-target, .help-body)
+:where(#preview-pane, #markpage-print-target, .help-body)
   li:has(> input[type='checkbox']) {
   list-style: none;
   /* Pull the item left so the checkbox lines up with where a bullet
@@ -868,7 +897,7 @@ body,
   margin-left: -1.4em;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body)
+:where(#preview-pane, #markpage-print-target, .help-body)
   li > input[type='checkbox'] {
   margin-right: 0.5em;
   vertical-align: middle;
@@ -883,60 +912,60 @@ body,
 }
 
 /* ---- Definition lists ------------------------------------------------ */
-:where(#preview-pane, #md2pdf-print-target, .help-body) dl {
+:where(#preview-pane, #markpage-print-target, .help-body) dl {
   margin: 0.8em 0;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) dt {
+:where(#preview-pane, #markpage-print-target, .help-body) dt {
   font-weight: 500;
   margin-top: 0.6em;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) dt:first-child {
+:where(#preview-pane, #markpage-print-target, .help-body) dt:first-child {
   margin-top: 0;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) dd {
+:where(#preview-pane, #markpage-print-target, .help-body) dd {
   margin: 0.1em 0 0 1.6em;
 }
 
 /* ---- Footnotes ------------------------------------------------------- */
 /* In-text reference: small superscript link in the accent colour. */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-ref {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnote-ref {
   font-size: 0.75em;
   line-height: 0;
   vertical-align: super;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-ref a {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnote-ref a {
   color: var(--accent);
   text-decoration: none;
 }
 
 /* End-of-document footnotes section. The `<hr>` separates it from the
    main flow; the smaller font matches academic typography. */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnotes {
   margin-top: 2em;
   font-size: 0.9em;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes hr {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnotes hr {
   border: none;
   border-top: 1px solid var(--border);
   margin: 0.6em 0;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes ol {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnotes ol {
   padding-left: 1.4em;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnotes li {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnotes li {
   margin: 0.3em 0;
 }
 
 /* The "↩" back-link sits at the end of each footnote, jumps to the
    reference when clicked. Subtle so it doesn't compete with the prose. */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .footnote-back {
+:where(#preview-pane, #markpage-print-target, .help-body) .footnote-back {
   color: var(--accent);
   text-decoration: none;
   margin-left: 0.3em;
@@ -948,7 +977,7 @@ body,
    colored left bar + tinted background; academic (theorem / lemma / …)
    get a sober look with an italic title, mimicking LaTeX's theorem
    environments. Unknown classes inherit the neutral default below. */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition {
   margin: 0.8em 0;
   padding: 0.5em 0.9em;
   border-left: 4px solid var(--admonition-color, #ccc);
@@ -956,7 +985,7 @@ body,
   border-radius: 0 4px 4px 0;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-title {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-title {
   font-weight: 500;
   color: var(--admonition-color, #444);
   margin-bottom: 0.3em;
@@ -964,38 +993,38 @@ body,
 
 /* Strip outer margins of the body's first/last block so the bordered
    box hugs the content instead of leaving extra padding. */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-body > :first-child {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-body > :first-child {
   margin-top: 0;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-body > :last-child {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-body > :last-child {
   margin-bottom: 0;
 }
 
 /* Generic — colored, attention-getting */
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-note {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-note {
   --admonition-color: #4a8cf0;
   --admonition-bg: #eef4ff;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-tip {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-tip {
   --admonition-color: #2da44e;
   --admonition-bg: #ebfbef;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-warning {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-warning {
   --admonition-color: #d29922;
   --admonition-bg: #fff8e1;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-caution {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-caution {
   --admonition-color: #cf222e;
   --admonition-bg: #ffebe9;
 }
-:where(#preview-pane, #md2pdf-print-target, .help-body) .admonition-important {
+:where(#preview-pane, #markpage-print-target, .help-body) .admonition-important {
   --admonition-color: #8250df;
   --admonition-bg: #f3eeff;
 }
 
 /* Academic — sober, italic title (LaTeX theorem-style). Thin grey bar,
    no fill. */
-:where(#preview-pane, #md2pdf-print-target, .help-body)
+:where(#preview-pane, #markpage-print-target, .help-body)
   :is(
     .admonition-theorem,
     .admonition-lemma,
@@ -1011,7 +1040,7 @@ body,
   background: transparent;
 }
 
-:where(#preview-pane, #md2pdf-print-target, .help-body)
+:where(#preview-pane, #markpage-print-target, .help-body)
   :is(
     .admonition-theorem,
     .admonition-lemma,

@@ -19,6 +19,7 @@ import {
   renderMermaidBlocks,
 } from '../preview';
 import { openHelpModal, type HelpModalOptions } from './help-modal';
+import { makeLogo } from './logo';
 // Vite returns the processed CSS string for the `?inline` query.
 // Bundling the whole app stylesheet keeps the help window visually
 // consistent with the editor / preview without us hand-curating a
@@ -54,7 +55,7 @@ export function openHelp(
 
   const win = window.open(
     '',
-    'md2pdf-help',
+    'markpage-help',
     'width=760,height=900,scrollbars=yes,resizable=yes',
   );
   if (!win) {
@@ -101,7 +102,7 @@ function buildHelpWindow(
   helpMarkdown: string,
   options: HelpWindowOptions,
 ): void {
-  win.document.title = 'Aide md2pdf';
+  win.document.title = 'Aide markpage';
   win.document.documentElement.lang = 'fr';
   win.document.head.innerHTML = `
     <meta charset="UTF-8">
@@ -111,7 +112,7 @@ function buildHelpWindow(
   `;
   win.document.body.innerHTML = `
     <header class="help-window-header">
-      <h1>Aide md2pdf</h1>
+      <h1><span class="markpage-logo" id="help-window-logo"></span> &mdash; Aide</h1>
       <div class="help-window-actions">
         ${options.onExportPdf ? '<button type="button" class="export-pdf">Exporter .pdf</button>' : ''}
         <button type="button" class="close">Fermer</button>
@@ -119,6 +120,14 @@ function buildHelpWindow(
     </header>
     <main class="help-body" id="help-body"></main>
   `;
+  // Render the brand into the placeholder span. We do this from JS
+  // rather than inlining the <span class="markpage-logo-mark">… because
+  // the help window lives in a separate Document and we want the same
+  // construction path everywhere.
+  const logoSlot = win.document.getElementById('help-window-logo');
+  if (logoSlot) {
+    logoSlot.replaceWith(makeLogo(win.document, 'full'));
+  }
 
   const body = win.document.getElementById('help-body');
   if (!body) return;

@@ -8,11 +8,21 @@ import '@fontsource/roboto-condensed/500-italic.css';
 // Roboto Mono powers the inline `code` and code blocks in the HTML preview,
 // matching the monospace font we register in pdfmake.
 import '@fontsource/roboto-mono/400.css';
+// Plain Roboto for the brand mark (the `page` half of "markpage").
+// Bundled rather than lazy-loaded so the logo paints correctly on
+// first frame, before the Google Fonts catalog has had a chance to
+// resolve anything.
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
 
 import './style.css';
 // Side-effect import: registers our marked extensions ($$math$$, …) on the
 // shared `marked` instance. Must run before any marked.parse / marked.lexer.
 import './marked-config';
+import {
+  migrateIDBBranding,
+  migrateLocalStorageBranding,
+} from './branding-migration';
 import { registerFallbackFonts } from './fonts';
 import { loadFontTrio, registerCustomFonts } from './font-loader';
 import { createEditor } from './editor';
@@ -122,7 +132,7 @@ function downloadTextFile(
 }
 
 // Walks every doc, collects every `img://<sha>` ref it carries,
-// then drops IndexedDB blobs (resource pool) and `md2pdf:blobs:*`
+// then drops IndexedDB blobs (resource pool) and `markpage:blobs:*`
 // entries (content pool) outside that live set. SPEC §19.3. Run at
 // boot and after every autosave so the storage stays bounded.
 async function runGC(): Promise<void> {
@@ -141,6 +151,14 @@ async function runGC(): Promise<void> {
 }
 
 async function bootstrap(): Promise<void> {
+  // One-shot rebranding migration: rename every `md2pdf:` localStorage
+  // key and the legacy IndexedDB database into the `markpage` namespace.
+  // Idempotent, runs before any other storage module is touched.
+  migrateLocalStorageBranding();
+  await migrateIDBBranding().catch((err: unknown) => {
+    console.error('IDB branding migration failed', err);
+  });
+
   // Register the Noto fallback fonts (full TTFs, not subsetted) so the HTML
   // preview's font cascade has the same coverage as the PDF. Fire and
   // forget — the browser starts using the fonts as soon as they're loaded.
@@ -181,7 +199,7 @@ async function bootstrap(): Promise<void> {
   });
 
   // Storage migrations, in order:
-  //  1. Mono-doc legacy (md2pdf:doc) → first entry in the new doc
+  //  1. Mono-doc legacy (markpage:doc) → first entry in the new doc
   //     index. Idempotent.
   //  2. IndexedDB image keys: UUID → SHA-256. Returns a mapping the
   //     caller applies to every doc's markdown so `img://<uuid>`
@@ -208,7 +226,7 @@ async function bootstrap(): Promise<void> {
   // points it at the new entry, and the toolbar / autosave read its
   // current value via the closure.
   let currentDoc: DocEntry =
-    resolveCurrentDoc() ?? (await createDoc('Aide md2pdf', DEFAULT_DOC));
+    resolveCurrentDoc() ?? (await createDoc('Aide markpage', DEFAULT_DOC));
   setCurrentDocId(currentDoc.uuid);
   const initialDoc = loadDocContent(currentDoc) ?? '';
 
@@ -727,7 +745,7 @@ async function bootstrap(): Promise<void> {
           organization: { ...state.settings.organization, show: false },
           date: { mode: 'none', custom: '' },
         };
-        await exportViaPrint(helpMd, helpSettings, 'md2pdf-aide.pdf');
+        await exportViaPrint(helpMd, helpSettings, 'markpage-aide.pdf');
       },
     });
   };

@@ -1,5 +1,5 @@
 {
-  "name": "md2pdf",
+  "name": "markpage",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -20,6 +20,7 @@
     "@expo-google-fonts/noto-sans-symbols": "^0.4.1",
     "@expo-google-fonts/roboto-condensed": "^0.4.2",
     "@expo-google-fonts/roboto-mono": "^0.4.1",
+    "@fontsource/roboto": "^5.2.10",
     "@fontsource/roboto-condensed": "^5.1.0",
     "@fontsource/roboto-mono": "^5.1.0",
     "codemirror": "^6.0.1",

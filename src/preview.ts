@@ -260,7 +260,7 @@ export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
   );
 }
 
-const PREVIEW_STYLE_ID = 'md2pdf-preview-styles';
+const PREVIEW_STYLE_ID = 'markpage-preview-styles';
 
 // Mirrors a subset of the PDF settings into the HTML preview so the user can
 // see the effect of size/color changes without exporting. Layout-only fields

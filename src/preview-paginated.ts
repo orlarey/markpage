@@ -224,12 +224,12 @@ export function pagedCss(s: PdfSettings): string {
   // All typography rules below are scoped to the two containers that
   // host paginated content: `#preview-pane` for the on-screen aperçu
   // (paged.js writes its `.pagedjs_pages` tree there), and
-  // `#md2pdf-print-target` for the export-via-print pipeline. Without
+  // `#markpage-print-target` for the export-via-print pipeline. Without
   // the scope these rules would leak globally — paged.js inserts the
   // stylesheet via `<style>` in `<head>` — and bleed into the help
   // modal, the toolbar, etc. `:where(...)` keeps specificity at zero
   // so the rules can still be overridden by component CSS.
-  const SCOPE = ':where(#preview-pane, #md2pdf-print-target)';
+  const SCOPE = ':where(#preview-pane, #markpage-print-target)';
   return `
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;

@@ -14,23 +14,23 @@
 //     duplicate is a new entry pointing at the same SHA.
 //
 // On-disk schema (localStorage):
-//   md2pdf:settings-profiles:index       → JSON ProfileEntry[]
-//   md2pdf:settings-profiles:blob:<sha>  → JSON PdfSettings
-//   md2pdf:settings-profiles:current     → uuid
+//   markpage:settings-profiles:index       → JSON ProfileEntry[]
+//   markpage:settings-profiles:blob:<sha>  → JSON PdfSettings
+//   markpage:settings-profiles:current     → uuid
 //
 // Legacy keys migrated on first run with the SHA-based schema:
-//   - md2pdf:settings (mono-profile, pre-§9.4) → first profile
+//   - markpage:settings (mono-profile, pre-§9.4) → first profile
 //     named "Par défaut".
-//   - md2pdf:settings-profiles:blob:<uuid> (uuid-keyed blobs from
+//   - markpage:settings-profiles:blob:<uuid> (uuid-keyed blobs from
 //     the §9.4 draft implementation) → re-stored under their SHA.
 
 import { sha256Hex } from './image-store';
 import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
 
-const KEY_INDEX = 'md2pdf:settings-profiles:index';
-const KEY_BLOB_PREFIX = 'md2pdf:settings-profiles:blob:';
-const KEY_CURRENT = 'md2pdf:settings-profiles:current';
-const KEY_LEGACY_SETTINGS = 'md2pdf:settings';
+const KEY_INDEX = 'markpage:settings-profiles:index';
+const KEY_BLOB_PREFIX = 'markpage:settings-profiles:blob:';
+const KEY_CURRENT = 'markpage:settings-profiles:current';
+const KEY_LEGACY_SETTINGS = 'markpage:settings';
 
 const DEFAULT_PROFILE_NAME = 'Par défaut';
 
@@ -292,7 +292,7 @@ export function gcProfileBlobs(): number {
 // ---- bootstrap --------------------------------------------------------
 
 // Idempotent migration from the mono-profile world: the legacy
-// `md2pdf:settings` key (a single PdfSettings JSON) becomes the
+// `markpage:settings` key (a single PdfSettings JSON) becomes the
 // first profile named "Par défaut".
 async function migrateMonoProfile(): Promise<void> {
   const legacy = localStorage.getItem(KEY_LEGACY_SETTINGS);
@@ -425,7 +425,7 @@ export async function importProfileJson(json: string): Promise<ImportResult> {
   if (typeof env.version !== 'number' || env.version > EXPORT_VERSION) {
     return {
       ok: false,
-      error: 'Version d’export non reconnue (mise à jour de md2pdf nécessaire ?)',
+      error: 'Version d’export non reconnue (mise à jour de markpage nécessaire ?)',
     };
   }
   if (typeof env.name !== 'string' || !env.settings) {

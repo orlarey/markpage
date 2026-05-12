@@ -1,4 +1,4 @@
-# md2pdf — Spécifications
+# markpage — Spécifications
 
 ## 1. Objectif
 
@@ -48,7 +48,7 @@ CommonMark + GFM de base :
   - référence `![alt][label]` + `[label]: url` ailleurs dans le doc
 - Tableaux GFM (`| col | col |` + ligne `|---|`)
 
-Extensions md2pdf (toutes implémentées comme extensions `marked` ou
+Extensions markpage (toutes implémentées comme extensions `marked` ou
 overrides du renderer `code`, voir §5 et §8) :
 
 - **Diagrammes Mermaid** — bloc ```` ```mermaid ````. Voir §7.
@@ -312,7 +312,7 @@ suivant immédiat dans des `<div class="keep-with-next">`) — appelé
 par paginate() / paginateOnce()
    │
    ├─► preview : paginate() → paged.js → DOM paginé écran (.pagedjs_page)
-   └─► export  : paginateOnce() → paged.js dans #md2pdf-print-target → window.print()
+   └─► export  : paginateOnce() → paged.js dans #markpage-print-target → window.print()
 ```
 
 Le pipeline ne tourne **pas** à la frappe — il est déclenché à
@@ -783,7 +783,7 @@ renommer-et-éditer, l'utilisateur fait deux pas séparés.
 | `delete(name)`                  | retire ; refuse si dernier   | — (le contenu reste si d'autres noms le référencent) | si `name === current`, retombe sur le plus récent |
 | `importJson(json)`              | ajoute (depuis `json.name`)  | ajoute (depuis `json.settings`)              | optionnel                              |
 | `exportJson(name)`              | lit                          | lit                                          | —                                      |
-| `migrateLegacy()`               | crée une entrée « Par défaut » la première fois | importe `md2pdf:settings`         | la pointe                              |
+| `migrateLegacy()`               | crée une entrée « Par défaut » la première fois | importe `markpage:settings`         | la pointe                              |
 
 Trois propriétés qui tombent de cette décomposition :
 
@@ -859,7 +859,7 @@ migrations futures :
 ```
 
 - `version > 1` côté reader → erreur explicite « mise à jour de
-  md2pdf nécessaire ».
+  markpage nécessaire ».
 - `name` ou `settings` manquant → erreur de validation.
 - Le `name` à l'import sert d'**indice** ; si une entrée avec ce nom
   existe déjà, l'auto-rename de `create` produit `Mon profil 2`.
@@ -876,9 +876,9 @@ capot, l'implémentation est **content-addressed**, calquée sur
 Trois familles de clés `localStorage` :
 
 ```
-md2pdf:settings-profiles:index       → JSON ProfileEntry[]
-md2pdf:settings-profiles:blob:<sha>  → JSON PdfSettings
-md2pdf:settings-profiles:current     → uuid
+markpage:settings-profiles:index       → JSON ProfileEntry[]
+markpage:settings-profiles:blob:<sha>  → JSON PdfSettings
+markpage:settings-profiles:current     → uuid
 ```
 
 ```ts
@@ -911,7 +911,7 @@ quand son nom est en cours de mutation, (b) router les callbacks UI
 (« la ligne cliquée » → quelle entrée ?). Il n'apparaît jamais dans
 l'API publique ni dans le format d'export.
 
-La clé legacy `md2pdf:settings` (mono-profil) est convertie au
+La clé legacy `markpage:settings` (mono-profil) est convertie au
 premier lancement par `migrateLegacy` en un profil nommé « Par
 défaut », puis supprimée. Opération idempotente : si l'index existe
 déjà, on n'y touche pas.
@@ -931,7 +931,7 @@ politique de migration.
 
 - Le tutoriel `src/HELP.md` est bundlé via `import helpMd from './HELP.md?raw'`.
 - Au premier lancement (`localStorage` vide), il sert de contenu au
-  document « Aide md2pdf » que l'index multi-doc (§19) crée
+  document « Aide markpage » que l'index multi-doc (§19) crée
   d'office. L'utilisateur peut le lire, l'éditer, le sauvegarder ou
   repartir d'une page blanche via *+ Nouveau document*.
 - Le **bouton Aide** (jaune pâle, au centre de la toolbar) ouvre une
@@ -952,7 +952,7 @@ politique de migration.
   enchaîne `tsc --noEmit && vite build` — un échec TypeScript bloque le
   déploiement) → upload artifact → deploy via `actions/deploy-pages`.
 - L'application doit fonctionner servie depuis un sous-chemin (ex.
-  `https://user.github.io/md2pdf/`) → `base: './'` dans
+  `https://user.github.io/markpage/`) → `base: './'` dans
   `vite.config.ts` produit des chemins relatifs.
 
 ## 12. Critères d'acceptation
@@ -1006,7 +1006,7 @@ Module `src/preview-paginated.ts` :
 Module `src/print-export.ts` :
 - API : `exportViaPrint(source, settings, filename)`.
 - Construit un sous-arbre DOM auto-suffisant (Markdown → métadonnées
-  → mermaid/math/inline-math), le pose dans `#md2pdf-print-target`
+  → mermaid/math/inline-math), le pose dans `#markpage-print-target`
   positionné hors-écran avec `visibility: hidden` (paged.js a besoin
   de dimensions mesurables pour fragmenter), **pagine via
   `paginateOnce`**, puis applique un stylesheet `@media print` qui
@@ -1124,7 +1124,7 @@ sur du contenu vierge) :
 
 1. Construire le sous-arbre DOM auto-suffisant (Markdown rendu →
    metadonnées → mermaid/math).
-2. Le poser dans `#md2pdf-print-target`, hors-écran et invisible
+2. Le poser dans `#markpage-print-target`, hors-écran et invisible
    (`position:fixed; left:-10000px; visibility:hidden`) mais avec une
    `width: 210mm` pour que paged.js puisse mesurer.
 3. `await document.fonts.ready` (les ruptures de ligne dépendent des
@@ -1526,9 +1526,9 @@ capot, les deux couches (documents + ressources) sont
 **content-addressed** par SHA-256, comme pour les profils (§9.4.6) :
 
 ```
-md2pdf:docs:index   = JSON [{ uuid, name, mtime, contentSha }]
-md2pdf:blobs:<sha>  = string                  (markdown source)
-md2pdf:current-doc  = uuid                    (doc ouvert)
+markpage:docs:index   = JSON [{ uuid, name, mtime, contentSha }]
+markpage:blobs:<sha>  = string                  (markdown source)
+markpage:current-doc  = uuid                    (doc ouvert)
 ```
 
 ```ts
@@ -1565,14 +1565,14 @@ Conséquences :
 
 Premier lancement multi-doc :
 
-- `md2pdf:doc` (mono-doc) → entrée d'index + blob de contenu, clé
+- `markpage:doc` (mono-doc) → entrée d'index + blob de contenu, clé
   legacy supprimée.
 - `img://<uuid>` en IDB → re-stocker chaque image sous sa nouvelle
   clé SHA, réécrire le doc pour passer toutes les URL en
   `img://<sha>`, supprimer les entrées IDB obsolètes.
 
 Idempotent : relancer ne casse rien (le schéma cible est détecté
-par la présence de la clé `md2pdf:docs:index`).
+par la présence de la clé `markpage:docs:index`).
 
 ### 19.3. Garbage collection
 
@@ -1580,14 +1580,14 @@ Deux pools sont GC-és par le même algo, déclenché à chaque
 sauvegarde et au démarrage :
 
 - les blobs de **contenu de document** dans `localStorage`
-  (`md2pdf:blobs:<sha>`),
+  (`markpage:blobs:<sha>`),
 - les blobs de **ressources** dans IndexedDB (`blobs[<sha>]`).
 
 Algorithme :
 1. `referencedContent = { entry.contentSha | entry ∈ index }`.
 2. Pour chaque entry, charger son contenu et scanner les
    `img://<sha>` → `referencedResources`.
-3. Drop tout blob `md2pdf:blobs:<sha>` ∉ `referencedContent`.
+3. Drop tout blob `markpage:blobs:<sha>` ∉ `referencedContent`.
 4. Drop toute entrée IDB `blobs[<sha>]` ∉ `referencedResources`.
 
 Walk en O(N × taille moyenne de doc) — négligeable pour des
@@ -1695,7 +1695,7 @@ vingtaine de docs, c'est inutile.
 Workflow normal, du début à la fin.
 
 **S1. Premier lancement** — `localStorage` vide.
-1. L'app crée un doc « Aide md2pdf » avec le contenu de HELP.md.
+1. L'app crée un doc « Aide markpage » avec le contenu de HELP.md.
 2. Marque comme courant. L'éditeur affiche le tutoriel.
 3. L'utilisateur lit, efface tout, écrit son propre contenu.
 4. Renomme dans la toolbar centre : « Mon premier document ».
@@ -1715,8 +1715,8 @@ Workflow normal, du début à la fin.
 **S3. Switcher entre docs.**
 1. Click *[Mon doc ▾]* → click sur un doc dans la liste.
 2. Doc actuel sauvegardé.
-3. Doc cible chargé : lecture du blob `md2pdf:blobs:<content-sha>`,
-   `editor.setValue(...)`, mise à jour de `md2pdf:current-doc`.
+3. Doc cible chargé : lecture du blob `markpage:blobs:<content-sha>`,
+   `editor.setValue(...)`, mise à jour de `markpage:current-doc`.
 4. Si on était en preview, on bascule en éditeur (la preview du
    doc précédent ne s'applique plus).
 
@@ -1777,7 +1777,7 @@ Workflow normal, du début à la fin.
 
 ### 19.6. État au démarrage
 
-`md2pdf:current-doc` mémorise l'UUID du dernier doc ouvert.
+`markpage:current-doc` mémorise l'UUID du dernier doc ouvert.
 
 - Index vide → premier run → S1 (créer le doc HELP).
 - Index non vide, `current-doc` valide → ouvrir.
@@ -1790,7 +1790,7 @@ Workflow normal, du début à la fin.
 
 ### 19.7. Concurrence multi-onglets
 
-Hors v1 explicite. Si l'utilisateur ouvre md2pdf dans deux onglets
+Hors v1 explicite. Si l'utilisateur ouvre markpage dans deux onglets
 en parallèle, les `localStorage` writes vont se piétiner — le doc
 de l'onglet le plus récemment écrit gagne. Acceptable v1, l'app
 n'est pas pensée pour ça.
@@ -2161,7 +2161,7 @@ Avant d'écrire le SVG dans le zip on applique :
 
 ### 21.6. Caractères Unicode
 
-Le source des documents md2pdf contient typiquement des caractères
+Le source des documents markpage contient typiquement des caractères
 Unicode mathématiques issus des ligatures (← → ⊢ Γ ℕ ⟦…⟧ etc.).
 Deux mécaniques complémentaires les couvrent :
 

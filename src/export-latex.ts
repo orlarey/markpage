@@ -848,7 +848,7 @@ function buildPreamble(ctx: Ctx): string {
   const needsSvg = ctx.mermaidCount > 0 || ctx.chartCount > 0;
   const svgLine = needsSvg ? `\\usepackage{svg}` : '';
   return [
-    `% md2pdf — export LaTeX (cible : xelatex ou lualatex).`,
+    `% markpage — export LaTeX (cible : xelatex ou lualatex).`,
     `% La compilation avec pdflatex échouera : fontspec + UTF-8 natif`,
     `% dans les blocs de code requièrent xelatex / lualatex.`,
     `\\documentclass[11pt,a4paper]{article}`,
@@ -921,7 +921,7 @@ function buildPreamble(ctx: Ctx): string {
     LSTSET_BLOCK,
     ``,
     `% Theorem-like environments matching the ::: admonitions (§17 of`,
-    `% the md2pdf SPEC). The shared counter \`theorem\` keeps lemma /`,
+    `% the markpage SPEC). The shared counter \`theorem\` keeps lemma /`,
     `% proposition / corollary numbered in the same sequence as the`,
     `% theorems themselves, which is the usual mathematical convention.`,
     `\\newtheorem{theorem}{Théorème}`,

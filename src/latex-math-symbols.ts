@@ -1,6 +1,6 @@
 // Unicode → LaTeX command table applied inside math zones.
 //
-// Why this exists: md2pdf documents — especially the ones using the
+// Why this exists: markpage documents — especially the ones using the
 // editor's ligature pass (§18) — carry math symbols as plain
 // Unicode (→, ⊢, ⟦, ℕ, α, …). LaTeX's `inputenc utf8` tolerates
 // these in prose but not in math mode under the default Computer

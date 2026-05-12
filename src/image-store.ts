@@ -5,7 +5,7 @@
 // them — both regimes coexist transparently because the lookup is by
 // opaque string.
 
-const DB_NAME = 'md2pdf';
+const DB_NAME = 'markpage';
 const STORE_NAME = 'images';
 const DB_VERSION = 1;
 

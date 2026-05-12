@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Short markpage logo: `m` (Roboto Mono, brand blue) + `p`
+       (Roboto, black). Fonts fall back to the platform's mono / sans
+       since the favicon renders in a context that doesn't see our
+       bundled @fontsource webfonts. -->
+  <text x="0" y="25"
+        font-family="'Roboto Mono', ui-monospace, Menlo, Consolas, monospace"
+        font-weight="500" font-size="26" fill="#09438b">m</text>
+  <text x="17" y="25"
+        font-family="'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif"
+        font-weight="500" font-size="26" fill="#000">p</text>
+</svg>

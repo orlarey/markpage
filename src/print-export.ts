@@ -19,8 +19,8 @@ import { applyPreviewMetadata } from './preview';
 import { paginateOnce } from './preview-paginated';
 import type { PdfSettings } from './settings';
 
-const PRINT_TARGET_ID = 'md2pdf-print-target';
-const PRINT_STYLE_ID = 'md2pdf-print-style';
+const PRINT_TARGET_ID = 'markpage-print-target';
+const PRINT_STYLE_ID = 'markpage-print-style';
 
 export async function exportViaPrint(
   expandedSource: string,

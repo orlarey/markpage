@@ -1,4 +1,4 @@
-# md2pdf
+# markpage
 
 Convertisseur Markdown → PDF entièrement côté client, déployable
 automatiquement sur GitHub Pages.

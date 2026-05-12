@@ -1,11 +1,11 @@
-# Bienvenue dans md2pdf
+# Bienvenue dans markpage
 
-**md2pdf** est un éditeur qui produit des PDF prêts à imprimer ou à
+**markpage** est un éditeur qui produit des PDF prêts à imprimer ou à
 partager. Vous écrivez du texte presque normal, et l'app s'occupe de
 la mise en forme.
 
 Vous lisez actuellement ce tutoriel **dans l'éditeur** — c'est
-lui-même un document md2pdf. Vous pouvez le modifier librement, ou
+lui-même un document markpage. Vous pouvez le modifier librement, ou
 repartir d'une page blanche.
 
 Le bouton **Aide** (sur fond jaune) rouvre cette page d'aide à tout
@@ -19,7 +19,7 @@ vous écriviez votre premier document tout en lisant.
 
 ### Le principe
 
-md2pdf utilise une convention qui s'appelle **Markdown**. Vous écrivez
+markpage utilise une convention qui s'appelle **Markdown**. Vous écrivez
 du texte presque normal, avec **quelques signes** simples qui indiquent
 la mise en forme. Pas de menus à apprendre, pas de raccourcis
 obligatoires.
@@ -161,7 +161,7 @@ Cliquez sur **Enregistrer**, donnez un nom au fichier, c'est fait.
 >
 > Dans le dialogue d'impression, ouvrez « Plus de paramètres » et
 > sélectionnez **« Marges : Aucune »**. Sinon, le navigateur ajoute
-> ses propres marges par-dessus celles déjà gérées par md2pdf, ce
+> ses propres marges par-dessus celles déjà gérées par markpage, ce
 > qui rétrécit la zone imprimable et fait dépasser le contenu. Les
 > marges visibles dans le PDF sont **toujours** celles que vous
 > avez choisies dans **Réglages**, jamais celles du dialogue
@@ -169,7 +169,7 @@ Cliquez sur **Enregistrer**, donnez un nom au fichier, c'est fait.
 
 ### Et voilà
 
-Vous savez écrire un document avec md2pdf. La majorité des notes,
+Vous savez écrire un document avec markpage. La majorité des notes,
 comptes-rendus, articles courts ne demandent rien de plus que ces
 quelques outils.
 
@@ -299,7 +299,7 @@ de données (CSV / TSV)* plus bas.)
 
 ### Gérer plusieurs documents
 
-md2pdf garde **tous vos documents** dans le navigateur. La liste se
+markpage garde **tous vos documents** dans le navigateur. La liste se
 trouve derrière le bouton **Mon doc ▾**, qui affiche aussi le nom
 du document que vous éditez actuellement.
 
@@ -341,7 +341,7 @@ Le bouton **Exporter ▾** propose trois formats :
 | **LaTeX (.tex)** | — | Produit un source LaTeX compilable avec `xelatex` |
 
 Le format **Markdown** (`.md`) est un format texte ouvert, lisible
-partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
+partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas markpage —
 il l'ouvrira dans n'importe quel éditeur de texte.
 
 Le format **LaTeX** (`.tex`) est utile si vous voulez retoucher
@@ -1037,7 +1037,7 @@ trois contrôles pour adapter la taille des diagrammes dans le PDF :
 
 ## Crédits
 
-md2pdf est un projet open source assemblé à partir de logiciels libres.
+markpage est un projet open source assemblé à partir de logiciels libres.
 Merci à toutes les personnes qui maintiennent ces projets :
 
 - **Édition et rendu** :
@@ -1064,8 +1064,8 @@ Merci à toutes les personnes qui maintiennent ces projets :
 - **Outils de build** :
   [Vite](https://vitejs.dev/) et [TypeScript](https://www.typescriptlang.org/).
 
-Le code source de md2pdf est sur
-[GitHub](https://github.com/orlarey/md2pdf).
+Le code source de markpage est sur
+[GitHub](https://github.com/orlarey/markpage).
 
 ---
 

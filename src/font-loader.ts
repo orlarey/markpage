@@ -174,7 +174,7 @@ function injectStylesheet(href: string): Promise<void> {
     // Reuse if the same href was injected by a prior call (idempotent
     // even across hot reloads).
     const existing = document.head.querySelector<HTMLLinkElement>(
-      `link[data-md2pdf-font="${cssEscape(href)}"]`,
+      `link[data-markpage-font="${cssEscape(href)}"]`,
     );
     if (existing) {
       resolve();
@@ -183,7 +183,7 @@ function injectStylesheet(href: string): Promise<void> {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = href;
-    link.dataset['md2pdfFont'] = href;
+    link.dataset['markpageFont'] = href;
     // Resolve on either load or error — a network failure shouldn't
     // block the whole render; the document will fall back to its
     // generic family (the CSS we generate always tails with one).

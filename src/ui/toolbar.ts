@@ -1,3 +1,5 @@
+import { makeLogo } from './logo';
+
 export type ViewMode = 'editor' | 'preview';
 
 export interface ToolbarHandlers {
@@ -109,9 +111,12 @@ export function mountToolbar(
   settingsBtn.append(settingsLabel, settingsCaret);
   settingsBtn.addEventListener('click', () => handlers.onSettings());
 
+  const logo = makeLogo(document, 'full');
+  logo.classList.add('markpage-logo-slot');
+
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(docBtn, importBtn, styleBtn);
+  left.append(logo, docBtn, importBtn, styleBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';

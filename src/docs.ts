@@ -1,24 +1,24 @@
 // Multi-document store. The user-visible "document" is a lightweight
 // envelope (uuid, name, mtime, contentSha) pointing at a content-
-// addressed blob. Blobs live under `md2pdf:blobs:<sha>` so two docs
+// addressed blob. Blobs live under `markpage:blobs:<sha>` so two docs
 // with identical content share a single entry; the same SHA scheme
 // also runs the IndexedDB image pool. See SPEC §19.
 //
 // On-disk schema (localStorage):
-//   md2pdf:docs:index   → JSON DocEntry[]    (by mtime desc)
-//   md2pdf:blobs:<sha>  → string             (one markdown source)
-//   md2pdf:current-doc  → uuid
+//   markpage:docs:index   → JSON DocEntry[]    (by mtime desc)
+//   markpage:blobs:<sha>  → string             (one markdown source)
+//   markpage:current-doc  → uuid
 //
-// Legacy (mono-doc) keys `md2pdf:doc` and `md2pdf:filename` are
+// Legacy (mono-doc) keys `markpage:doc` and `markpage:filename` are
 // migrated on first multi-doc run, then deleted.
 
 import { sha256Hex } from './image-store';
 
-const KEY_INDEX = 'md2pdf:docs:index';
-const KEY_BLOB_PREFIX = 'md2pdf:blobs:';
-const KEY_CURRENT = 'md2pdf:current-doc';
-const KEY_LEGACY_DOC = 'md2pdf:doc';
-const KEY_LEGACY_FILENAME = 'md2pdf:filename';
+const KEY_INDEX = 'markpage:docs:index';
+const KEY_BLOB_PREFIX = 'markpage:blobs:';
+const KEY_CURRENT = 'markpage:current-doc';
+const KEY_LEGACY_DOC = 'markpage:doc';
+const KEY_LEGACY_FILENAME = 'markpage:filename';
 
 export interface DocEntry {
   uuid: string;
@@ -206,8 +206,8 @@ export async function duplicateDoc(uuid: string): Promise<DocEntry | null> {
 
 // ---- legacy migration -------------------------------------------------
 
-// One-shot migration of the mono-doc schema (md2pdf:doc + md2pdf:filename)
-// into the multi-doc index. Idempotent — once md2pdf:docs:index exists,
+// One-shot migration of the mono-doc schema (markpage:doc + markpage:filename)
+// into the multi-doc index. Idempotent — once markpage:docs:index exists,
 // this returns without touching anything.
 export async function migrateLegacyDocIfNeeded(): Promise<void> {
   if (localStorage.getItem(KEY_INDEX) !== null) return;
@@ -230,7 +230,7 @@ export function referencedContentShas(): Set<string> {
 }
 
 // Iterates over every blob currently held in localStorage under the
-// `md2pdf:blobs:` prefix. Used by GC.
+// `markpage:blobs:` prefix. Used by GC.
 export function allBlobShas(): string[] {
   const out: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {
@@ -246,7 +246,7 @@ export function deleteBlob(sha: string): void {
   localStorage.removeItem(blobKey(sha));
 }
 
-// Drops every `md2pdf:blobs:<sha>` entry whose SHA is no longer the
+// Drops every `markpage:blobs:<sha>` entry whose SHA is no longer the
 // current contentSha of any doc in the index. Cheap walk: O(blobs)
 // localStorage reads, no JSON parsing per blob. Safe to run as often
 // as wanted — content-addressed, so a deleted blob is always

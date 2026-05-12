@@ -196,7 +196,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   mermaidMaxHeightPct: 0.7,
 };
 
-const KEY = 'md2pdf:settings';
+const KEY = 'markpage:settings';
 
 export function loadSettings(): PdfSettings {
   const raw = localStorage.getItem(KEY);

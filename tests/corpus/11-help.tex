@@ -2,7 +2,7 @@
 % Le package `svg` est nécessaire et inkscape doit être accessible
 % en ligne de commande (passez `--shell-escape` à xelatex).
 
-% md2pdf — export LaTeX (cible : xelatex ou lualatex).
+% markpage — export LaTeX (cible : xelatex ou lualatex).
 % La compilation avec pdflatex échouera : fontspec + UTF-8 natif
 % dans les blocs de code requièrent xelatex / lualatex.
 \documentclass[11pt,a4paper]{article}
@@ -72,7 +72,7 @@
 }
 
 % Theorem-like environments matching the ::: admonitions (§17 of
-% the md2pdf SPEC). The shared counter `theorem` keeps lemma /
+% the markpage SPEC). The shared counter `theorem` keeps lemma /
 % proposition / corollary numbered in the same sequence as the
 % theorems themselves, which is the usual mathematical convention.
 \newtheorem{theorem}{Théorème}
@@ -84,20 +84,20 @@
 \newtheorem{example}{Exemple}
 \newtheorem{remark}{Remarque}
 
-\title{Bienvenue dans md2pdf}
+\title{Bienvenue dans markpage}
 \author{Test Author \\ Test Org}
 \date{2026-01-01}
 
 \begin{document}
 \maketitle
 
-\textbf{md2pdf} est un éditeur qui produit des PDF prêts à imprimer ou à
+\textbf{markpage} est un éditeur qui produit des PDF prêts à imprimer ou à
 partager. Vous écrivez du texte presque normal, et l'app s'occupe de
 la mise en forme.
 
 
 Vous lisez actuellement ce tutoriel \textbf{dans l'éditeur} — c'est
-lui-même un document md2pdf. Vous pouvez le modifier librement, ou
+lui-même un document markpage. Vous pouvez le modifier librement, ou
 repartir d'une page blanche.
 
 
@@ -114,7 +114,7 @@ vous écriviez votre premier document tout en lisant.
 
 \subsection{Le principe}
 
-md2pdf utilise une convention qui s'appelle \textbf{Markdown}. Vous écrivez
+markpage utilise une convention qui s'appelle \textbf{Markdown}. Vous écrivez
 du texte presque normal, avec \textbf{quelques signes} simples qui indiquent
 la mise en forme. Pas de menus à apprendre, pas de raccourcis
 obligatoires.
@@ -301,7 +301,7 @@ Cliquez sur \textbf{Enregistrer}, donnez un nom au fichier, c'est fait.
 
 Dans le dialogue d'impression, ouvrez « Plus de paramètres » et
 sélectionnez \textbf{« Marges : Aucune »}. Sinon, le navigateur ajoute
-ses propres marges par-dessus celles déjà gérées par md2pdf, ce
+ses propres marges par-dessus celles déjà gérées par markpage, ce
 qui rétrécit la zone imprimable et fait dépasser le contenu. Les
 marges visibles dans le PDF sont \textbf{toujours} celles que vous
 avez choisies dans \textbf{Réglages}, jamais celles du dialogue
@@ -311,7 +311,7 @@ d'impression.
 
 \subsection{Et voilà}
 
-Vous savez écrire un document avec md2pdf. La majorité des notes,
+Vous savez écrire un document avec markpage. La majorité des notes,
 comptes-rendus, articles courts ne demandent rien de plus que ces
 quelques outils.
 
@@ -468,7 +468,7 @@ de données (CSV / TSV)} plus bas.)
 
 \subsection{Gérer plusieurs documents}
 
-md2pdf garde \textbf{tous vos documents} dans le navigateur. La liste se
+markpage garde \textbf{tous vos documents} dans le navigateur. La liste se
 trouve derrière le bouton \textbf{Mon doc ▾}, qui affiche aussi le nom
 du document que vous éditez actuellement.
 
@@ -526,7 +526,7 @@ Le bouton \textbf{Exporter ▾} propose trois formats :
 \end{tabularx}
 
 Le format \textbf{Markdown} (\texttt{.md}) est un format texte ouvert, lisible
-partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas md2pdf —
+partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas markpage —
 il l'ouvrira dans n'importe quel éditeur de texte.
 
 
@@ -1384,7 +1384,7 @@ facteur ; jamais au-delà.
 
 \section{Crédits}
 
-md2pdf est un projet open source assemblé à partir de logiciels libres.
+markpage est un projet open source assemblé à partir de logiciels libres.
 Merci à toutes les personnes qui maintiennent ces projets :
 
 
@@ -1415,8 +1415,8 @@ HTML → Markdown.
 \end{itemize}
 
 
-Le code source de md2pdf est sur
-\href{https://github.com/orlarey/md2pdf}{GitHub}.
+Le code source de markpage est sur
+\href{https://github.com/orlarey/markpage}{GitHub}.
 
 
 
