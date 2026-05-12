@@ -254,6 +254,7 @@ export function pagedCss(s: PdfSettings): string {
     /* First heading on the page should never push the body content
        down — paged.js doesn't trim leading margins itself. */
     ${SCOPE} > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+    ${SCOPE} p { margin: ${s.paragraphSpacing}em 0; }
     /* Prevent orphan headings at the foot of a page. This rule is
        intentionally unscoped: paged.js parses the selector itself
        and can't cope with our :where(...) scope, so we keep the

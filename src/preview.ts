@@ -292,6 +292,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+    #preview-pane p { margin: ${settings.paragraphSpacing}em 0; }
     #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
     #preview-pane blockquote {
       font-size: ${s.quote.fontSize}pt;

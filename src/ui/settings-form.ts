@@ -180,6 +180,17 @@ export function buildSettingsForm(
           },
           { step: 0.1 },
         ),
+        numberField(
+          'Espace entre paragraphes',
+          current.paragraphSpacing,
+          0,
+          3,
+          (v) => {
+            current.paragraphSpacing = v;
+            emit();
+          },
+          { step: 0.1 },
+        ),
         styleRow('Titre 1 (h1)', current.styles.h1, (s) => {
           current.styles.h1 = s;
           emit();

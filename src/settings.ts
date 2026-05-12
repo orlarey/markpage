@@ -144,6 +144,13 @@ export interface PdfSettings {
   // 32pt of space above). Asymmetric on purpose — see SPEC notes on
   // Gestalt proximity. Applied uniformly to h1-h6.
   headingSpacing: { above: number; below: number };
+  // Symmetric vertical margin around <p> elements, in em of the body
+  // font-size. 1.0 matches browser defaults; users can dial down for
+  // tighter copy. Note: lists, blockquotes etc. keep their own
+  // browser defaults, which still collapse with adjacent margins —
+  // so the actual space before a list won't fall below ~1em even at
+  // paragraphSpacing=0.
+  paragraphSpacing: number;
   mermaidMaxScale: number;
   // Maximum width allowed for a mermaid diagram, as a fraction of the
   // content (text) width of a page. 1.0 lets the diagram fill the column.
@@ -183,6 +190,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   },
   customFonts: [],
   headingSpacing: { above: 1.6, below: 0.6 },
+  paragraphSpacing: 1,
   mermaidMaxScale: 2,
   mermaidMaxWidthPct: 1,
   mermaidMaxHeightPct: 0.7,
@@ -237,6 +245,7 @@ function mergeWithDefaults(input: unknown): PdfSettings {
     },
     customFonts: Array.isArray(obj.customFonts) ? obj.customFonts : d.customFonts,
     headingSpacing: merge(d.headingSpacing, obj.headingSpacing),
+    paragraphSpacing: obj.paragraphSpacing ?? d.paragraphSpacing,
     mermaidMaxScale: obj.mermaidMaxScale ?? d.mermaidMaxScale,
     mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
     mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
