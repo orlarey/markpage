@@ -63,7 +63,8 @@ import { openHelp } from './ui/help-window';
 import { openDocMenu } from './ui/doc-menu';
 import { openExportMenu } from './ui/export-menu';
 import { redo, undo } from '@codemirror/commands';
-import helpMd from './HELP.md?raw';
+import helpMdFr from './HELP.fr.md?raw';
+import helpMdEn from './HELP.en.md?raw';
 import {
   createDoc,
   deleteDoc,
@@ -100,10 +101,13 @@ import { paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
 
-// First-run document is the bundled HELP.md tutorial. The user can edit
-// or erase it; once a doc lives in localStorage, that one wins on reopen
-// and HELP stays accessible only via the Aide button.
-const DEFAULT_DOC = helpMd;
+// First-run document is the bundled help tutorial in whichever locale
+// matches the resolved UI language. The user can edit or erase it;
+// once a doc lives in localStorage, that one wins on reopen and HELP
+// stays accessible only via the Aide button.
+function helpMdForLocale(lang: 'fr' | 'en'): string {
+  return lang === 'fr' ? helpMdFr : helpMdEn;
+}
 
 // Cheap slug for export filenames. Keeps letters / digits / dashes /
 // underscores / dots, replaces anything else with '-', collapses
@@ -236,7 +240,8 @@ async function bootstrap(): Promise<void> {
   // points it at the new entry, and the toolbar / autosave read its
   // current value via the closure.
   let currentDoc: DocEntry =
-    resolveCurrentDoc() ?? (await createDoc(t('default.help-doc-name'), DEFAULT_DOC));
+    resolveCurrentDoc() ??
+    (await createDoc(t('default.help-doc-name'), helpMdForLocale(uiLocale)));
   setCurrentDocId(currentDoc.uuid);
   const initialDoc = loadDocContent(currentDoc) ?? '';
 
@@ -741,6 +746,7 @@ async function bootstrap(): Promise<void> {
   };
 
   const triggerHelp = (): void => {
+    const helpMd = helpMdForLocale(uiLocale);
     openHelp(helpMd, {
       onInsert: insertFromHelp,
       onUndo: () => {
