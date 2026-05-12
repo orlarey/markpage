@@ -23,7 +23,7 @@ export const SHOWCASE_DATA: ShowcaseEntry[] = [
 In 1929, René Magritte painted a pipe with the caption *Ceci n'est pas
 une pipe*. The point was simple: an image of a pipe is not a pipe.
 
-Three reasons that observation matters:
+## Three corollaries
 
 1. **Representation is not the thing represented.**
 2. **A label can lie even when the picture is faithful.**
@@ -36,13 +36,51 @@ Three reasons that observation matters:
     description:
       'Drag an image from your desktop, paste a screenshot, or pick a file from the Style menu — it lands at the cursor, sized to fit, and travels with the PDF.',
     sourceLang: 'markdown',
-    source: `## Magritte's pipe
+    source: `## Not Magritte's pipe
 
 ![A line drawing of a tobacco pipe](${pipeUrl})
 
 A picture of a pipe is not a pipe — you can name it, hang it on
 the wall, write a caption underneath. But you cannot smoke the
 picture.
+`,
+  },
+  {
+    id: 'tables',
+    title: 'Dense tables straight from CSV',
+    description:
+      'Pasting a CSV (or TSV) into a fenced block renders it as a proper table — auto-aligned, with the first row as the header. No pipe-and-dash gymnastics.',
+    sourceLang: 'csv',
+    source: `## Note frequencies
+
+\`\`\`csv
+Note, Concert pitch (Hz), MIDI
+A4,    440.00, 69
+A#4,   466.16, 70
+B4,    493.88, 71
+C5,    523.25, 72
+\`\`\`
+`,
+  },
+  {
+    id: 'charts',
+    title: 'Charts from CSV data',
+    description:
+      'A ```chart block reads a tiny CSV inline and emits an SVG curve or bar chart. Auto-detects continuous, categorical, and ISO-date X axes.',
+    sourceLang: 'chart',
+    source: `## Latency by buffer size
+
+\`\`\`chart line "Audio latency"
+buffer (samples), latency (ms)
+64,    1.3
+128,   2.7
+256,   5.3
+512,  10.7
+1024, 21.3
+\`\`\`
+
+Latency scales linearly with the buffer size — at 48 kHz, doubling the
+buffer doubles the wait before a sample reaches the output.
 `,
   },
   {
@@ -111,44 +149,6 @@ sequenceDiagram
 `,
   },
   {
-    id: 'charts',
-    title: 'Charts from CSV data',
-    description:
-      'A ```chart block reads a tiny CSV inline and emits an SVG curve or bar chart. Auto-detects continuous, categorical, and ISO-date X axes.',
-    sourceLang: 'chart',
-    source: `## Latency by buffer size
-
-\`\`\`chart line "Audio latency"
-buffer (samples), latency (ms)
-64,  12
-128,  8
-256,  5
-512,  3
-1024, 2
-\`\`\`
-
-Doubling the buffer roughly halves the latency, until system overhead
-takes over.
-`,
-  },
-  {
-    id: 'tables',
-    title: 'Dense tables straight from CSV',
-    description:
-      'Pasting a CSV (or TSV) into a fenced block renders it as a proper table — auto-aligned, with the first row as the header. No pipe-and-dash gymnastics.',
-    sourceLang: 'csv',
-    source: `## Note frequencies
-
-\`\`\`csv
-Note, Concert pitch (Hz), MIDI
-A4,    440.00, 69
-A#4,   466.16, 70
-B4,    493.88, 71
-C5,    523.25, 72
-\`\`\`
-`,
-  },
-  {
     id: 'callouts',
     title: 'Callouts and theorem-like blocks',
     description:
@@ -203,6 +203,45 @@ FFT
     & Tukey that made digital signal processing tractable.
 :   Also a verb. "FFT the signal" means "compute its frequency
     representation."
+`,
+  },
+  {
+    id: 'credits',
+    title: 'Free software, all the way down',
+    description:
+      'markpage is open-source, MIT-licensed, and assembled from free libraries. Every credit below points to a project worth knowing.',
+    sourceLang: 'markdown',
+    source: `## Credits
+
+markpage is an open-source project assembled from free software.
+Thanks to everyone who maintains these projects:
+
+- **Editing and rendering**:
+  [CodeMirror](https://codemirror.net/) for the editor,
+  [marked](https://marked.js.org/) for the Markdown parser,
+  [paged.js](https://pagedjs.org/) for paginated layout.
+- **Diagrams and formulas**:
+  [Mermaid](https://mermaid.js.org/) for diagrams,
+  [MathJax](https://www.mathjax.org/) for LaTeX formulas.
+- **Imports**:
+  [Mammoth.js](https://github.com/mwilliamson/mammoth.js) for Word
+  (\`.docx\`) import,
+  [Turndown](https://github.com/mixmark-io/turndown) for HTML →
+  Markdown conversion.
+- **Fonts**:
+  [Roboto](https://fonts.google.com/specimen/Roboto) and
+  [Roboto Mono](https://fonts.google.com/specimen/Roboto+Mono)
+  (Christian Robertson, Google),
+  [Noto Sans Math](https://fonts.google.com/noto/specimen/Noto+Sans+Math)
+  and [Noto Sans Symbols](https://fonts.google.com/noto/specimen/Noto+Sans+Symbols)
+  for mathematical characters.
+- **Build tools**:
+  [Vite](https://vitejs.dev/) and [TypeScript](https://www.typescriptlang.org/).
+- **AI pair-programming**:
+  this project was built with the assistance of
+  [Claude Code](https://www.anthropic.com/claude-code).
+
+Source on [GitHub](https://github.com/orlarey/markpage).
 `,
   },
 ];
