@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320">
+  <!-- A stylised tobacco pipe — original line-drawing placeholder
+       evoking Magritte's La trahison des images (1929) without
+       reproducing the painting itself. -->
+  <g fill="#6d3f1f" stroke="#3a210f" stroke-width="2.5" stroke-linejoin="round">
+    <!-- Bowl -->
+    <path d="M 130 80 Q 130 60 165 60 L 235 60 Q 270 60 270 80 L 270 145 Q 270 160 255 160 L 145 160 Q 130 160 130 145 Z"/>
+    <!-- Stem curving down toward the mouthpiece -->
+    <path d="M 270 130 Q 360 125 450 140 Q 510 150 540 162 Q 552 168 552 175 Q 552 184 540 180 Q 510 172 450 164 Q 360 155 270 148 Z"/>
+  </g>
+  <!-- Bowl opening: dark interior ring -->
+  <ellipse cx="200" cy="60" rx="60" ry="9" fill="#1a0e07"/>
+  <ellipse cx="200" cy="60" rx="50" ry="5" fill="#0a0603"/>
+  <!-- A small mouthpiece nub -->
+  <circle cx="552" cy="178" r="6" fill="#1a0e07"/>
+  <!-- Caption — italic serif, à la Magritte -->
+  <text x="300" y="265" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic" font-size="38" fill="#222">
+    Ceci n'est pas une pipe.
+  </text>
+</svg>

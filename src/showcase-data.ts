@@ -8,6 +8,7 @@
 // but are written to render live, not to be quoted as syntax. A future
 // pass may auto-generate this file from a structured subset of HELP.
 
+import pipeUrl from './assets/pipe.svg';
 import type { ShowcaseEntry } from './showcase-types';
 
 export const SHOWCASE_DATA: ShowcaseEntry[] = [
@@ -27,6 +28,21 @@ Three reasons that observation matters:
 1. **Representation is not the thing represented.**
 2. **A label can lie even when the picture is faithful.**
 3. **Once you notice, you can't un-notice.**
+`,
+  },
+  {
+    id: 'images',
+    title: 'Drop in any picture',
+    description:
+      'Drag an image from your desktop, paste a screenshot, or pick a file from the Style menu — it lands at the cursor, sized to fit, and travels with the PDF.',
+    sourceLang: 'markdown',
+    source: `## Magritte's pipe
+
+![A line drawing of a tobacco pipe](${pipeUrl})
+
+A picture of a pipe is not a pipe — you can name it, hang it on
+the wall, write a caption underneath. But you cannot smoke the
+picture.
 `,
   },
   {
