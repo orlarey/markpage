@@ -86,9 +86,87 @@ GitHub Actions**.
   (storage model, render pipelines, i18n, LaTeX export, regression
   test harness).
 
-## Stack
+## Stack and credits
 
-TypeScript + [Vite](https://vitejs.dev/) · [CodeMirror 6](https://codemirror.net/) (editor) ·
-[marked](https://marked.js.org/) (parser) · [paged.js](https://pagedjs.org/) (pagination) ·
-[MathJax](https://www.mathjax.org/) (math) · [Mermaid](https://mermaid.js.org/) (diagrams) ·
-[vitest](https://vitest.dev/) + happy-dom (regression tests).
+markpage is glue around a lot of open-source work. Each piece below
+does something specific and does it well.
+
+### Editor and rendering
+
+- [**CodeMirror 6**](https://codemirror.net/) — the editor pane.
+  Modular, fast, with the extension points we needed to hook the
+  on-the-fly input ligatures and the click-back-to-source mapping.
+- [**marked**](https://marked.js.org/) — Markdown parsing. We
+  extend it with custom block tokens for admonitions, footnotes,
+  definition lists and inference rules; everything still flows
+  through the standard token API.
+- [**paged.js**](https://pagedjs.org/) — pagination engine. Turns
+  the flowing preview into discrete pages with proper margins,
+  page numbers and break-before/avoid behaviour. Both the
+  on-screen paginated preview and the PDF go through it, so what
+  you see is what you get.
+
+### Math, diagrams, charts
+
+- [**MathJax**](https://www.mathjax.org/) — LaTeX math rendering
+  for inline `$…$`, displayed `$$…$$`, and the dedicated
+  ` ```inference ` blocks.
+- [**Mermaid**](https://mermaid.js.org/) — flowcharts, sequence,
+  class, state, gantt, mindmap, pie diagrams. Rendered as SVG so
+  the PDF stays vector-crisp.
+- Charts (`line`, `bar`) come from a small custom SVG generator in
+  `src/chart.ts` — light enough that it wasn't worth pulling a
+  full charting library.
+
+### Imports
+
+- [**Mammoth.js**](https://github.com/mwilliamson/mammoth.js) —
+  converts Word `.docx` files to clean HTML on import, which we
+  then run through Turndown to land as Markdown.
+- [**Turndown**](https://github.com/mixmark-io/turndown) — HTML →
+  Markdown for the `.html` import path (and the second half of the
+  `.docx` pipeline).
+
+### Export
+
+- [**JSZip**](https://stuk.github.io/jszip/) — bundles the `.tex`
+  source with the referenced images / mermaid / chart SVGs into a
+  single zip when the LaTeX export needs to ship resources.
+
+### Fonts
+
+- [**Roboto Condensed**](https://fonts.google.com/specimen/Roboto+Condensed)
+  and [**Roboto Mono**](https://fonts.google.com/specimen/Roboto+Mono)
+  bundled via [@fontsource](https://fontsource.org) so they work
+  offline; the editor and the default PDF render on them. Plain
+  [**Roboto**](https://fonts.google.com/specimen/Roboto) is bundled
+  too for the brand mark.
+- [**Noto Sans Math**](https://fonts.google.com/noto/specimen/Noto+Sans+Math)
+  and [**Noto Sans Symbols**](https://fonts.google.com/noto/specimen/Noto+Sans+Symbols)
+  ride the fallback cascade for math glyphs and miscellaneous
+  Unicode symbols.
+- Every other Google Font in the catalogue is fetched on demand
+  via the standard `fonts.googleapis.com` CSS endpoint when the
+  user picks it in Settings.
+
+### Build, types, tests
+
+- [**Vite**](https://vitejs.dev/) for the dev server, the bundling
+  and the static build that ships to GitHub Pages.
+- [**TypeScript**](https://www.typescriptlang.org/) for the type
+  system — every module is fully typed, no `any` outside thin
+  boundary shims.
+- [**vitest**](https://vitest.dev/) + [**happy-dom**](https://github.com/capricorn86/happy-dom)
+  for the regression corpus: each `.md` test case has pinned
+  snapshots of its LaTeX and HTML output, so any rendering
+  change is reviewed as a precise diff in pull requests.
+
+### Built with Claude Code
+
+A substantial part of the development happened in pair with
+[**Claude Code**](https://claude.com/claude-code), Anthropic's
+agentic CLI for Claude. The architecture decisions, the regression
+test harness, the i18n rework, most of the LaTeX export pipeline
+and a large fraction of the diff-by-diff iteration were designed
+and implemented through that workflow. The commit history carries
+`Co-Authored-By: Claude Opus 4.x` trailers where appropriate.
