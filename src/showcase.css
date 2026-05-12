@@ -41,10 +41,9 @@ body {
 @media (min-height: 700px) {
   html {
     /* `proximity` only snaps when the visitor's scroll has actually
-       slowed near a section boundary — it doesn't force a snap on
-       every micro-scroll the way `mandatory` does, so the page
-       feels progressive instead of jerky. The `smooth` behaviour
-       animates the snap itself when it does fire. */
+       slowed near a section boundary — natural feel rather than
+       enforced jumps. Smooth scroll-behaviour applies to
+       programmatic scrolls too (keyboard nav below). */
     scroll-snap-type: y proximity;
     scroll-behavior: smooth;
   }
@@ -57,6 +56,45 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
+  }
+}
+
+/* ---- Segment fade-slide-in animation ------------------------------ */
+
+/* Each segment starts hidden + slightly translated, then animates to
+   opaque + in-place when it enters the viewport. The
+   `.is-active` class is toggled by an IntersectionObserver in
+   showcase.ts. Once shown, segments stay visible — so scrolling
+   back doesn't re-trigger the animation. */
+.hero,
+.showcase-section,
+.showcase-footer {
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.hero.is-active,
+.showcase-section.is-active,
+.showcase-footer.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Respect the visitor's motion preference — disable the entrance
+   animation and the smooth scroll alike. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .hero,
+  .showcase-section,
+  .showcase-footer {
+    transition: none;
+    transform: none;
+    opacity: 1;
   }
 }
 

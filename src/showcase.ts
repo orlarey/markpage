@@ -179,6 +179,98 @@ function mountLazyIframes(): void {
   }
 }
 
+// Reveals each segment with a fade + slide-up the first time it
+// enters the viewport. One-shot — segments stay visible once
+// revealed, so scrolling back doesn't trigger the animation again.
+function mountSegmentReveal(): void {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        entry.target.classList.add('is-active');
+        observer.unobserve(entry.target);
+      }
+    },
+    { threshold: 0.2 },
+  );
+  for (const seg of document.querySelectorAll<HTMLElement>(
+    '.hero, .showcase-section, .showcase-footer',
+  )) {
+    observer.observe(seg);
+  }
+}
+
+// Space / arrows / page-up-down / Home / End jump between segments.
+// We rely on the browser's smooth scroll (scroll-behavior in CSS) +
+// scroll-snap to land each jump on a clean segment boundary.
+function mountKeyboardNavigation(): void {
+  const segments = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '.hero, .showcase-section, .showcase-footer',
+    ),
+  );
+  if (segments.length === 0) return;
+
+  // Which segment is currently the "anchor" — the one whose top is
+  // closest to the viewport top (most visible). Used as the pivot
+  // for next/prev jumps.
+  const currentIndex = (): number => {
+    let best = 0;
+    let bestDistance = Infinity;
+    segments.forEach((seg, i) => {
+      const distance = Math.abs(seg.getBoundingClientRect().top);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i;
+      }
+    });
+    return best;
+  };
+
+  const scrollTo = (i: number): void => {
+    const target = segments[Math.max(0, Math.min(segments.length - 1, i))];
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  globalThis.addEventListener('keydown', (e) => {
+    // If the focus is somewhere editable, let it through. Iframes
+    // are separate browsing contexts so this listener doesn't fire
+    // while they have focus anyway, but we keep the check for the
+    // showcase page's own inputs (if any get added later).
+    const t = e.target;
+    if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    switch (e.key) {
+      case ' ': // Space: forward, Shift+Space: back (slide-deck convention)
+        e.preventDefault();
+        scrollTo(currentIndex() + (e.shiftKey ? -1 : 1));
+        break;
+      case 'ArrowDown':
+      case 'PageDown':
+        e.preventDefault();
+        scrollTo(currentIndex() + 1);
+        break;
+      case 'ArrowUp':
+      case 'PageUp':
+        e.preventDefault();
+        scrollTo(currentIndex() - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        scrollTo(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        scrollTo(segments.length - 1);
+        break;
+      default:
+        break;
+    }
+  });
+}
+
 function run(): void {
   const root = document.getElementById('showcase');
   if (!root) return;
@@ -189,6 +281,8 @@ function run(): void {
   });
   root.append(buildFooter());
   mountLazyIframes();
+  mountSegmentReveal();
+  mountKeyboardNavigation();
 }
 
 run();
