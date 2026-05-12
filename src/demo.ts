@@ -1,0 +1,99 @@
+// Minimal entry point for the showcase iframe.
+// URL params:
+//   ?id=<snippet-id>  (defaults to "playground", which is an empty doc)
+//   ?lang=fr|en       (optional; overrides the visitor's UI locale)
+//
+// The runtime is intentionally tiny: no toolbar, no editor, no
+// storage. We just paginate the snippet through the same paged.js
+// pipeline as the main app's preview, so the iframe is a faithful
+// render of what the PDF would look like.
+
+// Same `@fontsource` bundle as main.ts so the iframe paints in the
+// expected fonts on first frame instead of falling back to the
+// system stack.
+import '@fontsource/roboto-condensed/400.css';
+import '@fontsource/roboto-condensed/500.css';
+import '@fontsource/roboto-condensed/400-italic.css';
+import '@fontsource/roboto-condensed/500-italic.css';
+import '@fontsource/roboto-mono/400.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+
+import './style.css';
+import './marked-config'; // side-effect: registers admonitions / math / etc.
+
+import { registerFallbackFonts } from './fonts';
+import { loadFontTrio } from './font-loader';
+import { initLocale } from './i18n/locale';
+import {
+  annotateSourceLines,
+  applyPreviewMetadata,
+  applyPreviewStyles,
+  renderMathBlocks,
+  renderMathInlines,
+  renderMermaidBlocks,
+  renderPreview,
+} from './preview';
+import { paginate } from './preview-paginated';
+import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import {
+  findShowcaseEntry,
+  PLAYGROUND_ENTRY,
+} from './showcase-data';
+
+async function run(): Promise<void> {
+  const params = new URLSearchParams(globalThis.location.search);
+  const id = params.get('id') ?? 'playground';
+  const langOverride = params.get('lang');
+  if (langOverride === 'fr' || langOverride === 'en') {
+    // Persist before initLocale so the iframe picks up the parent's
+    // language. This writes to localStorage but the demo iframe is
+    // a same-origin sandbox the visitor never sees, so it's fine.
+    localStorage.setItem('markpage:ui-lang', langOverride);
+  }
+  initLocale();
+
+  document.body.classList.add('demo-frame-body');
+
+  const entry =
+    id === 'playground'
+      ? PLAYGROUND_ENTRY
+      : findShowcaseEntry(id) ?? PLAYGROUND_ENTRY;
+
+  // The demo runs on default typography but blanks the metadata
+  // (author / organisation / date) — the snippet is a feature
+  // sample, not someone's actual document.
+  const settings: PdfSettings = {
+    ...DEFAULT_SETTINGS,
+    author: { ...DEFAULT_SETTINGS.author, show: false },
+    organization: { ...DEFAULT_SETTINGS.organization, show: false },
+    date: { mode: 'none', custom: '' },
+  };
+
+  applyPreviewStyles(settings);
+
+  // Fire-and-forget the font loading. paged.js' first render uses
+  // whatever's available; once the fonts resolve the next paint
+  // picks them up.
+  void registerFallbackFonts().catch(() => undefined);
+  void loadFontTrio(settings.fonts).catch(() => undefined);
+
+  const previewEl = document.getElementById('preview-pane') as HTMLElement;
+
+  // Build the same DOM subtree as the main preview pipeline, then
+  // hand it to paged.js.
+  const built = document.createElement('div');
+  renderPreview(built, entry.source);
+  applyPreviewMetadata(built, settings);
+  annotateSourceLines(built, entry.source);
+  await Promise.all([
+    renderMermaidBlocks(built),
+    renderMathBlocks(built),
+    renderMathInlines(built),
+  ]);
+  await paginate(built, settings, previewEl);
+}
+
+void run().catch((err: unknown) => {
+  console.error('Demo render failed', err);
+});

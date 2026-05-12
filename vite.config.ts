@@ -1,11 +1,26 @@
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+
+const dir = fileURLToPath(new URL('.', import.meta.url));
 
 // `base: './'` makes assets resolve relatively, so the build works whether
 // served at the root or under a GitHub Pages subpath like /markpage/.
+// We ship three entry points:
+//   index.html     — the full markpage app
+//   demo.html      — the minimal iframe runner for showcase sections
+//   showcase.html  — the long marketing / vitrine page
 export default defineConfig({
   base: './',
   build: {
     target: 'es2022',
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        index: resolve(dir, 'index.html'),
+        demo: resolve(dir, 'demo.html'),
+        showcase: resolve(dir, 'showcase.html'),
+      },
+    },
   },
 });
