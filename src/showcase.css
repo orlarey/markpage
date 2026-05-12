@@ -40,7 +40,12 @@ body {
    ordinary scroll. */
 @media (min-height: 700px) {
   html {
-    scroll-snap-type: y mandatory;
+    /* `proximity` only snaps when the visitor's scroll has actually
+       slowed near a section boundary — it doesn't force a snap on
+       every micro-scroll the way `mandatory` does, so the page
+       feels progressive instead of jerky. The `smooth` behaviour
+       animates the snap itself when it does fire. */
+    scroll-snap-type: y proximity;
     scroll-behavior: smooth;
   }
 
@@ -49,7 +54,6 @@ body {
   .showcase-footer {
     min-height: 100vh;
     scroll-snap-align: start;
-    scroll-snap-stop: always;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -239,25 +243,31 @@ a:hover {
 }
 
 /* Source pane — plain monospace for v1, can grow into syntax
-   highlighting later. */
+   highlighting later. `pre-wrap` + `overflow-wrap: anywhere` wraps
+   long Markdown / LaTeX lines so the pane never grows a horizontal
+   scrollbar. Vertical overflow is hidden too; if a snippet is
+   slightly too tall, the visitor still gets the gist and the live
+   preview on the right is the source of truth anyway. */
 .showcase-source {
   background: #0d1117;
   color: #e6edf3;
   border-radius: 10px;
   padding: 1rem 1.2rem;
   margin: 0;
-  overflow: auto;
+  overflow: hidden;
   font-family: 'Roboto Mono', ui-monospace, monospace;
   font-size: 0.85rem;
   line-height: 1.55;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   min-height: 500px;
   max-height: 600px;
 }
 
 .showcase-source code {
   font-family: inherit;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* Preview pane — the live iframe, sized to give paged.js room to
@@ -312,13 +322,17 @@ a:hover {
 /* ---- demo.html iframe body (the runner) -------------------------- */
 
 /* When demo.html is loaded inside a showcase iframe, we want the
-   preview-pane to fill the iframe and the paged.js pages to sit
-   naturally at the top. The `.demo-frame-body` class is added by
-   demo.ts so these rules don't leak to the main app. */
+   paged.js A4 page to fit the iframe width without producing a
+   horizontal scrollbar. `zoom: 0.7` scales every descendant — text,
+   page boundaries, math glyphs — down to 70 %, which lands an A4
+   page (≈ 793 px wide at 96 dpi) inside a ~ 555 px iframe column.
+   The `.demo-frame-body` class is added by demo.ts so these rules
+   don't leak to the main app. */
 
 body.demo-frame-body {
   margin: 0;
   background: #fff;
+  zoom: 0.7;
 }
 
 body.demo-frame-body #preview-pane {
@@ -327,6 +341,6 @@ body.demo-frame-body #preview-pane {
 }
 
 /* paged.js renders its `.pagedjs_pages` container with fixed mm
-   dimensions; we don't intervene — the iframe just shows the
-   top-left corner. The visitor scrolls inside the iframe if the
-   snippet spans more than one page. */
+   dimensions. With the `zoom` above it lands the right width
+   straightaway; vertical scroll inside the iframe is left alone
+   so the visitor can see longer snippets. */
