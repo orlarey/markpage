@@ -225,7 +225,7 @@ export function saveSettings(s: PdfSettings): void {
 
 // Tolerant merge: any missing field falls back to its default. Lets us add
 // new fields later without breaking persisted settings from older versions.
-function mergeWithDefaults(input: unknown): PdfSettings {
+export function mergeWithDefaults(input: unknown): PdfSettings {
   const d = DEFAULT_SETTINGS;
   if (!input || typeof input !== 'object') return d;
   const obj = input as Partial<PdfSettings>;

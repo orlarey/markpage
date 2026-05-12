@@ -26,7 +26,7 @@
 
 import { t } from './i18n/strings';
 import { sha256Hex } from './image-store';
-import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { DEFAULT_SETTINGS, mergeWithDefaults, type PdfSettings } from './settings';
 
 const KEY_INDEX = 'markpage:settings-profiles:index';
 const KEY_BLOB_PREFIX = 'markpage:settings-profiles:blob:';
@@ -101,7 +101,7 @@ function readBlob(sha: string): PdfSettings | null {
   const raw = localStorage.getItem(blobKey(sha));
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as PdfSettings;
+    return mergeWithDefaults(JSON.parse(raw));
   } catch {
     return null;
   }
