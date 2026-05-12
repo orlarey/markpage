@@ -83,6 +83,7 @@ import { type PdfSettings } from './settings';
 import {
   createProfile,
   deleteProfile,
+  displayProfileName,
   duplicateProfile,
   ensureActiveProfile,
   exportProfileJson,
@@ -695,7 +696,12 @@ async function bootstrap(): Promise<void> {
       const json = exportProfileJson(state.profileId);
       if (!json) return;
       const entry = listProfiles().find((p) => p.uuid === state.profileId);
-      const slug = slugifyDocName(entry?.name ?? 'profil');
+      // Use the *displayed* name for the slug so the export of the
+      // default profile lands as "par-defaut.json" / "default.json"
+      // rather than the internal "_default_" sentinel.
+      const slug = slugifyDocName(
+        entry ? displayProfileName(entry) : 'profil',
+      );
       downloadTextFile(json, `${slug}.json`, 'application/json');
     },
   };

@@ -33,7 +33,23 @@ const KEY_BLOB_PREFIX = 'markpage:settings-profiles:blob:';
 const KEY_CURRENT = 'markpage:settings-profiles:current';
 const KEY_LEGACY_SETTINGS = 'markpage:settings';
 
-const DEFAULT_PROFILE_NAME = 'Par défaut';
+// Sentinel value stored in `ProfileEntry.name` for the auto-created
+// default profile. Never displayed verbatim — `displayProfileName`
+// resolves it to the localised label ("Par défaut" / "Default")
+// derived from the active UI locale. Once the user renames the
+// profile, the sentinel is gone and the chosen name is shown as-is.
+const DEFAULT_PROFILE_NAME = '__default__';
+
+// User-facing name for a profile entry. The default profile carries
+// a sentinel value (cf. above) that we translate on the fly so a
+// French user sees "Par défaut" and an English user sees "Default" —
+// without renaming the underlying entry when the locale flips. All
+// other profiles render with their stored name.
+export function displayProfileName(entry: ProfileEntry): string {
+  return entry.name === DEFAULT_PROFILE_NAME
+    ? t('profile.default-name')
+    : entry.name;
+}
 
 export interface ProfileEntry {
   uuid: string;
@@ -353,14 +369,34 @@ async function migrateUuidKeyedBlobs(): Promise<void> {
   writeIndex(migrated);
 }
 
-// Runs every supported migration in order. Both inner migrations are
-// no-ops when their respective trigger is absent, so this is cheap
-// and idempotent — safe to call at every bootstrap.
+// Pre-i18n installs created the auto-default profile under the
+// literal string "Par défaut". Convert any such entry to the
+// `__default__` sentinel so the name follows the active UI locale
+// going forward. Idempotent: once converted, no entry matches the
+// literal strings and the function is a no-op. Also picks up
+// "Default" for symmetry, in case a profile was created with the
+// English seed (which used the same code path).
+function migrateLiteralDefaultName(): void {
+  const index = readIndex();
+  let dirty = false;
+  for (const entry of index) {
+    if (entry.name === 'Par défaut' || entry.name === 'Default') {
+      entry.name = DEFAULT_PROFILE_NAME;
+      dirty = true;
+    }
+  }
+  if (dirty) writeIndex(index);
+}
+
+// Runs every supported migration in order. Each inner migration is
+// a no-op when its trigger is absent, so this is cheap and
+// idempotent — safe to call at every bootstrap.
 export async function migrateLegacySettingsIfNeeded(): Promise<void> {
   await migrateUuidKeyedBlobs();
   if (localStorage.getItem(KEY_INDEX) === null) {
     await migrateMonoProfile();
   }
+  migrateLiteralDefaultName();
 }
 
 // Returns the existing or freshly-created active profile. Called at

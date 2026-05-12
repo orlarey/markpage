@@ -49,6 +49,7 @@ const FR = {
   'latex-export.failed': 'Échec de l’export LaTeX : {msg}',
   'default.help-doc-name': 'Aide markpage',
   'default.new-profile-name': 'Nouveau profil',
+  'profile.default-name': 'Par défaut',
 
   // ---- export menu --------------------------------------------------
   'export-menu.markdown': 'Markdown (.md)',
@@ -219,6 +220,7 @@ const EN: Record<keyof typeof FR, string> = {
   'latex-export.failed': 'LaTeX export failed: {msg}',
   'default.help-doc-name': 'markpage Help',
   'default.new-profile-name': 'New profile',
+  'profile.default-name': 'Default',
 
   // ---- export menu --------------------------------------------------
   'export-menu.markdown': 'Markdown (.md)',

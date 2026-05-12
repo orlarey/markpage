@@ -11,7 +11,7 @@
 // visual noise that didn't pay back.
 
 import { t } from '../i18n/strings';
-import type { ProfileEntry } from '../settings-profiles';
+import { displayProfileName, type ProfileEntry } from '../settings-profiles';
 
 const MENU_ID = 'profile-menu';
 
@@ -63,14 +63,21 @@ export function openProfileMenu(
     row.className = 'profile-menu-current';
     const input = doc.createElement('input');
     input.type = 'text';
-    input.value = current.name;
+    // The rename input shows the *displayed* name (translated for
+    // the sentinel default profile, raw for everything else). If the
+    // user doesn't actually type anything new, we skip the rename so
+    // the sentinel keeps its auto-translating behaviour.
+    const original = displayProfileName(current);
+    input.value = original;
     input.className = 'profile-menu-current-input';
     input.spellcheck = false;
-    const original = current.name;
+    const commitIfChanged = (): void => {
+      if (input.value !== original) opts.onRenameCurrent(input.value);
+    };
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        opts.onRenameCurrent(input.value);
+        commitIfChanged();
         close();
       } else if (e.key === 'Escape') {
         e.preventDefault();
@@ -78,9 +85,7 @@ export function openProfileMenu(
         close();
       }
     });
-    input.addEventListener('blur', () => {
-      if (input.value !== original) opts.onRenameCurrent(input.value);
-    });
+    input.addEventListener('blur', commitIfChanged);
     row.append(input);
     menu.append(row);
     setTimeout(() => {
@@ -113,7 +118,7 @@ export function openProfileMenu(
       const btn = doc.createElement('button');
       btn.type = 'button';
       btn.className = 'profile-menu-row';
-      btn.textContent = p.name;
+      btn.textContent = displayProfileName(p);
       btn.addEventListener('click', () => {
         opts.onSelect(p.uuid);
         close();
@@ -145,7 +150,9 @@ export function openProfileMenu(
         if (!current) return;
         if (
           w.confirm(
-            t('profile-menu.delete-confirm', { name: current.name }),
+            t('profile-menu.delete-confirm', {
+              name: displayProfileName(current),
+            }),
           )
         ) {
           opts.onDeleteCurrent();

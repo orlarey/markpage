@@ -21,7 +21,7 @@ import {
   parseGoogleFontsUrl,
   registerCustomFonts,
 } from '../font-loader';
-import type { ProfileEntry } from '../settings-profiles';
+import { displayProfileName, type ProfileEntry } from '../settings-profiles';
 import { getLanguage, setLanguage, type Language } from '../i18n/locale';
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
@@ -118,7 +118,9 @@ export function buildSettingsForm(
     const trigger = doc.createElement('button');
     trigger.type = 'button';
     trigger.className = 'profile-trigger';
-    trigger.textContent = `${currentProfile?.name ?? 'Profile'} ▾`;
+    trigger.textContent = `${
+      currentProfile ? displayProfileName(currentProfile) : 'Profile'
+    } ▾`;
     trigger.addEventListener('click', () => {
       const currentUuid = handlers.getCurrentProfileId();
       openProfileMenu(trigger, {
