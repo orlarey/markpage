@@ -3,10 +3,10 @@
 // user keep the preview visible side-by-side and tweak settings in
 // real time. We only fall back here when the popup is blocked.
 
-import { buildSettingsForm } from './settings-form';
+import { buildSettingsForm, type SettingsProfileHandlers } from './settings-form';
 import type { PdfSettings } from '../settings';
 
-export interface SettingsPanelHandlers {
+export interface SettingsPanelHandlers extends SettingsProfileHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
 }

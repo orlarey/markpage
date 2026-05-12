@@ -6,25 +6,33 @@
 // Falls back to the in-app overlay (settings-panel.ts) when the
 // popup is blocked.
 
-import { buildSettingsForm } from './settings-form';
+import { buildSettingsForm, type SettingsProfileHandlers } from './settings-form';
 import { openSettingsPanel } from './settings-panel';
 import type { PdfSettings } from '../settings';
 // Bundling the whole app stylesheet keeps the popup visually
 // consistent with the parent — same colours, same field layout.
 import appCss from '../style.css?inline';
 
-export interface SettingsWindowHandlers {
+export interface SettingsWindowHandlers extends SettingsProfileHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
 }
 
 let currentWindow: Window | null = null;
+let currentRefresh: (() => void) | null = null;
 
-export function openSettingsWindow(handlers: SettingsWindowHandlers): void {
+// Returns a handle the caller can use to repaint the form when the
+// underlying state moves under its feet (e.g. after a profile
+// switch from outside the form itself). Returns null when the window
+// is already open or when the popup is blocked and we fell back to
+// the modal — in both cases the caller doesn't own the form.
+export function openSettingsWindow(
+  handlers: SettingsWindowHandlers,
+): { refresh: () => void } | null {
   // Refocus an already-open window instead of spawning a second.
   if (currentWindow && !currentWindow.closed) {
     currentWindow.focus();
-    return;
+    return currentRefresh ? { refresh: currentRefresh } : null;
   }
 
   // Opening at a width that comfortably fits two columns of the
@@ -40,7 +48,7 @@ export function openSettingsWindow(handlers: SettingsWindowHandlers): void {
     // Popup blocked — fall back to the modal so the user still has
     // access to the settings.
     openSettingsPanel(handlers);
-    return;
+    return null;
   }
   currentWindow = win;
 
@@ -55,7 +63,8 @@ export function openSettingsWindow(handlers: SettingsWindowHandlers): void {
   win.document.body.innerHTML = '';
   win.document.body.classList.add('settings-window-body');
 
-  const { root } = buildSettingsForm(win.document, handlers);
+  const { root, refresh } = buildSettingsForm(win.document, handlers);
+  currentRefresh = refresh;
   // The form's own header carries the title; the popup chrome
   // handles closing, so we don't add a Close button here.
   win.document.body.appendChild(root);
@@ -74,9 +83,12 @@ export function openSettingsWindow(handlers: SettingsWindowHandlers): void {
   const checkClosed = setInterval(() => {
     if (win.closed) {
       currentWindow = null;
+      currentRefresh = null;
       clearInterval(checkClosed);
     }
   }, 1000);
+
+  return { refresh };
 }
 
 // Strips the modal-overlay framing and lays the form out as the

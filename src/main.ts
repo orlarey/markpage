@@ -66,7 +66,23 @@ import {
   setCurrentDocId,
   type DocEntry,
 } from './docs';
-import { loadSettings, saveSettings, type PdfSettings } from './settings';
+import { type PdfSettings } from './settings';
+import {
+  createProfile,
+  deleteProfile,
+  duplicateProfile,
+  ensureActiveProfile,
+  exportProfileJson,
+  getCurrentProfileId,
+  importProfileJson,
+  listProfiles,
+  loadProfileSettings,
+  migrateLegacySettingsIfNeeded,
+  renameProfile,
+  saveProfileSettings,
+  setCurrentProfileId,
+  type ProfileEntry,
+} from './settings-profiles';
 import { paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
@@ -136,8 +152,17 @@ async function bootstrap(): Promise<void> {
   const editorEl = document.getElementById('editor-pane') as HTMLElement;
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 
-  const state = {
-    settings: loadSettings(),
+  // Bring any legacy single-settings install into the multi-profile
+  // schema, then guarantee at least one profile exists so the rest of
+  // bootstrap has *some* settings to render against.
+  migrateLegacySettingsIfNeeded();
+  const activeProfile = ensureActiveProfile();
+  const state: {
+    settings: PdfSettings;
+    profileId: string;
+  } = {
+    settings: loadProfileSettings(activeProfile.uuid),
+    profileId: activeProfile.uuid,
   };
 
   // Custom fonts must be registered BEFORE loadFontTrio so the loader
@@ -392,7 +417,7 @@ async function bootstrap(): Promise<void> {
 
   const handleSettingsChange = (s: PdfSettings) => {
     state.settings = s;
-    saveSettings(s);
+    saveProfileSettings(state.profileId, s);
     // The settings form mutates its own customFonts list before
     // calling us, but registering here too keeps things consistent
     // when a settings change arrives from another path (cross-window
@@ -539,11 +564,94 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
+  // After any profile-library mutation, we may need to update the
+  // form (rename of the active profile, or arrival of a new one). The
+  // form's refresh is exposed via openSettingsWindow's return value,
+  // but we wire through the handlers directly so the menu's callbacks
+  // can request a refresh without holding onto a stale reference.
+  let refreshSettingsForm: (() => void) | null = null;
+
+  const applyProfile = (entry: ProfileEntry): void => {
+    setCurrentProfileId(entry.uuid);
+    state.profileId = entry.uuid;
+    state.settings = loadProfileSettings(entry.uuid);
+    // Funnel through the existing path so font registration, paged
+    // CSS, and preview repaint all happen as if the user had touched
+    // a control. The save inside handleSettingsChange is a no-op
+    // round-trip — same content, same SHA — and keeps mtime fresh.
+    handleSettingsChange(state.settings);
+    refreshSettingsForm?.();
+  };
+
+  const profileHandlers = {
+    getCurrentProfileId: () => state.profileId,
+    listProfiles,
+    onSwitchProfile: (uuid: string) => {
+      const entry = listProfiles().find((p) => p.uuid === uuid);
+      if (entry) applyProfile(entry);
+    },
+    onCreateProfile: () => {
+      // Seed a new profile from the active one so the user keeps
+      // their current look as a starting point.
+      const entry = createProfile('Nouveau profil', { ...state.settings });
+      applyProfile(entry);
+    },
+    onRenameProfile: (uuid: string, name: string) => {
+      renameProfile(uuid, name);
+      refreshSettingsForm?.();
+    },
+    onDuplicateProfile: (uuid: string) => {
+      const entry = duplicateProfile(uuid);
+      if (entry) applyProfile(entry);
+    },
+    onDeleteProfile: (uuid: string) => {
+      const ok = deleteProfile(uuid);
+      if (!ok) return;
+      // Active-profile id may have flipped inside deleteProfile;
+      // re-resolve it instead of guessing.
+      const next = getCurrentProfileId();
+      if (next && next !== state.profileId) {
+        const entry = listProfiles().find((p) => p.uuid === next);
+        if (entry) applyProfile(entry);
+      } else {
+        refreshSettingsForm?.();
+      }
+    },
+    onImportProfile: () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        void (async () => {
+          const text = await file.text();
+          const result = importProfileJson(text);
+          if (!result.ok) {
+            globalThis.alert(`Import du profil échoué : ${result.error}`);
+            return;
+          }
+          applyProfile(result.profile);
+        })();
+      });
+      input.click();
+    },
+    onExportProfile: () => {
+      const json = exportProfileJson(state.profileId);
+      if (!json) return;
+      const entry = listProfiles().find((p) => p.uuid === state.profileId);
+      const slug = slugifyDocName(entry?.name ?? 'profil');
+      downloadTextFile(json, `${slug}.json`, 'application/json');
+    },
+  };
+
   const triggerSettings = (): void => {
-    openSettingsWindow({
+    const handle = openSettingsWindow({
       getSettings: () => state.settings,
       onChange: handleSettingsChange,
+      ...profileHandlers,
     });
+    refreshSettingsForm = handle?.refresh ?? null;
   };
 
   // Inserts a markdown snippet (sent from the help window) at the

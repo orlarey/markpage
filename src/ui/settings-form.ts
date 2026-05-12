@@ -22,8 +22,22 @@ import {
   parseGoogleFontsUrl,
   registerCustomFonts,
 } from '../font-loader';
+import type { ProfileEntry } from '../settings-profiles';
+import { openProfileMenu } from './profile-menu';
 
-export interface SettingsFormHandlers {
+export interface SettingsProfileHandlers {
+  getCurrentProfileId(): string;
+  listProfiles(): ProfileEntry[];
+  onSwitchProfile(uuid: string): void;
+  onCreateProfile(): void;
+  onRenameProfile(uuid: string, name: string): void;
+  onDuplicateProfile(uuid: string): void;
+  onDeleteProfile(uuid: string): void;
+  onImportProfile(): void;
+  onExportProfile(): void;
+}
+
+export interface SettingsFormHandlers extends SettingsProfileHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
 }
@@ -67,7 +81,10 @@ export function buildSettingsForm(
   let current: PdfSettings = clone(handlers.getSettings());
 
   const emit = (): void => handlers.onChange(clone(current));
+  // Re-reads from handlers on every call so callers can refresh after
+  // mutating state outside the form (profile switch, Reset, imports).
   const refresh = (): void => {
+    current = clone(handlers.getSettings());
     root.innerHTML = '';
     root.append(...buildContent());
   };
@@ -77,6 +94,33 @@ export function buildSettingsForm(
     const title = doc.createElement('h2');
     title.textContent = 'Réglages PDF';
     header.append(title);
+
+    // [Mon profil ▾] trigger anchored in the header, between the
+    // title and the optional Close button that settings-panel adds
+    // later. Clicking it opens the profile dropdown.
+    const profiles = handlers.listProfiles();
+    const currentId = handlers.getCurrentProfileId();
+    const currentProfile = profiles.find((p) => p.uuid === currentId);
+    const trigger = doc.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'profile-trigger';
+    trigger.textContent = `${currentProfile?.name ?? 'Profil'} ▾`;
+    trigger.addEventListener('click', () => {
+      openProfileMenu(trigger, {
+        profiles: handlers.listProfiles(),
+        currentUuid: handlers.getCurrentProfileId(),
+        onSelect: (uuid) => handlers.onSwitchProfile(uuid),
+        onCreate: () => handlers.onCreateProfile(),
+        onRenameCurrent: (name) =>
+          handlers.onRenameProfile(handlers.getCurrentProfileId(), name),
+        onRenameOther: (uuid, name) => handlers.onRenameProfile(uuid, name),
+        onDuplicate: (uuid) => handlers.onDuplicateProfile(uuid),
+        onDelete: (uuid) => handlers.onDeleteProfile(uuid),
+        onImport: () => handlers.onImportProfile(),
+        onExport: () => handlers.onExportProfile(),
+      });
+    });
+    header.append(trigger);
 
     const form = doc.createElement('div');
     form.className = 'settings-form';
