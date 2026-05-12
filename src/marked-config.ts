@@ -529,20 +529,25 @@ function renderDataTable(src: string, sep: string): string {
 // text and the parsed pairs, or null if the head of src isn't the
 // start of such a block.
 //
-// Format (single-line per term, single-line per def — v1):
+// Format (Pandoc-style):
 //   Term
 //   :   Definition
+//       continuation lines indented by 4+ spaces (or a tab)
+//   :   Second definition for the same term
 //
 // Multiple defs per term, multiple consecutive term-pairs in the
-// same dl block are supported. A blank line or a non-`:` line after
-// a def closes the dl. Multi-paragraph defs with 4-space-indented
-// continuations are not yet supported.
+// same dl block are supported. 4-space (or tab) indented lines
+// after a `:` line are folded into the current definition as a soft
+// line break (rendered like a wrapped paragraph). A blank line or
+// any line that's neither a `:` line nor a continuation closes the
+// dl.
 function parseDefListBlock(
   src: string,
 ): { raw: string; pairs: { term: string; defs: string[] }[] } | null {
   const lines = src.split('\n');
   const pairs: { term: string; defs: string[] }[] = [];
   let i = 0;
+  const CONT_RE = /^(?: {4}|\t)(.*)$/;
   while (i < lines.length) {
     const termLine = lines[i] ?? '';
     // Term: non-empty, doesn't start with `:`. Stop the loop on
@@ -552,9 +557,24 @@ function parseDefListBlock(
     if (defLine === undefined || !/^:[ \t]+/.test(defLine)) break;
     const defs: string[] = [defLine.replace(/^:[ \t]+/, '')];
     i += 2;
-    while (i < lines.length && /^:[ \t]+/.test(lines[i] ?? '')) {
-      defs.push((lines[i] ?? '').replace(/^:[ \t]+/, ''));
-      i += 1;
+    while (i < lines.length) {
+      const line = lines[i] ?? '';
+      const contMatch = CONT_RE.exec(line);
+      if (contMatch) {
+        // Indented continuation: append to the current def. We
+        // join with a space rather than a literal newline so the
+        // inline lexer sees one flowing line — emphasis and other
+        // span markers stitch across the hard wrap.
+        defs[defs.length - 1] = `${defs.at(-1) ?? ''} ${(contMatch[1] ?? '').trim()}`;
+        i += 1;
+        continue;
+      }
+      if (/^:[ \t]+/.test(line)) {
+        defs.push(line.replace(/^:[ \t]+/, ''));
+        i += 1;
+        continue;
+      }
+      break;
     }
     pairs.push({ term: termLine, defs });
   }
