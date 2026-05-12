@@ -1,0 +1,305 @@
+/* Long-page vitrine for markpage. Sober, two-tone, leaning on the
+   brand blue (#09438b) for highlights, neutral grey for prose.
+   Split-layout sections use a 1-1 grid that collapses to a single
+   column under ~900px. */
+
+:root {
+  --brand: #09438b;
+  --brand-light: #e7eef7;
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --border: #d0d7de;
+  --bg: #ffffff;
+  --bg-alt: #f6f8fa;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Roboto', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#showcase {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---- Brand mark --------------------------------------------------- */
+
+.markpage-logo {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.markpage-logo-mark {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  color: var(--brand);
+}
+
+.markpage-logo-page {
+  font-family: 'Roboto', system-ui, sans-serif;
+  color: #000;
+}
+
+/* ---- Hero --------------------------------------------------------- */
+
+.hero {
+  padding: 4rem 0 3rem;
+  text-align: center;
+}
+
+.hero-brand {
+  margin-bottom: 1.5rem;
+}
+
+.hero-logo {
+  font-size: 2.25rem;
+}
+
+.hero-tagline {
+  font-family: 'Roboto Condensed', system-ui, sans-serif;
+  font-size: 2.5rem;
+  font-weight: 500;
+  line-height: 1.15;
+  margin: 0 0 0.75rem;
+  color: var(--brand);
+}
+
+.hero-subtagline {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  max-width: 42rem;
+  margin: 0 auto 2rem;
+}
+
+.hero-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 2rem;
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.hero-bullets li {
+  position: relative;
+  padding-left: 1.4rem;
+}
+
+.hero-bullets li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.hero-cta {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 500;
+  margin-bottom: 3rem;
+}
+
+.hero-cta:hover {
+  background: #062e60;
+  text-decoration: none;
+}
+
+/* Playground iframe — generous, full-width on the desktop layout */
+
+.hero-playground {
+  width: 100%;
+  height: 640px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-alt);
+  box-shadow: var(--shadow);
+  position: relative;
+}
+
+.hero-playground::before {
+  content: 'Loading editor…';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-style: italic;
+  pointer-events: none;
+}
+
+.hero-playground iframe {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+/* ---- Sections ----------------------------------------------------- */
+
+.showcase-section {
+  padding: 3rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.showcase-section:nth-child(even) {
+  background: var(--bg-alt);
+  margin: 0 -1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.showcase-intro {
+  max-width: 50rem;
+  margin: 0 auto 1.5rem;
+  text-align: center;
+}
+
+.showcase-title {
+  font-family: 'Roboto Condensed', system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem;
+  color: var(--brand);
+}
+
+.showcase-description {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.showcase-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .showcase-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Source pane — plain monospace for v1, can grow into syntax
+   highlighting later. */
+.showcase-source {
+  background: #0d1117;
+  color: #e6edf3;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin: 0;
+  overflow: auto;
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  white-space: pre;
+  min-height: 500px;
+  max-height: 600px;
+}
+
+.showcase-source code {
+  font-family: inherit;
+  white-space: pre;
+}
+
+/* Preview pane — the live iframe, sized to give paged.js room to
+   show a full A4-ish page width. Loading placeholder kicks in via
+   ::before until lazy-mount sets the iframe's `src`. */
+.showcase-preview {
+  position: relative;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 500px;
+  max-height: 600px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.showcase-preview::before {
+  content: 'Loading preview…';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-style: italic;
+  pointer-events: none;
+}
+
+.showcase-preview iframe {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+/* ---- Footer ------------------------------------------------------- */
+
+.showcase-footer {
+  padding: 3rem 0 4rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+}
+
+.showcase-footer p {
+  margin: 0.3rem 0;
+}
+
+/* ---- demo.html iframe body (the runner) -------------------------- */
+
+/* When demo.html is loaded inside a showcase iframe, we want the
+   preview-pane to fill the iframe and the paged.js pages to sit
+   naturally at the top. The `.demo-frame-body` class is added by
+   demo.ts so these rules don't leak to the main app. */
+
+body.demo-frame-body {
+  margin: 0;
+  background: #fff;
+}
+
+body.demo-frame-body #preview-pane {
+  margin: 0;
+  padding: 1rem;
+}
+
+/* paged.js renders its `.pagedjs_pages` container with fixed mm
+   dimensions; we don't intervene — the iframe just shows the
+   top-left corner. The visitor scrolls inside the iframe if the
+   snippet spans more than one page. */
