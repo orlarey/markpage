@@ -1,8 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 const dir = fileURLToPath(new URL('.', import.meta.url));
+
+// Single source of truth for the displayed version: `package.json`.
+// Bump with `npm version patch|minor|major` and both the toolbar and
+// the showcase pick it up at next build.
+const pkg = JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8')) as {
+  version: string;
+};
 
 // `base: './'` makes assets resolve relatively, so the build works whether
 // served at the root or under a GitHub Pages subpath like /markpage/.
@@ -12,6 +20,9 @@ const dir = fileURLToPath(new URL('.', import.meta.url));
 //   showcase.html  — the long marketing / vitrine page
 export default defineConfig({
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   build: {
     target: 'es2022',
     sourcemap: true,

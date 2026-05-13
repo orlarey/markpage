@@ -83,11 +83,32 @@ body,
 }
 
 /* Toolbar slot: a little bigger than the surrounding buttons, with a
-   short right gap so it reads as a brand, not as a control. */
+   short right gap so it reads as a brand, not as a control. Now an
+   <a> linking to the showcase — keep the underlined-on-hover off so
+   it still reads as a wordmark, not as prose. */
 #toolbar .markpage-logo-slot {
   font-size: 1.15rem;
-  padding: 0 0.7rem 0 0.2rem;
+  padding: 0 0.2rem 0 0.2rem;
   line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+#toolbar .markpage-logo-slot:hover {
+  text-decoration: none;
+}
+
+#toolbar .toolbar-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+#toolbar .toolbar-version {
+  font-size: 0.75rem;
+  color: var(--text-muted, #57606a);
+  opacity: 0.7;
+  user-select: none;
 }
 
 #toolbar button {

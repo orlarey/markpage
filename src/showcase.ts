@@ -51,6 +51,7 @@ function buildHero(): HTMLElement {
     'div',
     { class: 'hero-brand' },
     makeLogoSpan('hero-logo'),
+    el('span', { class: 'hero-version' }, `v${__APP_VERSION__}`),
   );
 
   const tagline = el('h1', { class: 'hero-tagline' }, HERO.tagline);

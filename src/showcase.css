@@ -169,6 +169,16 @@ a:hover {
   font-size: 3.75rem;
 }
 
+.hero-version {
+  display: inline-block;
+  margin-left: 0.6rem;
+  vertical-align: middle;
+  font-size: 1rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+  user-select: none;
+}
+
 .hero-tagline {
   font-family: 'Roboto Condensed', system-ui, sans-serif;
   font-size: 2rem;

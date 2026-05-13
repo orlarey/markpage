@@ -111,12 +111,35 @@ export function mountToolbar(
   settingsBtn.append(settingsLabel, settingsCaret);
   settingsBtn.addEventListener('click', () => handlers.onSettings());
 
-  const logo = makeLogo(document, 'full');
-  logo.classList.add('markpage-logo-slot');
+  // Logo wraps in an <a> linking to the showcase so the toolbar and
+  // showcase are reciprocal home buttons: showcase has a logo top-
+  // left linking to ./index.html, editor has one linking back to
+  // ./showcase.html.
+  const logoLink = document.createElement('a');
+  logoLink.href = './showcase.html';
+  logoLink.className = 'markpage-logo-slot';
+  logoLink.title = 'Open the showcase';
+  logoLink.setAttribute('aria-label', 'Open the showcase');
+  logoLink.append(makeLogo(document, 'full'));
+
+  // Version stamp — Vite swaps `__APP_VERSION__` for the
+  // package.json version at build time. Muted styling so it reads
+  // as a metadata annotation, not a control.
+  const version = document.createElement('span');
+  version.className = 'toolbar-version';
+  version.textContent = `v${__APP_VERSION__}`;
+
+  // Logo + version are wrapped in a baseline-aligned sub-flex so
+  // their typography sits on the same line (the toolbar's own flex
+  // is `align-items: center`, which puts the small version text
+  // visually higher than the bigger logo).
+  const brandSlot = document.createElement('div');
+  brandSlot.className = 'toolbar-brand';
+  brandSlot.append(logoLink, version);
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(logo, docBtn, importBtn, styleBtn);
+  left.append(brandSlot, docBtn, importBtn, styleBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
