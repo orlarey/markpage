@@ -733,7 +733,9 @@ skip straight to Credits.
 
 To save you from looking up each Unicode symbol in a character
 table, the editor **replaces on the fly** certain ASCII sequences
-with their mathematical equivalent:
+with their mathematical equivalent. Two mechanics coexist:
+
+**Short symbol sequences** are replaced as soon as they're complete:
 
 | Type | Get | Type | Get |
 |---|---|---|---|
@@ -746,8 +748,14 @@ with their mathematical equivalent:
 | `\|-` | ⊢ | `-\|` | ⊣ |
 | `...` | … | | |
 
-For **Greek letters**, type the usual LaTeX command — it's
-immediately replaced by the Unicode character:
+**LaTeX commands** (`\xxx`) wait for a **terminator character**
+(space, punctuation, operator, newline) before firing. Type `\alpha`
+then a space: the space stays, and `\alpha` is replaced by α. This
+rule lets overlapping names (`\in`, `\int`, `\infty`; `\subset`,
+`\subseteq`) coexist without a shorter prefix shadowing a longer
+command.
+
+**Greek letters**:
 
 | Type | Get | Type | Get | Type | Get |
 |---|---|---|---|---|---|
@@ -768,9 +776,34 @@ Uppercase (only those that differ from Latin):
 `\Gamma` Γ, `\Delta` Δ, `\Theta` Θ, `\Lambda` Λ, `\Xi` Ξ, `\Pi` Π,
 `\Sigma` Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω.
 
-> If you want to write `\alpha` *literally* in prose (to document
-> the LaTeX command), surround it with backticks: `` `\alpha` ``.
-> Inside a code block, ligatures are disabled.
+**Set theory & quantifiers**:
+`\in` ∈, `\notin` ∉, `\subset` ⊂, `\supset` ⊃, `\subseteq` ⊆,
+`\supseteq` ⊇, `\cup` ∪, `\cap` ∩, `\emptyset` ∅, `\forall` ∀,
+`\exists` ∃.
+
+**Logic**: `\wedge` ∧, `\vee` ∨, `\neg` ¬.
+
+**Relations**: `\approx` ≈, `\equiv` ≡, `\cong` ≅, `\sim` ∼,
+`\propto` ∝, `\perp` ⊥, `\parallel` ∥.
+
+**Operators**: `\oplus` ⊕, `\otimes` ⊗, `\circ` ∘, `\bullet` •,
+`\cdot` ⋅, `\times` ×, `\div` ÷.
+
+**Calculus**: `\partial` ∂, `\nabla` ∇, `\infty` ∞, `\sum` ∑,
+`\prod` ∏, `\int` ∫, `\oint` ∮.
+
+**Constants**: `\aleph` ℵ, `\hbar` ℏ.
+
+**Ellipses**: `\cdots` ⋯, `\vdots` ⋮, `\ddots` ⋱, `\ldots` …
+
+**Long arrows**: `\mapsto` ↦, `\Leftarrow` ⇐, `\Rightarrow` ⇒,
+`\Leftrightarrow` ⇔.
+
+> To write a command **literally** in prose (for instance to document
+> `\alpha`), double the backslash: `\\alpha` stays as-is in the
+> source — and renders as `\alpha` in Markdown, which interprets
+> `\\` as an escaped backslash. Inside a code block, ligatures are
+> also disabled.
 
 For **"blackboard bold" letters** (set symbols), `|` followed by
 any uppercase letter gives its doubled version:

@@ -763,7 +763,10 @@ compte. Sinon vous pouvez sauter directement aux Crédits.
 
 Pour vous éviter de chercher chaque symbole Unicode dans une table de
 caractères, l'éditeur **remplace au vol** certaines séquences ASCII
-par leur équivalent mathématique :
+par leur équivalent mathématique. Deux mécaniques cohabitent :
+
+Les **séquences courtes de symboles** sont remplacées dès qu'elles
+sont complètes :
 
 | Tapez | Obtenez | Tapez | Obtenez |
 |---|---|---|---|
@@ -776,8 +779,14 @@ par leur équivalent mathématique :
 | `\|-` | ⊢ | `-\|` | ⊣ |
 | `...` | … | | |
 
-Pour les **lettres grecques**, tapez la commande LaTeX habituelle —
-elle est remplacée immédiatement par le caractère Unicode :
+Les **commandes LaTeX** (`\xxx`) attendent un **caractère terminateur**
+(espace, ponctuation, opérateur, retour à la ligne) avant de se
+substituer. Vous tapez `\alpha` puis un espace : l'espace reste, et
+`\alpha` est remplacé par α. Cette règle permet à des noms qui se
+chevauchent (`\in`, `\int`, `\infty` ; `\subset`, `\subseteq`) de
+coexister sans qu'un préfixe ne court-circuite un nom plus long.
+
+**Lettres grecques** :
 
 | Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |
 |---|---|---|---|---|---|
@@ -798,10 +807,36 @@ Majuscules (seulement celles qui diffèrent du latin) :
 `\Gamma` Γ, `\Delta` Δ, `\Theta` Θ, `\Lambda` Λ, `\Xi` Ξ, `\Pi` Π,
 `\Sigma` Σ, `\Upsilon` Υ, `\Phi` Φ, `\Psi` Ψ, `\Omega` Ω.
 
-> Si vous voulez écrire `\alpha` *littéralement* en prose (pour
-> documenter la commande LaTeX), entourez-le de backticks :
-> `` `\alpha` ``. À l'intérieur d'un bloc code, les ligatures ne
-> s'appliquent pas.
+**Théorie des ensembles & quantificateurs** :
+`\in` ∈, `\notin` ∉, `\subset` ⊂, `\supset` ⊃, `\subseteq` ⊆,
+`\supseteq` ⊇, `\cup` ∪, `\cap` ∩, `\emptyset` ∅, `\forall` ∀,
+`\exists` ∃.
+
+**Logique** : `\wedge` ∧, `\vee` ∨, `\neg` ¬.
+
+**Relations** : `\approx` ≈, `\equiv` ≡, `\cong` ≅, `\sim` ∼,
+`\propto` ∝, `\perp` ⊥, `\parallel` ∥.
+
+**Opérateurs** : `\oplus` ⊕, `\otimes` ⊗, `\circ` ∘, `\bullet` •,
+`\cdot` ⋅, `\times` ×, `\div` ÷.
+
+**Analyse** : `\partial` ∂, `\nabla` ∇, `\infty` ∞, `\sum` ∑,
+`\prod` ∏, `\int` ∫, `\oint` ∮.
+
+**Constantes** : `\aleph` ℵ, `\hbar` ℏ.
+
+**Points de suspension** : `\cdots` ⋯, `\vdots` ⋮, `\ddots` ⋱,
+`\ldots` …
+
+**Grandes flèches** : `\mapsto` ↦, `\Leftarrow` ⇐, `\Rightarrow` ⇒,
+`\Leftrightarrow` ⇔.
+
+> Pour écrire une commande **littéralement** dans la prose (par
+> exemple pour documenter `\alpha`), doublez le backslash :
+> `\\alpha` reste tel quel dans la source — et rend comme `\alpha`
+> en Markdown, qui interprète `\\` comme un backslash échappé. À
+> l'intérieur d'un bloc code, les ligatures sont également
+> désactivées.
 
 Pour les **lettres "blackboard bold"** (ensembles), `|` suivi de
 n'importe quelle lettre majuscule donne sa version doublée :
