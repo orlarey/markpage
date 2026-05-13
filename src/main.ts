@@ -79,6 +79,7 @@ import {
   migrateLegacyDocIfNeeded,
   renameDoc,
   resolveCurrentDoc,
+  resolveDocFromUrl,
   saveDocContent,
   setCurrentDocId,
   type DocEntry,
@@ -247,13 +248,23 @@ async function bootstrap(): Promise<void> {
     console.error('Image store migration failed', err);
   }
 
-  // First run: empty index → seed with the bundled help tutorial.
+  // Doc selection cascade at boot:
+  //   1. `?doc=<uuid>` in the URL — lets bookmarks, shared links, and
+  //      a second tab address a specific doc independently of the
+  //      persisted "current" pointer.
+  //   2. `markpage:current-doc` in localStorage — the last doc the
+  //      user worked on in this browser.
+  //   3. Empty index → seed with the bundled help tutorial.
   // `currentDoc` is mutable: switching, creating, or deleting a doc
   // points it at the new entry, and the toolbar / autosave read its
   // current value via the closure.
   let currentDoc: DocEntry =
+    resolveDocFromUrl() ??
     resolveCurrentDoc() ??
     (await createDoc(t('default.help-doc-name'), helpMdForLocale(uiLocale)));
+  // setCurrentDocId now also mirrors the active doc into the URL, so
+  // a reload (no param) and a parallel tab (with this param) both
+  // converge on the same source of truth.
   setCurrentDocId(currentDoc.uuid);
   const initialDoc = loadDocContent(currentDoc) ?? '';
 

@@ -84,12 +84,41 @@ async function hashContent(content: string): Promise<string> {
 
 // ---- current doc ------------------------------------------------------
 
+// URL query-param the editor uses to pin a specific document. When
+// present at bootstrap, takes precedence over the persisted "current"
+// key — so a bookmark or a second tab can each open their own doc
+// independently of the last-used global pointer.
+const URL_PARAM = 'doc';
+
 export function getCurrentDocId(): string | null {
   return localStorage.getItem(KEY_CURRENT);
 }
 
+// Records the active doc in both localStorage (so a reopen without a
+// URL param lands on the same doc) AND the address bar (so reloads,
+// shares, and parallel tabs are each their own world).
 export function setCurrentDocId(uuid: string): void {
   localStorage.setItem(KEY_CURRENT, uuid);
+  if (
+    typeof globalThis.history !== 'undefined' &&
+    typeof globalThis.location !== 'undefined'
+  ) {
+    const url = new URL(globalThis.location.href);
+    if (url.searchParams.get(URL_PARAM) !== uuid) {
+      url.searchParams.set(URL_PARAM, uuid);
+      globalThis.history.replaceState({}, '', url);
+    }
+  }
+}
+
+// If the URL carries `?doc=<uuid>` and that uuid matches an existing
+// entry, return it. Otherwise null — the caller falls back to the
+// usual "current doc" / freshest-entry cascade.
+export function resolveDocFromUrl(): DocEntry | null {
+  if (typeof globalThis.location === 'undefined') return null;
+  const id = new URL(globalThis.location.href).searchParams.get(URL_PARAM);
+  if (!id) return null;
+  return readIndex().find((e) => e.uuid === id) ?? null;
 }
 
 // Resolves the doc the app should show on this run. Falls back to the
