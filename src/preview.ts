@@ -294,6 +294,9 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
     #preview-pane p { margin: ${settings.paragraphSpacing}em 0; }
     #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
+    /* Inline code inside a heading: keep the mono font but track the
+       heading's own font-size instead of the body-code one. */
+    #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
     #preview-pane blockquote {
       font-size: ${s.quote.fontSize}pt;
       color: ${s.quote.color};
