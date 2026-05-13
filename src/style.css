@@ -38,12 +38,7 @@ body,
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
-  /* Banner extracted from a Cauchy manuscript page (rotated, cropped) used
-     as a textured background. A near-white overlay keeps the buttons
-     legible without losing the warm tone of the paper. */
-  background:
-    linear-gradient(rgba(250, 247, 240, 0.65), rgba(250, 247, 240, 0.65)),
-    url('./assets/cauchy.png') center / cover;
+  background: #e7eef7;
 }
 
 #toolbar .toolbar-left,
@@ -97,7 +92,7 @@ body,
 
 #toolbar button {
   padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(28, 18, 117, 0.352);
   background: var(--bg);
   border-radius: 6px;
   cursor: pointer;
@@ -114,7 +109,7 @@ body,
   /* Square corners + inset shadow distinguish the input from the buttons,
      which are pill-rounded with a flat fill. */
   border-radius: 0;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
   background: var(--bg);
   font: inherit;
 }
