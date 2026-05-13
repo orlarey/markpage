@@ -68,7 +68,7 @@ const FR = {
   'settings.section.body': 'Corps',
   'settings.section.page-number': 'Numéro de page',
   'settings.section.mermaid': 'Diagrammes Mermaid',
-  'settings.section.ui-language': 'Langue de l’interface',
+  'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Langue du document',
 
   // ---- help window --------------------------------------------------
@@ -161,6 +161,11 @@ const FR = {
   'settings.field.mermaid-width': 'Largeur max. (% du texte)',
   'settings.field.mermaid-height': 'Hauteur max. (% du texte)',
   'settings.field.ui-language': 'Langue',
+  'settings.field.editor-font': 'Police de l’éditeur',
+  'settings.field.editor-text-color': 'Couleur du texte',
+  'editor-font.sans': 'Sans-serif (Roboto)',
+  'editor-font.mono': 'Monospace (Roboto Mono)',
+  'editor-font.serif': 'Serif (Georgia)',
   'settings.metadata.show': 'Afficher',
   'settings.metadata.bold': 'Gras',
   'settings.style-row.weight-title': 'Graisse',
@@ -240,7 +245,7 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.section.body': 'Body',
   'settings.section.page-number': 'Page number',
   'settings.section.mermaid': 'Mermaid diagrams',
-  'settings.section.ui-language': 'Interface language',
+  'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Document language',
 
   // ---- help window --------------------------------------------------
@@ -333,6 +338,11 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.field.mermaid-width': 'Max width (% of text)',
   'settings.field.mermaid-height': 'Max height (% of text)',
   'settings.field.ui-language': 'Language',
+  'settings.field.editor-font': 'Editor font',
+  'settings.field.editor-text-color': 'Text colour',
+  'editor-font.sans': 'Sans-serif (Roboto)',
+  'editor-font.mono': 'Monospace (Roboto Mono)',
+  'editor-font.serif': 'Serif (Georgia)',
   'settings.metadata.show': 'Show',
   'settings.metadata.bold': 'Bold',
   'settings.style-row.weight-title': 'Weight',

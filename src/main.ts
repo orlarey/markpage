@@ -8,6 +8,8 @@ import '@fontsource/roboto-condensed/500-italic.css';
 // Roboto Mono powers the inline `code` and code blocks in the HTML preview,
 // matching the monospace font we register in pdfmake.
 import '@fontsource/roboto-mono/400.css';
+import '@fontsource/roboto-mono/500.css';
+import '@fontsource/roboto-mono/400-italic.css';
 // Plain Roboto for the brand mark (the `page` half of "markpage").
 // Bundled rather than lazy-loaded so the logo paints correctly on
 // first frame, before the Google Fonts catalog has had a chance to
@@ -23,6 +25,8 @@ import {
   migrateIDBBranding,
   migrateLocalStorageBranding,
 } from './branding-migration';
+import { initEditorTextColor } from './editor-color';
+import { initEditorFont } from './editor-font';
 import { initLocale, onLanguageChange } from './i18n/locale';
 import { t } from './i18n/strings';
 import { registerFallbackFonts } from './fonts';
@@ -170,6 +174,13 @@ async function bootstrap(): Promise<void> {
   // construction time. First-launch detection via navigator.language;
   // subsequent runs read the value the user pinned via Réglages.
   const uiLocale = initLocale();
+
+  // Apply the editor-pane font + colour preferences before the
+  // editor mounts — each writes a CSS custom property on :root which
+  // #editor-pane consumes. Sane defaults; the user can switch from
+  // Réglages.
+  initEditorFont();
+  initEditorTextColor();
 
   // Register the Noto fallback fonts (full TTFs, not subsetted) so the HTML
   // preview's font cascade has the same coverage as the PDF. Fire and

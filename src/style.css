@@ -198,12 +198,20 @@ body,
   height: 100%;
 }
 
-/* Editor content uses the same Roboto stack as the preview, since the input
-   is prose rather than code. */
+/* Editor content uses the same Roboto stack as the preview by
+   default, but the user can switch to a monospace or serif face via
+   Réglages — the choice writes `--editor-font-family` on :root, so
+   we just consume it here with a fallback to `--font-sans` for
+   first-paint before initEditorFont() has run. The text colour is
+   the same story (cf. editor-color.ts). */
 #editor-pane .cm-content,
 #editor-pane .cm-gutters {
-  font-family: var(--font-sans);
+  font-family: var(--editor-font-family, var(--font-sans));
   font-size: 14px;
+}
+
+#editor-pane .cm-content {
+  color: var(--editor-text-color, var(--text));
 }
 
 #editor-pane .cm-gutters {

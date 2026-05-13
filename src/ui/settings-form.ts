@@ -22,6 +22,15 @@ import {
   registerCustomFonts,
 } from '../font-loader';
 import { displayProfileName, type ProfileEntry } from '../settings-profiles';
+import {
+  getEditorTextColor,
+  setEditorTextColor,
+} from '../editor-color';
+import {
+  getEditorFont,
+  setEditorFont,
+  type EditorFont,
+} from '../editor-font';
 import { getLanguage, setLanguage, type Language } from '../i18n/locale';
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
@@ -148,6 +157,8 @@ export function buildSettingsForm(
       // profile. Changing it reloads the page (cf. setLanguage).
       section(t('settings.section.ui-language'), [
         uiLanguageField(),
+        editorFontField(),
+        editorTextColorField(),
       ]),
       section(t('settings.section.author-date'), [
         metadataField(t('settings.field.author'), current.author, (v) => {
@@ -649,6 +660,33 @@ export function buildSettingsForm(
         refresh();
       },
       (lang) => (lang === 'fr' ? 'Français' : 'English'),
+    );
+  }
+
+  // Editor-font selector. Same shape as the UI-language picker: the
+  // value lives in localStorage (not in PdfSettings) and a CSS
+  // custom property is rewritten on :root, so the change is live —
+  // no editor reload needed.
+  function editorFontField(): HTMLElement {
+    return selectField<EditorFont>(
+      t('settings.field.editor-font'),
+      ['sans', 'mono', 'serif'],
+      getEditorFont(),
+      (font) => {
+        setEditorFont(font);
+      },
+      (font) => t(`editor-font.${font}`),
+    );
+  }
+
+  // Editor text-colour picker. Companion to the editor-font field —
+  // both are UI prefs persisted in localStorage and applied via CSS
+  // custom property, no editor reload needed.
+  function editorTextColorField(): HTMLElement {
+    return colorField(
+      t('settings.field.editor-text-color'),
+      getEditorTextColor(),
+      (v) => setEditorTextColor(v),
     );
   }
 
