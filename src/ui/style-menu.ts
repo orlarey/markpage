@@ -2,6 +2,7 @@ import type { EditorView } from '@codemirror/view';
 import {
   getSelectionState,
   insertLink,
+  reformatTables,
   renumberHeadings,
   setHeading,
   toggleBlockquote,
@@ -122,6 +123,7 @@ export function openStyleMenu(
     item(t('style-menu.image'), () => pickAndInsertImage(view)),
     sep(),
     item(t('style-menu.numbering'), () => renumberHeadings(view)),
+    item(t('style-menu.format-tables'), () => reformatTables(view)),
   );
 
   document.body.appendChild(menu);

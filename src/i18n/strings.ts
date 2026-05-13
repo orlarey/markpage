@@ -109,6 +109,7 @@ const FR = {
   'style-menu.link': 'Insérer un lien…',
   'style-menu.image': 'Insérer une image…',
   'style-menu.numbering': 'Numéroter les sections',
+  'style-menu.format-tables': 'Reformater les tableaux',
 
   // ---- help modal --------------------------------------------------
   'help.aria-label': 'Aide',
@@ -280,6 +281,7 @@ const EN: Record<keyof typeof FR, string> = {
   'style-menu.link': 'Insert link…',
   'style-menu.image': 'Insert image…',
   'style-menu.numbering': 'Number sections',
+  'style-menu.format-tables': 'Reformat tables',
 
   // ---- help modal --------------------------------------------------
   'help.aria-label': 'Help',

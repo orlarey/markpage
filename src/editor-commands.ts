@@ -6,6 +6,7 @@ import {
 import type { EditorView } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import type { SyntaxNode } from '@lezer/common';
+import { formatMarkdownTables } from './format-tables';
 import { renumberByExample } from './numbering';
 
 const HEADING_PREFIX_RE = /^(#{1,6})\s+/;
@@ -146,6 +147,23 @@ export function insertLink(view: EditorView): void {
 export function renumberHeadings(view: EditorView): void {
   const before = view.state.doc.toString();
   const after = renumberByExample(before);
+  if (after === before) return;
+  const head = view.state.selection.main.head;
+  view.dispatch({
+    changes: { from: 0, to: before.length, insert: after },
+    selection: { anchor: Math.min(head, after.length) },
+  });
+  view.focus();
+}
+
+// Reformats every GFM table in the document: cells trimmed and
+// padded to a uniform column width, separator dashes normalised,
+// alignment markers preserved. Idempotent. Non-table content is
+// untouched. Single transaction so undo restores the original
+// document in one step.
+export function reformatTables(view: EditorView): void {
+  const before = view.state.doc.toString();
+  const after = formatMarkdownTables(before);
   if (after === before) return;
   const head = view.state.selection.main.head;
   view.dispatch({
