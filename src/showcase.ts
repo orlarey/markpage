@@ -80,6 +80,20 @@ function highlightedSource(entry: ShowcaseEntry): HTMLElement {
   return pre;
 }
 
+function buildPreview(entry: ShowcaseEntry, style?: string): HTMLElement {
+  const src = style
+    ? `./demo.html?id=${entry.id}&style=${style}`
+    : `./demo.html?id=${entry.id}`;
+  const wrap = el('div', {
+    class: 'showcase-preview',
+    'data-demo-src': src,
+  });
+  wrap.appendChild(
+    el('iframe', { title: `${entry.title} — live render` }),
+  );
+  return wrap;
+}
+
 function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
   const section = el('section', {
     class: 'showcase-section',
@@ -94,19 +108,35 @@ function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
     el('p', { class: 'showcase-description' }, entry.description),
   );
 
-  const previewWrap = el('div', {
-    class: 'showcase-preview',
-    'data-demo-src': `./demo.html?id=${entry.id}`,
-  });
-  previewWrap.appendChild(
-    el('iframe', { title: `${entry.title} — live render` }),
-  );
+  // Compare layout: two preview iframes side by side, no source pane.
+  // The same `source` is rendered under each preset, so the visitor
+  // sees the styling change at a glance.
+  if (entry.compareStyles) {
+    const [a, b] = entry.compareStyles;
+    const labels = entry.compareLabels;
+    const buildCol = (style: string, label?: string): HTMLElement => {
+      const col = el('div', { class: 'showcase-compare-col' });
+      col.append(buildPreview(entry, style));
+      if (label) {
+        col.append(el('div', { class: 'showcase-compare-label' }, label));
+      }
+      return col;
+    };
+    const compare = el(
+      'div',
+      { class: 'showcase-compare' },
+      buildCol(a, labels?.[0]),
+      buildCol(b, labels?.[1]),
+    );
+    section.append(intro, compare);
+    return section;
+  }
 
   const split = el(
     'div',
     { class: 'showcase-split' },
     highlightedSource(entry),
-    previewWrap,
+    buildPreview(entry),
   );
 
   section.append(intro, split);

@@ -1,7 +1,10 @@
 // Minimal entry point for the showcase iframe.
 // URL params:
-//   ?id=<snippet-id>  (defaults to "playground", which is an empty doc)
-//   ?lang=fr|en       (optional; overrides the visitor's UI locale)
+//   ?id=<snippet-id>     (defaults to "playground", which is an empty doc)
+//   ?lang=fr|en          (optional; overrides the visitor's UI locale)
+//   ?style=<preset-id>   (optional; picks a curated PdfSettings preset
+//                         from style-presets.ts — used by the "compare
+//                         stylings" showcase segment)
 //
 // The runtime is intentionally tiny: no toolbar, no editor, no
 // storage. We just paginate the snippet through the same paged.js
@@ -42,6 +45,7 @@ import {
   PLAYGROUND_ENTRY,
 } from './showcase-data';
 import type { ShowcaseEntry } from './showcase-types';
+import { applyStylePreset } from './style-presets';
 
 async function run(): Promise<void> {
   const params = new URLSearchParams(globalThis.location.search);
@@ -70,13 +74,16 @@ async function run(): Promise<void> {
 
   // The demo runs on default typography but blanks the metadata
   // (author / organisation / date) — the snippet is a feature
-  // sample, not someone's actual document.
-  const settings: PdfSettings = {
+  // sample, not someone's actual document. If `?style=<id>` is
+  // present, the preset overrides apply on top of the defaults so
+  // the same source can be compared under several stylings.
+  const baseSettings: PdfSettings = {
     ...DEFAULT_SETTINGS,
     author: { ...DEFAULT_SETTINGS.author, show: false },
     organization: { ...DEFAULT_SETTINGS.organization, show: false },
     date: { mode: 'none', custom: '' },
   };
+  const settings = applyStylePreset(baseSettings, params.get('style'));
 
   applyPreviewStyles(settings);
 

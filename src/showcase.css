@@ -252,6 +252,33 @@ a:hover {
   }
 }
 
+/* Compare layout: two preview iframes side by side, no source pane.
+   Each column wraps its iframe plus an optional caption underneath. */
+.showcase-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.showcase-compare-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.showcase-compare-label {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .showcase-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Source pane — plain monospace for v1, can grow into syntax
    highlighting later. `pre-wrap` + `overflow-wrap: anywhere` wraps
    long Markdown / LaTeX lines so the pane never grows a horizontal

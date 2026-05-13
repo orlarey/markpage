@@ -19,4 +19,10 @@ export interface ShowcaseEntry {
   // / `chart` / `inference` / `csv` / `math` come through directly;
   // anything else falls back to plain markdown.
   sourceLang?: string;
+  // When set, the section renders TWO preview iframes side by side
+  // (no source pane) — the same `source` rendered with each preset
+  // from `./style-presets.ts`. Used to demonstrate live restyling.
+  compareStyles?: [string, string];
+  // Captions shown below each iframe in the compare layout.
+  compareLabels?: [string, string];
 }
