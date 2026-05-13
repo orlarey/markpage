@@ -878,12 +878,19 @@ body,
   font-size: 0.9em;
 }
 
-/* ---- Data tables (```csv / ```tsv) ----------------------------------- */
-/* Standalone class so we don't fight the user's pipe-tables, which use
-   marked's default <table> with no class. */
+/* ---- Tables ---------------------------------------------------------- */
+/* Center every table horizontally on the page — typographic
+   convention for both pipe-tables (marked's default <table>) and
+   the csv/tsv `.data-table`. */
+:where(#preview-pane, #markpage-print-target, .help-body) table {
+  margin: 0.8em auto;
+}
+
+/* Data tables (```csv / ```tsv) get the extra styling: borders,
+   alternating rows, header background. Pipe-tables keep marked's
+   plain rendering — only the centering rule above touches them. */
 :where(#preview-pane, #markpage-print-target, .help-body) .data-table {
   border-collapse: collapse;
-  margin: 0.8em 0;
   font-size: 0.95em;
   border: 1px solid var(--border);
 }
