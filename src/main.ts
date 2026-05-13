@@ -304,7 +304,11 @@ async function bootstrap(): Promise<void> {
     void (async () => {
       try {
         await saveDocContent(currentDoc.uuid, source);
-        await runGC();
+        // No image-GC here: a cut-paste cycle would otherwise drop
+        // the blob between the cut (autosave with no ref) and the
+        // paste, and the same race fires on cut → Ctrl-Z. Session
+        // orphans accumulate in IDB until the next boot, where
+        // runGC() (called at the start of bootstrap) reaps them.
       } catch (err) {
         console.error('Autosave failed', err);
       }
