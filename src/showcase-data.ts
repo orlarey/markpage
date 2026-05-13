@@ -107,6 +107,35 @@ Inline maths work too: the speed of light $c = 1 / \sqrt{\mu_0 \varepsilon_0}$.
 `,
   },
   {
+    id: 'ligatures',
+    title: 'Math without the character picker',
+    description:
+      'Short ASCII sequences (\\alpha, \\in, ->, |N) are swapped for their Unicode equivalent as you type. The math characters end up in your source — no Unicode picker, no escape codes, copy-paste anywhere and the glyphs travel along.',
+    sourceLang: 'markdown',
+    source: `## You type ASCII…
+
+\`\`\`
+<=  >=  !=  ->  <-
+\\alpha \\beta \\gamma  \\pi \\sigma \\omega
+\\in \\notin \\subseteq \\cup \\cap \\emptyset
+\\forall \\exists \\infty \\nabla \\partial
+|N |R |Z |Q
+\`\`\`
+
+## …the source becomes Unicode
+
+≤  ≥  ≠  →  ←
+α β γ  π σ ω
+∈ ∉ ⊆ ∪ ∩ ∅
+∀ ∃ ∞ ∇ ∂
+ℕ ℝ ℤ ℚ
+
+Two-character tokens (\`<=\`, \`->\`, …) fire instantly; LaTeX commands
+(\`\\alpha\`, \`\\in\`, …) wait for a space or other terminator. Type
+\`\\\\alpha\` (double backslash) to keep the source literal.
+`,
+  },
+  {
     id: 'inference',
     title: 'Inference rules for logic and semantics',
     description:
