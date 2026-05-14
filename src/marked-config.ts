@@ -7,6 +7,7 @@
 
 import { marked, type Tokens } from 'marked';
 import { renderChart } from './chart';
+import { renderEbnfBlock } from './ebnf';
 
 interface MathBlockToken {
   type: 'mathBlock';
@@ -173,6 +174,11 @@ marked.use({
       if (lang === 'chart' || lang.startsWith('chart ')) {
         const m = /^chart\s*(.*)$/.exec(lang);
         return injectSource(renderChart(token.text, m?.[1] ?? ''), raw);
+      }
+      // ```ebnf — W3C EBNF parsed into a railroad / syntax diagram
+      // per production. Pure SVG output, embedded as-is.
+      if (lang === 'ebnf') {
+        return injectSource(renderEbnfBlock(token.text), raw);
       }
       return false;
     },

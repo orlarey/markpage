@@ -77,6 +77,41 @@ Unicode (Γ, ⊢, →) are interchangeable inside the block.
 
 ---
 
+## EBNF railroad diagrams
+
+Use the `ebnf` fence for grammars. Each production renders as a
+separate railroad / syntax diagram, with the non-terminal name
+right-aligned next to the diagram and an `=` sign in between (every
+`=` lines up vertically — LaTeX align-on-equals convention).
+
+````
+```ebnf
+expression = term, { ("+" | "-"), term };
+term = factor, { ("*" | "/"), factor };
+factor = number | "(", expression, ")";
+number = digit, { digit };
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+```
+````
+
+Dialect: **W3C EBNF** (the one ebnf2railroad understands). Key
+syntax:
+
+- `=` defines a production, terminated by `;`.
+- `,` is concatenation (sequence).
+- `|` is alternation.
+- `{ … }` is zero-or-more repetition.
+- `[ … ]` is optional (zero-or-one).
+- `( … )` groups for precedence.
+- `"…"` or `'…'` for terminal literals.
+- `(* comment *)` for comments.
+
+A parse error in the source is caught and rendered as a visible
+`<pre class="ebnf-error">…</pre>` so a typo doesn't blow up the
+whole document.
+
+---
+
 ## Mermaid diagrams
 
 Flowcharts, sequence, class, state, gantt, ER, mindmap, etc.

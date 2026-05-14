@@ -64,11 +64,20 @@ Sets, relations, predicates and rules are expressed in **structured
 text**, without resorting to an executable formal language.
 
 Every block uses an explicit fence; no block should remain without a
-language indication. Common fences:
+language indication. Two categories:
 
-- ` ```math ` — displayed equations.
-- ` ```inference (Name) ` — inference rules (see *Notation* below).
-- ` ```ebnf `, ` ```json `, ` ```mermaid `, etc. — real languages.
+- **Custom rendering** — markpage understands the info string and
+  produces something other than a plain code block:
+  - ` ```math ` — displayed equations.
+  - ` ```inference (Name) ` — inference rules (see *Notation* below).
+  - ` ```ebnf ` — W3C EBNF parsed into a railroad / syntax diagram
+    per production. Preferred for grammars rather than raw EBNF in
+    a code block.
+  - ` ```mermaid `, ` ```chart `, ` ```csv `, ` ```tsv ` — see
+    AGENTS.md.
+- **Label-only** — info string indicates the language for the
+  reader; rendering is a generic monospace code block (` ```json `,
+  ` ```rust `, ` ```python `, etc.).
 
 ## Characterisation of the approach
 

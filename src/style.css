@@ -1500,6 +1500,107 @@ body,
   font: inherit;
 }
 
+/* ---- EBNF railroad diagrams (```ebnf) --------------------------- */
+
+/* `renderEbnfBlock` in src/ebnf.ts wraps the SVGs produced by
+   railroad-diagrams. We override the library's loud defaults
+   (green fills, gray-sand background, 3 px black strokes) for
+   something quieter that fits the rest of the preview.
+
+   Layout: a 2-column grid driven by `<dl>`. Column 1 holds the
+   non-terminal name right-aligned, with `=` appended via ::after
+   so every `=` sign lines up vertically (LaTeX align-on-equals
+   convention). Column 2 holds the SVG, left-aligned. */
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-block {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: start;
+  column-gap: 0.5em;
+  row-gap: 0.6em;
+  /* `fit-content` makes the dl shrink-wrap around its content; the
+     `auto` left/right margins then centre the block on the page
+     (same convention as tables). */
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.8em auto;
+  /* Kill any UA default padding on <dl>; otherwise the first grid
+     row "consumes" the padding visually and ends up misaligned
+     relative to the rest. */
+  padding: 0;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-block dt,
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-block dd {
+  margin: 0;
+  min-height: 0;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-block dt {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.95em;
+  color: var(--text, #1f2328);
+  text-align: right;
+  white-space: nowrap;
+  /* The SVG's main horizontal line sits at y ≈ 31 px from the top
+     of the diagram (10 px entry "hat" + 21 px half-arc above the
+     connector). Shift the name down so its baseline lands on that
+     line — LaTeX-style align-on-equals. */
+  padding-top: 1.55em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-block dt::after {
+  content: ' =';
+  margin-left: 0.2em;
+  color: var(--text-muted, #57606a);
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-block dd {
+  margin: 0;
+  text-align: left;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body)
+  svg.railroad-diagram {
+  background: transparent;
+  max-width: 100%;
+  height: auto;
+  /* Block-level so the SVG doesn't get an inline-baseline gap below
+     it that would push the row height beyond the diagram's actual
+     pixels — and shift the alignment computation for the next row. */
+  display: block;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body)
+  svg.railroad-diagram path {
+  stroke-width: 1.5;
+  stroke: var(--text, #1f2328);
+  fill: none;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body)
+  svg.railroad-diagram text {
+  font: 12px 'Roboto Mono', ui-monospace, monospace;
+  text-anchor: middle;
+  fill: var(--text, #1f2328);
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body)
+  svg.railroad-diagram rect {
+  stroke-width: 1.5;
+  stroke: var(--text, #1f2328);
+  fill: var(--bg-alt, #f6f8fa);
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .ebnf-error {
+  background: #ffebe9;
+  color: #cf222e;
+  border: 1px solid #cf222e;
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
 /* ---- demo iframe body (showcase) -------------------------------- */
 
 /* When demo.html is loaded inside a showcase iframe we want the
