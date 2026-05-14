@@ -271,6 +271,16 @@ const BS_TAIL_RE = /\\([a-zA-Z]+)$/;
 // backslash) tells the substitution to stand down.
 const BS_PASTE_RE = /(?<!\\)\\([a-zA-Z]+)(?=[^a-zA-Z]|$)/g;
 
+// Same-first-char guard: don't fire a 2-char tail key (`->`, `<=`,
+// `[[`, …) when the character immediately before the match is the
+// same as the key's first char. Avoids the surprise of `-->`,
+// `<<=`, `==>`, `[[[`, etc. silently rewriting to `-→`, `<≤`,
+// `=⇒`, `[⟦` — common in Mermaid, comparison chains, ASCII art,
+// and matrix bracket runs.
+function guardedByRunOn(prevChar: string, key: string): boolean {
+  return prevChar !== '' && prevChar === key[0];
+}
+
 // Rewrite a chunk of pasted text. Two passes:
 //   1. `\xxx<non-letter>` → glyph, applied via a single regex pass.
 //   2. Tail-match ligatures via longest-first scan on the result.
@@ -282,11 +292,12 @@ function applyLigaturesToString(text: string): string {
   let i = 0;
   outer: while (i < afterBs.length) {
     for (const key of TAIL_KEYS) {
-      if (afterBs.startsWith(key, i)) {
-        out += TAIL_LIGATURES.get(key) ?? key;
-        i += key.length;
-        continue outer;
-      }
+      if (!afterBs.startsWith(key, i)) continue;
+      const prev = i > 0 ? (afterBs[i - 1] ?? '') : '';
+      if (guardedByRunOn(prev, key)) break;
+      out += TAIL_LIGATURES.get(key) ?? key;
+      i += key.length;
+      continue outer;
     }
     out += afterBs[i];
     i += 1;
@@ -348,6 +359,12 @@ function handleTypingLigature(update: {
     if (!tail.endsWith(key)) continue;
     const matchStart = head - key.length;
     if (inCodeContext(update.state, matchStart)) return;
+    // Same-first-char guard: keeps `-->`, `<<=`, `==>` etc. intact.
+    const prev =
+      matchStart > 0
+        ? update.state.doc.sliceString(matchStart - 1, matchStart)
+        : '';
+    if (guardedByRunOn(prev, key)) return;
     const value = TAIL_LIGATURES.get(key);
     if (value === undefined) return;
     queueMicrotask(() => {
