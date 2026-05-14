@@ -176,6 +176,22 @@ room. The rule label appears to the right of the bar.
 `,
   },
   {
+    id: 'ebnf',
+    title: 'EBNF grammars as railroad diagrams',
+    description:
+      'A W3C-style EBNF source in a ```ebnf fenced block becomes one railroad diagram per production. Non-terminal names sit on the left with the `=` signs aligned vertically — LaTeX-style align-on-equals — and the diagrams flow right.',
+    sourceLang: 'markdown',
+    source: `## Arithmetic expressions
+
+\`\`\`ebnf
+expression = term, { ("+" | "-"), term };
+term = factor, { ("*" | "/"), factor };
+factor = number | "(", expression, ")";
+number = digit, { digit };
+\`\`\`
+`,
+  },
+  {
     id: 'mermaid',
     title: 'Mermaid diagrams, SVG-crisp',
     description:
