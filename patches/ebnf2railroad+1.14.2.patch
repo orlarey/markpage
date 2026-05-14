@@ -1,0 +1,27 @@
+diff --git a/node_modules/ebnf2railroad/src/ebnf-parser.js b/node_modules/ebnf2railroad/src/ebnf-parser.js
+index b5ff902..df67f86 100644
+--- a/node_modules/ebnf2railroad/src/ebnf-parser.js
++++ b/node_modules/ebnf2railroad/src/ebnf-parser.js
+@@ -694,15 +694,10 @@ if (typeof require !== 'undefined' && typeof exports !== 'undefined') {
+ exports.parser = ebnfParser;
+ exports.Parser = ebnfParser.Parser;
+ exports.parse = function () { return ebnfParser.parse.apply(ebnfParser, arguments); };
+-exports.main = function commonjsMain (args) {
+-    if (!args[1]) {
+-        console.log('Usage: '+args[0]+' FILE');
+-        process.exit(1);
+-    }
+-    var source = require('fs').readFileSync(require('path').normalize(args[1]), "utf8");
+-    return exports.parser.parse(source);
+-};
+-if (typeof module !== 'undefined' && require.main === module) {
+-  exports.main(process.argv.slice(1));
+-}
++// CLI entry point removed at install time (see patches/) — the
++// original code uses `require('fs')` / `require('path')` / `require.main`,
++// which Rollup leaves untransformed in the production bundle and
++// then `ReferenceError: require is not defined` at runtime in the
++// browser. We only need the parser exports above.
++exports.main = function commonjsMain () {};
+ }
+\ No newline at end of file
