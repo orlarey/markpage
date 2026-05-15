@@ -485,13 +485,44 @@ function escapeHtml(s: string): string {
 // arriving here already contains the Unicode operators (`⊢`, `→`,
 // `⟦`, …). MathJax 3 with the textmacros / unicode packages renders
 // these directly in math mode.
+// Typography heuristic following the Gunter / Scott convention for
+// semantics papers (e.g. Gunter, *Semantics of Programming Languages*,
+// MIT Press, 1992):
+//
+//   Rule A — a single capital letter followed immediately by `⟦` or
+//   `[[` is a **semantic function** : `E⟦e⟧` → `\mathcal{E}⟦e⟧`,
+//   rendered in calligraphic.
+//
+//   Rule B — a letter (case-insensitive) followed by digits is a
+//   variable with a numeric subscript: `e1` / `T2` → `e_{1}` /
+//   `T_{2}`, rendered with proper subscript instead of as adjacent
+//   letter+digit.
+//
+//   Rule C — any other multi-letter identifier (not already inside a
+//   LaTeX macro context — i.e. not preceded by `\` or `{`) is a
+//   **constructor or function name** and is wrapped in `\mathrm{}` so
+//   MathJax renders it upright (`Const`, `App`, `Lambda`, `apply`,
+//   `eval`). LaTeX commands (`\Gamma`, `\vdash`, `\to`, `\quad`, …)
+//   are skipped because the preceding `\` triggers the lookbehind.
+//
+// Single capital letters (`A`, `B`, `T`, `Γ` via `\Gamma`, …) remain
+// italic — the standard math convention for type / context / term
+// variables in typing-rule notation.
+function applyInferenceTypography(src: string): string {
+  let s = src;
+  s = s.replace(/(?<![\\{])\b([A-Z])(?=⟦|\[\[)/g, '\\mathcal{$1}');
+  s = s.replace(/(?<![\\{])\b([A-Za-z])([0-9]+)\b/g, '$1_{$2}');
+  s = s.replace(/(?<![\\{])\b([A-Za-z]{2,})\b/g, '\\mathrm{$1}');
+  return s;
+}
+
 function renderInference(src: string, label: string): string {
   const lines = src.replaceAll(/\r\n?/g, '\n').split('\n');
   const barIndex = lines.findIndex((l) => /^\s*-{3,}\s*$/.test(l));
   if (barIndex === -1) {
     // No bar: treat the whole thing as a fallback display math block
     // so the user sees *something* instead of nothing.
-    const fallback = escapeHtml(src.trim());
+    const fallback = escapeHtml(applyInferenceTypography(src.trim()));
     return `<div class="math-block" data-math="${fallback}"></div>\n`;
   }
   const premiseLines = lines
@@ -503,10 +534,12 @@ function renderInference(src: string, label: string): string {
     .map((l) => l.trim())
     .filter((l) => l !== '');
   const QUAD = String.raw` \quad `;
-  const premises = premiseLines
-    .flatMap((l) => l.split(';').map((s) => s.trim()).filter((s) => s !== ''))
-    .join(QUAD);
-  const conclusion = conclusionLines.join(QUAD);
+  const premises = applyInferenceTypography(
+    premiseLines
+      .flatMap((l) => l.split(';').map((s) => s.trim()).filter((s) => s !== ''))
+      .join(QUAD),
+  );
+  const conclusion = applyInferenceTypography(conclusionLines.join(QUAD));
   let latex = String.raw`\dfrac{${premises}}{${conclusion}}`;
   if (label !== '') {
     // Strip surrounding parens/brackets if the user wrote them — the

@@ -1,18 +1,22 @@
 <h1>Code blocks</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
 <p>Python (in the listings whitelist — <code>language=Python</code> should be set):</p>
-<pre><code class="language-python">def greet(name):
-    return f"Hello, {name}!"
-</code></pre>
-<p>C++ (aliased — should resolve to <code>language=C++</code>):</p>
-<pre><code class="language-cpp">int main() { return 0; }
-</code></pre>
-<p>Unknown fence language (must not emit <code>language=</code> — keeps the doc compilable):</p>
+<pre data-source="```python
+def greet(name):
+    return f&quot;Hello, {name}!&quot;
+```" class="hljs"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f"Hello, <span class="hljs-subst">{name}</span>!"</span></code></pre><p>C++ (aliased — should resolve to <code>language=C++</code>):</p>
+<pre data-source="```cpp
+int main() { return 0; }
+```" class="hljs"><code class="hljs language-cpp"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{ <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; }</code></pre><p>Unknown fence language (must not emit <code>language=</code> — keeps the doc compilable):</p>
 <pre><code class="language-weirdlang">some weird syntax %% &amp;&amp; @@
 </code></pre>
 <p>No language specified:</p>
 <pre><code>plain code block
 </code></pre>
 <p>Code with UTF-8 (xelatex handles it natively):</p>
-<pre><code class="language-python">nom = "café"
+<pre data-source="```python
+nom = &quot;café&quot;
 α, β = 1.5, 2.5
-</code></pre>
+```
+" class="hljs"><code class="hljs language-python">nom = <span class="hljs-string">"café"</span>
+α, β = <span class="hljs-number">1.5</span>, <span class="hljs-number">2.5</span></code></pre>
