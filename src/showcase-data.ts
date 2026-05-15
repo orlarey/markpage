@@ -1,3 +1,12 @@
+/********************************* showcase-data.ts ****************************
+ *
+ * Purpose: Curated showcase entries (title + description + Markdown snippet)
+ *   shared by the vitrine page and the iframe demo runner.
+ * How: Static `SHOWCASE_DATA` array ordered generalist → specialist, plus a
+ *   `findShowcaseEntry` lookup and two reserved entries (playground / hero).
+ *
+ *******************************************************************************/
+
 // Curated showcase entries used by both the long-page vitrine
 // (`showcase.ts`) and the iframe runner (`demo.ts`). Each entry pairs
 // a hand-written Markdown snippet — chosen so it renders cleanly in
@@ -18,6 +27,10 @@
 import pipeUrl from './assets/pipe.svg';
 import type { ShowcaseEntry } from './showcase-types';
 
+/**
+ * Purpose: Ordered list of showcase sections rendered on the vitrine.
+ * How: Each entry stands alone; `findShowcaseEntry` resolves by `id`.
+ */
 export const SHOWCASE_DATA: ShowcaseEntry[] = [
   {
     id: 'markdown-essentials',
@@ -376,6 +389,10 @@ Source on [GitHub](https://github.com/orlarey/markpage).
   },
 ];
 
+/**
+ * Purpose: Resolve a showcase entry by its kebab-case `id`.
+ * How: Linear scan of `SHOWCASE_DATA`; returns `undefined` when missing.
+ */
 // Lookup helper used by both the showcase page (to render the
 // section list in order) and demo.ts (to find the snippet matching
 // a `?id=<id>` query parameter).
@@ -383,6 +400,10 @@ export function findShowcaseEntry(id: string): ShowcaseEntry | undefined {
   return SHOWCASE_DATA.find((e) => e.id === id);
 }
 
+/**
+ * Purpose: Empty-canvas fallback when the requested showcase id is unknown.
+ * How: Inert entry with blank source — also reserved for a future editable demo.
+ */
 // `playground` is the empty fallback used when the URL specifies an
 // id we don't recognise. Kept around for potential reuse later (e.g.
 // an editable mode where the visitor types from scratch).
@@ -393,6 +414,10 @@ export const PLAYGROUND_ENTRY: ShowcaseEntry = {
   source: '',
 };
 
+/**
+ * Purpose: Friendly first-impression snippet shown in the showcase hero iframe.
+ * How: Meeting-notes Markdown covering common constructs (no math/LaTeX).
+ */
 // Rich-but-friendly snippet used by the showcase hero iframe. Aimed
 // at total-beginner visitors: a short, ordinary-looking document
 // (meeting notes) that demonstrates the most common Markdown

@@ -1,41 +1,52 @@
-// Renders an ` ```adt ` (Algebraic Data Type) fenced block. Format:
-//
-//   TypeName ::= Ctor1(arg1, ...)        (* annotation *)
-//             |  Ctor2(arg2, ...)        (* annotation *)
-//             |  Ctor3
-//   OtherType ::= …
-//
-// Layout: a 4-column CSS grid (LHS | "::=" or "|" | alternative |
-// annotation). `|` separators line up vertically across the block
-// — LaTeX-style align. Capitalised identifiers inside the
-// alternatives are highlighted as constructors / type references;
-// lowercase identifiers and operators stay plain text.
-//
-// Pure function — anything outside a detected definition is
-// skipped silently, so a stray prose line doesn't break the block.
+/********************************* adt.ts **************************************
+ *
+ * Purpose: Render the ` ```adt ` fence — algebraic-data-type definitions
+ *   in BNF-ish form (`LHS ::= Ctor | Ctor(args) | …`) as an aligned grid.
+ * How: Parse line-by-line into `(LHS, alternatives)` pairs, then emit a
+ *   4-column CSS grid; unrecognised lines are surfaced in a warning panel.
+ *
+ *******************************************************************************/
 
+/**
+ * Purpose: One alternative of an ADT definition.
+ * How: `content` = the body; `annotation` = trailing `(* … *)` text.
+ */
 interface AdtAlt {
   content: string;
   annotation?: string;
 }
 
+/**
+ * Purpose: A single ADT definition (LHS + alternatives).
+ * How: `lhs` is the name left of `::=`; `alts` are the `|`-separated branches.
+ */
 interface AdtDef {
   lhs: string;
   alts: AdtAlt[];
 }
 
+/**
+ * Purpose: A line that didn't parse — surfaced to the reader.
+ * How: 1-based `line` (from block start) + trimmed `text`.
+ */
 interface AdtWarning {
-  // 1-based line number, counting from the first line of the
-  // fenced block's body.
   line: number;
   text: string;
 }
 
+/**
+ * Purpose: `parseAdtBlock` output bundle.
+ * How: Successful `defs` plus accumulated `warnings`.
+ */
 interface AdtParseResult {
   defs: AdtDef[];
   warnings: AdtWarning[];
 }
 
+/**
+ * Purpose: Entry point of the `adt` fence renderer.
+ * How: Parse, render warnings (if any) then the grid, catch errors.
+ */
 export function renderAdtBlock(source: string): string {
   try {
     const { defs, warnings } = parseAdtBlock(source);
@@ -55,6 +66,10 @@ export function renderAdtBlock(source: string): string {
 const HEAD_RE = /^([A-Za-z_]\w*)\s*::=\s*(.*)$/;
 const CONT_RE = /^\|\s*(.*)$/;
 
+/**
+ * Purpose: Tokenise the block into defs + warnings.
+ * How: Match each line against HEAD_RE / CONT_RE; otherwise record a warning.
+ */
 function parseAdtBlock(source: string): AdtParseResult {
   const defs: AdtDef[] = [];
   const warnings: AdtWarning[] = [];
@@ -78,10 +93,6 @@ function parseAdtBlock(source: string): AdtParseResult {
       return;
     }
 
-    // Unrecognised: record as a warning so a typo (`Expr :=` instead
-    // of `Expr ::=`, or a stray prose line inside the block) doesn't
-    // silently disappear from the output. For a formal-spec tool,
-    // visible feedback beats clever guesswork.
     warnings.push({ line: idx + 1, text: line });
   });
 
@@ -89,6 +100,10 @@ function parseAdtBlock(source: string): AdtParseResult {
   return { defs, warnings };
 }
 
+/**
+ * Purpose: HTML panel listing every unrecognised line above the rendered defs.
+ * How: `<div class="adt-warnings" role="alert">` containing an `<ol>`.
+ */
 function renderWarnings(warnings: AdtWarning[]): string {
   const items = warnings
     .map(
@@ -106,6 +121,10 @@ function renderWarnings(warnings: AdtWarning[]): string {
   );
 }
 
+/**
+ * Purpose: Append the alternatives from a `|`-separated RHS to a definition.
+ * How: `splitOnPipe` then `extractAnnotation` on each non-empty branch.
+ */
 function addAlts(def: AdtDef, rhs: string): void {
   for (const alt of splitOnPipe(rhs)) {
     const trimmed = alt.trim();
@@ -114,9 +133,10 @@ function addAlts(def: AdtDef, rhs: string): void {
   }
 }
 
-// Splits `s` on `|` while respecting parentheses and `(* … *)`
-// comments — otherwise an arg list like `Op(a | b, c)` or a
-// comment containing `|` would be over-split.
+/**
+ * Purpose: Split a RHS on `|`, ignoring `|` inside `(…)` and `(* … *)`.
+ * How: One-pass scan with two depth flags (`depth` for parens, `inComment`).
+ */
 function splitOnPipe(s: string): string[] {
   const parts: string[] = [];
   let cur = '';
@@ -161,9 +181,10 @@ function splitOnPipe(s: string): string[] {
   return parts;
 }
 
-// Pulls a trailing `(* … *)` off the end of an alternative and
-// returns it as the annotation. Anything inside the comment is
-// kept verbatim — Unicode math like `c ∈ ℝ` survives.
+/**
+ * Purpose: Strip a trailing `(* … *)` from an alternative as its annotation.
+ * How: One regex match; falls through to a bare `{ content }` otherwise.
+ */
 function extractAnnotation(s: string): AdtAlt {
   const m = /^(.*?)\s*\(\*\s*([\s\S]*?)\s*\*\)\s*$/.exec(s);
   if (m) {
@@ -172,59 +193,63 @@ function extractAnnotation(s: string): AdtAlt {
   return { content: s.trim() };
 }
 
-function renderDefs(defs: AdtDef[]): string {
-  // Names that appear on the LEFT of `::=` are TYPES (defined by
-  // rules). Capitalised names in alt content that match this set
-  // are type references (e.g. recursive `Expr` inside an `Expr`
-  // alternative); the rest are pure constructors (`Const`, `Vec`,
-  // `Add`, …) and get the dedicated constructor colour.
-  const typeNames = new Set(defs.map((d) => d.lhs));
+const SEP_INLINE = ' <span class="adt-sep-inline">|</span> ';
 
+/**
+ * Purpose: Render one row of the 4-column grid as concatenated `<span>`s.
+ * How: Plain template, escaping done by the caller.
+ */
+function row(lhs: string, sep: string, alt: string, ann: string): string {
+  return (
+    `<span class="adt-lhs">${lhs}</span>` +
+    `<span class="adt-sep">${sep}</span>` +
+    `<span class="adt-alt">${alt}</span>` +
+    `<span class="adt-ann">${ann}</span>`
+  );
+}
+
+/**
+ * Purpose: Emit the 4-column grid of `<span>`s for the rendered defs.
+ * How: Inline def → one joined row; expanded def → one row per alt.
+ */
+function renderDefs(defs: AdtDef[]): string {
+  const typeNames = new Set(defs.map((d) => d.lhs));
   const rows: string[] = [];
   defs.forEach((def, defIndex) => {
-    if (defIndex > 0) {
-      rows.push(`<span class="adt-spacer"></span>`);
-    }
+    if (defIndex > 0) rows.push(`<span class="adt-spacer"></span>`);
     if (isInlineDef(def)) {
-      const joined = def.alts
-        .map((alt) => highlightContent(alt.content, typeNames))
-        .join(' <span class="adt-sep-inline">|</span> ');
-      rows.push(
-        `<span class="adt-lhs">${escapeHtml(def.lhs)}</span>` +
-          `<span class="adt-sep">::=</span>` +
-          `<span class="adt-alt">${joined}</span>` +
-          `<span class="adt-ann"></span>`,
-      );
+      const alts = def.alts.map((a) => highlightContent(a.content, typeNames));
+      rows.push(row(escapeHtml(def.lhs), '::=', alts.join(SEP_INLINE), ''));
       return;
     }
     def.alts.forEach((alt, i) => {
-      const lhs = i === 0 ? escapeHtml(def.lhs) : '';
-      const sep = i === 0 ? '::=' : '|';
       rows.push(
-        `<span class="adt-lhs">${lhs}</span>` +
-          `<span class="adt-sep">${sep}</span>` +
-          `<span class="adt-alt">${highlightContent(alt.content, typeNames)}</span>` +
-          `<span class="adt-ann">${
-            alt.annotation === undefined
-              ? ''
-              : escapeHtml(alt.annotation)
-          }</span>`,
+        row(
+          i === 0 ? escapeHtml(def.lhs) : '',
+          i === 0 ? '::=' : '|',
+          highlightContent(alt.content, typeNames),
+          alt.annotation === undefined ? '' : escapeHtml(alt.annotation),
+        ),
       );
     });
   });
   return `<div class="adt-block">${rows.join('')}</div>`;
 }
 
+/**
+ * Purpose: Decide whether a def renders inline (all alts on one row).
+ * How: True iff every alt is a bare name — no `(` and no annotation.
+ */
 function isInlineDef(def: AdtDef): boolean {
   return def.alts.every(
     (alt) => alt.annotation === undefined && !alt.content.includes('('),
   );
 }
 
-// Highlights capitalised identifiers. Names that appear elsewhere
-// in the block as a LHS (i.e. defined by a rule) are TYPE
-// references and get `adt-type`; the rest are pure constructors
-// and get `adt-ctor`. Variables (lowercase) stay plain text.
+/**
+ * Purpose: Tag capitalised identifiers as types or constructors.
+ * How: Regex over the escaped string; class picked from `typeNames` lookup.
+ */
 function highlightContent(s: string, typeNames: ReadonlySet<string>): string {
   return escapeHtml(s).replaceAll(/\b([A-Z][\w]*)/g, (_match, name: string) => {
     const cls = typeNames.has(name) ? 'adt-type' : 'adt-ctor';
@@ -232,6 +257,10 @@ function highlightContent(s: string, typeNames: ReadonlySet<string>): string {
   });
 }
 
+/**
+ * Purpose: Minimal HTML entity escape for `&`, `<`, `>`, `"`.
+ * How: Sequential `replaceAll`; single quotes left alone (safe in `"`-quoted attrs).
+ */
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')

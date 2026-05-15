@@ -1,3 +1,13 @@
+/********************************* settings.ts *********************************
+ *
+ * Purpose: Typed model + defaults + (de)serialisation for the user's
+ *   PDF rendering settings (page, fonts, styles, margins, metadata, …).
+ * How: Plain interfaces over a JSON-able shape; `mergeWithDefaults` tolerates
+ *   missing fields from older versions on load. Persisted under
+ *   `markpage:settings`.
+ *
+ *******************************************************************************/
+
 export type PageSize = 'A3' | 'A4' | 'A5' | 'B5' | 'LETTER' | 'LEGAL';
 
 export const PAGE_SIZES: PageSize[] = [
@@ -37,6 +47,10 @@ export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
   'bottom-right',
 ];
 
+/**
+ * Purpose: Style attributes shared by every text element (size, color,
+ *   plus heading-only weight / italic / underline).
+ */
 export interface TextStyle {
   fontSize: number; // pt
   color: string; // #rrggbb
@@ -48,10 +62,11 @@ export interface TextStyle {
   weight?: number; // one of WEIGHT_OPTIONS below
 }
 
-// Standard CSS weights surfaced in the Réglages dropdown. Keeping the
-// list tight (no 100 / 200 / 800 / 900) because most Google Fonts
-// only ship a subset of these — anything beyond gets synthesised by
-// the browser, which looks worse than just picking the next slot.
+/**
+ * Purpose: Weight choices surfaced in the Réglages dropdown.
+ * How: Tight CSS-weight list (300-700) — values most Google Fonts ship
+ *   natively, avoiding the worse-looking browser-synthesised weights.
+ */
 export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
   { value: 300, label: 'Light (300)' },
   { value: 400, label: 'Regular (400)' },
@@ -60,16 +75,25 @@ export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
   { value: 700, label: 'Bold (700)' },
 ];
 
+/**
+ * Purpose: Blockquote style — `TextStyle` plus the vertical bar color.
+ */
 export interface QuoteStyle extends TextStyle {
   barColor: string; // #rrggbb — the vertical bar at the left of a blockquote
 }
 
+/**
+ * Purpose: Style of the page-number marginalia (size, italics, color).
+ */
 export interface PageNumberStyle {
   fontSize: number;
   italics: boolean;
   color: string;
 }
 
+/**
+ * Purpose: Page margins in millimetres.
+ */
 export interface Margins {
   top: number; // mm
   bottom: number; // mm
@@ -77,6 +101,9 @@ export interface Margins {
   right: number; // mm
 }
 
+/**
+ * Purpose: One metadata line of the title block (author / organization).
+ */
 export interface MetadataField {
   text: string;
   show: boolean;
@@ -85,21 +112,28 @@ export interface MetadataField {
 
 export type DateMode = 'none' | 'today' | 'custom';
 
+/**
+ * Purpose: Date metadata configuration — none, auto today, or user-typed.
+ */
 export interface DateSetting {
   mode: DateMode;
   custom: string;
 }
 
-// A Google Fonts URL the user pasted to bring in a family that isn't
-// in our bundled catalogue. We store the family name (as it appears
-// in CSS — already URL-decoded) and the full original CSS URL. One
-// URL may declare several families; in that case we store one entry
-// per family, all sharing the same URL — the loader dedupes on URL.
+/**
+ * Purpose: A user-added Google Font family loaded from a pasted CSS URL.
+ * How: `name` is the CSS family; `url` the original fonts.googleapis.com
+ *   URL (loader dedupes on URL when several families share one URL).
+ */
 export interface CustomFont {
   name: string;
   url: string;
 }
 
+/**
+ * Purpose: The three font slots used across the document.
+ * How: `headings` and `body` may be any family; `code` must be monospace.
+ */
 export interface FontTrio {
   // Family name for h1-h6 (and bold runs).
   headings: string;
@@ -110,6 +144,10 @@ export interface FontTrio {
   code: string;
 }
 
+/**
+ * Purpose: The full settings record persisted to localStorage and used
+ *   by every renderer (preview, PDF, LaTeX).
+ */
 export interface PdfSettings {
   pageSize: PageSize;
   margins: Margins;
@@ -167,6 +205,10 @@ export interface PdfSettings {
   mermaidMaxHeightPct: number;
 }
 
+/**
+ * Purpose: Out-of-the-box settings used as the seed for the first
+ *   profile and as the fallback for missing fields in `mergeWithDefaults`.
+ */
 export const DEFAULT_SETTINGS: PdfSettings = {
   pageSize: 'A4',
   margins: { top: 25, bottom: 25, left: 35, right: 35 },
@@ -208,6 +250,10 @@ export const DEFAULT_SETTINGS: PdfSettings = {
 
 const KEY = 'markpage:settings';
 
+/**
+ * Purpose: Load persisted settings, falling back to defaults on any failure.
+ * How: JSON parse, then run through `mergeWithDefaults` for tolerance.
+ */
 export function loadSettings(): PdfSettings {
   const raw = localStorage.getItem(KEY);
   if (!raw) return DEFAULT_SETTINGS;
@@ -219,12 +265,19 @@ export function loadSettings(): PdfSettings {
   }
 }
 
+/**
+ * Purpose: Persist the settings to localStorage as JSON.
+ * How: `JSON.stringify` + `setItem`.
+ */
 export function saveSettings(s: PdfSettings): void {
   localStorage.setItem(KEY, JSON.stringify(s));
 }
 
-// Tolerant merge: any missing field falls back to its default. Lets us add
-// new fields later without breaking persisted settings from older versions.
+/**
+ * Purpose: Coerce a possibly-partial JSON blob into a full `PdfSettings`.
+ * How: For each field, prefer `input.<field>` else the default; nested
+ *   records merged one level via a tiny `merge` helper.
+ */
 export function mergeWithDefaults(input: unknown): PdfSettings {
   const d = DEFAULT_SETTINGS;
   if (!input || typeof input !== 'object') return d;
@@ -279,6 +332,11 @@ const DATE_FORMATTERS: Record<'fr' | 'en', Intl.DateTimeFormat> = {
   en: new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }),
 };
 
+/**
+ * Purpose: Render the title-block date string for a given `DateSetting`.
+ * How: `'today'` → locale long-date now; `'custom'` → trimmed user input;
+ *   `'none'` (or empty custom) → null so the caller skips the line.
+ */
 export function formatDate(
   d: DateSetting,
   language: 'fr' | 'en' = 'fr',
@@ -289,14 +347,20 @@ export function formatDate(
   return trimmed === '' ? null : trimmed;
 }
 
+/**
+ * Purpose: One rendered line of the title-block metadata.
+ */
 export interface MetadataLine {
   text: string;
   bold: boolean;
 }
 
-// Returns the centered metadata lines (author, organization, date) that
-// should appear in the title block, in display order. Each entry is already
-// trimmed and non-empty.
+/**
+ * Purpose: Collect the title-block metadata lines (author / org / date)
+ *   in display order, dropping hidden or empty entries.
+ * How: Append author and organization when `show && text.trim()`; append
+ *   the formatted date when `formatDate` returns non-null.
+ */
 export function metadataLines(s: PdfSettings): MetadataLine[] {
   const lines: MetadataLine[] = [];
   if (s.author.show && s.author.text.trim() !== '') {

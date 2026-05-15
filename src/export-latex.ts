@@ -1,8 +1,13 @@
-// Markdown → LaTeX converter. Walks the token tree produced by
-// marked.lexer (not marked.parse — we don't want HTML in between)
-// and emits LaTeX directly. Output is a stand-alone `.tex` ready to
-// compile with `pdflatex` / `xelatex`. SPEC §21.
-//
+/******************************** export-latex.ts ******************************
+ *
+ * Purpose: Markdown → LaTeX converter (SPEC §21). Walks the marked token tree
+ *   and emits a stand-alone `.tex` plus a bundle of resource blobs (images,
+ *   mermaid/chart SVGs) for the export pipeline to zip alongside.
+ * How: Async resource pre-pass (parallel loads into `ctx`), then a sync
+ *   block/inline render pair driven by switch statements on `tok.type`.
+ *
+ *******************************************************************************/
+
 // Stage A coverage: headings, paragraphs, inline runs (strong / em /
 // del / code), code blocks, lists (bullet / ordered / task),
 // blockquotes, links / autolinks, hr, images (placeholder) and math
@@ -18,6 +23,10 @@ import { getImage } from './image-store';
 import { renderMermaid } from './mermaid';
 import { renderChart } from './chart';
 
+/**
+ * Purpose: Result of `exportLatex` — the `.tex` source plus its resource bundle.
+ * How: `resources` is empty when no images/mermaid/chart; main.ts skips zipping then.
+ */
 export interface LatexExportResult {
   tex: string;
   // path-relative-to-zip-root → blob. Empty when the doc references
@@ -26,6 +35,10 @@ export interface LatexExportResult {
   resources: Map<string, Blob>;
 }
 
+/**
+ * Purpose: Top-level entry point — convert markdown to a `.tex` + resources.
+ * How: Lex, collect footnote defs, pre-load resources, run sync block walk.
+ */
 export async function exportLatex(
   markdown: string,
   settings: PdfSettings,
@@ -60,6 +73,11 @@ export async function exportLatex(
 
 // ---- context ----------------------------------------------------------
 
+/**
+ * Purpose: Mutable conversion context threaded through every render function.
+ * How: Holds settings, accumulators (warnings, unmapped math, resources) and
+ *   the dedup lookup maps populated by `preloadResources`.
+ */
 interface Ctx {
   settings: PdfSettings;
   // First-h1 source text, captured the first time we see one so it
@@ -160,6 +178,10 @@ const LSTSET_BLOCK = String.raw`\lstset{
 
 // ---- document framing -------------------------------------------------
 
+/**
+ * Purpose: Assemble the final `.tex` string from preamble + body.
+ * How: Concatenate banner, preamble, `\begin{document}`, optional `\maketitle`, body.
+ */
 function buildDocument(ctx: Ctx, body: string): string {
   const preamble = buildPreamble(ctx);
   const titleBlock = ctx.title === null ? '' : '\\maketitle\n\n';
@@ -167,9 +189,10 @@ function buildDocument(ctx: Ctx, body: string): string {
   return `${banner}${preamble}\\begin{document}\n${titleBlock}${body}\\end{document}\n`;
 }
 
-// Top-of-file LaTeX comment listing anything the user should know
-// before compiling: math characters we didn't back-convert,
-// presence of SVG diagrams that need a SVG-aware compile chain.
+/**
+ * Purpose: Top-of-file LaTeX comment listing pre-compile caveats for the user.
+ * How: Build localised lines for unmapped math chars and SVG-dependency notice.
+ */
 function buildWarningBanner(ctx: Ctx): string {
   const fr = ctx.settings.language === 'fr';
   const lines: string[] = [];
@@ -210,10 +233,11 @@ function buildWarningBanner(ctx: Ctx): string {
 
 // ---- resource preload ------------------------------------------------
 
-// Walks the source / token tree once, collects every image SHA and
-// every mermaid / chart fenced block, and resolves them in
-// parallel. The sync renderer below uses the resulting maps to
-// substitute paths without doing any I/O itself.
+/**
+ * Purpose: Pre-load every image / mermaid / chart referenced in the doc in parallel.
+ * How: Collect refs synchronously, then await all `load*Resource` calls; results
+ *   land in the `ctx.*BySource` maps which the sync renderer reads from.
+ */
 async function preloadResources(
   tokens: Tokens.Generic[],
   source: string,
@@ -231,6 +255,10 @@ async function preloadResources(
   ]);
 }
 
+/**
+ * Purpose: Recursively gather every mermaid / chart fenced block source.
+ * How: Walks the token tree, descending into list items, blockquotes, admonitions.
+ */
 function collectFencedResources(
   tokens: Tokens.Generic[],
   mermaidOut: string[],
@@ -264,6 +292,10 @@ function collectFencedResources(
   }
 }
 
+/**
+ * Purpose: Resolve a `img://<sha>` ref to a file under `images/<sha>.<ext>`.
+ * How: Fetch blob from the image store, register path in `ctx.resources` + map.
+ */
 async function loadImageResource(sha: string, ctx: Ctx): Promise<void> {
   if (ctx.imageBySha.has(sha)) return;
   const blob = await getImage(sha);
@@ -277,6 +309,10 @@ async function loadImageResource(sha: string, ctx: Ctx): Promise<void> {
   ctx.imageBySha.set(sha, path);
 }
 
+/**
+ * Purpose: Render one mermaid source to SVG and stash under `images/mermaid-N.svg`.
+ * How: Reserve the slot upfront, render async, sanitise SVG for inkscape, store.
+ */
 async function loadMermaidResource(src: string, ctx: Ctx): Promise<void> {
   if (ctx.mermaidBySource.has(src)) return;
   // Reserve the slot synchronously to keep the numbering stable
@@ -296,6 +332,10 @@ async function loadMermaidResource(src: string, ctx: Ctx): Promise<void> {
   );
 }
 
+/**
+ * Purpose: Render one chart source to SVG and stash under `images/chart-N.svg`.
+ * How: Disambiguate by `info\nsrc` key, sanitise the SVG, register the blob.
+ */
 async function loadChartResource(
   src: string,
   info: string,
@@ -315,19 +355,12 @@ async function loadChartResource(
   );
 }
 
-// Mermaid (and occasionally chart) SVGs lean on browser-only
-// features that inkscape doesn't implement:
-//  - <foreignObject> wrapping HTML labels (sequence diagrams,
-//    class diagrams). Inkscape silently drops them, so the labels
-//    in the rendered PDF go missing.
-//  - <filter> referenced by `filter=...` (drop shadows). Inkscape
-//    can't apply them; they just emit a warning and skip the
-//    decoration.
-// We rewrite each foreignObject to a centred <text> carrying its
-// plain-text content, and strip every filter so the warnings
-// disappear. Position is recovered from the foreignObject's
-// x/y/width/height so the label lands roughly where the original
-// HTML box sat.
+/**
+ * Purpose: Strip browser-only SVG features inkscape doesn't grok so the LaTeX
+ *   `\includesvg` route renders correctly (foreignObjects, filters, em units).
+ * How: Parse, rewrite styled elements, replace foreignObjects with centred text,
+ *   drop filters, force dark fill on text, resolve em-unit deltas.
+ */
 function sanitizeSvgForInkscape(svg: string): string {
   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
   const root = doc.documentElement;
@@ -437,17 +470,10 @@ function sanitizeSvgForInkscape(svg: string): string {
   return new XMLSerializer().serializeToString(root);
 }
 
-// Two fixes rolled into one:
-//   (a) `dy="1em"` / `dx="0.5em"` use CSS units that inkscape
-//       silently drops; resolve them against the element's
-//       font-size first.
-//   (b) Inkscape only honours `dy` / `dx` on `<tspan>`, not on
-//       `<text>` directly. For `<text>` elements we therefore
-//       absorb the resolved offset into the base `y` / `x`
-//       coordinate so the rendered position matches the browser's.
-//       (Mermaid's sequence-diagram message labels are written
-//       as `<text y="80" dy="1em">…</text>`; we rewrite to
-//       `<text y="96">…</text>`.)
+/**
+ * Purpose: Resolve `dy`/`dx` em-units and absorb them into `y`/`x` for `<text>`.
+ * How: Multiply em values by the element's font-size; on `<text>` fold delta into base.
+ */
 function resolveEmUnits(el: Element): void {
   const fontSize = readFontSize(el) ?? 16;
   for (const attr of ['dy', 'dx']) {
@@ -485,9 +511,10 @@ function readFontSize(el: Element): number | null {
   return null;
 }
 
-// Maps a Blob mime type to a file extension. Falls back to 'bin'
-// for the unexpected — the user will see it in the warning banner
-// and can rename if needed.
+/**
+ * Purpose: Map a Blob mime type to a file extension.
+ * How: Switch over the handful of types we expect; default `bin` for the rest.
+ */
 function mimeToExt(mime: string): string {
   switch (mime) {
     case 'image/jpeg':
@@ -543,11 +570,11 @@ interface DefListLikeToken {
 
 // ---- admonitions ------------------------------------------------------
 
-// Maps each ::: class to its LaTeX rendering. `env` means an
-// amsthm-style environment (the preamble declares the matching
-// \newtheorem); `box` means a coloured tcolorbox with the given
-// background/frame colour pair. Default title is used when the user
-// didn't write a custom title after the class name.
+/**
+ * Purpose: Map a `:::class` admonition to either an amsthm env or a tcolorbox.
+ * How: `kind: 'env'` picks a `\newtheorem`-backed env; `'box'` builds a coloured
+ *   tcolorbox with the given background/frame xcolor names.
+ */
 interface AdmonitionMapping {
   kind: 'env' | 'box';
   env?: string;
@@ -589,6 +616,10 @@ const ADMONITION_MAP: Record<string, AdmonitionMapping> = {
   },
 };
 
+/**
+ * Purpose: Render one `:::class … :::` admonition as the matching LaTeX env/box.
+ * How: Look up `ADMONITION_MAP[klass]`, dispatch to amsthm env or tcolorbox.
+ */
 function renderAdmonition(tok: AdmonitionLikeToken, ctx: Ctx): string {
   const mapping = ADMONITION_MAP[tok.klass.toLowerCase()];
   // Render the body once — used inside both environment variants.
@@ -622,11 +653,10 @@ function cap(s: string): string {
 
 // ---- footnotes --------------------------------------------------------
 
-// Pre-pass walker: collects every `footnoteDef` in the doc into a
-// map by id, so the first `footnoteRef` we hit can inline the def's
-// content. Recurses into list items / blockquotes / admonitions
-// where a def could plausibly live, but skips deeper nesting that
-// the marked extension doesn't actually use.
+/**
+ * Purpose: Pre-pass walker — collect every `footnoteDef` into a by-id map.
+ * How: Recurse into list items / blockquotes / admonitions; populate `out`.
+ */
 function collectFootnoteDefs(
   tokens: Tokens.Generic[],
   out: Map<string, FootnoteDefToken>,
@@ -650,11 +680,10 @@ function collectFootnoteDefs(
   }
 }
 
-// First reference for an id emits `\footnote{<inlined body>}` and
-// records the slot number; subsequent references for the same id
-// emit `\footnotemark[N]`. Slot numbering assumes LaTeX numbers
-// footnotes in document order, which holds inside a single
-// \section/article.
+/**
+ * Purpose: Emit `\footnote{…}` on first reference, `\footnotemark[N]` after.
+ * How: Track slot numbers in `ctx.footnoteSlots`; inline the def's body once.
+ */
 function renderFootnoteRef(tok: FootnoteRefToken, ctx: Ctx): string {
   const recorded = ctx.footnoteSlots.get(tok.id);
   if (recorded !== undefined) return `\\footnotemark[${recorded}]`;
@@ -673,10 +702,10 @@ function renderFootnoteRef(tok: FootnoteRefToken, ctx: Ctx): string {
   return `\\footnote{${body}}`;
 }
 
-// Footnote bodies in v1 are single-paragraph (marked-config's
-// footnoteDef tokenizer parses the def's content with `inlineTokens`
-// so `def.tokens` is already a flat inline token list — strong, em,
-// link, codespan, text, etc.). renderInline does the right thing.
+/**
+ * Purpose: Render a footnote body — always inline content for our v1.
+ * How: Forwards to `renderInline` (footnoteDef.tokens is a flat inline list).
+ */
 function renderFootnoteBody(
   tokens: Tokens.Generic[],
   ctx: Ctx,
@@ -686,6 +715,10 @@ function renderFootnoteBody(
 
 // ---- definition lists -------------------------------------------------
 
+/**
+ * Purpose: Render a `term : def` definition list as a `description` env.
+ * How: One `\item[term] def` per (term, def) pair; multi-def items repeat.
+ */
 function renderDefList(tok: DefListLikeToken, ctx: Ctx): string {
   const lines: string[] = ['\\begin{description}'];
   for (const item of tok.items) {
@@ -703,6 +736,10 @@ function renderDefList(tok: DefListLikeToken, ctx: Ctx): string {
 
 // ---- pipe tables -----------------------------------------------------
 
+/**
+ * Purpose: Render a markdown pipe table as a `tabularx` environment.
+ * How: Build column spec from `tok.align`, emit header/midrule/rows/bottomrule.
+ */
 function renderTable(tok: Tokens.Table, ctx: Ctx): string {
   const cols = tok.header.length;
   const align = tok.align ?? [];
@@ -735,9 +772,10 @@ function renderTable(tok: Tokens.Table, ctx: Ctx): string {
 
 // ---- CSV / TSV --------------------------------------------------------
 
-// Mini RFC-4180-ish parser: handles double-quoted fields with `""`
-// inside. Doesn't handle newlines inside quoted fields — the same
-// constraint as marked-config's renderer.
+/**
+ * Purpose: Mini RFC-4180-ish CSV/TSV line splitter with `""` quoting.
+ * How: One-pass scan with `inQuote` state; doesn't handle newlines in fields.
+ */
 function parseCsvLine(line: string, sep: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -766,6 +804,10 @@ function parseCsvLine(line: string, sep: string): string[] {
   return out.map((s) => s.trim());
 }
 
+/**
+ * Purpose: Render a CSV/TSV fenced block as a centred `tabular` env.
+ * How: Parse every non-empty line, emit header + booktabs rules + body rows.
+ */
 function renderDataTableLatex(src: string, sep: string): string {
   const rows = src
     .replaceAll(/\r\n?/g, '\n')
@@ -793,10 +835,10 @@ function renderDataTableLatex(src: string, sep: string): string {
 
 // ---- inference --------------------------------------------------------
 
-// Same split logic as marked-config.renderInference but emits LaTeX
-// directly (display math wrapping a \dfrac). Premises and
-// conclusion travel through convertMath so the Unicode operators
-// the user typed get back-converted.
+/**
+ * Purpose: Render an `inference` fenced block as display math with a `\dfrac`.
+ * How: Split premises/conclusion on the `---` bar, route through `convertMath`.
+ */
 function renderInferenceBlock(src: string, info: string, ctx: Ctx): string {
   const labelMatch = /^inference\s*(.*)$/.exec(info);
   const rawLabel = labelMatch ? labelMatch[1].trim() : '';
@@ -830,11 +872,10 @@ function renderInferenceBlock(src: string, info: string, ctx: Ctx): string {
   return emitDisplayMath(latex);
 }
 
-// Wraps a math body in display math (\[..\]) unless it already
-// starts with a display environment (\begin{align*}, \begin{equation},
-// \begin{gather}, \begin{multline}, …) — wrapping such bodies
-// triggers "Erroneous nesting of equation structures" because
-// amsmath forbids nesting display envs.
+/**
+ * Purpose: Wrap a math body in `\[…\]`, unless it already starts with a display env.
+ * How: Regex check for `\begin{equation|align|…}`; otherwise wrap.
+ */
 function emitDisplayMath(body: string): string {
   const trimmed = body.trim();
   if (
@@ -847,20 +888,20 @@ function emitDisplayMath(body: string): string {
   return `\\[\n${trimmed}\n\\]\n\n`;
 }
 
-// Applies the Unicode → LaTeX table to a math body, accumulating
-// unmapped characters in the context for the top-of-file banner.
+/**
+ * Purpose: Apply the Unicode → LaTeX symbol table to a math body.
+ * How: Delegates to `mathBodyToLatex`; records unmapped chars in `ctx`.
+ */
 function convertMath(input: string, ctx: Ctx): string {
   const result = mathBodyToLatex(input);
   for (const ch of result.unmapped) ctx.unmappedMath.add(ch);
   return result.text;
 }
 
-// Returns the `\newtheorem{…}{…}` lines (plus the trailing
-// `\theoremstyle{definition}` block) localised to the document's
-// language. The amsthm env names themselves (`theorem`, `lemma`, …)
-// are stable across locales — only the **display names** in `{…}`
-// move, so the body of the document (`\begin{theorem}…\end{theorem}`)
-// never has to know about the language switch.
+/**
+ * Purpose: Return the localised `\newtheorem` lines for the preamble.
+ * How: Pick a fr/en display-name table; emit `\newtheorem` + a `\theoremstyle` group.
+ */
 function theoremEnvLines(language: 'fr' | 'en'): string[] {
   const names =
     language === 'fr'
@@ -894,6 +935,10 @@ function theoremEnvLines(language: 'fr' | 'en'): string[] {
   ];
 }
 
+/**
+ * Purpose: Build the LaTeX preamble — `\documentclass`, packages, title metadata.
+ * How: Concatenate static lines + locale-aware babel + optional `svg` + theorem envs.
+ */
 function buildPreamble(ctx: Ctx): string {
   const s = ctx.settings;
   const authorLines = metadataAuthor(s);
@@ -1022,6 +1067,10 @@ function metadataDate(s: PdfSettings): string {
 
 // ---- block walking ----------------------------------------------------
 
+/**
+ * Purpose: Render a sequence of block tokens by concatenating their outputs.
+ * How: For-of over `tokens`, accumulate `renderBlock(tok, ctx)`.
+ */
 function renderBlocks(tokens: Tokens.Generic[], ctx: Ctx): string {
   let out = '';
   for (const tok of tokens) {
@@ -1030,6 +1079,10 @@ function renderBlocks(tokens: Tokens.Generic[], ctx: Ctx): string {
   return out;
 }
 
+/**
+ * Purpose: Render one block-level token as LaTeX.
+ * How: Switch on `tok.type`, dispatching to specialised `render*` helpers.
+ */
 function renderBlock(tok: Tokens.Generic, ctx: Ctx): string {
   switch (tok.type) {
     case 'space':
@@ -1095,6 +1148,10 @@ function renderBlock(tok: Tokens.Generic, ctx: Ctx): string {
   }
 }
 
+/**
+ * Purpose: Render an h1–h6 — first h1 fills `\title`, others map to `\section…`.
+ * How: Track `ctx.titleConsumed` to demote depths; pick the LaTeX section command.
+ */
 function renderHeading(tok: Tokens.Heading, ctx: Ctx): string {
   const depth = tok.depth;
   const inline = renderInline(tok.tokens ?? [], ctx);
@@ -1123,11 +1180,19 @@ function renderHeading(tok: Tokens.Heading, ctx: Ctx): string {
   return `${cmd}{${inline}}\n\n`;
 }
 
+/**
+ * Purpose: Render a paragraph token as inline content + trailing blank line.
+ * How: `renderInline(tokens)` + `\n\n`.
+ */
 function renderParagraph(tok: Tokens.Paragraph, ctx: Ctx): string {
   const inline = renderInline(tok.tokens ?? [], ctx);
   return `${inline}\n\n`;
 }
 
+/**
+ * Purpose: Render a fenced code block (or specialised lang like math/mermaid/csv).
+ * How: Strip lang past the first whitespace, dispatch on lang to specialised renderers.
+ */
 function renderCodeBlock(tok: Tokens.Code, ctx: Ctx): string {
   // marked stores the language after the opening fence on `lang`.
   // Strip anything past the first whitespace — users sometimes type
@@ -1166,6 +1231,10 @@ function renderCodeBlock(tok: Tokens.Code, ctx: Ctx): string {
 }
 
 
+/**
+ * Purpose: Render a bullet / ordered / task list as `itemize` or `enumerate`.
+ * How: Per-item dispatch to `renderListItem`; ordered lists honour `start=`.
+ */
 function renderList(tok: Tokens.List, ctx: Ctx): string {
   const env = tok.ordered ? 'enumerate' : 'itemize';
   // Task lists are mixed in regular lists; we override the bullet
@@ -1182,6 +1251,10 @@ function renderList(tok: Tokens.List, ctx: Ctx): string {
   return `\\begin{${env}}${start}\n${items.join('')}\\end{${env}}\n\n`;
 }
 
+/**
+ * Purpose: Render one list item — task items get a `\boxtimes`/`\square` marker.
+ * How: `\item` with optional `[marker]` and the block-rendered body.
+ */
 function renderListItem(item: Tokens.ListItem, ctx: Ctx): string {
   const body = renderBlocks(item.tokens, ctx).trimEnd();
   if (item.task) {
@@ -1191,6 +1264,10 @@ function renderListItem(item: Tokens.ListItem, ctx: Ctx): string {
   return `  \\item ${body}\n`;
 }
 
+/**
+ * Purpose: Render a blockquote as `\begin{quote}…\end{quote}`.
+ * How: Block-render the body and wrap.
+ */
 function renderBlockquote(tok: Tokens.Blockquote, ctx: Ctx): string {
   const inner = renderBlocks(tok.tokens, ctx).trimEnd();
   return `\\begin{quote}\n${inner}\n\\end{quote}\n\n`;
@@ -1198,12 +1275,20 @@ function renderBlockquote(tok: Tokens.Blockquote, ctx: Ctx): string {
 
 // ---- inline -----------------------------------------------------------
 
+/**
+ * Purpose: Render a sequence of inline tokens by concatenating their outputs.
+ * How: For-of over `tokens`, accumulate `renderInlineToken(tok, ctx)`.
+ */
 function renderInline(tokens: Tokens.Generic[], ctx: Ctx): string {
   let out = '';
   for (const tok of tokens) out += renderInlineToken(tok, ctx);
   return out;
 }
 
+/**
+ * Purpose: Render one inline-level token as LaTeX (text, strong/em, link, math…).
+ * How: Switch on `tok.type` dispatching to LaTeX equivalents or `escapeLatex`.
+ */
 function renderInlineToken(tok: Tokens.Generic, ctx: Ctx): string {
   switch (tok.type) {
     case 'text': {
@@ -1250,9 +1335,10 @@ function renderInlineToken(tok: Tokens.Generic, ctx: Ctx): string {
   }
 }
 
-// Resolves an `image` inline token to either an \includegraphics
-// referencing a file we wrote into the resources map, or — for
-// external URLs / unresolved refs — a placeholder italic note.
+/**
+ * Purpose: Render an `image` inline token as `\includegraphics` or a placeholder.
+ * How: Lookup `img://<sha>` in `ctx.imageBySha`; external URLs → italic note.
+ */
 function renderImageToken(tok: Tokens.Image, ctx: Ctx): string {
   const href = tok.href;
   const m = /^img:\/\/([a-f0-9]+)$/.exec(href);
@@ -1268,23 +1354,18 @@ function renderImageToken(tok: Tokens.Image, ctx: Ctx): string {
   return `\\textit{[${escapeLatex(tok.text || 'image')} — ${escapeLatex(href)}]}`;
 }
 
-// Emits the \includegraphics declaration paged with sane defaults
-// (auto width/height clamped to the column). Wrapped in a centered
-// figure-like environment for spacing parity with the HTML preview.
+/**
+ * Purpose: Emit a centred `\includegraphics{path}` clamped to the column.
+ * How: Wrap in `{center}` with `max width`/`max height`/`keepaspectratio`.
+ */
 function includegraphics(path: string): string {
   return `\\begin{center}\n\\includegraphics[max width=\\textwidth, max height=0.5\\textheight, keepaspectratio]{${path}}\n\\end{center}\n\n`;
 }
 
-// Same as includegraphics but for SVG resources, routed through the
-// `svg` package so xelatex can shell-escape into inkscape on the
-// fly. The path can carry the .svg extension or not — \includesvg
-// is tolerant.
-//
-// We wrap in an adjustbox so the diagram is capped to the column
-// width and half the page height. Without that, narrow but tall
-// diagrams (class diagrams, sequence diagrams) get stretched
-// horizontally to \textwidth and their height grows
-// proportionally — pages become mostly empty for one diagram.
+/**
+ * Purpose: SVG counterpart of `includegraphics`, routed through `\includesvg`.
+ * How: Wrap in `{center}` + `{adjustbox}` to cap width / total height.
+ */
 function includesvg(path: string): string {
   return [
     '\\begin{center}',
@@ -1297,6 +1378,10 @@ function includesvg(path: string): string {
   ].join('\n');
 }
 
+/**
+ * Purpose: Render a `mermaid` fenced block as a source comment + `\includesvg`.
+ * How: Lookup the pre-rendered SVG path; fall back to an italic placeholder.
+ */
 function renderMermaidBlock(tok: Tokens.Code, ctx: Ctx): string {
   const path = ctx.mermaidBySource.get(tok.text);
   // Source comment above the include so the user can regenerate /
@@ -1308,6 +1393,10 @@ function renderMermaidBlock(tok: Tokens.Code, ctx: Ctx): string {
   return `${sourceComment}\n${includesvg(path)}`;
 }
 
+/**
+ * Purpose: Render a `chart` fenced block as a source comment + `\includesvg`.
+ * How: Lookup the chart SVG path keyed by `info\nsrc`; placeholder on miss.
+ */
 function renderChartBlock(tok: Tokens.Code, ctx: Ctx): string {
   const info = tok.lang ?? 'chart';
   const key = `${info}\n${tok.text}`;
@@ -1337,15 +1426,18 @@ const LATEX_ESCAPES: Record<string, string> = {
   '^': '\\textasciicircum{}',
 };
 
+/**
+ * Purpose: Escape every LaTeX-special character in a plain-text string.
+ * How: `replaceAll` over the special-char class, looking up `LATEX_ESCAPES`.
+ */
 export function escapeLatex(s: string): string {
   return s.replaceAll(/[\\{}$&%#_~^]/g, (c) => LATEX_ESCAPES[c] ?? c);
 }
 
-// marked tokenises text and writes `&` `<` `>` `"` `'` as HTML
-// entities into `text.text` / `codespan.text` — needed for safe
-// HTML rendering but wrong for LaTeX, where we want the raw glyph.
-// Decode at the point we read the token's text. Also handles
-// numeric (`&#39;`) and hex (`&#x27;`) references for completeness.
+/**
+ * Purpose: Decode HTML entities that marked left in text tokens (`&amp;`, `&#39;`…).
+ * How: Sequential `replaceAll` for the named entities + regex for numeric/hex refs.
+ */
 export function decodeEntities(s: string): string {
   return s
     .replaceAll('&amp;', '&')
@@ -1361,22 +1453,18 @@ export function decodeEntities(s: string): string {
     );
 }
 
-// URLs go inside \url{} / \href{…}{}. We don't want to break their
-// content with full LaTeX escapes (the braces would corrupt the
-// URL); only `%` and `#` need protecting because hyperref still
-// treats them as catcodes inside the macro argument.
+/**
+ * Purpose: Minimal escape for content inside `\url{}` / `\href{…}{}` arguments.
+ * How: Protect `%` and `#` (still catcode-active inside hyperref macro args).
+ */
 function escapeLatexUrl(s: string): string {
   return s.replaceAll(/[%#]/g, (c) => `\\${c}`);
 }
 
-// \verb is the classic LaTeX command for inline verbatim, but it
-// has a sharp restriction: it CAN'T be used inside the argument of
-// any macro (\item[…], \footnote{…}, \section{…}, table cells…).
-// We hit that all over the place (e.g. a def-list term containing
-// a codespan), so we use \texttt{} with proper escaping instead.
-// The visual is the same monospace family ; only the literal
-// preservation of multiple spaces / tabs differs, which doesn't
-// matter for inline code.
+/**
+ * Purpose: Inline verbatim — emits `\texttt{}` instead of `\verb` for macro-arg use.
+ * How: Escape with `escapeLatex`, wrap in `\texttt{…}`.
+ */
 function verb(text: string): string {
   return `\\texttt{${escapeLatex(text)}}`;
 }
@@ -1385,6 +1473,10 @@ function stripNewlines(s: string): string {
   return s.replaceAll(/\s+/g, ' ').trim();
 }
 
+/**
+ * Purpose: Render `raw` as a labelled multi-line LaTeX `%` comment block.
+ * How: Prefix each line with `% `, with a `% label:` header line above.
+ */
 function latexComment(label: string, raw: string): string {
   const body = raw
     .split('\n')

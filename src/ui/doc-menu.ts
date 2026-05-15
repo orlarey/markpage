@@ -1,8 +1,21 @@
+/********************************* doc-menu.ts *********************************
+ *
+ * Purpose: Document switcher dropdown — current doc as inline rename input,
+ *   "+ New" button, other docs with hover-revealed rename/duplicate/delete.
+ * How: One transient `<div>` anchored to the toolbar trigger, dismissed on
+ *   outside-click / Escape / resize; helpers handle the per-row actions.
+ *
+ *******************************************************************************/
+
 import type { DocEntry } from '../docs';
 import { t } from '../i18n/strings';
 
 const MENU_ID = 'doc-menu';
 
+/**
+ * Purpose: Callbacks driving the doc menu (selection + lifecycle actions).
+ * How: Plain interface; one handler per row action, plus list + current uuid.
+ */
 export interface DocMenuOptions {
   docs: DocEntry[];
   currentUuid: string;
@@ -14,6 +27,11 @@ export interface DocMenuOptions {
   onDelete(uuid: string): void;
 }
 
+/**
+ * Purpose: Mount the doc-menu dropdown anchored below `anchor`.
+ * How: Build header rename input + new button + other-doc rows; defer
+ *   dismissal listeners by one tick to avoid the opening click closing us.
+ */
 // Drops the dropdown menu below `anchor`. Pattern shared with
 // style-menu.ts: mount one transient div, dismiss on outside click /
 // Escape / window resize. The current doc lives at the top as an
@@ -127,6 +145,10 @@ export function openDocMenu(
   }, 0);
 }
 
+/**
+ * Purpose: One non-current-doc row — name, relative mtime, hover actions.
+ * How: Main button calls `onSelect`; rename/duplicate/delete buttons appear on hover.
+ */
 function buildOtherRow(
   doc: DocEntry,
   opts: DocMenuOptions,
@@ -174,6 +196,10 @@ function buildOtherRow(
   return row;
 }
 
+/**
+ * Purpose: Small per-row action button factory.
+ * How: `<button class="doc-menu-action">` with stopPropagation on click.
+ */
 function actionBtn(label: string, onClick: () => void): HTMLButtonElement {
   const b = document.createElement('button');
   b.type = 'button';
@@ -186,6 +212,10 @@ function actionBtn(label: string, onClick: () => void): HTMLButtonElement {
   return b;
 }
 
+/**
+ * Purpose: Swap a row's name span for an inline rename input.
+ * How: Enter / blur commits via `onRenameOther`, Escape reverts to the original.
+ */
 // Replaces the row's name span with an input so the user can rename
 // without leaving the dropdown. Enter commits, Escape cancels, blur
 // commits any change.
@@ -229,6 +259,10 @@ function enterInlineRename(
   row.classList.add('doc-menu-row-renaming');
 }
 
+/**
+ * Purpose: Compact FR relative-time label ("il y a 3 j", "il y a 2 sem", …).
+ * How: Walk `Date.now() - mtime` through fixed thresholds (sec/min/h/d/w/mo/y).
+ */
 // "il y a 3 j", "il y a 2 sem", … Lightweight FR formatter — no
 // Intl.RelativeTimeFormat dependency, and the output is the kind of
 // loose label the dropdown needs.

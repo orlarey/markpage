@@ -1,18 +1,14 @@
-// Library of named PdfSettings profiles, parallel to the multi-doc
-// store from docs.ts. The user toggles between profiles from the
-// [Mon profil ▾] dropdown in the Réglages window header; the active
-// profile drives the preview / PDF / LaTeX render. Cf. SPEC §9.4.
-//
-// Two-layer design (cf. SPEC §9.4.6):
-//   - Public API: every operation is parameterised by uuid (handle)
-//     and named in the docs.ts style (createProfile, renameProfile,
-//     etc.). The API thinks in (name, content) pairs and never
-//     exposes SHA / blobs.
-//   - Storage layer: content-addressed by SHA-256 of the serialised
-//     PdfSettings, mirroring how docs.ts stores markdown blobs.
-//     Two profiles with identical content share a single blob; a
-//     duplicate is a new entry pointing at the same SHA.
-//
+/********************************* settings-profiles.ts ************************
+ *
+ * Purpose: Library of named `PdfSettings` profiles surfaced in the
+ *   [Mon profil ▾] menu — parallel to the multi-doc store from docs.ts.
+ * How: Two-layer (SPEC §9.4.6): public API parameterised by uuid, storage
+ *   content-addressed by SHA-256 of the serialised PdfSettings. Three
+ *   localStorage key spaces (`:index`, `:blob:<sha>`, `:current`) plus
+ *   idempotent legacy-migration passes.
+ *
+ *******************************************************************************/
+
 // On-disk schema (localStorage):
 //   markpage:settings-profiles:index       → JSON ProfileEntry[]
 //   markpage:settings-profiles:blob:<sha>  → JSON PdfSettings
@@ -40,17 +36,21 @@ const KEY_LEGACY_SETTINGS = 'markpage:settings';
 // profile, the sentinel is gone and the chosen name is shown as-is.
 const DEFAULT_PROFILE_NAME = '__default__';
 
-// User-facing name for a profile entry. The default profile carries
-// a sentinel value (cf. above) that we translate on the fly so a
-// French user sees "Par défaut" and an English user sees "Default" —
-// without renaming the underlying entry when the locale flips. All
-// other profiles render with their stored name.
+/**
+ * Purpose: User-facing label for a profile entry.
+ * How: Translate the `__default__` sentinel on the fly via `t()`; pass
+ *   any other name through as-is.
+ */
 export function displayProfileName(entry: ProfileEntry): string {
   return entry.name === DEFAULT_PROFILE_NAME
     ? t('profile.default-name')
     : entry.name;
 }
 
+/**
+ * Purpose: One entry in the profile index — pointer at a SHA-keyed
+ *   PdfSettings blob.
+ */
 export interface ProfileEntry {
   uuid: string;
   name: string;
@@ -60,6 +60,10 @@ export interface ProfileEntry {
 
 // ---- index ------------------------------------------------------------
 
+/**
+ * Purpose: Parse the profile index from localStorage, tolerant to corruption.
+ * How: JSON parse + array filter through `isProfileEntry`; `[]` on failure.
+ */
 function readIndex(): ProfileEntry[] {
   const raw = localStorage.getItem(KEY_INDEX);
   if (!raw) return [];
@@ -72,10 +76,18 @@ function readIndex(): ProfileEntry[] {
   }
 }
 
+/**
+ * Purpose: Persist the profile index back to localStorage.
+ * How: `JSON.stringify` + `setItem(KEY_INDEX, …)`.
+ */
 function writeIndex(entries: ProfileEntry[]): void {
   localStorage.setItem(KEY_INDEX, JSON.stringify(entries));
 }
 
+/**
+ * Purpose: Runtime guard checking that an unknown is a `ProfileEntry`.
+ * How: Object presence + four `typeof` checks on uuid/name/mtime/contentSha.
+ */
 function isProfileEntry(x: unknown): x is ProfileEntry {
   if (!x || typeof x !== 'object') return false;
   const e = x as Partial<ProfileEntry>;
@@ -87,16 +99,28 @@ function isProfileEntry(x: unknown): x is ProfileEntry {
   );
 }
 
+/**
+ * Purpose: Snapshot of the profile index sorted by mtime descending.
+ * How: Read, shallow copy, sort by `b.mtime - a.mtime`.
+ */
 export function listProfiles(): ProfileEntry[] {
   return readIndex().slice().sort((a, b) => b.mtime - a.mtime);
 }
 
 // ---- blobs ------------------------------------------------------------
 
+/**
+ * Purpose: Build the localStorage key for a SHA-keyed settings blob.
+ * How: Prefix concatenation with `KEY_BLOB_PREFIX`.
+ */
 function blobKey(sha: string): string {
   return KEY_BLOB_PREFIX + sha;
 }
 
+/**
+ * Purpose: Load a settings blob and run it through the tolerant merge.
+ * How: `getItem` + `JSON.parse` + `mergeWithDefaults`; null on miss / parse error.
+ */
 function readBlob(sha: string): PdfSettings | null {
   const raw = localStorage.getItem(blobKey(sha));
   if (!raw) return null;
@@ -107,32 +131,47 @@ function readBlob(sha: string): PdfSettings | null {
   }
 }
 
-// Idempotent: skips the write when the same SHA is already on disk.
-// Content-addressed = bytes at the key would be identical anyway.
+/**
+ * Purpose: Persist a settings blob if (and only if) the SHA isn't already stored.
+ * How: Skip when the key exists — content-addressed, same SHA implies same bytes.
+ */
 function writeBlob(sha: string, settings: PdfSettings): void {
   if (localStorage.getItem(blobKey(sha)) === null) {
     localStorage.setItem(blobKey(sha), JSON.stringify(settings));
   }
 }
 
+/**
+ * Purpose: Compute the SHA-256 hex of a serialised settings object.
+ * How: Wrap `JSON.stringify(settings)` in a `Blob` and delegate to `sha256Hex`.
+ */
 async function hashSettings(settings: PdfSettings): Promise<string> {
   return sha256Hex(new Blob([JSON.stringify(settings)]));
 }
 
 // ---- current profile --------------------------------------------------
 
+/**
+ * Purpose: Read the persisted active-profile uuid (or null).
+ * How: `localStorage.getItem(KEY_CURRENT)`.
+ */
 export function getCurrentProfileId(): string | null {
   return localStorage.getItem(KEY_CURRENT);
 }
 
+/**
+ * Purpose: Persist the active-profile uuid.
+ * How: `localStorage.setItem(KEY_CURRENT, uuid)`.
+ */
 export function setCurrentProfileId(uuid: string): void {
   localStorage.setItem(KEY_CURRENT, uuid);
 }
 
-// Resolves the profile the app should activate on this run. Falls
-// back to the freshest entry when `current` is missing or invalid.
-// Returns null only if the index is genuinely empty — the caller
-// must follow with `ensureActiveProfile` in that case.
+/**
+ * Purpose: Pick the profile to activate on this run.
+ * How: Prefer the persisted current-profile; fall back to the freshest
+ *   entry; null when the index is empty.
+ */
 export function resolveCurrentProfile(): ProfileEntry | null {
   const index = readIndex();
   if (index.length === 0) return null;
@@ -145,6 +184,10 @@ export function resolveCurrentProfile(): ProfileEntry | null {
 
 // ---- name helpers -----------------------------------------------------
 
+/**
+ * Purpose: Disambiguate a candidate name against a set of taken names.
+ * How: Return `base` unchanged when free; else append " 2", " 3", … until free.
+ */
 function uniqueName(base: string, taken: Set<string>): string {
   if (!taken.has(base)) return base;
   let n = 2;
@@ -154,8 +197,11 @@ function uniqueName(base: string, taken: Set<string>): string {
 
 // ---- create / rename / duplicate / delete ------------------------------
 
-// Hashes `settings`, writes the blob if new, appends an entry with a
-// fresh uuid. Auto-renames on name collision.
+/**
+ * Purpose: Create a new profile with the given name and settings.
+ * How: Hash + writeBlob, push a fresh entry (uuid, unique name, mtime=now,
+ *   SHA) into the index.
+ */
 export async function createProfile(
   desiredName: string,
   settings: PdfSettings,
@@ -176,9 +222,11 @@ export async function createProfile(
   return entry;
 }
 
-// Index-only mutation: name field, no blob touched. Returns null if
-// the uuid is unknown. No-op (returns the existing entry untouched)
-// when the new name is identical to the old one.
+/**
+ * Purpose: Rename a profile (index-only mutation, blob untouched).
+ * How: Patch `name` after `uniqueName` collision check; null for unknown
+ *   uuid or empty name; no-op when the name is unchanged.
+ */
 export function renameProfile(
   uuid: string,
   newName: string,
@@ -199,8 +247,11 @@ export function renameProfile(
   return updated;
 }
 
-// New entry pointing at the same blob (same SHA). Cheap: no second
-// blob written, just the index entry.
+/**
+ * Purpose: Duplicate a profile cheaply via shared blob reference.
+ * How: Push a new index entry with a fresh uuid + unique "Copie de …"
+ *   name reusing the source `contentSha`; no new blob written.
+ */
 export function duplicateProfile(uuid: string): ProfileEntry | null {
   const index = readIndex();
   const src = index.find((e) => e.uuid === uuid);
@@ -218,10 +269,11 @@ export function duplicateProfile(uuid: string): ProfileEntry | null {
   return entry;
 }
 
-// Removes the profile. **Refuses to delete the last remaining one**
-// (callers should disable the action in that case anyway). Hands the
-// active slot to the freshest survivor when the deleted profile was
-// current. Returns true when the deletion went through.
+/**
+ * Purpose: Delete a profile (refuses to drop the last one).
+ * How: Filter the index, run `gcProfileBlobs`, hand the active slot to
+ *   the freshest survivor when the deleted profile was current.
+ */
 export function deleteProfile(uuid: string): boolean {
   const index = readIndex();
   if (index.length <= 1) return false;
@@ -241,6 +293,10 @@ export function deleteProfile(uuid: string): boolean {
 
 // ---- read / write the content of an entry ------------------------------
 
+/**
+ * Purpose: Load the `PdfSettings` payload of the named profile.
+ * How: Index lookup + `readBlob`; falls back to `DEFAULT_SETTINGS` on miss.
+ */
 export function loadProfileSettings(uuid: string): PdfSettings {
   const index = readIndex();
   const entry = index.find((e) => e.uuid === uuid);
@@ -248,11 +304,11 @@ export function loadProfileSettings(uuid: string): PdfSettings {
   return readBlob(entry.contentSha) ?? DEFAULT_SETTINGS;
 }
 
-// Edits the content of the named profile. Idempotent: when the new
-// content hashes to the same SHA as the existing one, leaves both
-// the blob and the entry's mtime untouched — keeps the dropdown's
-// recency sort from flipping while the user just hovers around the
-// form. Returns the (possibly unchanged) entry.
+/**
+ * Purpose: Persist new content for a profile; idempotent on identical SHA.
+ * How: Hash, writeBlob, then update the entry's `contentSha` + `mtime`
+ *   only when the SHA actually changed; orphan old SHA via `gcProfileBlobs`.
+ */
 export async function saveProfileSettings(
   uuid: string,
   settings: PdfSettings,
@@ -275,9 +331,10 @@ export async function saveProfileSettings(
   return updated;
 }
 
-// Convenience: edit content to DEFAULT_SETTINGS without touching the
-// name. Behaves exactly like saveProfileSettings(uuid, DEFAULT_SETTINGS)
-// but reads better at the call site.
+/**
+ * Purpose: Reset a profile's content to `DEFAULT_SETTINGS`, keeping the name.
+ * How: Delegate to `saveProfileSettings(uuid, DEFAULT_SETTINGS)`.
+ */
 export async function resetProfile(
   uuid: string,
 ): Promise<ProfileEntry | null> {
@@ -286,9 +343,11 @@ export async function resetProfile(
 
 // ---- garbage collection -----------------------------------------------
 
-// Drops every blob whose SHA isn't referenced by any entry. Cheap
-// linear walk over the localStorage keys with our prefix. Returns
-// the number of blobs removed.
+/**
+ * Purpose: Drop every settings blob whose SHA isn't referenced anymore.
+ * How: Walk localStorage keys with `KEY_BLOB_PREFIX`; remove unreferenced
+ *   ones, rewinding the index after each removal to handle browser reordering.
+ */
 export function gcProfileBlobs(): number {
   const referenced = new Set(readIndex().map((e) => e.contentSha));
   let removed = 0;
@@ -308,9 +367,11 @@ export function gcProfileBlobs(): number {
 
 // ---- bootstrap --------------------------------------------------------
 
-// Idempotent migration from the mono-profile world: the legacy
-// `markpage:settings` key (a single PdfSettings JSON) becomes the
-// first profile named "Par défaut".
+/**
+ * Purpose: Idempotent migration from the mono-profile world.
+ * How: If `markpage:settings` exists, create a `__default__` profile from
+ *   it, mark it current, then drop the legacy key.
+ */
 async function migrateMonoProfile(): Promise<void> {
   const legacy = localStorage.getItem(KEY_LEGACY_SETTINGS);
   if (legacy === null) return;
@@ -326,10 +387,11 @@ async function migrateMonoProfile(): Promise<void> {
   localStorage.removeItem(KEY_LEGACY_SETTINGS);
 }
 
-// Idempotent migration from the uuid-keyed blob schema (the §9.4
-// draft, commit 24c009d). For each index entry without contentSha,
-// look up its uuid-keyed blob, hash it, store under SHA, attach
-// contentSha. The old uuid-keyed blob is then dropped.
+/**
+ * Purpose: Idempotent migration from the §9.4 draft's uuid-keyed blobs.
+ * How: For each entry missing `contentSha`, hash its uuid-keyed blob,
+ *   re-store under the SHA, attach the SHA to the entry, drop the old key.
+ */
 async function migrateUuidKeyedBlobs(): Promise<void> {
   // Index entries from the draft schema lacked `contentSha`. We
   // detect them by reading the raw JSON (since isProfileEntry now
@@ -369,13 +431,11 @@ async function migrateUuidKeyedBlobs(): Promise<void> {
   writeIndex(migrated);
 }
 
-// Pre-i18n installs created the auto-default profile under the
-// literal string "Par défaut". Convert any such entry to the
-// `__default__` sentinel so the name follows the active UI locale
-// going forward. Idempotent: once converted, no entry matches the
-// literal strings and the function is a no-op. Also picks up
-// "Default" for symmetry, in case a profile was created with the
-// English seed (which used the same code path).
+/**
+ * Purpose: Idempotent migration of pre-i18n literal default names.
+ * How: Rewrite any entry named "Par défaut" / "Default" to the
+ *   `__default__` sentinel so it follows the active UI locale.
+ */
 function migrateLiteralDefaultName(): void {
   const index = readIndex();
   let dirty = false;
@@ -388,9 +448,11 @@ function migrateLiteralDefaultName(): void {
   if (dirty) writeIndex(index);
 }
 
-// Runs every supported migration in order. Each inner migration is
-// a no-op when its trigger is absent, so this is cheap and
-// idempotent — safe to call at every bootstrap.
+/**
+ * Purpose: Run every settings-profile migration in order.
+ * How: uuid-keyed-blobs → mono-profile (only if index still absent) →
+ *   literal-default-name; each inner pass is idempotent.
+ */
 export async function migrateLegacySettingsIfNeeded(): Promise<void> {
   await migrateUuidKeyedBlobs();
   if (localStorage.getItem(KEY_INDEX) === null) {
@@ -399,15 +461,12 @@ export async function migrateLegacySettingsIfNeeded(): Promise<void> {
   migrateLiteralDefaultName();
 }
 
-// Returns the existing or freshly-created active profile. Called at
-// bootstrap to guarantee the rest of the app always has *some*
-// settings to render against. Run migrateLegacySettingsIfNeeded
-// before this so a legacy install lands in the right place.
-//
-// `seedLanguage` controls the doc language baked into the brand-new
-// "Par défaut" profile we create when the index is empty; callers
-// pass the detected UI locale so an English user lands with English
-// defaults. Existing profiles are untouched.
+/**
+ * Purpose: Return the active profile, creating a default one if the
+ *   index is empty. Bootstraps the rest of the app's settings.
+ * How: `resolveCurrentProfile` first; otherwise `createProfile(__default__)`
+ *   seeded with `seedLanguage` (detected UI locale), then set current.
+ */
 export async function ensureActiveProfile(
   seedLanguage: 'fr' | 'en' = 'fr',
 ): Promise<ProfileEntry> {
@@ -426,12 +485,10 @@ export async function ensureActiveProfile(
 
 // ---- JSON import / export --------------------------------------------
 
-// Wire format (v1):
-//   {
-//     "version": 1,
-//     "name": "Mon profil",
-//     "settings": { …PdfSettings… }
-//   }
+/**
+ * Purpose: Wire format for export/import — version-tagged envelope
+ *   carrying the profile name and full settings.
+ */
 interface ExportEnvelope {
   version: number;
   name: string;
@@ -440,6 +497,11 @@ interface ExportEnvelope {
 
 const EXPORT_VERSION = 1;
 
+/**
+ * Purpose: Serialise the named profile to a JSON export string (or null
+ *   when the uuid/blob is missing).
+ * How: Build an `ExportEnvelope` from the entry and its blob; `JSON.stringify` with indent 2.
+ */
 export function exportProfileJson(uuid: string): string | null {
   const index = readIndex();
   const entry = index.find((e) => e.uuid === uuid);
@@ -454,10 +516,19 @@ export function exportProfileJson(uuid: string): string | null {
   return JSON.stringify(envelope, null, 2);
 }
 
+/**
+ * Purpose: Result of `importProfileJson` — either the created profile
+ *   or a localised error message.
+ */
 export type ImportResult =
   | { ok: true; profile: ProfileEntry }
   | { ok: false; error: string };
 
+/**
+ * Purpose: Parse an export envelope and create the corresponding profile.
+ * How: JSON parse → version + shape checks → `createProfile(name, settings)`;
+ *   any failure returns `{ ok: false, error }` with an i18n string.
+ */
 export async function importProfileJson(json: string): Promise<ImportResult> {
   let parsed: unknown;
   try {

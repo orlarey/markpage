@@ -1,3 +1,12 @@
+/********************************* style-menu.ts *******************************
+ *
+ * Purpose: Editor formatting menu — heading / bold / italic / list / quote /
+ *   link / image / renumber / reformat — opened by toolbar click or right-click.
+ * How: Snapshot the selection state once on open, render checkmarks based on it,
+ *   then dispatch one of the `editor-commands` mutations on click.
+ *
+ *******************************************************************************/
+
 import type { EditorView } from '@codemirror/view';
 import {
   getSelectionState,
@@ -17,6 +26,11 @@ import { pickAndInsertImage } from '../image';
 
 const MENU_ID = 'style-menu';
 
+/**
+ * Purpose: Wire right-click in the editor pane to open the style menu at the click.
+ * How: Reposition the cursor (unless the click is inside an existing selection),
+ *   then call `openStyleMenu` with the click's screen coords.
+ */
 // Right-click anywhere in the editor pane to open the same menu, anchored at
 // the click position. We reposition the cursor so the menu reflects the
 // click's context — but only if the click falls *outside* any existing
@@ -39,6 +53,10 @@ export function attachStyleContextMenu(
   });
 }
 
+/**
+ * Purpose: Mount the style menu at `(x, y)`, with checkmarks reflecting selection state.
+ * How: Snapshot `getSelectionState(view)` once, build the item list, defer dismiss listeners.
+ */
 // Opens the style menu anchored at the given screen coordinates. Reflects the
 // current selection's format state via checkmarks; commands operate on the
 // editor's saved selection (so it works whether or not the editor has focus).

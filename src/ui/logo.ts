@@ -1,3 +1,11 @@
+/********************************* logo.ts *************************************
+ *
+ * Purpose: Build the markpage brand-mark inline element (`mark` + `page` spans).
+ * How: Mint a `<span>` triple via the caller's `Document` so it works in spawned
+ *   popup windows; styling (font, colour) is driven by CSS classes.
+ *
+ *******************************************************************************/
+
 // The markpage brand mark. Two variants:
 //   - full  → "markpage", with `mark` in Roboto Mono / brand blue
 //             and `page` in Roboto / black.
@@ -8,6 +16,10 @@
 
 export type LogoVariant = 'full' | 'short';
 
+/**
+ * Purpose: Build the brand mark in the caller's `Document` (full or short variant).
+ * How: Three nested spans (`markpage-logo`, `-mark`, `-page`); CSS handles the look.
+ */
 export function makeLogo(
   doc: Document,
   variant: LogoVariant = 'full',

@@ -1,14 +1,11 @@
-// Syntax highlighting for fenced code blocks. Curated subset of
-// highlight.js languages — keeps the bundle weight to ~80-150 KB
-// while covering the languages a spec writer typically reaches for.
-//
-// Faust is registered as a custom language (defined below) since
-// it isn't in highlight.js core.
-//
-// `highlightCode(code, lang)` returns HTML markup wrapped in a
-// `<pre class="hljs"><code class="hljs language-…">…</code></pre>`
-// structure. If the language isn't registered, we fall back to an
-// escaped plain `<pre><code>` so the source still renders.
+/********************************* highlight.ts *********************************
+ *
+ * Purpose: Syntax-highlighting backend for fenced code blocks — curated
+ *   subset of highlight.js languages plus our custom Faust definition.
+ * How: Register languages on the shared hljs instance at module load, then
+ *   expose `isKnownLanguage` (lookup) and `highlightCode` (render to HTML).
+ *
+ *******************************************************************************/
 
 import hljs from 'highlight.js/lib/core';
 
@@ -68,16 +65,18 @@ hljs.registerLanguage('xml', xml);
 hljs.registerLanguage('yaml', yaml);
 hljs.registerLanguage('yml', yaml);
 
-// Returns true if highlight.js knows about the given language alias.
-// Lets marked-config decide whether to invoke the highlighter or
-// fall through to plain code rendering.
+/**
+ * Purpose: Test whether highlight.js knows the given language alias.
+ * How: Thin wrapper over `hljs.getLanguage(lang)`.
+ */
 export function isKnownLanguage(lang: string): boolean {
   return hljs.getLanguage(lang) !== undefined;
 }
 
-// Renders an already-known language. The output is wrapped in
-// `<pre class="hljs"><code class="hljs language-…">…</code></pre>`
-// — the matching CSS classes drive the colour theme.
+/**
+ * Purpose: Render code in a known language to highlighted HTML markup.
+ * How: Call `hljs.highlight` then wrap in `<pre class="hljs"><code …>`.
+ */
 export function highlightCode(code: string, lang: string): string {
   const result = hljs.highlight(code, { language: lang, ignoreIllegals: true });
   return (
@@ -87,6 +86,10 @@ export function highlightCode(code: string, lang: string): string {
   );
 }
 
+/**
+ * Purpose: Escape a string for safe insertion in a `"`-quoted HTML attribute.
+ * How: Replace `&` and `"`; other characters are class names — already safe.
+ */
 function escapeAttr(s: string): string {
   return s.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
 }

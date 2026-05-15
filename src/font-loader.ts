@@ -1,17 +1,20 @@
-// Loads Google Fonts on demand by injecting a <link rel="stylesheet">
-// into <head>. The catalogue is bundled at build time
-// (src/assets/google-fonts-catalog.json), so there's no runtime fetch
-// of font metadata, no API key, and no third-party SDK — just one
-// lightweight CSS request per requested family.
-//
-// Bundled families (Roboto Condensed, Roboto Mono, …) skip the
-// network entirely: they're already available through @fontsource
-// imports in main.ts.
+/******************************** font-loader.ts *******************************
+ *
+ * Purpose: On-demand loading of Google Fonts via injected `<link>` stylesheets,
+ *   plus user-managed custom-font registry on top of a curated bundled catalogue.
+ * How: Static JSON catalogue + module-level custom-fonts state; load() dedups
+ *   via two maps (`loaded` for done, `inflight` for in-progress promises).
+ *
+ *******************************************************************************/
 
 import catalog from './assets/google-fonts-catalog.json';
 import { t } from './i18n/strings';
 import type { CustomFont } from './settings';
 
+/**
+ * Purpose: One entry in the font catalogue (curated or user-added).
+ * How: `bundled` skips network; `custom` flags user entries for the UI affordance.
+ */
 export interface FontEntry {
   name: string;
   family: 'sans' | 'serif' | 'mono';
@@ -30,12 +33,18 @@ const CATALOG: FontEntry[] = catalog as FontEntry[];
 // both read it and we never want them to drift.
 let customFonts: CustomFont[] = [];
 
-// Replace the active custom-font registry. Call sites: app bootstrap
-// (right after loadSettings) and the Réglages add/remove handlers.
+/**
+ * Purpose: Replace the active custom-font registry.
+ * How: Overwrites the module-level `customFonts` array.
+ */
 export function registerCustomFonts(fonts: CustomFont[]): void {
   customFonts = fonts;
 }
 
+/**
+ * Purpose: Return the full (curated + custom) font catalogue.
+ * How: Maps each custom font to a `FontEntry` shape and concatenates.
+ */
 export function getFontCatalog(): FontEntry[] {
   const customEntries: FontEntry[] = customFonts.map((f) => ({
     name: f.name,
@@ -50,13 +59,18 @@ export function getFontCatalog(): FontEntry[] {
   return [...CATALOG, ...customEntries];
 }
 
+/**
+ * Purpose: Look up a catalogue entry by exact family name.
+ * How: Linear search over `getFontCatalog()`; null when not found.
+ */
 export function findFont(name: string): FontEntry | null {
   return getFontCatalog().find((f) => f.name === name) ?? null;
 }
 
-// Pulls one or more `family=` declarations out of a Google Fonts
-// stylesheet URL. Discriminated union so the caller can branch on
-// success vs. validation failure.
+/**
+ * Purpose: Parse one or more `family=` declarations from a Google Fonts URL.
+ * How: Validate host/`family=` params, then split each value at `:` for the name.
+ */
 export function parseGoogleFontsUrl(
   raw: string,
 ): { ok: true; fonts: CustomFont[] } | { ok: false; error: string } {
@@ -82,17 +96,18 @@ export function parseGoogleFontsUrl(
   return { ok: true, fonts };
 }
 
-// Whether the browser already has this family available without
-// hitting the network (either bundled via @fontsource, or unknown to
-// us — in which case the user has typed it manually and we trust the
-// system fallback).
+/**
+ * Purpose: Tell whether a family is already locally available (no network).
+ * How: True iff the catalogue marks it `bundled: true`.
+ */
 export function isBundled(name: string): boolean {
   return findFont(name)?.bundled === true;
 }
 
-// Used inside CSS `font-family` declarations. Wraps in quotes if the
-// name contains spaces; leaves it bare otherwise. Generic fallback
-// is the caller's job (e.g. ', sans-serif').
+/**
+ * Purpose: Quote a family name for use inside a CSS `font-family` declaration.
+ * How: Wrap in double quotes when the name contains whitespace; bare otherwise.
+ */
 export function quoteFontFamily(name: string): string {
   return /\s/.test(name) ? `"${name}"` : name;
 }
@@ -104,9 +119,10 @@ export function quoteFontFamily(name: string): string {
 const loaded = new Set<string>();
 const inflight = new Map<string, Promise<void>>();
 
-// Builds the Google Fonts CSS2 URL for one entry. We always request
-// `display=swap` so a slow network doesn't blank the document while
-// the font loads — the user keeps reading in the fallback meanwhile.
+/**
+ * Purpose: Build the Google Fonts CSS2 URL for one catalogue entry.
+ * How: URL-encodes the name and the sorted weight list, with `display=swap`.
+ */
 function googleCssUrl(entry: FontEntry): string {
   const familyParam = entry.name.replaceAll(/\s+/g, '+');
   // The `:wght@…` syntax is what Google Fonts exposes via css2.
@@ -114,6 +130,10 @@ function googleCssUrl(entry: FontEntry): string {
   return `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weights}&display=swap`;
 }
 
+/**
+ * Purpose: Idempotently load a Google Font family, awaiting the actual face load.
+ * How: Custom-fonts path uses their URL directly; catalogue path builds the URL.
+ */
 export async function loadGoogleFont(name: string): Promise<void> {
   if (loaded.has(name)) return;
   const cached = inflight.get(name);
@@ -170,6 +190,10 @@ export async function loadGoogleFont(name: string): Promise<void> {
   }
 }
 
+/**
+ * Purpose: Inject one `<link rel="stylesheet">` into `<head>` and resolve when ready.
+ * How: Reuse an existing tagged link, else create one and resolve on load/error.
+ */
 function injectStylesheet(href: string): Promise<void> {
   return new Promise((resolve) => {
     // Reuse if the same href was injected by a prior call (idempotent
@@ -195,17 +219,18 @@ function injectStylesheet(href: string): Promise<void> {
   });
 }
 
-// Minimal CSS attribute-selector escape — the catalogue is curated,
-// so the only special character we expect inside a Google Fonts URL
-// is the colon between hostname / port and the path. We escape the
-// quote in case a future entry slips one through.
+/**
+ * Purpose: Minimal CSS attribute-selector escape for our `link[data-…]` query.
+ * How: Escape `"` (catalogue URLs don't contain anything else needing escape).
+ */
 function cssEscape(s: string): string {
   return s.replaceAll('"', String.raw`\"`);
 }
 
-// Convenience for callers (bootstrap, settings change handler) that
-// need to make sure all three slots — headings / body / code — are
-// available before re-rendering.
+/**
+ * Purpose: Load every family in a (headings, body, code) trio in parallel.
+ * How: Dedup via a Set, then `Promise.all(loadGoogleFont(...))`.
+ */
 export async function loadFontTrio(
   trio: { headings: string; body: string; code: string },
 ): Promise<void> {

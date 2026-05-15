@@ -1,3 +1,12 @@
+/********************************* strings.ts **********************************
+ *
+ * Purpose: Single source of truth for every user-facing string + the `t(key)`
+ *   accessor used everywhere in the UI.
+ * How: Flat per-locale records keyed by dotted namespaces; EN typed against
+ *   the FR keyset so missing / surplus keys fail the build.
+ *
+ *******************************************************************************/
+
 // Single source of truth for every user-facing string in markpage.
 //
 // Pattern: a flat record per locale, keyed by dotted namespace strings
@@ -365,6 +374,10 @@ const STRINGS = { fr: FR, en: EN } as const;
 
 export type StringKey = keyof typeof FR;
 
+/**
+ * Purpose: Translate `key` in the active locale, with `{placeholder}` interpolation.
+ * How: Look up `STRINGS[lang][key]` with EN fallback, then `replaceAll` each param.
+ */
 // Returns the translated string for `key` in the active UI locale,
 // with `{placeholder}` tokens replaced by the matching values in
 // `params`. Falls back to English if the key happens to be missing

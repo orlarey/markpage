@@ -1,10 +1,11 @@
-// Renders an ` ```ebnf ` fenced block as a series of railroad
-// (syntax) diagrams. Source is W3C-style EBNF (the dialect ebnf2-
-// railroad understands); each production becomes a separate SVG
-// diagram, labelled by its non-terminal name.
-//
-// Parse errors are caught and rendered as a visible <pre> fallback
-// so a typo doesn't blow up the whole document render.
+/********************************* ebnf.ts **************************************
+ *
+ * Purpose: Render the ` ```ebnf ` fence — W3C-style EBNF productions as
+ *   railroad / syntax diagrams (one SVG per production).
+ * How: Delegate parsing + SVG generation to `ebnf2railroad`, wrap each
+ *   production in a `<dt>/<dd>` pair; parse errors become a visible `<pre>`.
+ *
+ *******************************************************************************/
 
 // Types declared ambiently in src/vite-env.d.ts — the package ships
 // no .d.ts of its own.
@@ -20,6 +21,11 @@ interface Production {
   comment?: unknown;
 }
 
+/**
+ * Purpose: Entry point of the `ebnf` fence renderer.
+ * How: Parse to AST, build one diagram per production, wrap in a `<dl>`;
+ *   parse errors become a visible `<pre class="ebnf-error">`.
+ */
 export function renderEbnfBlock(source: string): string {
   try {
     const ast = parseEbnf(source) as Production[];
@@ -49,6 +55,10 @@ export function renderEbnfBlock(source: string): string {
   }
 }
 
+/**
+ * Purpose: Minimal HTML entity escape for `&`, `<`, `>`, `"`, `'`.
+ * How: Sequential `replaceAll`.
+ */
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')

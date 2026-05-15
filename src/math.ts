@@ -1,7 +1,11 @@
-// MathJax integration: TeX expressions get rendered to SVG and substituted
-// into the preview / PDF. MathJax is a heavy library (~250 KB minified once
-// pruned) so we lazy-load it via dynamic imports the first time a formula
-// is rendered. Results are cached in memory keyed by (source, display).
+/********************************* math.ts **************************************
+ *
+ * Purpose: MathJax integration — render TeX (inline or display) to SVG for
+ *   substitution into the preview / PDF.
+ * How: Lazy-load MathJax via dynamic `import()` on first use, cache the
+ *   renderer + per-(source,display) results, expose `renderMath` to callers.
+ *
+ *******************************************************************************/
 
 export type MathResult =
   | { ok: true; svg: string }
@@ -14,6 +18,11 @@ interface Renderer {
 let mathPromise: Promise<Renderer> | null = null;
 const cache = new Map<string, MathResult>();
 
+/**
+ * Purpose: Resolve to a fully wired MathJax `Renderer` (singleton).
+ * How: Memoise a dynamic-import block that builds TeX+SVG jaxes, registers
+ *   the HTML handler, and returns a `render(latex, display)` closure.
+ */
 async function loadMathJax(): Promise<Renderer> {
   mathPromise ??= (async () => {
     const [
@@ -52,6 +61,11 @@ async function loadMathJax(): Promise<Renderer> {
   return mathPromise;
 }
 
+/**
+ * Purpose: Render a TeX source string to an SVG (or error) result.
+ * How: Look up the per-(display,trimmed) cache; on miss, call MathJax and
+ *   extract the bare `<svg>` from the `<mjx-container>` wrapper.
+ */
 export async function renderMath(
   source: string,
   display: boolean,
@@ -77,6 +91,10 @@ export async function renderMath(
   return result;
 }
 
+/**
+ * Purpose: Pull the outer `<svg>…</svg>` out of MathJax's `<mjx-container>` wrapper.
+ * How: Greedy regex — non-greedy would stop at the first nested `</svg>`.
+ */
 function extractSvg(html: string): string {
   // Greedy match: MathJax SVGs nest sub-<svg> elements (one per oversized
   // glyph like fence brackets), so a non-greedy match would only capture

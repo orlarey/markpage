@@ -1,8 +1,11 @@
-// Mermaid integration: code blocks tagged ```mermaid get rendered to SVG and
-// substituted into the preview / PDF. Mermaid is a heavy library (~600 KB
-// minified) so we lazy-load it via a dynamic import the first time a
-// diagram is rendered. Results are cached in memory by source string so a
-// stable doc only triggers one render per diagram per session.
+/********************************* mermaid.ts ***********************************
+ *
+ * Purpose: Mermaid integration — render ` ```mermaid ` fences to SVG for
+ *   substitution into the preview / PDF.
+ * How: Lazy-load mermaid via dynamic `import()` on first use, cache the
+ *   library promise + per-source results so a stable doc renders each diagram once.
+ *
+ *******************************************************************************/
 
 export type MermaidResult =
   | { ok: true; svg: string }
@@ -12,6 +15,11 @@ let mermaidPromise: Promise<typeof import('mermaid').default> | null = null;
 const cache = new Map<string, MermaidResult>();
 let renderCounter = 0;
 
+/**
+ * Purpose: Resolve to a fully initialised mermaid module (singleton).
+ * How: Memoise a dynamic import; configure for sober/print-friendly output
+ *   with pure-SVG labels so pdfmake's strict parser accepts it.
+ */
 async function loadMermaid(): Promise<typeof import('mermaid').default> {
   mermaidPromise ??= (async () => {
     const m = (await import('mermaid')).default;
@@ -34,6 +42,11 @@ async function loadMermaid(): Promise<typeof import('mermaid').default> {
   return mermaidPromise;
 }
 
+/**
+ * Purpose: Render a mermaid source string to an SVG (or error) result.
+ * How: Look up the per-source cache; on miss, call `mermaid.render` with
+ *   a fresh id, capture errors, then memoise.
+ */
 export async function renderMermaid(source: string): Promise<MermaidResult> {
   const trimmed = source.trim();
   const cached = cache.get(trimmed);

@@ -1,9 +1,12 @@
-// Side-effect-only module: registers our marked extensions on the
-// shared `marked` instance. Importing this anywhere ensures the
-// `mathBlock` (TeX delimited by `$$…$$` on their own lines) and
-// `mathInline` (`$…$` inside a paragraph) token types are parsed and
-// renderable. Import once from main.ts before any marked.parse() /
-// marked.lexer() call.
+/********************************* marked-config.ts *****************************
+ *
+ * Purpose: Side-effect-only module — registers our custom marked extensions
+ *   (math, admonitions, footnotes, def-lists, fenced helpers) on the shared
+ *   `marked` instance. Import once from main.ts before any parse / lexer call.
+ * How: A single `marked.use({...})` call wires renderer overrides, hooks for
+ *   footnote bookkeeping, and the block/inline extensions.
+ *
+ *******************************************************************************/
 
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
@@ -135,6 +138,9 @@ const MATH_BLOCK_RE =
 // literal dollar sign.
 const MATH_INLINE_RE = /^\$(?!\s)((?:\\.|[^$\n])+?)(?<!\s)\$(?!\d)/;
 
+// Register all our custom extensions / hooks / renderer overrides in
+// one `marked.use({...})` block — this is the side effect of importing
+// this module.
 marked.use({
   // Treat ```math fenced blocks as display math, equivalent to a $$…$$
   // block. GitHub renders ```math as LaTeX since 2023 — we follow that
@@ -452,17 +458,19 @@ marked.use({
   ],
 });
 
-// Adds a `data-source="<escaped raw markdown>"` attribute to the
-// FIRST tag of `html`. The output of every renderer in this file is
-// a single root element, so the regex `<\w+` matches exactly the
-// opening tag we care about. Used to thread the original fenced-
-// block markdown into the rendered DOM, where the help window's
-// insert-button machinery can read it back via `dataset.source`.
+/**
+ * Purpose: Thread the original fenced-block markdown into the first tag of `html`.
+ * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
+ */
 function injectSource(html: string, raw: string): string {
   const escaped = escapeHtml(raw);
   return html.replace(/<(\w+)/, `<$1 data-source="${escaped}"`);
 }
 
+/**
+ * Purpose: Minimal HTML entity escape for `&`, `<`, `>`, `"`, `'`.
+ * How: Sequential `replaceAll`.
+ */
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')
@@ -515,6 +523,11 @@ function escapeHtml(s: string): string {
 // Single capital letters (`A`, `B`, `T`, `Γ` via `\Gamma`, …) remain
 // italic — the standard math convention for type / context / term
 // variables in typing-rule notation.
+/**
+ * Purpose: Apply the Gunter/Scott typography heuristics to an inference rule body.
+ * How: Rules A (`\mathcal`) and B (subscript) via two regex passes, then Rule C
+ *   via `wrapIdentifiersByBracketContext`.
+ */
 function applyInferenceTypography(src: string): string {
   let s = src;
   s = s.replace(/(?<![\\{])\b([A-Z])(?=⟦|\[\[)/g, '\\mathcal{$1}');
@@ -522,12 +535,12 @@ function applyInferenceTypography(src: string): string {
   return wrapIdentifiersByBracketContext(s);
 }
 
-// Walks `s` left-to-right tracking Scott-bracket depth (`⟦…⟧` and the
-// ASCII fallback `[[…]]`) and wraps multi-letter identifiers in either
-// `\mathbf{}` (inside brackets — constructors of abstract syntax) or
-// `\mathsf{}` (outside — semantic functions / auxiliary names).
-// Identifiers consumed as the name of a LaTeX command, or sitting
-// immediately after a `{`, are passed through verbatim.
+/**
+ * Purpose: Wrap multi-letter identifiers depending on Scott-bracket depth —
+ *   `\mathbf{}` inside `⟦…⟧` (constructors), `\mathsf{}` outside (functions).
+ * How: Left-to-right scan tracking bracket depth; skip LaTeX command names
+ *   and identifiers immediately inside `{…}` for idempotency.
+ */
 function wrapIdentifiersByBracketContext(s: string): string {
   const IDENT_RE = /^[A-Za-z]{2,}\b/;
   let out = '';
@@ -594,6 +607,11 @@ function wrapIdentifiersByBracketContext(s: string): string {
   return out;
 }
 
+/**
+ * Purpose: Render an ```inference block as a display-math `\dfrac{P}{C}` placeholder.
+ * How: Split on the `---` bar, join premises with `\quad`, apply typography,
+ *   optionally append a parenthesised rule label, emit a `<div class="math-block">`.
+ */
 function renderInference(src: string, label: string): string {
   const lines = src.replaceAll(/\r\n?/g, '\n').split('\n');
   const barIndex = lines.findIndex((l) => /^\s*-{3,}\s*$/.test(l));
@@ -631,11 +649,12 @@ function renderInference(src: string, label: string): string {
   return `<div class="math-block" data-math="${escapeHtml(latex)}"></div>\n`;
 }
 
-// Renders a CSV/TSV fenced block as an HTML <table>. The first
-// non-empty row becomes the header (<thead>), the rest are data rows.
-// CRLF is normalised to LF; leading/trailing blank lines are dropped
-// so users can leave a blank line after the opening fence without it
-// turning into an empty header row.
+/**
+ * Purpose: Render a CSV/TSV fenced block as an HTML `<table>` (first non-empty
+ *   row = header).
+ * How: Normalise CRLF, drop blank lines, parse each line with `parseCsvLine`,
+ *   then emit `<thead>` + `<tbody>` cells with HTML-escaped content.
+ */
 function renderDataTable(src: string, sep: string): string {
   const lines = src.replaceAll(/\r\n?/g, '\n').split('\n');
   const rows = lines
@@ -656,10 +675,12 @@ function renderDataTable(src: string, sep: string): string {
   return `<table class="data-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>\n`;
 }
 
-// Walks src line-by-line and consumes a contiguous block of
-// term/definition pairs (Pandoc def list). Returns the raw consumed
-// text and the parsed pairs, or null if the head of src isn't the
-// start of such a block.
+/**
+ * Purpose: Consume a Pandoc-style definition list (Term / `:` Def / 4-space
+ *   continuations) from the head of `src`.
+ * How: Loop while we see a Term line followed by a `:` line; fold 4-space
+ *   continuations into the current def; return raw consumed text + parsed pairs.
+ */
 //
 // Format (Pandoc-style):
 //   Term
@@ -715,10 +736,11 @@ function parseDefListBlock(
   return { raw, pairs };
 }
 
-// Minimal RFC-4180-ish CSV/TSV line parser: handles double-quoted
-// fields with escaped `""` inside. Doesn't handle embedded newlines
-// in quoted fields (we split on \n before reaching here) — if a real
-// document needs that we'll add a multi-line state machine.
+/**
+ * Purpose: Parse one CSV/TSV line — minimal RFC-4180-ish, double-quoted fields
+ *   with `""` escape, no embedded newlines.
+ * How: Char-by-char state machine toggling on the quote / separator chars.
+ */
 function parseCsvLine(line: string, sep: string): string[] {
   const fields: string[] = [];
   let cur = '';

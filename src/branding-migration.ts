@@ -1,19 +1,22 @@
-// One-shot rebranding migration: the storage prefix changed from
-// `md2pdf:` to `markpage:` (localStorage) and the IndexedDB database
-// renamed from `md2pdf` to `markpage`. This module runs at bootstrap,
-// before any other storage module is touched, and is idempotent so
-// re-running is a no-op.
+/********************************* branding-migration.ts ***********************
+ *
+ * Purpose: One-shot rebranding from `md2pdf` to `markpage` for both
+ *   localStorage keys (prefix swap) and IndexedDB database name.
+ * How: Two idempotent passes — sync prefix walk for localStorage, async
+ *   copy-then-delete for IndexedDB; both safe to re-run after interrupt.
+ *
+ *******************************************************************************/
 
 // ---- localStorage -----------------------------------------------------
 
 const OLD_PREFIX = 'md2pdf:';
 const NEW_PREFIX = 'markpage:';
 
-// Renames every `md2pdf:` key to `markpage:`. Sync, cheap.
-// Idempotent: keys already migrated stay put; remaining ones are
-// finished off. Safe against interruption — re-run picks up the
-// leftovers because the new key is only deleted from the old slot
-// after it lands in the new one.
+/**
+ * Purpose: Rename every `md2pdf:` localStorage key to `markpage:`.
+ * How: Collect old keys, copy each value into the new slot if absent,
+ *   then drop the old key. Idempotent and interrupt-safe.
+ */
 export function migrateLocalStorageBranding(): void {
   const oldKeys: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {
@@ -38,12 +41,12 @@ const NEW_DB_NAME = 'markpage';
 const STORE_NAME = 'images';
 const DB_VERSION = 1;
 
-// Copies every entry of the `images` store from the legacy `md2pdf`
-// IDB database into the `markpage` one, then drops the legacy DB.
-// Idempotent. Safe against interruption: we only delete the old DB
-// after the new one has all entries — re-running just re-copies any
-// entries that were already moved (idempotent since the key is the
-// SHA of the blob).
+/**
+ * Purpose: Move every `images` entry from the legacy `md2pdf` IDB
+ *   database into `markpage`, then delete the legacy DB.
+ * How: Open old DB, read all entries, copy into new DB, delete old DB.
+ *   Idempotent because keys are SHAs; safe against interruption.
+ */
 export async function migrateIDBBranding(): Promise<void> {
   // We don't gate on `indexedDB.databases()` (Firefox doesn't
   // expose it). Instead we open the legacy DB and check whether it
@@ -66,6 +69,11 @@ export async function migrateIDBBranding(): Promise<void> {
   await deleteIdbDatabase(OLD_DB_NAME);
 }
 
+/**
+ * Purpose: Open (or create) the named IDB DB with our `images` store.
+ * How: Standard `indexedDB.open` with an upgrade handler that creates
+ *   the store on first open.
+ */
 function openImagesDb(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(name, DB_VERSION);
@@ -85,6 +93,11 @@ interface ImageEntry {
   value: unknown;
 }
 
+/**
+ * Purpose: Snapshot every (key, value) pair from the `images` store.
+ * How: Issue paired `getAllKeys` / `getAll` in one readonly transaction
+ *   and zip the result arrays on `oncomplete`.
+ */
 function readAllImageEntries(db: IDBDatabase): Promise<ImageEntry[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -105,6 +118,11 @@ function readAllImageEntries(db: IDBDatabase): Promise<ImageEntry[]> {
   });
 }
 
+/**
+ * Purpose: Bulk-insert entries into the target `images` store.
+ * How: Single readwrite transaction with one `put` per entry; idempotent
+ *   because `put` overwrites under the same key.
+ */
 function writeImageEntries(
   db: IDBDatabase,
   entries: ImageEntry[],
@@ -123,6 +141,11 @@ function writeImageEntries(
   });
 }
 
+/**
+ * Purpose: Delete an IDB database by name.
+ * How: `indexedDB.deleteDatabase`; `onblocked` is logged but resolved so
+ *   bootstrap never deadlocks on a stale connection.
+ */
 function deleteIdbDatabase(name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);

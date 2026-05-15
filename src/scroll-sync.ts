@@ -1,16 +1,18 @@
+/******************************** scroll-sync.ts *******************************
+ *
+ * Purpose: Anchor-based view synchronisation between the editor and the preview
+ *   so toggling single-pane views preserves the user's reading position.
+ * How: An "anchor" is a (sourceLine, viewportY) pair captured from one side
+ *   and re-applied on the other via a sorted DOM line-map + linear interpolation.
+ *
+ *******************************************************************************/
+
 import { EditorView } from '@codemirror/view';
 
-// Anchor-based view synchronisation. Used to transit cursor position
-// between the editor and the (paginated) preview when the user toggles
-// between the two single-pane views.
-//
-// An "anchor" is a (sourceLine, viewportY) pair: which source-doc line
-// to align, and at what vertical position in the target's viewport.
-// editor → preview: snapshot the cursor's line and its viewport y;
-// applying that anchor to the preview puts the same line at the same y.
-// preview → editor: same, but using the click target's data-line and
-// the click's y within the preview viewport.
-
+/**
+ * Purpose: A (sourceLine, viewportY) pair — what line lands at what y.
+ * How: `line` is 0-indexed; `y` is pixels from the top of the target's viewport.
+ */
 export interface Anchor {
   line: number; // 0-indexed source line
   y: number; // pixels from the top of the target's viewport
@@ -21,7 +23,10 @@ interface LineEntry {
   previewY: number;
 }
 
-// Editor scroller Y at which the given source line starts (0-indexed).
+/**
+ * Purpose: Editor scroller Y at which the given source line starts.
+ * How: Clamp the 1-based line number, then `view.lineBlockAt(...).top`.
+ */
 function editorYForLine(view: EditorView, line: number): number | null {
   const docLines = view.state.doc.lines;
   const lineNum = Math.max(1, Math.min(docLines, Math.floor(line) + 1));
@@ -33,7 +38,10 @@ function editorYForLine(view: EditorView, line: number): number | null {
   }
 }
 
-// Walks the preview DOM once to build a sorted line→Y table.
+/**
+ * Purpose: Walk the preview DOM once and build a sorted (line → Y) table.
+ * How: Query `[data-line]`, compute Y relative to the preview's scroll origin.
+ */
 function readLineMap(previewEl: HTMLElement): LineEntry[] {
   const out: LineEntry[] = [];
   const previewRect = previewEl.getBoundingClientRect();
@@ -49,6 +57,10 @@ function readLineMap(previewEl: HTMLElement): LineEntry[] {
   return out;
 }
 
+/**
+ * Purpose: Linearly interpolate a preview Y for an arbitrary source line.
+ * How: `upperBoundLine` to bracket, then `t = (line - before)/(after - before)`.
+ */
 function lineToPreviewY(line: number, map: LineEntry[]): number {
   const idx = upperBoundLine(line, map);
   if (idx === 0) return map[0]?.previewY ?? 0;
@@ -61,6 +73,10 @@ function lineToPreviewY(line: number, map: LineEntry[]): number {
   return before.previewY + t * (after.previewY - before.previewY);
 }
 
+/**
+ * Purpose: First index whose `line` strictly exceeds `target`.
+ * How: Standard binary upper-bound on the sorted line-map.
+ */
 function upperBoundLine(target: number, map: LineEntry[]): number {
   let lo = 0;
   let hi = map.length;
@@ -75,8 +91,10 @@ function upperBoundLine(target: number, map: LineEntry[]): number {
 
 // --- Anchor reading -----------------------------------------------------
 
-// Returns the cursor's (line, viewportY) in the editor, or null if the
-// view isn't ready (e.g., layout hasn't been measured).
+/**
+ * Purpose: Snapshot the editor cursor's (line, viewportY).
+ * How: Read `selection.main.head`, derive line + block top minus scrollTop.
+ */
 export function editorCursorAnchor(view: EditorView): Anchor | null {
   try {
     const head = view.state.selection.main.head;
@@ -89,9 +107,10 @@ export function editorCursorAnchor(view: EditorView): Anchor | null {
   }
 }
 
-// Returns the (line, viewportY) of a click in the preview, looking up
-// the closest ancestor with `data-line`. Null if the click landed
-// outside any annotated block (e.g., on page padding).
+/**
+ * Purpose: Snapshot a preview click as (line, viewportY).
+ * How: `closest('[data-line]')` then `clientY` relative to the preview rect.
+ */
 export function previewClickAnchor(
   e: MouseEvent,
   previewEl: HTMLElement,
@@ -109,8 +128,10 @@ export function previewClickAnchor(
 
 // --- Anchor application -------------------------------------------------
 
-// Scrolls the preview so the given line lands at the given viewport y.
-// Clamps to the scrollable range. No-op if there's no [data-line] map.
+/**
+ * Purpose: Scroll the preview so `anchor.line` lands at `anchor.y`.
+ * How: Build the line-map, interpolate the target Y, clamp `scrollTop`.
+ */
 export function applyAnchorToPreview(
   previewEl: HTMLElement,
   anchor: Anchor,
@@ -122,9 +143,10 @@ export function applyAnchorToPreview(
   previewEl.scrollTop = Math.max(0, Math.min(max, previewY - anchor.y));
 }
 
-// Places the editor cursor at the start of the given line and scrolls
-// the editor so that line lands at the given viewport y. Returns true
-// on success.
+/**
+ * Purpose: Place the editor caret at `anchor.line` and scroll it to `anchor.y`.
+ * How: Dispatch a selection, then offset `scrollDOM.scrollTop` by `editorY - y`.
+ */
 export function applyAnchorToEditor(
   view: EditorView,
   anchor: Anchor,

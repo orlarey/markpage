@@ -1,3 +1,12 @@
+/********************************* editor-font.ts ******************************
+ *
+ * Purpose: Manage the editor-pane font preference (sans / mono / serif),
+ *   independent from the document's PDF fonts, persisted in localStorage.
+ * How: Module-level cache + subscriber set; `apply` writes the `--editor-font-family`
+ *   CSS var on `:root`; setter validates, persists, and notifies.
+ *
+ *******************************************************************************/
+
 // Editor-pane font preference. Independent from PdfSettings (which
 // drives the *document's* fonts in the preview / PDF); this one is
 // a personal UI choice — some users want a monospace face for
@@ -28,12 +37,20 @@ const FONT_CSS: Record<EditorFont, string> = {
 
 let current: EditorFont = 'sans';
 
+/**
+ * Purpose: Write the chosen font stack to the `--editor-font-family` CSS var on `:root`.
+ * How: Set the inline style on `document.documentElement`; no-op outside the DOM.
+ */
 function apply(font: EditorFont): void {
   if (typeof document !== 'undefined') {
     document.documentElement.style.setProperty(CSS_VAR, FONT_CSS[font]);
   }
 }
 
+/**
+ * Purpose: Load the stored font (or default `sans`), apply it to the DOM, return it.
+ * How: Read localStorage, validate against `SUPPORTED`; call `apply`; cache in `current`.
+ */
 export function initEditorFont(): EditorFont {
   const stored = localStorage.getItem(KEY);
   current = (SUPPORTED as string[]).includes(stored ?? '')
@@ -43,17 +60,29 @@ export function initEditorFont(): EditorFont {
   return current;
 }
 
+/**
+ * Purpose: Return the currently active editor font.
+ * How: Direct read of the module-level cache.
+ */
 export function getEditorFont(): EditorFont {
   return current;
 }
 
 const subscribers = new Set<() => void>();
 
+/**
+ * Purpose: Register a callback that fires whenever the editor font changes.
+ * How: Add to the subscriber `Set`; returned closure removes the entry.
+ */
 export function onEditorFontChange(cb: () => void): () => void {
   subscribers.add(cb);
   return () => subscribers.delete(cb);
 }
 
+/**
+ * Purpose: Update the editor font (persist, apply, notify subscribers).
+ * How: Short-circuit if unchanged, write localStorage, apply, snapshot-iterate callbacks.
+ */
 export function setEditorFont(font: EditorFont): void {
   if (font === current) return;
   localStorage.setItem(KEY, font);

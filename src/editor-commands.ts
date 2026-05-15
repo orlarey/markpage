@@ -1,3 +1,12 @@
+/********************************* editor-commands.ts **************************
+ *
+ * Purpose: Markdown-aware editor commands (toggle bold/italic/code, lists,
+ *   headings, quote, link insertion, table reformat, heading renumber).
+ * How: Per-line transforms via shared `transformLines` helpers; `toggleWrap`
+ *   uses the Lezer tree to expand empty cursors into enclosing emphasis spans.
+ *
+ *******************************************************************************/
+
 import {
   EditorSelection,
   type EditorState,
@@ -16,6 +25,10 @@ const QUOTE_PREFIX_RE = /^>\s+/;
 
 export type HeadingLevel = 0 | 1 | 2 | 3 | 4;
 
+/**
+ * Purpose: Snapshot of which Markdown marks are active at the caret.
+ * How: Block flags read from the line's text; inline flags from the Lezer tree.
+ */
 export interface SelectionState {
   heading: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   bold: boolean;
@@ -26,6 +39,10 @@ export interface SelectionState {
   quote: boolean;
 }
 
+/**
+ * Purpose: Report which Markdown formats apply at the caret position.
+ * How: Match line prefixes for block marks; walk Lezer ancestors for inline marks.
+ */
 // Inspects the cursor position to report which Markdown formats are
 // currently in effect. Block-level marks (heading, list, quote) are read
 // from the line's source text; inline marks (bold, italic, inline code) are
@@ -67,6 +84,10 @@ export function getSelectionState(view: EditorView): SelectionState {
   };
 }
 
+/**
+ * Purpose: Set (or clear, when `level === 0`) the ATX heading level on each selected line.
+ * How: Strip any existing `#…` prefix then prepend the new one via `transformLines`.
+ */
 export function setHeading(view: EditorView, level: HeadingLevel): void {
   transformLines(view, (line) => {
     const stripped = line.replace(HEADING_PREFIX_RE, '');
@@ -74,6 +95,10 @@ export function setHeading(view: EditorView, level: HeadingLevel): void {
   });
 }
 
+/**
+ * Purpose: Toggle the bullet-list marker on each selected line.
+ * How: Remove `- ` if present, else strip any numbered prefix and prepend `- `.
+ */
 export function toggleBulletList(view: EditorView): void {
   transformLines(view, (line) => {
     if (BULLET_PREFIX_RE.test(line)) return line.replace(BULLET_PREFIX_RE, '');
@@ -82,6 +107,10 @@ export function toggleBulletList(view: EditorView): void {
   });
 }
 
+/**
+ * Purpose: Toggle a `1.`-style numbered-list marker on each selected line.
+ * How: Strip the marker if present, else number per index via `transformLinesIndexed`.
+ */
 export function toggleNumberedList(view: EditorView): void {
   transformLinesIndexed(view, (line, idx) => {
     if (NUMBERED_PREFIX_RE.test(line)) {
@@ -92,6 +121,10 @@ export function toggleNumberedList(view: EditorView): void {
   });
 }
 
+/**
+ * Purpose: Toggle the `> ` blockquote prefix on each selected line.
+ * How: Strip the marker if present, otherwise prepend `> ` (or just `> ` on empty lines).
+ */
 export function toggleBlockquote(view: EditorView): void {
   transformLines(view, (line) => {
     if (QUOTE_PREFIX_RE.test(line)) return line.replace(QUOTE_PREFIX_RE, '');
@@ -99,18 +132,34 @@ export function toggleBlockquote(view: EditorView): void {
   });
 }
 
+/**
+ * Purpose: Toggle `**bold**` around the selection (or enclosing strong span).
+ * How: Delegates to `toggleWrap` with the `**` marker.
+ */
 export function toggleBold(view: EditorView): void {
   toggleWrap(view, '**');
 }
 
+/**
+ * Purpose: Toggle `*italic*` around the selection (or enclosing emphasis span).
+ * How: Delegates to `toggleWrap` with the `*` marker.
+ */
 export function toggleItalic(view: EditorView): void {
   toggleWrap(view, '*');
 }
 
+/**
+ * Purpose: Toggle `` `inline code` `` around the selection (or enclosing code span).
+ * How: Delegates to `toggleWrap` with the `` ` `` marker.
+ */
 export function toggleInlineCode(view: EditorView): void {
   toggleWrap(view, '`');
 }
 
+/**
+ * Purpose: Prompt for a URL and insert a Markdown link, placing caret on the editable part.
+ * How: Build `[text](url)`; place selection on the placeholder text or the URL.
+ */
 export function insertLink(view: EditorView): void {
   const url = globalThis.prompt('URL du lien :', 'https://');
   if (url === null || url.trim() === '') return;
@@ -138,6 +187,10 @@ export function insertLink(view: EditorView): void {
   view.focus();
 }
 
+/**
+ * Purpose: Renumber all headings using the style of each level's first occurrence.
+ * How: Run `renumberByExample` on the doc text; replace in one transaction; clamp caret.
+ */
 // "Renumber by example": detect the numbering style each heading level
 // uses (from its first occurrence) and rewrite every other heading at
 // that level to match. Single dispatched transaction so it's one undo
@@ -156,6 +209,10 @@ export function renumberHeadings(view: EditorView): void {
   view.focus();
 }
 
+/**
+ * Purpose: Reformat all GFM tables in the document (cells trimmed and padded uniformly).
+ * How: Run `formatMarkdownTables` on doc text; replace in one transaction; clamp caret.
+ */
 // Reformats every GFM table in the document: cells trimmed and
 // padded to a uniform column width, separator dashes normalised,
 // alignment markers preserved. Idempotent. Non-table content is
@@ -175,6 +232,10 @@ export function reformatTables(view: EditorView): void {
 
 // ---- helpers ------------------------------------------------------------
 
+/**
+ * Purpose: Apply `fn` to each line touched by the selection.
+ * How: Build a change set from `uniqueLines`, dispatch as a single transaction.
+ */
 function transformLines(view: EditorView, fn: (line: string) => string): void {
   const lines = uniqueLines(view);
   if (lines.length === 0) return;
@@ -187,6 +248,10 @@ function transformLines(view: EditorView, fn: (line: string) => string): void {
   view.focus();
 }
 
+/**
+ * Purpose: Like `transformLines` but passes a 0-based index to `fn` (for numbering).
+ * How: Same change-set pipeline; `fn` receives the line plus its position.
+ */
 function transformLinesIndexed(
   view: EditorView,
   fn: (line: string, index: number) => string,
@@ -202,6 +267,10 @@ function transformLinesIndexed(
   view.focus();
 }
 
+/**
+ * Purpose: Collect every line touched by any selection range, deduplicated, in order.
+ * How: Walk each range's line numbers and use a `from`-keyed `Map` to dedupe.
+ */
 // All distinct lines covered by the current selection ranges, in document order.
 function uniqueLines(view: EditorView): Line[] {
   const { state } = view;
@@ -230,6 +299,10 @@ interface WrapSegment {
 const LEADING_WS_RE = /^\s*/;
 const TRAILING_WS_RE = /\s*$/;
 
+/**
+ * Purpose: Intersect a line with the active range to produce a wrap-able segment.
+ * How: Trim whitespace at the ends and step over the line's structural prefix.
+ */
 // Builds a wrap-able segment from the intersection of a single line with the
 // active range. Skips empty / whitespace-only intersections, trims leading
 // and trailing whitespace, and steps over any Markdown structural prefix on
@@ -266,6 +339,10 @@ interface RangeLike {
   empty: boolean;
 }
 
+/**
+ * Purpose: Decompose selection ranges into one wrap-able segment per intersected line.
+ * How: For each non-empty range, iterate its line numbers and collect `lineSegment`s.
+ */
 // Decomposes the given ranges into wrap-able segments, one per line that
 // each range intersects. Returns segments in document order.
 function buildSegments(
@@ -295,6 +372,10 @@ const NODE_FOR_MARKER: Record<string, string | undefined> = {
   '`': 'InlineCode',
 };
 
+/**
+ * Purpose: Find the nearest ancestor node of `pos` whose name matches `nodeName`.
+ * How: Walk parents of `resolveInner(pos, -1)` upward until match or root.
+ */
 function findEnclosingNode(
   state: EditorState,
   pos: number,
@@ -311,6 +392,10 @@ function findEnclosingNode(
   return null;
 }
 
+/**
+ * Purpose: Grow an empty cursor to cover the enclosing emphasis span for `marker`.
+ * How: Lookup `NODE_FOR_MARKER[marker]`, find that ancestor, widen range to it.
+ */
 // If a cursor is empty AND sits inside an emphasis node matching `marker`,
 // returns a range that covers the whole node (markers included). Otherwise
 // returns the range unchanged.
@@ -326,6 +411,10 @@ function expandCursor(
   return node ? { from: node.from, to: node.to, empty: false } : range;
 }
 
+/**
+ * Purpose: Wrap / unwrap each selection segment with `marker` (e.g. `**`).
+ * How: Expand cursors, build segments; if all wrapped strip the markers, else wrap all.
+ */
 // Wraps each selection segment with `marker` (e.g. '**' for bold). Empty
 // cursors that happen to be inside a matching emphasis node are first
 // expanded to cover the whole node, so toggling Bold while the caret is

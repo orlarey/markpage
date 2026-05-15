@@ -1,7 +1,12 @@
-// Image insertion pipeline. During editing, the markdown source carries only
-// short `img://uuid` references; the actual binary lives in IndexedDB. We
-// expand to data URLs (for PDF / save) or blob URLs (for preview) on the
-// fly. This keeps the editor responsive even with many embedded images.
+/********************************* image.ts ************************************
+ *
+ * Purpose: Image insertion + reference plumbing. The markdown source
+ *   carries opaque `img://<sha>` refs; binaries live in IndexedDB and
+ *   get expanded to data/blob URLs on the fly for preview, save and PDF.
+ * How: Insert pipeline (process → store → splice ref); drop / paste / pick
+ *   handlers; ref ↔ inline-data conversions; UUID→SHA rewriter and GC.
+ *
+ *******************************************************************************/
 
 import { EditorSelection } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
@@ -28,6 +33,11 @@ const blobUrlCache = new Map<string, string>();
 
 // ---- image processing -------------------------------------------------
 
+/**
+ * Purpose: Normalise a user-picked image into a downsized JPEG/PNG blob.
+ * How: Decode → draw to a canvas clamped to `MAX_DIMENSION` → re-encode
+ *   as PNG when the alpha channel is non-trivial, else JPEG@`JPEG_QUALITY`.
+ */
 async function processImageToBlob(file: File): Promise<Blob> {
   const img = await loadImage(file);
   const scale = Math.min(
@@ -55,6 +65,10 @@ async function processImageToBlob(file: File): Promise<Blob> {
   });
 }
 
+/**
+ * Purpose: Decode a `File` into an `HTMLImageElement` ready to draw.
+ * How: Object URL + `Image.onload`; revoke the URL in both branches.
+ */
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -71,6 +85,10 @@ function loadImage(file: File): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Purpose: Tell whether a canvas region contains any non-opaque pixel.
+ * How: `getImageData` then scan every 4th byte (the alpha channel).
+ */
 function hasTransparency(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -85,10 +103,12 @@ function hasTransparency(
 
 // ---- insertion --------------------------------------------------------
 
-// Inserts the processed image inline at the cursor. The actual binary lives
-// in IndexedDB; the markdown only carries an opaque `img://<sha>` URL —
-// content-addressed so two documents embedding the same image share one
-// blob, and unused blobs are mechanically detectable by GC.
+/**
+ * Purpose: Splice a `![](img://<sha>)` reference at the cursor and stash
+ *   the binary in IndexedDB.
+ * How: `putBlobBySha`, then insert the markdown with surrounding blank
+ *   lines as needed and land the caret inside the alt-text brackets.
+ */
 async function insertImageAtCursor(
   view: EditorView,
   blob: Blob,
@@ -113,6 +133,11 @@ async function insertImageAtCursor(
   view.focus();
 }
 
+/**
+ * Purpose: Full pick-to-insert pipeline for one image file.
+ * How: `processImageToBlob` → `insertImageAtCursor`; surface failures
+ *   via `alert` and `console.error`.
+ */
 async function handleImageFile(file: File, view: EditorView): Promise<void> {
   try {
     const blob = await processImageToBlob(file);
@@ -127,10 +152,11 @@ async function handleImageFile(file: File, view: EditorView): Promise<void> {
   }
 }
 
-// Resolves an `<img>` URL out of the various MIME types a browser may put on
-// the DataTransfer when dragging from a web page. We try `text/html` first
-// because dragging a rendered <img> often carries the actual image URL there
-// even when `text/uri-list` only points to the page that hosted it.
+/**
+ * Purpose: Extract the most likely image URL from a `DataTransfer`.
+ * How: Try `text/html` (`<img src=…>`), then the first non-comment line
+ *   of `text/uri-list`, then `text/plain` if it looks like an http(s) URL.
+ */
 function extractImageUrlFromDataTransfer(
   dt: DataTransfer | null,
 ): string | null {
@@ -157,6 +183,11 @@ function extractImageUrlFromDataTransfer(
   return null;
 }
 
+/**
+ * Purpose: Fetch an image URL from the web and feed it through `handleImageFile`.
+ * How: `fetch` → verify `content-type` starts with `image/` → wrap as
+ *   `File` → handler. Errors are alerted with hosting-site guidance.
+ */
 async function handleImageUrl(url: string, view: EditorView): Promise<void> {
   try {
     const response = await fetch(url);
@@ -184,6 +215,12 @@ async function handleImageUrl(url: string, view: EditorView): Promise<void> {
   }
 }
 
+/**
+ * Purpose: Wire drop/paste listeners on the editor for image insertion.
+ * How: On `drop`, accept a `File` or fall back to `extractImageUrlFromDataTransfer`;
+ *   on `paste`, take the first `image/*` clipboard item. Caret is moved
+ *   to the drop point first.
+ */
 export function attachImageHandlers(view: EditorView): void {
   view.dom.addEventListener(
     'drop',
@@ -227,6 +264,11 @@ export function attachImageHandlers(view: EditorView): void {
   );
 }
 
+/**
+ * Purpose: Open the OS file picker and insert the chosen image.
+ * How: Hidden `<input type=file accept="image/*">`; on `change`, route
+ *   through `handleImageFile` and remove the element.
+ */
 export function pickAndInsertImage(view: EditorView): void {
   const input = document.createElement('input');
   input.type = 'file';
@@ -243,6 +285,10 @@ export function pickAndInsertImage(view: EditorView): void {
 
 // ---- ref resolution ---------------------------------------------------
 
+/**
+ * Purpose: Collect every `img://<id>` token's id from a markdown source.
+ * How: Global regex match using `URL_RE_PATTERN`; ids deduped via `Set`.
+ */
 function collectRefIds(text: string): Set<string> {
   const ids = new Set<string>();
   for (const m of text.matchAll(new RegExp(URL_RE_PATTERN, 'g'))) {
@@ -251,15 +297,19 @@ function collectRefIds(text: string): Set<string> {
   return ids;
 }
 
-// Public alias so callers outside this module (GC orchestrator in
-// main.ts) can collect every `img://<id>` referenced by a markdown
-// source without depending on the internal regex.
+/**
+ * Purpose: Public alias of `collectRefIds` for the GC orchestrator.
+ * How: Direct call-through — keeps the internal regex private.
+ */
 export function collectImageRefs(text: string): Set<string> {
   return collectRefIds(text);
 }
 
-// Replaces `img://id` URLs with short-lived blob URLs for the HTML preview.
-// Uses the in-memory cache to avoid recreating URLs on every keystroke.
+/**
+ * Purpose: Replace `img://id` refs with short-lived object URLs for preview.
+ * How: Look each id up in `blobUrlCache`, fetching + caching on miss;
+ *   then `replaceAll` URL refs with their cached blob URL.
+ */
 export async function expandRefsToBlobUrls(text: string): Promise<string> {
   const ids = collectRefIds(text);
   if (ids.size === 0) return text;
@@ -276,9 +326,11 @@ export async function expandRefsToBlobUrls(text: string): Promise<string> {
   );
 }
 
-// Replaces `img://id` URLs with full base64 data URLs. Reference definitions
-// are kept in place so the .md remains in nice ref-style form, just with
-// portable data URLs instead of opaque ids. Used at save time.
+/**
+ * Purpose: Replace `img://id` refs with base64 data URLs for save.
+ * How: Build an `{ id → dataURL }` map (via `blobToDataUrl`), then
+ *   `replaceAll` URL refs; reference definitions stay in place.
+ */
 export async function expandRefsToDataUrls(text: string): Promise<string> {
   const ids = collectRefIds(text);
   if (ids.size === 0) return text;
@@ -295,9 +347,13 @@ export async function expandRefsToDataUrls(text: string): Promise<string> {
   );
 }
 
-// Produces a fully-inline form of the document with every image url turned
-// into a base64 data URL. Used as the input to PDF generation, where we
-// don't want to depend on marked's reference resolution.
+/**
+ * Purpose: Fully-inline form of the doc with every image as a data URL —
+ *   the input to PDF generation.
+ * How: `expandRefsToDataUrls` first; then expand reference-style image
+ *   uses (`![alt][label]`) to inline form using the doc's link definitions;
+ *   warn on any unresolved `img://` left.
+ */
 export async function expandRefsToInlineDataUrls(text: string): Promise<string> {
   // 1. Replace every `img://id` URL — inline OR inside a definition — with
   // the matching data URL. Handles both new-style ref docs *and* old-style
@@ -344,6 +400,10 @@ export async function expandRefsToInlineDataUrls(text: string): Promise<string> 
   return out;
 }
 
+/**
+ * Purpose: Convert a blob into a base64 data URL.
+ * How: `FileReader.readAsDataURL`; resolve on `onloadend`.
+ */
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -354,6 +414,10 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/**
+ * Purpose: Convert a base64 data URL back into a `Blob`.
+ * How: `fetch(dataUrl).then(r => r.blob())` — the platform parses it for us.
+ */
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   const response = await fetch(dataUrl);
   return response.blob();
@@ -361,11 +425,12 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 
 // ---- import / GC ------------------------------------------------------
 
-// Walks an imported document, hoists every inline data URL into IndexedDB,
-// and replaces it with an `img://id` reference. Then inlines any reference-
-// style image use whose target became an `img://` URL — the split form was
-// useful for hiding multi-megabyte data URLs, but with our short opaque
-// scheme it just adds noise to the editor.
+/**
+ * Purpose: On import, hoist every inline data URL into IndexedDB and
+ *   rewrite the source to use `img://<sha>` refs.
+ * How: Match `DATA_URL_RE_PATTERN`, `putBlobBySha` each unique data URL,
+ *   replace all occurrences; then `inlineImageRefs` to collapse ref-style.
+ */
 export async function extractDataUrlsToStore(text: string): Promise<string> {
   const matches = [...text.matchAll(new RegExp(DATA_URL_RE_PATTERN, 'g'))];
   let result = text;
@@ -392,10 +457,12 @@ export async function extractDataUrlsToStore(text: string): Promise<string> {
 const REF_DEF_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:[ \t]*(\S+)[ \t]*$/gm;
 const REF_USE_RE = /!\[([^\]]*)\]\[([^\]\n]+)\]/g;
 
-// Converts every reference-style image use whose URL is `img://...` into the
-// equivalent inline form `![alt](img://...)`, then strips the now-redundant
-// `[label]: img://...` definition lines. Regular link refs and non-image
-// definitions are left untouched.
+/**
+ * Purpose: Convert every reference-style image use whose target is
+ *   `img://…` into inline form, dropping its now-redundant definition line.
+ * How: Build a `label → url` map, rewrite `![alt][label]` to `![alt](url)`
+ *   for `img://` URLs only, then strip the matching `[label]: img://…` defs.
+ */
 function inlineImageRefs(text: string): string {
   const labelToUrl = new Map<string, string>();
   for (const m of text.matchAll(REF_DEF_RE)) {
@@ -416,12 +483,13 @@ function inlineImageRefs(text: string): string {
   return out;
 }
 
-// The inverse of inlineImageRefs: collects every `![alt](img://uuid)` use,
-// generates fresh `img-N` labels (avoiding collisions with existing
-// definitions), rewrites each use as `![alt][label]`, and appends one
-// `[label]: img://uuid` definition per unique URL at the very end of the
-// document. Used at save time so the .md file keeps the body readable
-// (the data URLs end up grouped at the bottom after expandRefsToDataUrls).
+/**
+ * Purpose: Inverse of `inlineImageRefs` — pull every inline `img://` URL
+ *   into a definition at the end of the doc.
+ * How: Collect occurrences, allocate fresh `img-N` labels avoiding
+ *   collisions, rewrite uses as `![alt][label]`, append one def per
+ *   unique URL.
+ */
 export function refifyImageUrls(text: string): string {
   const inlineRe = new RegExp(
     String.raw`!\[([^\]]*)\]\((${URL_SCHEME}[a-f0-9-]+)\)`,
@@ -461,15 +529,22 @@ export function refifyImageUrls(text: string): string {
   return out;
 }
 
+/**
+ * Purpose: Pick the separator that yields a blank line before appended defs.
+ * How: Returns `''` / `'\n'` / `'\n\n'` depending on the current trailing
+ *   newline count of `text`.
+ */
 function trailingSeparator(text: string): string {
   if (text.endsWith('\n\n')) return '';
   if (text.endsWith('\n')) return '\n';
   return '\n\n';
 }
 
-// Applies a mapping `oldId → newId` to every `img://oldId` reference
-// inside `text`. Untouched ids pass through. Used by the legacy UUID →
-// content-addressed migration.
+/**
+ * Purpose: Rewrite every `img://oldId` reference using a `{ oldId → newId }`
+ *   map (used by the UUID → content-addressed migration).
+ * How: Global `replaceAll` on `URL_RE_PATTERN`; absent ids fall through.
+ */
 export function rewriteImageRefs(
   text: string,
   mapping: Map<string, string>,
@@ -484,11 +559,11 @@ export function rewriteImageRefs(
   );
 }
 
-// Removes IDB entries whose ids are absent from the `referenced` set,
-// and revokes any cached blob URL for the dropped ids. Caller is
-// responsible for building `referenced` by walking every doc — see
-// runGC in main.ts. In multi-doc mode an image referenced by *any*
-// doc must be kept, so this no longer accepts a single source string.
+/**
+ * Purpose: Drop IDB entries whose ids aren't in `referenced`.
+ * How: Iterate `getAllIds`, `deleteImage` the missing ones, also revoke
+ *   any cached blob URL for the dropped id.
+ */
 export async function gcUnusedImages(referenced: Set<string>): Promise<void> {
   const all = await getAllIds();
   for (const id of all) {

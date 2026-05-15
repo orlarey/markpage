@@ -1,7 +1,13 @@
-// Inline SVG charts for ```chart fenced blocks. Self-contained: no
-// external library, the SVG is emitted directly into the document so
-// it prints crisply and stays editable as a vector.
-//
+/********************************* chart.ts *************************************
+ *
+ * Purpose: Render the ` ```chart ` fence — inline SVG line/bar charts from
+ *   tabular text data. Self-contained: no runtime library, the SVG is emitted
+ *   directly so it prints crisply and stays editable as a vector.
+ * How: Parse the info string + body, classify the x-axis (numeric/date/cat),
+ *   build axes/ticks, then emit `<polyline>` (line) or `<rect>` (bar) series.
+ *
+ *******************************************************************************/
+
 // Block syntax:
 //   ```chart <type> [Optional title]
 //   x-label, y1-label[, y2-label, …]
@@ -59,12 +65,21 @@ interface ChartInfo {
 
 // --- Parsing ----------------------------------------------------------
 
+/**
+ * Purpose: Auto-detect the field separator of a data line.
+ * How: Tab beats semicolon beats comma — the first one found wins.
+ */
 function detectSeparator(line: string): ',' | ';' | '\t' {
   if (line.includes('\t')) return '\t';
   if (line.includes(';')) return ';';
   return ',';
 }
 
+/**
+ * Purpose: Split a line into fields using the chosen separator.
+ * How: For `,` apply the smart-comma rule (don't split a comma between digits);
+ *   other separators use plain `split`.
+ */
 function splitFields(line: string, sep: string): string[] {
   if (sep !== ',') return line.split(sep);
   // Smart comma: do not split between two digits with no surrounding
@@ -72,6 +87,10 @@ function splitFields(line: string, sep: string): string[] {
   return line.split(/(?<!\d),|,(?!\d)/);
 }
 
+/**
+ * Purpose: Parse a numeric field, accepting `.` or `,` as the decimal mark.
+ * How: Trim + replace `,` with `.` then `parseFloat`.
+ */
 function parseNum(s: string): number {
   // The smart-comma split already settled the separator-vs-decimal
   // question at field level — any comma still in `s` is necessarily a
@@ -89,6 +108,10 @@ function parseNum(s: string): number {
 const ISO_DATE_RE =
   /^\d{4}-\d{2}(-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?)?$/;
 
+/**
+ * Purpose: Parse an ISO-8601 date/datetime string to a timestamp.
+ * How: Pre-filter with `ISO_DATE_RE`, then defer to `Date.parse`; null on miss.
+ */
 function parseIsoDate(s: string): number | null {
   const t = s.trim();
   if (!ISO_DATE_RE.test(t)) return null;
@@ -96,6 +119,11 @@ function parseIsoDate(s: string): number | null {
   return Number.isNaN(ts) ? null : ts;
 }
 
+/**
+ * Purpose: Parse the info string (everything after ` ```chart `) into type+title.
+ * How: One regex extracting an optional word (type) and an optional quoted or
+ *   bare-words title.
+ */
 function parseInfoString(info: string): ChartInfo {
   // info already stripped of leading "chart". Forms accepted:
   //   ""                  → line, no title
@@ -109,6 +137,11 @@ function parseInfoString(info: string): ChartInfo {
   return { type, title };
 }
 
+/**
+ * Purpose: Parse the fenced block body into headers, rows, and x-axis kind.
+ * How: Detect separator from header, gather numeric-y rows, then pick the
+ *   most specific xKind among date / numeric / categorical that all rows satisfy.
+ */
 function parseChartData(src: string): ParsedData | null {
   const lines = src
     .replaceAll(/\r\n?/g, '\n')
@@ -158,6 +191,10 @@ function parseChartData(src: string): ParsedData | null {
 
 // --- Tick generation --------------------------------------------------
 
+/**
+ * Purpose: Compute a human-friendly tick step covering `range` in ~`targetTicks`.
+ * How: Round `range/targetTicks` to the nearest 1/2/5 × power-of-10.
+ */
 function niceStep(range: number, targetTicks = 5): number {
   if (range <= 0) return 1;
   const raw = range / targetTicks;
@@ -167,6 +204,10 @@ function niceStep(range: number, targetTicks = 5): number {
   return nice * pow;
 }
 
+/**
+ * Purpose: Tick values for a numeric axis between `min` and `max`.
+ * How: Step from a `niceStep`-aligned start, snapping each tick to step granularity.
+ */
 function numericTicks(min: number, max: number): number[] {
   const step = niceStep(max - min);
   const start = Math.ceil(min / step) * step;
@@ -178,6 +219,10 @@ function numericTicks(min: number, max: number): number[] {
   return out;
 }
 
+/**
+ * Purpose: Format a numeric tick value as a short string.
+ * How: Drop near-zero noise; integers verbatim, others `toFixed(2)` then strip trailing zeros.
+ */
 function formatTick(n: number): string {
   if (Math.abs(n) < 1e-9) return '0';
   if (Number.isInteger(n)) return String(n);
@@ -194,9 +239,10 @@ const MONTHS_FR = [
 
 type DateGranularity = 'year' | 'month' | 'day';
 
-// Picks an appropriate granularity given the time range, and how many
-// units to step between ticks (so a 12-year range steps every 2 years
-// rather than printing 12 labels on top of each other).
+/**
+ * Purpose: Pick a date-tick granularity (year/month/day) + stride for a range.
+ * How: Branch on the range expressed in days; stride keeps tick count ≤ ~8.
+ */
 function pickDateGranularity(rangeMs: number): {
   granularity: DateGranularity;
   stride: number;
@@ -220,8 +266,10 @@ function pickDateGranularity(rangeMs: number): {
   return { granularity: 'day', stride };
 }
 
-// Round a Date down to the start of the granularity bucket (start of
-// year / month / day). Mutates the passed-in Date.
+/**
+ * Purpose: Round a Date down to the start of its granularity bucket (in place).
+ * How: Zero the sub-day fields; reset month/day to 1 for year/month buckets.
+ */
 function floorToGranularity(d: Date, g: DateGranularity): void {
   d.setHours(0, 0, 0, 0);
   if (g === 'year') {
@@ -232,12 +280,21 @@ function floorToGranularity(d: Date, g: DateGranularity): void {
   }
 }
 
+/**
+ * Purpose: Advance a Date by `stride` granularity units (in place).
+ * How: Switch on granularity, call the matching `setFullYear/Month/Date` setter.
+ */
 function advance(d: Date, g: DateGranularity, stride: number): void {
   if (g === 'year') d.setFullYear(d.getFullYear() + stride);
   else if (g === 'month') d.setMonth(d.getMonth() + stride);
   else d.setDate(d.getDate() + stride);
 }
 
+/**
+ * Purpose: Generate tick timestamps for a date axis spanning `[min, max]`.
+ * How: Floor `min` to the chosen granularity, then advance by stride; safety
+ *   cap of 200 iterations against degenerate inputs.
+ */
 function dateTicks(
   min: number,
   max: number,
@@ -259,12 +316,11 @@ function dateTicks(
   return out;
 }
 
-// Half the smallest gap between consecutive x values. Used for bar
-// charts to pad the axis so each bar gets a half-slot of breathing
-// room on each side (otherwise the first / last bar sits right
-// against the y-axis / right edge with no margin and no tick label
-// visible). Falls back to 0.5 for degenerate inputs (≤1 point or
-// duplicates only).
+/**
+ * Purpose: Half of the smallest gap between consecutive x values — bar slot padding.
+ * How: Sort xs, take the smallest positive consecutive diff, divide by two;
+ *   fallback `0.5` for degenerate inputs.
+ */
 function halfMinGap(xs: number[]): number {
   if (xs.length <= 1) return 0.5;
   const sorted = [...xs].sort((a, b) => a - b);
@@ -276,6 +332,10 @@ function halfMinGap(xs: number[]): number {
   return Number.isFinite(minGap) ? minGap / 2 : 0.5;
 }
 
+/**
+ * Purpose: Format a date tick timestamp for the chosen granularity.
+ * How: Build `YYYY`, `mon YYYY` or `D mon` from the Date, using French month names.
+ */
 function formatDateTick(ts: number, g: DateGranularity): string {
   const d = new Date(ts);
   if (g === 'year') return String(d.getFullYear());
@@ -287,6 +347,10 @@ function formatDateTick(ts: number, g: DateGranularity): string {
 
 // --- SVG rendering ----------------------------------------------------
 
+/**
+ * Purpose: Minimal XML entity escape for safe insertion into SVG attributes/text.
+ * How: Sequential `replaceAll` for `&`, `<`, `>`, `"`, `'`.
+ */
 function escapeXml(s: string): string {
   return s
     .replaceAll('&', '&amp;')
@@ -296,6 +360,11 @@ function escapeXml(s: string): string {
     .replaceAll("'", '&apos;');
 }
 
+/**
+ * Purpose: Emit axis lines, ticks, gridlines and axis labels; return px mappers.
+ * How: Build linear x↔px / y↔px closures, push tick/grid/label elements onto
+ *   `parts`, branching on `xKind` and bar-vs-line for x-tick placement.
+ */
 function buildAxes(
   parts: string[],
   xMin: number,
@@ -389,6 +458,10 @@ function buildAxes(
   return { xToPx, yToPx };
 }
 
+/**
+ * Purpose: Emit one `<polyline>` per y-series for a line chart.
+ * How: Map each row's `(x, ys[s])` to px, join as a SVG points list.
+ */
 function buildLineSeries(
   parts: string[],
   data: ParsedData,
@@ -407,6 +480,11 @@ function buildLineSeries(
   }
 }
 
+/**
+ * Purpose: Emit `<rect>` bars for a bar chart, grouped by row + series.
+ * How: Compute slot width via `xToPx` deltas, allocate `barW` per series,
+ *   measure heights from the y=0 baseline (clamped into [yMin, yMax]).
+ */
 function buildBarSeries(
   parts: string[],
   data: ParsedData,
@@ -443,6 +521,10 @@ function buildBarSeries(
   }
 }
 
+/**
+ * Purpose: Emit a top-right legend swatch+label pair per y-series (multi-series only).
+ * How: Push one `<rect>` + `<text>` per series, stacked at 16-px intervals.
+ */
 function buildLegend(parts: string[], data: ParsedData): void {
   const seriesCount = data.headers.length - 1;
   if (seriesCount <= 1) return;
@@ -460,6 +542,10 @@ function buildLegend(parts: string[], data: ParsedData): void {
   }
 }
 
+/**
+ * Purpose: Emit the centred chart title above the plot, if any.
+ * How: Single `<text>` at the top-centre of the viewBox.
+ */
 function buildTitle(parts: string[], title: string): void {
   if (title === '') return;
   parts.push(
@@ -467,11 +553,11 @@ function buildTitle(parts: string[], title: string): void {
   );
 }
 
-// Public entry point: takes the fenced block body and the info string
-// (everything after "chart " in the lang token), returns an SVG string
-// wrapped in a chart-block div for centring + page-break control. On
-// parse failure, returns a small visible error block instead of silently
-// dropping the chart.
+/**
+ * Purpose: Public entry — turn fenced-block body + info string into an SVG block.
+ * How: Parse data, compute padded ranges (bar charts get half-slot padding +
+ *   y-anchor at 0), then assemble title / axes / series / legend.
+ */
 export function renderChart(src: string, info: string): string {
   const data = parseChartData(src);
   if (!data || data.rows.length === 0) {

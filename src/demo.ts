@@ -1,3 +1,12 @@
+/********************************* demo.ts *************************************
+ *
+ * Purpose: Minimal entry point for the showcase iframe — renders a single
+ *   snippet through the paginated preview pipeline (no editor, no storage).
+ * How: Parse URL params (`?id`, `?lang`, `?style`), resolve the snippet, then
+ *   build + paginate the same DOM subtree the main preview produces.
+ *
+ *******************************************************************************/
+
 // Minimal entry point for the showcase iframe.
 // URL params:
 //   ?id=<snippet-id>     (defaults to "playground", which is an empty doc)
@@ -48,6 +57,10 @@ import {
 import type { ShowcaseEntry } from './showcase-types';
 import { applyStylePreset } from './style-presets';
 
+/**
+ * Purpose: Entry — resolve params, build preview DOM, paginate into `#preview-pane`.
+ * How: Read URL params, pick the showcase entry, apply style preset on default settings.
+ */
 async function run(): Promise<void> {
   const params = new URLSearchParams(globalThis.location.search);
   const id = params.get('id') ?? 'playground';

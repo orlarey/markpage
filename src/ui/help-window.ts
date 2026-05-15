@@ -1,3 +1,12 @@
+/********************************* help-window.ts ******************************
+ *
+ * Purpose: Standalone help window with "Insert into document" buttons attached
+ *   to every code / data-source block in the rendered Markdown.
+ * How: `window.open()` (modal fallback when blocked), bundle the app CSS via
+ *   `?inline`, post-process math + mermaid, then attach per-block insert buttons.
+ *
+ *******************************************************************************/
+
 // Standalone help window. Opens via `window.open()` so the user can
 // move it to another monitor / position, leaving the editor below
 // fully visible. Each fenced code block in the rendered help gets an
@@ -28,6 +37,10 @@ import { makeLogo } from './logo';
 // subset.
 import appCss from '../style.css?inline';
 
+/**
+ * Purpose: Help-window callbacks — insert into editor, plus optional undo/redo forwarders.
+ * How: Extends `HelpModalOptions`; the modal fallback uses the shared subset.
+ */
 export interface HelpWindowOptions extends HelpModalOptions {
   /** Called when the user clicks an "Insert" button in the help. */
   onInsert(source: string): void;
@@ -45,6 +58,10 @@ export interface HelpWindowOptions extends HelpModalOptions {
 // rather than spawning a second one.
 let currentHelpWindow: Window | null = null;
 
+/**
+ * Purpose: Open (or refocus) the help window; fall back to the modal if popup-blocked.
+ * How: `window.open` with shared sizing, then build the document and wire undo/redo keys.
+ */
 export function openHelp(
   helpMarkdown: string,
   options: HelpWindowOptions,
@@ -99,6 +116,10 @@ export function openHelp(
   }, 1000);
 }
 
+/**
+ * Purpose: Populate the spawned window — head, header, body, post-processing.
+ * How: Inject CSS, render markdown via marked, await render passes, then add insert buttons.
+ */
 function buildHelpWindow(
   win: Window,
   helpMarkdown: string,
@@ -181,6 +202,11 @@ function buildHelpWindow(
   }
 }
 
+/**
+ * Purpose: Decorate every `<pre>` / `[data-source]` block with an "Insérer" button.
+ * How: Resolve the block's raw source, attach a click handler calling `onInsert`
+ *   with brief inline confirmation feedback.
+ */
 // Walks every insertable block in the help body and prepends a small
 // "Insérer" button. Two kinds of blocks qualify:
 //   - <pre> code blocks (the literal markdown shown to the user) —
@@ -240,6 +266,10 @@ function addInsertButtons(
   }
 }
 
+/**
+ * Purpose: Window-only styles (sticky header, insert-button positioning).
+ * How: Returns a CSS string concatenated after the bundled app stylesheet.
+ */
 // Styles only meaningful inside the help window itself — header bar,
 // insert button positioning. The bulk of the typography comes from
 // the bundled appCss above.

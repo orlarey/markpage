@@ -1,9 +1,12 @@
-// Tiny IndexedDB wrapper for image blobs. Keys are the SHA-256 of the
-// blob (64-char lowercase hex), so two documents that embed the same
-// image automatically share a single store entry. Older documents may
-// still reference UUID keys until migrateToContentAddressed has run on
-// them — both regimes coexist transparently because the lookup is by
-// opaque string.
+/********************************* image-store.ts ******************************
+ *
+ * Purpose: Thin IndexedDB wrapper for image blobs keyed by SHA-256 hex.
+ *   Two docs sharing an image automatically share a single store entry.
+ * How: Single shared DB connection (`openDb`); CRUD helpers each wrap one
+ *   IDB transaction in a Promise. UUID-keyed legacy entries coexist via
+ *   `migrateToContentAddressed`.
+ *
+ *******************************************************************************/
 
 const DB_NAME = 'markpage';
 const STORE_NAME = 'images';
@@ -11,10 +14,18 @@ const DB_VERSION = 1;
 
 const SHA_HEX_RE = /^[a-f0-9]{64}$/;
 
+/**
+ * Purpose: Tell whether an id is in our 64-char lowercase hex SHA form.
+ * How: Single regex test against `SHA_HEX_RE`.
+ */
 export function isSha(id: string): boolean {
   return SHA_HEX_RE.test(id);
 }
 
+/**
+ * Purpose: SHA-256 hex digest of a blob's bytes.
+ * How: `crypto.subtle.digest` on the ArrayBuffer, then hex-encode each byte.
+ */
 export async function sha256Hex(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer();
   const digest = await crypto.subtle.digest('SHA-256', buf);
@@ -26,6 +37,11 @@ export async function sha256Hex(blob: Blob): Promise<string> {
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+/**
+ * Purpose: Lazily open (and cache) the shared IDB connection.
+ * How: One-shot `indexedDB.open` memoised in `dbPromise`; `onupgradeneeded`
+ *   creates the `images` store on first run.
+ */
 function openDb(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -39,6 +55,10 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
+/**
+ * Purpose: Store `blob` under `id` in the images store.
+ * How: One readwrite transaction with a single `put`; resolves on `oncomplete`.
+ */
 export async function putImage(id: string, blob: Blob): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -50,6 +70,10 @@ export async function putImage(id: string, blob: Blob): Promise<void> {
   });
 }
 
+/**
+ * Purpose: Fetch the blob stored under `id`, or `undefined` if missing.
+ * How: Readonly `get` request wrapped in a Promise.
+ */
 export async function getImage(id: string): Promise<Blob | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -63,6 +87,10 @@ export async function getImage(id: string): Promise<Blob | undefined> {
   });
 }
 
+/**
+ * Purpose: Remove the entry stored under `id`.
+ * How: Readwrite transaction with a single `delete`; resolves on `oncomplete`.
+ */
 export async function deleteImage(id: string): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -74,6 +102,10 @@ export async function deleteImage(id: string): Promise<void> {
   });
 }
 
+/**
+ * Purpose: List every key currently in the images store.
+ * How: Readonly `getAllKeys` request wrapped in a Promise.
+ */
 export async function getAllIds(): Promise<string[]> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
@@ -87,9 +119,10 @@ export async function getAllIds(): Promise<string[]> {
   });
 }
 
-// Computes the SHA of a blob and stores it under that key, no-op if a
-// blob with the same SHA is already in the store. Returns the SHA so
-// the caller can build the `img://<sha>` reference.
+/**
+ * Purpose: Insert a blob keyed by its own SHA, returning that SHA.
+ * How: Compute SHA, no-op when the key already exists, else `putImage`.
+ */
 export async function putBlobBySha(blob: Blob): Promise<string> {
   const sha = await sha256Hex(blob);
   const existing = await getImage(sha);
@@ -97,11 +130,11 @@ export async function putBlobBySha(blob: Blob): Promise<string> {
   return sha;
 }
 
-// One-shot migration from UUID-keyed entries to SHA-keyed entries.
-// Walks every key, hashes its blob, rewrites the entry under the SHA
-// key, and returns a map { uuid → sha } so the caller can rewrite the
-// `img://uuid` references inside its markdown documents. Idempotent —
-// if every key is already a SHA, the result is an empty map.
+/**
+ * Purpose: Migrate legacy UUID-keyed entries to SHA-keyed ones.
+ * How: Walk every id; for non-SHA keys, hash the blob, rewrite under the
+ *   SHA, delete the old key, and accumulate a `{ uuid → sha }` map.
+ */
 export async function migrateToContentAddressed(): Promise<Map<string, string>> {
   const ids = await getAllIds();
   const mapping = new Map<string, string>();

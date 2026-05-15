@@ -1,3 +1,13 @@
+/********************************* settings-form.ts ****************************
+ *
+ * Purpose: Shared Réglages form builder used by both the modal panel and the
+ *   detached popup window — every field reads from / writes to a `PdfSettings`.
+ * How: `buildSettingsForm(doc, handlers)` returns a root element + `refresh()`;
+ *   helpers (closures capturing `doc`) mint each control type for the section grid.
+ * Restructure: buildSettingsForm doesn't compress cleanly, candidate for refactor.
+ *
+ *******************************************************************************/
+
 // The settings form, factored out of the modal panel so the same DOM
 // can live in either an in-app overlay (settings-panel.ts) or a
 // detached browser window (settings-window.ts). All helpers are
@@ -36,6 +46,10 @@ import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 import { openProfileMenu } from './profile-menu';
 
+/**
+ * Purpose: Profile-library callbacks consumed by the form's header dropdown.
+ * How: One callback per action; footer actions implicitly target the current uuid.
+ */
 export interface SettingsProfileHandlers {
   getCurrentProfileId(): string;
   listProfiles(): ProfileEntry[];
@@ -52,11 +66,19 @@ export interface SettingsProfileHandlers {
   onExportProfile(): void;
 }
 
+/**
+ * Purpose: Full settings-form callback set — adds get/set of the active `PdfSettings`.
+ * How: Extends `SettingsProfileHandlers` with `getSettings` + `onChange`.
+ */
 export interface SettingsFormHandlers extends SettingsProfileHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
 }
 
+/**
+ * Purpose: Return type of `buildSettingsForm` — root element + repaint hook.
+ * How: `refresh()` re-reads `getSettings` and rebuilds the form contents in place.
+ */
 export interface SettingsForm {
   /** The form root element, ready to be appended into the host. */
   root: HTMLElement;
@@ -87,6 +109,11 @@ const DATE_MODES: DateMode[] = ['none', 'today', 'custom'];
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
+/**
+ * Purpose: Build the full Réglages form in `doc`, bound to `handlers`.
+ * How: Maintains a local `current` clone, exposes `refresh()` to rebuild
+ *   contents; section helpers below mint each control flavour.
+ */
 export function buildSettingsForm(
   doc: Document,
   handlers: SettingsFormHandlers,
@@ -919,6 +946,10 @@ export function buildSettingsForm(
   return { root, refresh };
 }
 
+/**
+ * Purpose: Deep copy of a settings value so edits don't mutate the caller's state.
+ * How: `structuredClone` — preserves nested objects / arrays without manual walks.
+ */
 function clone<T>(x: T): T {
   return structuredClone(x);
 }

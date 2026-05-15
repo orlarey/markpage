@@ -1,7 +1,16 @@
-// File import: detects the format from the extension, converts to Markdown,
-// and returns the result. Heavy converters (Turndown, Mammoth) are loaded
-// dynamically so they don't bloat the initial bundle.
+/********************************* import.ts ***********************************
+ *
+ * Purpose: Convert an uploaded file (md, txt, html, docx) into a
+ *   Markdown string plus a base file name for the new document.
+ * How: Dispatch on the lowercased extension; lazy-import Turndown/Mammoth
+ *   so the heavy converters stay out of the initial bundle.
+ *
+ *******************************************************************************/
 
+/**
+ * Purpose: Output of `importFile` — the converted Markdown plus the
+ *   original filename without its extension.
+ */
 export interface ImportResult {
   content: string;
   baseName: string;
@@ -20,6 +29,11 @@ export const ACCEPT_ATTRIBUTE = SUPPORTED_EXTENSIONS.map((e) => `.${e}`).join(
   ',',
 );
 
+/**
+ * Purpose: Convert a user-picked file into Markdown + a base name.
+ * How: Match the extension, route to the plain/html/docx branch, throw
+ *   a user-readable error on anything outside `SUPPORTED_EXTENSIONS`.
+ */
 export async function importFile(file: File): Promise<ImportResult> {
   const ext = (file.name.match(/\.([^.]+)$/) ?? ['', ''])[1]!.toLowerCase();
   const baseName = file.name.replace(/\.[^.]+$/, '');
@@ -41,6 +55,11 @@ export async function importFile(file: File): Promise<ImportResult> {
   }
 }
 
+/**
+ * Purpose: Convert an HTML string into Markdown.
+ * How: Dynamically import Turndown with ATX headings, fenced code,
+ *   `-` bullets, `*` emphasis.
+ */
 async function convertHtml(html: string): Promise<string> {
   const { default: TurndownService } = await import('turndown');
   const td = new TurndownService({
@@ -52,6 +71,10 @@ async function convertHtml(html: string): Promise<string> {
   return td.turndown(html);
 }
 
+/**
+ * Purpose: Convert a .docx buffer into Markdown.
+ * How: Mammoth → HTML → Turndown (via `convertHtml`); images dropped (MVP).
+ */
 async function convertDocx(buffer: ArrayBuffer): Promise<string> {
   // Mammoth converts the .docx structure (headings, lists, bold/italic,
   // links, blockquotes) to HTML; we then run that HTML through Turndown to

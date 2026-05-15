@@ -1,8 +1,22 @@
+/********************************* toolbar.ts **********************************
+ *
+ * Purpose: Build the app toolbar — brand, doc trigger, import, style, help,
+ *   preview-toggle, export, settings — and return a small control surface for
+ *   live label / view-mode updates.
+ * How: Static DOM via `document.createElement`, each button wired to one of the
+ *   caller's handlers; `mountToolbar` returns `{ setViewMode, setDocName }`.
+ *
+ *******************************************************************************/
+
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 
 export type ViewMode = 'editor' | 'preview';
 
+/**
+ * Purpose: All callbacks consumed by the toolbar's buttons, plus the initial state.
+ * How: Plain interface; dropdown handlers receive the trigger element / coords to anchor on.
+ */
 export interface ToolbarHandlers {
   initialDocName: string;
   initialViewMode: ViewMode;
@@ -19,6 +33,10 @@ export interface ToolbarHandlers {
   onTogglePreview(): void;
 }
 
+/**
+ * Purpose: Post-mount control surface — exposes the few labels that change at runtime.
+ * How: Just two setters: view-mode (preview toggle aria-state) and doc-name.
+ */
 export interface ToolbarControl {
   setViewMode(mode: ViewMode): void;
   // Update the label shown on [Mon doc ▾] after a rename / switch /
@@ -26,6 +44,11 @@ export interface ToolbarControl {
   setDocName(name: string): void;
 }
 
+/**
+ * Purpose: Build all toolbar buttons and append them under `parent`.
+ * How: Mint each control sequentially, wire to the matching handler,
+ *   and return setters for the post-mount mutable labels.
+ */
 export function mountToolbar(
   parent: HTMLElement,
   handlers: ToolbarHandlers,

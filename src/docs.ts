@@ -1,9 +1,13 @@
-// Multi-document store. The user-visible "document" is a lightweight
-// envelope (uuid, name, mtime, contentSha) pointing at a content-
-// addressed blob. Blobs live under `markpage:blobs:<sha>` so two docs
-// with identical content share a single entry; the same SHA scheme
-// also runs the IndexedDB image pool. See SPEC §19.
-//
+/********************************* docs.ts *************************************
+ *
+ * Purpose: Multi-document store — user docs are envelopes (uuid, name,
+ *   mtime, contentSha) pointing at content-addressed markdown blobs.
+ * How: localStorage with three key spaces (`markpage:docs:index`,
+ *   `markpage:blobs:<sha>`, `markpage:current-doc`); the `doc` URL
+ *   query param can pin a doc per-tab. See SPEC §19.
+ *
+ *******************************************************************************/
+
 // On-disk schema (localStorage):
 //   markpage:docs:index   → JSON DocEntry[]    (by mtime desc)
 //   markpage:blobs:<sha>  → string             (one markdown source)
@@ -20,6 +24,10 @@ const KEY_CURRENT = 'markpage:current-doc';
 const KEY_LEGACY_DOC = 'markpage:doc';
 const KEY_LEGACY_FILENAME = 'markpage:filename';
 
+/**
+ * Purpose: One entry in the docs index — lightweight pointer at a
+ *   content-addressed blob.
+ */
 export interface DocEntry {
   uuid: string;
   name: string;
@@ -29,6 +37,11 @@ export interface DocEntry {
 
 // ---- index ------------------------------------------------------------
 
+/**
+ * Purpose: Parse the index from localStorage, tolerant to corruption.
+ * How: JSON parse + array filter through `isDocEntry`; returns `[]` on
+ *   any parse / shape failure.
+ */
 function readIndex(): DocEntry[] {
   const raw = localStorage.getItem(KEY_INDEX);
   if (!raw) return [];
@@ -41,10 +54,18 @@ function readIndex(): DocEntry[] {
   }
 }
 
+/**
+ * Purpose: Persist the index back to localStorage.
+ * How: Stringify and overwrite `KEY_INDEX` in one call.
+ */
 function writeIndex(entries: DocEntry[]): void {
   localStorage.setItem(KEY_INDEX, JSON.stringify(entries));
 }
 
+/**
+ * Purpose: Runtime guard checking that an unknown value is a `DocEntry`.
+ * How: Object presence + four `typeof` checks on uuid/name/mtime/contentSha.
+ */
 function isDocEntry(x: unknown): x is DocEntry {
   if (!x || typeof x !== 'object') return false;
   const e = x as Partial<DocEntry>;
@@ -56,20 +77,36 @@ function isDocEntry(x: unknown): x is DocEntry {
   );
 }
 
+/**
+ * Purpose: Snapshot of the index sorted by mtime descending.
+ * How: Read, shallow copy, sort by `b.mtime - a.mtime`.
+ */
 export function listDocs(): DocEntry[] {
   return readIndex().slice().sort((a, b) => b.mtime - a.mtime);
 }
 
 // ---- blobs ------------------------------------------------------------
 
+/**
+ * Purpose: Build the localStorage key for a content blob.
+ * How: Prefix concatenation with `KEY_BLOB_PREFIX`.
+ */
 function blobKey(sha: string): string {
   return KEY_BLOB_PREFIX + sha;
 }
 
+/**
+ * Purpose: Load the markdown blob stored under a SHA.
+ * How: Direct `localStorage.getItem`, returning `null` on miss.
+ */
 function readBlob(sha: string): string | null {
   return localStorage.getItem(blobKey(sha));
 }
 
+/**
+ * Purpose: Persist a blob if (and only if) it isn't already there.
+ * How: Skip when the key exists — content-addressing means same SHA → same bytes.
+ */
 function writeBlob(sha: string, content: string): void {
   // No-op when the blob already exists — content-addressed, so the
   // value would be byte-identical anyway.
@@ -78,6 +115,10 @@ function writeBlob(sha: string, content: string): void {
   }
 }
 
+/**
+ * Purpose: Compute the SHA-256 hex of a markdown string.
+ * How: Wrap into a `Blob` and delegate to `sha256Hex` from image-store.
+ */
 async function hashContent(content: string): Promise<string> {
   return sha256Hex(new Blob([content]));
 }
@@ -90,13 +131,19 @@ async function hashContent(content: string): Promise<string> {
 // independently of the last-used global pointer.
 const URL_PARAM = 'doc';
 
+/**
+ * Purpose: Read the persisted current-doc uuid (or null).
+ * How: `localStorage.getItem(KEY_CURRENT)`.
+ */
 export function getCurrentDocId(): string | null {
   return localStorage.getItem(KEY_CURRENT);
 }
 
-// Records the active doc in both localStorage (so a reopen without a
-// URL param lands on the same doc) AND the address bar (so reloads,
-// shares, and parallel tabs are each their own world).
+/**
+ * Purpose: Record the active doc in both localStorage and the URL bar.
+ * How: Set `KEY_CURRENT`, then `history.replaceState` with `?doc=<uuid>`
+ *   so reloads, shares and parallel tabs each pin their own doc.
+ */
 export function setCurrentDocId(uuid: string): void {
   localStorage.setItem(KEY_CURRENT, uuid);
   if (
@@ -111,9 +158,10 @@ export function setCurrentDocId(uuid: string): void {
   }
 }
 
-// If the URL carries `?doc=<uuid>` and that uuid matches an existing
-// entry, return it. Otherwise null — the caller falls back to the
-// usual "current doc" / freshest-entry cascade.
+/**
+ * Purpose: Resolve a doc from the `?doc=<uuid>` URL parameter, if any.
+ * How: Parse `location.href`, look up the index, return the match or null.
+ */
 export function resolveDocFromUrl(): DocEntry | null {
   if (typeof globalThis.location === 'undefined') return null;
   const id = new URL(globalThis.location.href).searchParams.get(URL_PARAM);
@@ -121,9 +169,11 @@ export function resolveDocFromUrl(): DocEntry | null {
   return readIndex().find((e) => e.uuid === id) ?? null;
 }
 
-// Resolves the doc the app should show on this run. Falls back to the
-// most recently modified doc when current-doc is missing or invalid.
-// Returns null only when the index is empty.
+/**
+ * Purpose: Pick the doc to display on this run.
+ * How: Prefer the persisted current-doc; fall back to the freshest entry;
+ *   null only when the index is empty.
+ */
 export function resolveCurrentDoc(): DocEntry | null {
   const index = readIndex();
   if (index.length === 0) return null;
@@ -135,15 +185,19 @@ export function resolveCurrentDoc(): DocEntry | null {
   return sorted[0] ?? null;
 }
 
-// Loads the markdown content for an entry. Returns null if the blob
-// has been GC-ed or the storage was tampered with.
+/**
+ * Purpose: Load the markdown body for a doc entry.
+ * How: `readBlob(entry.contentSha)`; null on missing/GC-ed blob.
+ */
 export function loadDocContent(entry: DocEntry): string | null {
   return readBlob(entry.contentSha);
 }
 
-// Persists a new content for the given doc: hashes it, writes the
-// blob if new, updates the entry's contentSha and mtime in the index.
-// Cheap on no-op edits because the SHA stays the same.
+/**
+ * Purpose: Persist new content for the named doc, return the updated entry.
+ * How: Hash, write blob (no-op if SHA unchanged), patch the index entry's
+ *   contentSha + mtime; no-op edits leave mtime alone.
+ */
 export async function saveDocContent(
   uuid: string,
   content: string,
@@ -168,6 +222,10 @@ export async function saveDocContent(
 
 // ---- create / rename / delete / duplicate -----------------------------
 
+/**
+ * Purpose: Disambiguate a candidate name against a set of taken names.
+ * How: Return `base` unchanged when free; else append " 2", " 3", … until free.
+ */
 function uniqueName(base: string, taken: Set<string>): string {
   if (!taken.has(base)) return base;
   let n = 2;
@@ -175,6 +233,11 @@ function uniqueName(base: string, taken: Set<string>): string {
   return `${base} ${n}`;
 }
 
+/**
+ * Purpose: Create a new doc with an initial content blob.
+ * How: Hash + writeBlob, then push a fresh entry (uuid, unique name,
+ *   mtime=now, SHA) into the index.
+ */
 export async function createDoc(
   desiredName: string,
   initialContent = '',
@@ -195,6 +258,10 @@ export async function createDoc(
   return entry;
 }
 
+/**
+ * Purpose: Rename a doc; reject empty names and unknown uuids.
+ * How: Patch the index entry's `name`, leave `mtime` and `contentSha` alone.
+ */
 export function renameDoc(uuid: string, newName: string): DocEntry | null {
   const trimmed = newName.trim();
   if (trimmed === '') return null;
@@ -207,6 +274,10 @@ export function renameDoc(uuid: string, newName: string): DocEntry | null {
   return updated;
 }
 
+/**
+ * Purpose: Remove a doc from the index (blob GC is separate).
+ * How: Filter the index; also drop `KEY_CURRENT` when it pointed at the deleted doc.
+ */
 export function deleteDoc(uuid: string): void {
   const index = readIndex().filter((e) => e.uuid !== uuid);
   writeIndex(index);
@@ -215,6 +286,11 @@ export function deleteDoc(uuid: string): void {
   }
 }
 
+/**
+ * Purpose: Duplicate a doc cheaply via shared blob reference.
+ * How: Push a new index entry with a fresh uuid + unique "Copie de …"
+ *   name, reusing the source `contentSha` (no new blob).
+ */
 export async function duplicateDoc(uuid: string): Promise<DocEntry | null> {
   const index = readIndex();
   const src = index.find((e) => e.uuid === uuid);
@@ -235,9 +311,12 @@ export async function duplicateDoc(uuid: string): Promise<DocEntry | null> {
 
 // ---- legacy migration -------------------------------------------------
 
-// One-shot migration of the mono-doc schema (markpage:doc + markpage:filename)
-// into the multi-doc index. Idempotent — once markpage:docs:index exists,
-// this returns without touching anything.
+/**
+ * Purpose: One-shot migration of the pre-§19 mono-doc schema.
+ * How: When `KEY_INDEX` is absent and `markpage:doc` exists, create a
+ *   doc from it (name derived from `markpage:filename`), then drop both
+ *   legacy keys. Idempotent.
+ */
 export async function migrateLegacyDocIfNeeded(): Promise<void> {
   if (localStorage.getItem(KEY_INDEX) !== null) return;
   const legacy = localStorage.getItem(KEY_LEGACY_DOC);
@@ -252,14 +331,18 @@ export async function migrateLegacyDocIfNeeded(): Promise<void> {
   localStorage.removeItem(KEY_LEGACY_FILENAME);
 }
 
-// Set of SHA referenced by at least one doc in the index. Used by the
-// localStorage GC pass.
+/**
+ * Purpose: Set of SHAs currently referenced by at least one doc.
+ * How: Map the index entries to their `contentSha`. Used by the GC pass.
+ */
 export function referencedContentShas(): Set<string> {
   return new Set(readIndex().map((e) => e.contentSha));
 }
 
-// Iterates over every blob currently held in localStorage under the
-// `markpage:blobs:` prefix. Used by GC.
+/**
+ * Purpose: List every SHA backed by a `markpage:blobs:` localStorage entry.
+ * How: Linear walk over `localStorage` keys with the blob prefix.
+ */
 export function allBlobShas(): string[] {
   const out: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {
@@ -271,15 +354,19 @@ export function allBlobShas(): string[] {
   return out;
 }
 
+/**
+ * Purpose: Delete the content blob stored under a SHA.
+ * How: `localStorage.removeItem(blobKey(sha))`.
+ */
 export function deleteBlob(sha: string): void {
   localStorage.removeItem(blobKey(sha));
 }
 
-// Drops every `markpage:blobs:<sha>` entry whose SHA is no longer the
-// current contentSha of any doc in the index. Cheap walk: O(blobs)
-// localStorage reads, no JSON parsing per blob. Safe to run as often
-// as wanted — content-addressed, so a deleted blob is always
-// reproducible by re-saving its source.
+/**
+ * Purpose: Drop every content blob whose SHA isn't referenced anymore.
+ * How: Iterate `allBlobShas`, delete the ones missing from
+ *   `referencedContentShas`, return the count removed.
+ */
 export function gcContentBlobs(): number {
   const referenced = referencedContentShas();
   let removed = 0;

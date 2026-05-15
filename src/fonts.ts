@@ -1,11 +1,10 @@
-// Registers the full Noto Sans Symbols / Math TTFs (the same files we feed to
-// pdfmake) as @font-face declarations in the browser, so the HTML preview's
-// font cascade has access to the exact same glyph coverage as the PDF.
-//
-// We use the FontFace API rather than @fontsource here because the
-// @fontsource subset of Noto Sans Symbols leaves out a fair chunk of the
-// arrows and math blocks (U+2191, U+2193, U+2200-U+22FF…), and we want the
-// preview to never tofu when the PDF wouldn't.
+/*********************************** fonts.ts **********************************
+ *
+ * Purpose: Register the full Noto Sans Symbols / Math TTFs (same files pdfmake
+ *   uses) as `@font-face` declarations so the preview never tofus on glyphs.
+ * How: Use the FontFace API with the imported TTF URLs; memoise via a promise.
+ *
+ *******************************************************************************/
 
 import notoSymbolsUrl from '@expo-google-fonts/noto-sans-symbols/400Regular/NotoSansSymbols_400Regular.ttf?url';
 import notoMathUrl from '@expo-google-fonts/noto-sans-math/400Regular/NotoSansMath_400Regular.ttf?url';
@@ -17,6 +16,10 @@ const FAMILIES: Array<{ family: string; url: string }> = [
 
 let registered: Promise<void> | null = null;
 
+/**
+ * Purpose: Make sure the Noto fallback faces are loaded into `document.fonts`.
+ * How: One-shot promise: per family, `new FontFace(...).load()` then `add`.
+ */
 export function registerFallbackFonts(): Promise<void> {
   registered ??= (async () => {
     await Promise.all(

@@ -1,3 +1,12 @@
+/********************************* settings-window.ts **************************
+ *
+ * Purpose: Detached-window surface for Réglages, lets the user keep preview
+ *   visible while tweaking settings live.
+ * How: `window.open()` for a stable secondary window (modal fallback when blocked),
+ *   bundle the app CSS via `?inline`, mount the shared `buildSettingsForm`.
+ *
+ *******************************************************************************/
+
 // Detached-window surface for Réglages, modelled on help-window.ts.
 // The user can place this window beside the editor / preview and
 // see the effect of every change in real time without the modal
@@ -14,6 +23,10 @@ import type { PdfSettings } from '../settings';
 // consistent with the parent — same colours, same field layout.
 import appCss from '../style.css?inline';
 
+/**
+ * Purpose: Detached-window callback set — same shape as the modal surface.
+ * How: Extends `SettingsProfileHandlers` with `getSettings` + `onChange`.
+ */
 export interface SettingsWindowHandlers extends SettingsProfileHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
@@ -22,6 +35,11 @@ export interface SettingsWindowHandlers extends SettingsProfileHandlers {
 let currentWindow: Window | null = null;
 let currentRefresh: (() => void) | null = null;
 
+/**
+ * Purpose: Open (or refocus) the Réglages popup window; fall back to the modal if blocked.
+ * How: `window.open` then mount the shared form; returns a `{ refresh }` handle for
+ *   external repaints, or null when the caller doesn't own the form.
+ */
 // Returns a handle the caller can use to repaint the form when the
 // underlying state moves under its feet (e.g. after a profile
 // switch from outside the form itself). Returns null when the window
@@ -92,6 +110,10 @@ export function openSettingsWindow(
   return { refresh };
 }
 
+/**
+ * Purpose: Window-only CSS that neutralises the modal overlay framing.
+ * How: Returns a CSS string concatenated after the bundled app stylesheet.
+ */
 // Strips the modal-overlay framing and lays the form out as the
 // window's full content. The .settings-panel rules already control
 // the inner layout; we just neutralise the overlay box-shadow /

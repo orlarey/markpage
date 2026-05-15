@@ -1,3 +1,13 @@
+/********************************* main.ts *************************************
+ *
+ * Purpose: Application entry point — wires the editor, preview, toolbar,
+ *   menus, settings, autosave, GC and exports together at bootstrap.
+ * How: Imports static assets (fonts / CSS / marked extensions), then runs
+ *   `bootstrap()` which resolves locale, migrates storage, mounts UI and
+ *   binds global shortcuts.
+ *
+ *******************************************************************************/
+
 // Embedded Roboto Condensed, in the four variants we use in the PDF:
 // regular (400), medium (500, used as "bold"), and their italics. Self-hosted
 // so the app keeps working offline (SPEC §7.5).
@@ -108,6 +118,10 @@ import { paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
 
+/**
+ * Purpose: Pick the bundled help tutorial matching the active UI locale.
+ * How: Switch on the language tag; both blobs are imported as raw strings.
+ */
 // First-run document is the bundled help tutorial in whichever locale
 // matches the resolved UI language. The user can edit or erase it;
 // once a doc lives in localStorage, that one wins on reopen and HELP
@@ -116,6 +130,10 @@ function helpMdForLocale(lang: 'fr' | 'en'): string {
   return lang === 'fr' ? helpMdFr : helpMdEn;
 }
 
+/**
+ * Purpose: Filesystem-safe slug for export filenames.
+ * How: Strip diacritics, swap non-`[a-zA-Z0-9._-]` for `-`, collapse runs.
+ */
 // Cheap slug for export filenames. Keeps letters / digits / dashes /
 // underscores / dots, replaces anything else with '-', collapses
 // runs, trims dashes from the ends. Falls back to "document" when the
@@ -130,6 +148,10 @@ function slugifyDocName(name: string): string {
   return slug === '' ? 'document' : slug;
 }
 
+/**
+ * Purpose: Trigger a browser download of `content` under `filename`.
+ * How: Build a Blob, mint a transient object URL, click a synthetic `<a>`.
+ */
 function downloadTextFile(
   content: string,
   filename: string,
@@ -144,6 +166,10 @@ function downloadTextFile(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Purpose: Sweep IndexedDB image blobs and content blobs not referenced by any doc.
+ * How: Collect every `img://<sha>` ref across docs, then `gcUnusedImages` + `gcContentBlobs`.
+ */
 // Walks every doc, collects every `img://<sha>` ref it carries,
 // then drops IndexedDB blobs (resource pool) and `markpage:blobs:*`
 // entries (content pool) outside that live set. SPEC §19.3. Run at
@@ -163,6 +189,11 @@ async function runGC(): Promise<void> {
   }
 }
 
+/**
+ * Purpose: One-shot app bootstrap — migrations, locale, fonts, UI, shortcuts.
+ * How: Sequenced calls to storage migrations, then editor + toolbar mount,
+ *   then event wiring (autosave, view toggle, profile/doc handlers, hotkeys).
+ */
 async function bootstrap(): Promise<void> {
   // One-shot rebranding migration: rename every `md2pdf:` localStorage
   // key and the legacy IndexedDB database into the `markpage` namespace.

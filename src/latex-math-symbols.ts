@@ -1,3 +1,13 @@
+/********************************* latex-math-symbols.ts ***********************
+ *
+ * Purpose: Translate Unicode math symbols carried in markpage docs back to their
+ *   canonical LaTeX commands on the way out, so they survive `inputenc utf8`
+ *   inside math mode.
+ * How: A static `TABLE` (Unicode → LaTeX command); `mathBodyToLatex` walks code
+ *   points, emits the mapped form, and collects unmapped non-ASCII for warnings.
+ *
+ *******************************************************************************/
+
 // Unicode → LaTeX command table applied inside math zones.
 //
 // Why this exists: markpage documents — especially the ones using the
@@ -190,6 +200,10 @@ for (let i = 0; i < 26; i += 1) {
   TABLE[letter] = `\\mathbb{${ascii}}`;
 }
 
+/**
+ * Purpose: Decide whether a character is safe to keep verbatim inside math mode.
+ * How: True for ASCII (cp ≤ 0x7F); non-ASCII is flagged when not in `TABLE`.
+ */
 // Characters that are safe to keep verbatim inside math: ASCII +
 // whitespace + the LaTeX-active punctuation we don't want to flag.
 // We only warn on non-ASCII characters that aren't in the table,
@@ -199,14 +213,19 @@ function isMathSafe(ch: string): boolean {
   return cp === undefined || cp <= 0x7f;
 }
 
+/**
+ * Purpose: Bundle returned by `mathBodyToLatex` — converted text plus unmapped chars.
+ * How: `text` is the rewritten string; `unmapped` collects non-ASCII chars not in `TABLE`.
+ */
 export interface MathConvertResult {
   text: string;
   unmapped: Set<string>;
 }
 
-// Rewrites every Unicode math symbol it knows about into the
-// equivalent LaTeX command, and collects (without dropping)
-// characters it doesn't know — caller surfaces those as warnings.
+/**
+ * Purpose: Rewrite Unicode math symbols in `input` to their LaTeX commands.
+ * How: Iterate code points (handles astral plane); look up `TABLE`, accumulate unmapped non-ASCII.
+ */
 export function mathBodyToLatex(input: string): MathConvertResult {
   const unmapped = new Set<string>();
   let out = '';

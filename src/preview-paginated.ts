@@ -1,31 +1,37 @@
-// Paginated preview mode (SPEC §13). Lazy-loads paged.js and renders the
-// document as a sequence of A4/A5/Letter pages with proper margins, the
-// same way it would print. The fluid preview (preview.ts) remains the
-// default; this module is reached only when the user toggles the
-// "Mise en page" button in the toolbar.
+/****************************** preview-paginated.ts ***************************
+ *
+ * Purpose: Paginated preview mode (SPEC §13). Lazy-loads paged.js and renders
+ *   the document as a sequence of A4/A5/Letter pages — same look as printing.
+ * How: Wrap labels with their next sibling for `break-inside: avoid`, hand off
+ *   the result to paged.js along with a CSS bundle built from `PdfSettings`.
+ *
+ *******************************************************************************/
 
 import type { PdfSettings, TextStyle } from './settings';
 import { quoteFontFamily } from './font-loader';
 
-// Heading underline CSS fragment for paged.js / print output. Uses
-// the GitHub-ish neutral grey to match the historical look — heading
-// colour would feel too saturated under the printed page.
+/**
+ * Purpose: Heading underline CSS fragment for paged.js / print output.
+ * How: Uses a neutral grey border-bottom to match the historical printed look.
+ */
 function pagedUnderline(s: TextStyle): string {
   return s.underline
     ? `border-bottom: 1px solid #d0d7de; padding-bottom: 0.2em;`
     : '';
 }
 
-// Per-heading italic + weight for paged.js / print output.
+/**
+ * Purpose: Per-heading italic + weight for paged.js / print output.
+ * How: Emits explicit `font-style` + `font-weight` declarations.
+ */
 function pagedHeadingExtras(s: TextStyle): string {
   return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
 }
 
-// Asymmetric vertical spacing for paged.js / print output. Matches
-// the fluid preview's rule so the editor view stays a faithful
-// proxy of the printed page. break-after: avoid lives in its own
-// rule below (paged.js's break-processor parses our selectors and
-// chokes on :where(...), so that rule stays unscoped).
+/**
+ * Purpose: Asymmetric vertical spacing for paged.js / print output.
+ * How: Same `above`/`below` em-units as the fluid preview, keeping parity.
+ */
 function pagedHeadingMargin(settings: PdfSettings): string {
   const { above, below } = settings.headingSpacing;
   return `margin: ${above}em 0 ${below}em;`;
@@ -62,6 +68,10 @@ let modulePromise: Promise<PagedJsModule> | null = null;
 // ("Cannot read properties of null (reading 'nextSibling')").
 let currentPreviewer: Previewer | null = null;
 
+/**
+ * Purpose: Lazy-import paged.js once, caching the module promise.
+ * How: Memoised dynamic `import('pagedjs')` cast to our typed module shape.
+ */
 async function loadPagedJs(): Promise<PagedJsModule> {
   modulePromise ??= (async () => {
     const mod = (await import('pagedjs')) as unknown as PagedJsModule;
@@ -70,6 +80,10 @@ async function loadPagedJs(): Promise<PagedJsModule> {
   return modulePromise;
 }
 
+/**
+ * Purpose: Disconnect every page's ResizeObserver before discarding a render.
+ * How: Iterate `chunker.pages` calling `Page.destroy()`, swallowing errors.
+ */
 function teardownPreviewer(p: Previewer): void {
   const pages = p.chunker?.pages ?? [];
   for (const page of pages) {
@@ -81,15 +95,10 @@ function teardownPreviewer(p: Previewer): void {
   }
 }
 
-// Renders `source` (an already-rendered HTML element from the fluid
-// preview pipeline) as paginated pages inside `renderTo`. Returns the
-// promise resolved by paged.js once the layout is done; the caller can
-// await it to know when scroll-sync can re-attach.
-//
-// We pass the sanitised SVGs (mermaid/math) as-is — they're already in
-// `source`. paged.js preserves attributes during chunking, so the
-// `data-line` annotations stamped by `annotateSourceLines` survive into
-// the paginated DOM.
+/**
+ * Purpose: Render `source` as paginated pages inside `renderTo` (preview pane).
+ * How: Tear down any prior preview, wrap labels, hand off to a fresh Previewer.
+ */
 export async function paginate(
   source: HTMLElement,
   settings: PdfSettings,
@@ -124,16 +133,10 @@ export async function paginate(
   currentPreviewer = previewer;
 }
 
-// One-shot pagination for the print export pipeline. Runs paged.js
-// the same way as `paginate()` but **without** touching
-// `currentPreviewer` — the preview pane's pages stay alive (so the
-// user can return to preview after printing without re-paginating)
-// and the print target's pages live just for the duration of the
-// print dialog.
-//
-// Returns a teardown function that disconnects the print render's
-// ResizeObservers; call it from the print pipeline's cleanup so the
-// observers don't fire on the detached print target after `target.remove()`.
+/**
+ * Purpose: One-shot pagination for the print export pipeline (no global state).
+ * How: Run paged.js into `renderTo`, return a teardown that disconnects observers.
+ */
 export async function paginateOnce(
   source: HTMLElement,
   settings: PdfSettings,
@@ -153,21 +156,10 @@ export async function paginateOnce(
   };
 }
 
-// Walks the rendered preview and, for every "label" element, wraps it
-// together with its immediately following sibling in a
-// `<div class="keep-with-next">`. Exported so the print-based PDF
-// export (phase 2, SPEC §13.6) can apply the same wrappers before
-// handing content to the browser's native print engine. A label is:
-//   - a heading (h1-h4), or
-//   - a paragraph that immediately precedes a "presentable" block:
-//     a fenced code block, display math, mermaid diagram, image, or
-//     table. The classic case is `**Matrice**` followed by `$$…$$` —
-//     the bold word is acting as a heading without being one.
-//
-// Done in **reverse** document order so chains (h2 → h3 → paragraph)
-// end up in nested wrappers: the inner pair (h3 + paragraph) is
-// wrapped first, then the outer h2 grabs that wrapper as its next
-// sibling, keeping the trio together recursively.
+/**
+ * Purpose: Wrap each "label" element with its next sibling so they can't be split.
+ * How: Reverse-iterate elements; for each label, wrap (`<div class="keep-with-next">`).
+ */
 export function keepLabelsWithNext(root: HTMLElement): void {
   const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
   for (const el of all) {
@@ -183,6 +175,10 @@ export function keepLabelsWithNext(root: HTMLElement): void {
   }
 }
 
+/**
+ * Purpose: Decide whether an element acts as a "label" for the next block.
+ * How: True for h1–h4, or a `<p>` directly preceding a presentable block.
+ */
 function isLabel(el: Element): boolean {
   const tag = el.tagName.toLowerCase();
   if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4') {
@@ -195,6 +191,10 @@ function isLabel(el: Element): boolean {
   return false;
 }
 
+/**
+ * Purpose: "Presentable block" = the kind a label is plausibly introducing.
+ * How: Tag whitelist (pre/table/img) plus the math-block / mermaid-block classes.
+ */
 function isPresentableBlock(el: Element): boolean {
   const tag = el.tagName.toLowerCase();
   if (tag === 'pre' || tag === 'table' || tag === 'img') return true;
@@ -203,15 +203,10 @@ function isPresentableBlock(el: Element): boolean {
   return false;
 }
 
-// Builds the @page rules and the minimum-vital fragmentation policy from
-// the user's PdfSettings. Returns a CSS string to hand to paged.js.
-//
-// Tables and blockquotes intentionally rely on browser/CSS defaults:
-//  - `<thead>` is `display: table-header-group`, so the table header
-//    repeats on every page when the table is split.
-//  - `<blockquote>` is a regular block, so the left-bar `border-left`
-//    naturally repeats on the page after a break.
-// We add explicit rules only where the default would look wrong.
+/**
+ * Purpose: Build the @page rules + minimal fragmentation policy from user settings.
+ * How: Template literal scoped to `#preview-pane` / `#markpage-print-target`.
+ */
 export function pagedCss(s: PdfSettings): string {
   const sizeMm = pageSizeMm(s);
   const m = s.margins;
@@ -321,10 +316,10 @@ export function pagedCss(s: PdfSettings): string {
   `;
 }
 
-// Builds a CSS `font-family` value list ending with the appropriate
-// generic + the Noto fallbacks for math / symbols glyph coverage.
-// `kind` selects which generic the chain tails with — `mono` for
-// code, anything else for proportional text.
+/**
+ * Purpose: Build a CSS `font-family` value with sensible fallbacks.
+ * How: Quote the head, append generic + bundled (`mono` vs proportional) tail.
+ */
 function fontFamilyChain(name: string, kind: 'sans' | 'mono'): string {
   const head = quoteFontFamily(name);
   // If the user picked a non-bundled, unknown family, we still emit
@@ -340,9 +335,10 @@ function fontFamilyChain(name: string, kind: 'sans' | 'mono'): string {
   return `${head}, "Roboto Condensed", "Noto Sans Math", "Noto Sans Symbols", sans-serif`;
 }
 
-// Maps the PageSize enum to physical mm dimensions. Standard ISO sizes
-// for A*/B5 plus the two US sizes; matches the table pdfmake uses
-// internally.
+/**
+ * Purpose: Map the PageSize enum to physical mm dimensions.
+ * How: Switch over standard ISO + US sizes; matches pdfmake's table.
+ */
 function pageSizeMm(s: PdfSettings): { w: number; h: number } {
   switch (s.pageSize) {
     case 'A3':
@@ -360,8 +356,10 @@ function pageSizeMm(s: PdfSettings): { w: number; h: number } {
   }
 }
 
-// Translates the PageNumber settings into a `@bottom-center` (or wherever)
-// rule inside `@page`. Returns "" when `position` is 'none'.
+/**
+ * Purpose: Translate the PageNumber settings into a `@<corner>` rule.
+ * How: Emits `content: counter(page)` with font styling, or "" when `none`.
+ */
 function pageNumberCss(pn: PdfSettings['pageNumber']): string {
   if (pn.position === 'none') return '';
   const [, hSide] = pn.position.split('-') as [

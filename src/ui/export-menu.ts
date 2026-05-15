@@ -1,3 +1,11 @@
+/********************************* export-menu.ts ******************************
+ *
+ * Purpose: Dropdown that lists the available export formats (Markdown / PDF / LaTeX).
+ * How: Transient `<div>` right-aligned to the toolbar trigger; same dismiss pattern
+ *   as the other menus (outside-click / Escape / resize).
+ *
+ *******************************************************************************/
+
 // Tiny dropdown that lists the available export formats. Built like
 // style-menu / doc-menu: one transient div, dismissed on outside
 // click, Escape, or window resize.
@@ -6,12 +14,20 @@ import { t } from '../i18n/strings';
 
 const MENU_ID = 'export-menu';
 
+/**
+ * Purpose: Callbacks one per export format.
+ * How: Plain interface, no return values.
+ */
 export interface ExportMenuOptions {
   onMarkdown(): void;
   onPdf(): void;
   onLatex(): void;
 }
 
+/**
+ * Purpose: Mount the export dropdown anchored to `anchor`.
+ * How: Three menu items wired to `opts.onMarkdown/onPdf/onLatex`; deferred dismissal.
+ */
 export function openExportMenu(
   anchor: HTMLElement,
   opts: ExportMenuOptions,

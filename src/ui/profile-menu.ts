@@ -1,3 +1,13 @@
+/********************************* profile-menu.ts *****************************
+ *
+ * Purpose: Settings-profile dropdown — switch on click for "other" profiles,
+ *   plus footer actions (Duplicate / Delete / Reset / Import / Export) on the
+ *   current profile.
+ * How: One transient `<div>` anchored to the Réglages header trigger, built in
+ *   the caller's `Document` so it lives correctly inside the detached popup.
+ *
+ *******************************************************************************/
+
 // Dropdown that manages the settings-profile library, anchored to
 // the [<nom> ▾] button in the Réglages window header. Cf. SPEC §9.4.4.
 //
@@ -15,6 +25,10 @@ import { displayProfileName, type ProfileEntry } from '../settings-profiles';
 
 const MENU_ID = 'profile-menu';
 
+/**
+ * Purpose: Callbacks for the profile menu — switch / create + footer actions.
+ * How: Plain interface; footer actions implicitly target the current profile.
+ */
 export interface ProfileMenuOptions {
   profiles: ProfileEntry[];
   currentUuid: string;
@@ -28,6 +42,11 @@ export interface ProfileMenuOptions {
   onExport(): void;
 }
 
+/**
+ * Purpose: Mount the profile dropdown anchored to `anchor`.
+ * How: Build header rename input + new + other rows + footer (actions + import/export);
+ *   uses `anchor.ownerDocument` so the popup window can host its own menu.
+ */
 export function openProfileMenu(
   anchor: HTMLElement,
   opts: ProfileMenuOptions,
@@ -205,6 +224,10 @@ export function openProfileMenu(
   }, 0);
 }
 
+/**
+ * Purpose: Footer button factory tagged with the shared class.
+ * How: Plain `<button>` in the supplied `doc`; `disabled` opt-in for the delete case.
+ */
 function footerButton(
   doc: Document,
   label: string,

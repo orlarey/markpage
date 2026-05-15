@@ -1,3 +1,13 @@
+/********************************* numbering.ts ********************************
+ *
+ * Purpose: "Numbering by example" for headings — detect the style each heading
+ *   level uses from its first occurrence, then rewrite every other heading at
+ *   that level to match (flat decimal, letter, Roman, hierarchical, or none).
+ * How: Two passes over the lines — `detectStyles` parses the first heading per
+ *   level via `parseStyle`; `renumber` walks again applying `formatPrefix`.
+ *
+ *******************************************************************************/
+
 // "Numbering by example" for headings.
 //
 // The user writes the FIRST heading at each level the way they want all
@@ -23,6 +33,10 @@ export type LevelStyle =
   | { kind: 'roman'; upper: boolean; close: '.' }
   | { kind: 'hierarchical'; trailingDot: boolean };
 
+/**
+ * Purpose: Numbering style for each heading level of a document.
+ * How: `levels[0]` is h1's style, … `levels[5]` is h6's; `none` = no prefix.
+ */
 export interface DocStyle {
   // Index 0 = h1 … 5 = h6.
   levels: LevelStyle[];
@@ -36,6 +50,10 @@ const ROMAN_VALID = /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
 // title). Setext (`Title\n====`) is intentionally out of scope for v1.
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 
+/**
+ * Purpose: Parse an existing heading title and split it into `{style, rest}`.
+ * How: Try regex branches in disambiguating order (hierarchical → decimal variants → roman → letter).
+ */
 // Parse an existing heading title and split it into (style, rest)
 // where `rest` is the title text with the number prefix removed.
 // Returns null if no number prefix is recognized.
@@ -111,6 +129,10 @@ function parseStyle(
   return null;
 }
 
+/**
+ * Purpose: Format an Arabic 1-based number as a letter sequence (1→A, 27→AA, …).
+ * How: Repeated base-26 division with case selected by `upper`.
+ */
 // Format an Arabic number 1-N as a letter sequence. 1 → A, 26 → Z,
 // 27 → AA, etc.
 function letterFor(n: number, upper: boolean): string {
@@ -131,6 +153,10 @@ const ROMAN_NUMERALS: ReadonlyArray<readonly [number, string]> = [
   [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
 ];
 
+/**
+ * Purpose: Format an Arabic number as a Roman numeral.
+ * How: Greedy subtraction over `ROMAN_NUMERALS`; lowercased if `upper === false`.
+ */
 function toRoman(n: number, upper: boolean): string {
   let v = n;
   let r = '';
@@ -143,6 +169,10 @@ function toRoman(n: number, upper: boolean): string {
   return upper ? r : r.toLowerCase();
 }
 
+/**
+ * Purpose: Build the textual prefix for one heading given its style and counters.
+ * How: Switch on `style.kind`; hierarchical joins `counters[0..level]` with dots.
+ */
 // Build the prefix for the i-th heading at the given level, given the
 // per-level counters (counters[k] = how many headings at level k+1
 // have been seen so far INCLUDING the current one).
@@ -168,6 +198,10 @@ function formatPrefix(
   }
 }
 
+/**
+ * Purpose: Return the line index right after a YAML frontmatter block, or 0 if none.
+ * How: If line 0 is `---`, scan forward for the closing `---`; malformed = no frontmatter.
+ */
 // Returns the line index just after a YAML frontmatter block (`---\n
 // …\n---`), or 0 if there isn't one. Malformed YAML (no closing fence)
 // is treated as "no frontmatter" rather than swallowing the rest of
@@ -180,6 +214,10 @@ function skipYamlFrontmatter(lines: string[]): number {
   return 0;
 }
 
+/**
+ * Purpose: Return the index of the first non-blank line at or after `from`, else -1.
+ * How: Linear scan; `trim() !== ''` decides.
+ */
 function firstNonBlankLine(lines: string[], from: number): number {
   for (let i = from; i < lines.length; i += 1) {
     if ((lines[i] ?? '').trim() !== '') return i;
@@ -187,6 +225,10 @@ function firstNonBlankLine(lines: string[], from: number): number {
   return -1;
 }
 
+/**
+ * Purpose: Decide whether the document's only `#` heading is the document title (not a section).
+ * How: True iff there's exactly one h1 and it's the first non-blank line after frontmatter.
+ */
 // Detects whether the document's first `# Heading` is acting as the
 // document **title** rather than a section. Heuristic:
 //   - exactly one `#` heading in the whole document, AND
@@ -220,6 +262,10 @@ function isFirstH1ATitle(source: string): boolean {
   return h1Count === 1 && firstH1Line === first;
 }
 
+/**
+ * Purpose: Walk the source and record the style of each level's FIRST heading.
+ * How: Skip ``` fences, parse the first heading per effective level via `parseStyle`.
+ */
 // Walk the source line by line and collect, for each (effective) level,
 // the style of the FIRST heading at that level. Skips lines inside ```
 // fences. Levels that never appear in the document get `none` (no-op).
@@ -253,6 +299,10 @@ export function detectStyles(source: string): DocStyle {
   return { levels };
 }
 
+/**
+ * Purpose: Rewrite every heading by applying the matching level's style.
+ * How: Walk lines (skip fences and the title `#`), bump counters, replace prefix via `formatPrefix`.
+ */
 // Walk the source again, applying each level's detected style to every
 // heading at that level. The existing prefix (if any) is stripped and
 // replaced with the freshly computed one. Headings inside fenced code
@@ -288,6 +338,10 @@ export function renumber(source: string, doc: DocStyle): string {
   return lines.join('\n');
 }
 
+/**
+ * Purpose: One-shot helper combining `detectStyles` + `renumber` (the editor entry point).
+ * How: Pipe `detectStyles(source)` into `renumber(source, …)`.
+ */
 // One-shot helper: detect the styles in `source` then renumber. The
 // usual entry point from the editor command.
 export function renumberByExample(source: string): string {

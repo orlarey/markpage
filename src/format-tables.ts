@@ -1,19 +1,19 @@
-// Reformat GFM-style Markdown tables in a source string. Each table
-// block is detected as a header line containing `|`, immediately
-// followed by a separator line of the form `| --- | :---: | ---: |`
-// (the `:` markers carry the alignment). Cells are trimmed and
-// repadded so the `|` columns line up visually in a monospace
-// context, and the separator dashes are normalised to match.
-//
-// Pure function — anything outside a detected table block is passed
-// through verbatim, so code fences, math, inference rules, and
-// other Markdown constructs are left untouched.
+/********************************* format-tables.ts *****************************
+ *
+ * Purpose: Reformat GFM-style Markdown tables in a source string so columns
+ *   align visually in a monospace context. Pure function, non-tables untouched.
+ * How: Scan line-by-line, detect header+separator pairs, parse cells +
+ *   alignments, then re-emit each table with consistent column widths.
+ *
+ *******************************************************************************/
 
 type CellAlign = 'left' | 'center' | 'right';
 
-// Split a row on unescaped `|`. Strips the optional leading and
-// trailing `|` borders so `| a | b |` and `a | b` both yield
-// `['a', 'b']`. A backslash-escaped `\|` inside a cell survives.
+/**
+ * Purpose: Split a table row on unescaped `|`, stripping optional borders.
+ * How: One-pass scan; `\|` is preserved as a literal cell character, even/odd
+ *   backslash count decides whether a trailing `|` is a border or escape.
+ */
 function splitCells(line: string): string[] {
   let s = line.trim();
   if (s.startsWith('|')) s = s.slice(1);
@@ -42,6 +42,10 @@ function splitCells(line: string): string[] {
   return cells;
 }
 
+/**
+ * Purpose: Recognise a GFM separator line like `| --- | :---: | ---: |`.
+ * How: Reject if it lacks `-` or has stray chars; every cell must match `:?-+:?`.
+ */
 function isSeparatorLine(line: string): boolean {
   const s = line.trim();
   if (!s.includes('-')) return false;
@@ -51,6 +55,10 @@ function isSeparatorLine(line: string): boolean {
   return cells.every((c) => /^:?-+:?$/.test(c));
 }
 
+/**
+ * Purpose: Read GFM alignment from a separator cell's `:` markers.
+ * How: Both colons → center; only trailing colon → right; otherwise left.
+ */
 function parseAlign(cell: string): CellAlign {
   const startsColon = cell.startsWith(':');
   const endsColon = cell.endsWith(':');
@@ -59,6 +67,10 @@ function parseAlign(cell: string): CellAlign {
   return 'left';
 }
 
+/**
+ * Purpose: Pad a cell to `width` characters per the given alignment.
+ * How: Compute slack, distribute as trailing / leading / split spaces.
+ */
 function padCell(cell: string, width: number, align: CellAlign): string {
   const slack = Math.max(width - cell.length, 0);
   if (align === 'left') return cell + ' '.repeat(slack);
@@ -67,6 +79,10 @@ function padCell(cell: string, width: number, align: CellAlign): string {
   return ' '.repeat(leftN) + cell + ' '.repeat(slack - leftN);
 }
 
+/**
+ * Purpose: Render a data row from cells, widths and alignments.
+ * How: Pad each cell, surround with `| … |`, join with `|`.
+ */
 function renderRow(
   cells: string[],
   widths: number[],
@@ -78,6 +94,10 @@ function renderRow(
   return `|${parts.join('|')}|`;
 }
 
+/**
+ * Purpose: Render the separator line for a table given widths + aligns.
+ * How: Per column emit `:dashes:` / ` dashes:` / ` dashes ` and join with `|`.
+ */
 function renderSeparator(widths: number[], aligns: CellAlign[]): string {
   const parts = widths.map((w, i) => {
     const align = aligns[i] ?? 'left';
@@ -97,9 +117,11 @@ interface ParsedTable {
   consumed: number;
 }
 
-// Parse one GFM table block starting at `lines[start]`. Returns null
-// if no table is present at that position (header lacks a `|` or the
-// next line isn't a valid separator).
+/**
+ * Purpose: Try to parse one GFM table starting at `lines[start]`.
+ * How: Require header (with `|`) + valid separator; then read body rows until
+ *   a blank line or a line without `|`; pad short rows to `colCount`.
+ */
 function parseTableAt(lines: string[], start: number): ParsedTable | null {
   const headerLine = lines[start] ?? '';
   const sepLine = lines[start + 1] ?? '';
@@ -137,6 +159,10 @@ function parseTableAt(lines: string[], start: number): ParsedTable | null {
   };
 }
 
+/**
+ * Purpose: Emit the reformatted lines of a parsed table.
+ * How: Compute per-column widths (min 3), then render header + separator + body.
+ */
 function renderTable(t: ParsedTable): string[] {
   const widths: number[] = [];
   for (let c = 0; c < t.aligns.length; c += 1) {
@@ -154,6 +180,11 @@ function renderTable(t: ParsedTable): string[] {
   ];
 }
 
+/**
+ * Purpose: Public entry — reformat every GFM table block in a Markdown source.
+ * How: Walk lines; at each position try `parseTableAt`, emit reformatted lines
+ *   or pass through verbatim if no table starts here.
+ */
 export function formatMarkdownTables(src: string): string {
   const lines = src.split('\n');
   const out: string[] = [];

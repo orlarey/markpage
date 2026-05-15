@@ -1,42 +1,57 @@
+/********************************* preview.ts **********************************
+ *
+ * Purpose: Fluid (non-paginated) HTML preview pipeline — marked → DOM,
+ *   metadata block, math/mermaid placeholders, source-line annotation, styles.
+ * How: A pipeline of independent `target`-mutating functions; each step
+ *   walks the rendered DOM once and swaps placeholders or injects nodes.
+ *
+ *******************************************************************************/
+
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type TextStyle } from './settings';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
 import { quoteFontFamily } from './font-loader';
 
-// Heading underline CSS fragment. Returns either a `border-bottom`
-// declaration in the editor's neutral border colour, or
-// `border-bottom: none` so the rule consistently wins over any
-// earlier static style.
+/**
+ * Purpose: Heading underline CSS fragment using the editor's neutral border colour.
+ * How: Emits a `border-bottom` declaration or `none` so the dynamic rule wins.
+ */
 function underlineRule(s: TextStyle): string {
   return s.underline
     ? `border-bottom: 1px solid var(--border); padding-bottom: 0.2em;`
     : `border-bottom: none;`;
 }
 
-// Per-heading italic + weight. Emits explicit declarations so the
-// dynamic rule overrides the static `font-weight: 500` cascade
-// applied to bold/strong (still useful for `<b>` and `<strong>`,
-// but headings now drive their own weight).
+/**
+ * Purpose: Per-heading italic + weight, overriding the static bold/strong rule.
+ * How: Emits explicit `font-style` + `font-weight` so the dynamic rule wins.
+ */
 function headingExtras(s: TextStyle): string {
   return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
 }
 
-// Asymmetric vertical spacing — more above than below — so each
-// heading visually attaches to the section it introduces (Gestalt
-// proximity). Two user-tunable ratios (Réglages → Styles), expressed
-// in `em` so the absolute spacing tracks each heading's own font-size.
+/**
+ * Purpose: Asymmetric vertical spacing — more above than below — for headings.
+ * How: Uses the user-tunable `above` / `below` ratios in `em` units.
+ */
 function headingMargin(settings: PdfSettings): string {
   const { above, below } = settings.headingSpacing;
   return `margin: ${above}em 0 ${below}em;`;
 }
 
+/**
+ * Purpose: Render the markdown source into the target's `innerHTML`.
+ * How: Synchronous `marked.parse` — the placeholders (math, mermaid) come later.
+ */
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
 }
 
-// Inserts (or refreshes) the centered author/organization/date block right
-// after the first <h1> in the preview, mirroring the PDF behaviour.
+/**
+ * Purpose: Insert/refresh the centered author/organization/date block after the first h1.
+ * How: Removes any prior `.preview-metadata`, builds one div per line, places after h1.
+ */
 export function applyPreviewMetadata(
   target: HTMLElement,
   settings: PdfSettings,
@@ -63,10 +78,10 @@ export function applyPreviewMetadata(
   }
 }
 
-// Stamps each top-level block in the preview with `data-line="N"` (0-indexed
-// source line of the corresponding markdown token), so the scroll-sync code
-// can interpolate between blocks. Skips our own injected metadata block,
-// which has no source counterpart.
+/**
+ * Purpose: Stamp each top-level preview block with `data-line="N"` for scroll-sync.
+ * How: Tokenise the source and pair each rendering token with a top-level child.
+ */
 export function annotateSourceLines(
   target: HTMLElement,
   source: string,
@@ -97,6 +112,10 @@ export function annotateSourceLines(
   }
 }
 
+/**
+ * Purpose: Count `\n` occurrences in a string.
+ * How: Linear scan comparing each code point to 10.
+ */
 function countNewlines(s: string): number {
   let n = 0;
   for (let i = 0; i < s.length; i += 1) {
@@ -105,10 +124,10 @@ function countNewlines(s: string): number {
   return n;
 }
 
-// Same idea as renderMathBlocks but for inline `$…$` placeholders. The
-// MathJax SVG is dropped in directly — the browser renders inline SVG in
-// the text flow and applies the `vertical-align: -…ex` style MathJax
-// emits, which lines the formula up with the surrounding baseline.
+/**
+ * Purpose: Swap inline `$…$` placeholders for MathJax SVGs (or red error spans).
+ * How: Query `.math-inline[data-math]`, render in parallel, set inner HTML.
+ */
 export async function renderMathInlines(target: HTMLElement): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('span.math-inline[data-math]'),
@@ -129,16 +148,11 @@ export async function renderMathInlines(target: HTMLElement): Promise<void> {
   );
 }
 
-// SVG `id` collisions across cached renders. mermaid/MathJax both
-// generate SVGs that reference internal markers, glyph paths, masks etc.
-// via `url(#some-id)`, `href="#some-id"`, AND CSS selectors like
-// `#mermaid-1 .node rect { fill: ... }` inside `<style>`. Our render
-// caches return the same SVG string for the same source; if that SVG
-// is inserted in two places (e.g. the editor preview AND the print-
-// target), browsers resolve `#some-id` references to the first match
-// in document order — the second instance loses its markers, fills,
-// and glyph references. Prefix every id and every internal reference
-// with a per-call tag so each insertion is self-contained.
+/**
+ * Purpose: Prefix every `id` and every `#id` reference in an SVG so duplicate
+ *   inserts (preview + print target) don't collide on `url(#id)` resolution.
+ * How: Parse, harvest ids into a map, rewrite attributes and `<style>` text.
+ */
 let uniqueIdCounter = 0;
 function makeIdsUnique(svg: string): string {
   uniqueIdCounter += 1;
@@ -190,10 +204,10 @@ function makeIdsUnique(svg: string): string {
   return new XMLSerializer().serializeToString(root);
 }
 
-// Walks the rendered preview, finds the placeholders our marked-config
-// extension left behind for `$$…$$` blocks, and swaps each one for the
-// MathJax SVG. Errors render as a red-bordered block with the source
-// still visible.
+/**
+ * Purpose: Swap `$$…$$` block placeholders for MathJax SVGs (or red error blocks).
+ * How: Query `.math-block[data-math]`, render in parallel, replace inner HTML.
+ */
 export async function renderMathBlocks(target: HTMLElement): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('.math-block[data-math]'),
@@ -218,10 +232,10 @@ export async function renderMathBlocks(target: HTMLElement): Promise<void> {
   );
 }
 
-// Walks the rendered preview, finds every ```mermaid code block, renders it
-// to SVG via the lazy-loaded mermaid library, and swaps the <pre> for a
-// <div> holding the SVG. Errors are shown as a red-bordered block with the
-// source still visible so the user can see what they typed.
+/**
+ * Purpose: Replace every ```mermaid code block with its rendered SVG (or error block).
+ * How: Find `<code.language-mermaid>`, render in parallel, swap the `<pre>` for a div.
+ */
 export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
   const codes = Array.from(
     target.querySelectorAll<HTMLElement>('code.language-mermaid'),
@@ -262,10 +276,10 @@ export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
 
 const PREVIEW_STYLE_ID = 'markpage-preview-styles';
 
-// Mirrors a subset of the PDF settings into the HTML preview so the user can
-// see the effect of size/color changes without exporting. Layout-only fields
-// (page size, margins, page number) are intentionally not reflected — the
-// HTML preview is a flowing document, not a paged one.
+/**
+ * Purpose: Mirror typography fields from `PdfSettings` into the fluid HTML preview.
+ * How: Rewrite a single `<style id="markpage-preview-styles">` with scoped rules.
+ */
 export function applyPreviewStyles(settings: PdfSettings): void {
   let el = document.getElementById(PREVIEW_STYLE_ID) as HTMLStyleElement | null;
   if (!el) {
@@ -308,6 +322,10 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   `;
 }
 
+/**
+ * Purpose: Generic debouncer — collapse multiple calls into one delayed invocation.
+ * How: Closure over a `setTimeout` handle; latest call wins.
+ */
 export function debounce<T extends (...args: never[]) => void>(
   fn: T,
   delayMs: number,

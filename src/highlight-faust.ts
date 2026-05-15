@@ -1,7 +1,12 @@
-// Custom Faust language definition for highlight.js. Faust is the
-// functional DSL for audio signal processing (faust.grame.fr). It
-// isn't in highlight.js core, so we declare it here.
-//
+/********************************* highlight-faust.ts ***************************
+ *
+ * Purpose: Custom highlight.js language definition for Faust (functional DSL
+ *   for audio signal processing, faust.grame.fr) — not in hljs core.
+ * How: Export a factory `faustLanguage(hljs)` returning the standard
+ *   `Language` shape (keyword groups + `contains` patterns).
+ *
+ *******************************************************************************/
+
 // Tokens covered:
 //   - line `//` and block `/* … */` comments
 //   - double-quoted strings (mostly used in `library(...)`,
@@ -20,6 +25,11 @@
 
 import type { HLJSApi, Language } from 'highlight.js';
 
+/**
+ * Purpose: highlight.js language factory for Faust / `.dsp` files.
+ * How: Returns a `Language` with keyword groups (keyword/type/built_in)
+ *   plus `contains` rules for comments, strings, numbers and module prefixes.
+ */
 export function faustLanguage(_hljs: HLJSApi): Language {
   return {
     name: 'Faust',

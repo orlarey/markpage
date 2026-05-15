@@ -1,10 +1,12 @@
-// Print-based PDF export (SPEC §13.6, phase 2 of paginated preview).
-// We paginate the print target with paged.js — same renderer as the
-// on-screen preview — then call window.print(). Each `.pagedjs_page`
-// div is one physical page; paged.js's @media print rules give it
-// `page-break-after: always`, and our @page rule sets margin to 0 so
-// Chrome's printable area matches the page divs exactly.
-//
+/******************************* print-export.ts *******************************
+ *
+ * Purpose: Print-based PDF export (SPEC §13.6, phase 2). Paginates the print
+ *   target with paged.js then calls `window.print()`.
+ * How: Build content, mount an off-screen `<div id="markpage-print-target">`,
+ *   paginate, install a screen/print toggle stylesheet, then invoke print().
+ *
+ *******************************************************************************/
+
 // Why not just feed plain HTML and let Chrome paginate? Because Chrome's
 // print dialog "Margins" setting hard-overrides the @page margin we
 // declare in CSS, replacing it with the dialog's value (Default ≈ 12 mm,
@@ -22,6 +24,10 @@ import type { PdfSettings } from './settings';
 const PRINT_TARGET_ID = 'markpage-print-target';
 const PRINT_STYLE_ID = 'markpage-print-style';
 
+/**
+ * Purpose: Drive the entire print → PDF export pipeline from markdown source.
+ * How: Build content, paginate off-screen, swap to print stylesheet, `print()`.
+ */
 export async function exportViaPrint(
   expandedSource: string,
   settings: PdfSettings,
@@ -89,6 +95,10 @@ export async function exportViaPrint(
   setTimeout(() => cleanup(), 30_000);
 }
 
+/**
+ * Purpose: Build the rendered HTML element to be fed into paged.js.
+ * How: marked.parse, then apply metadata, then resolve mermaid / math placeholders.
+ */
 async function buildPrintContent(
   source: string,
   settings: PdfSettings,
@@ -104,6 +114,10 @@ async function buildPrintContent(
   return el;
 }
 
+/**
+ * Purpose: Get-or-create a single tagged DOM node by id under `<body>`.
+ * How: `getElementById`, else `createElement` + append; typed by tag generic.
+ */
 function ensureNode<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
   tag: K,
@@ -117,15 +131,11 @@ function ensureNode<K extends keyof HTMLElementTagNameMap>(
   return el;
 }
 
-// CSS that ships at print time. Hides the editor app and forces the
-// browser's page area to match the .pagedjs_page divs paged.js laid
-// out — without this, Chrome's dialog "Margins: Default" would carve
-// ~12 mm off every side and squeeze the divs.
-//
-// settings is unused here on purpose: page geometry is encoded in the
-// .pagedjs_page divs themselves (paged.js polished it from
-// `pagedCss(settings)` during paginate()). Chrome's @page only needs
-// to declare `margin: 0` so the printable area matches the divs.
+/**
+ * Purpose: CSS that ships at print time — hide app, show only the print target.
+ * How: `@media screen` hides the target; `@media print` hides everything else
+ *   and forces `@page { margin: 0 }` so Chrome's printable area matches the divs.
+ */
 function printStylesheet(_settings: PdfSettings): string {
   return `
     /* On screen, the print target stays out of view. */

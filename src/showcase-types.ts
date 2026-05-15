@@ -1,8 +1,21 @@
+/********************************* showcase-types.ts ***************************
+ *
+ * Purpose: Shared shape of a showcase entry — consumed by `showcase-data.ts`,
+ *   `showcase.ts`, and `demo.ts`.
+ * How: One plain interface with a few optional fields for the compare layout.
+ *
+ *******************************************************************************/
+
 // Shape of an entry in the showcase / vitrine page. Same type
 // imported by the generated `showcase-data.ts`, by the showcase
 // page's entry (`showcase.ts`), and by `main.ts` to look up the
 // snippet when the iframe is loaded with `?demo=<id>`.
 
+/**
+ * Purpose: One showcase section's metadata + Markdown source.
+ * How: Required `id`/`title`/`description`/`source`; optional source-language hint
+ *   and a `compareStyles` pair for the side-by-side preset layout.
+ */
 export interface ShowcaseEntry {
   // Slug used in the `?demo=<id>` query param. Stable, kebab-case.
   id: string;

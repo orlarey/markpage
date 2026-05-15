@@ -1,3 +1,12 @@
+/********************************* editor-ligatures.ts *************************
+ *
+ * Purpose: Editor input method — rewrite ASCII / backslash sequences to Unicode
+ *   math symbols directly in the source as the user types or pastes.
+ * How: An updateListener routes typing through `handleTypingLigature` and
+ *   paste/drop through `handlePasteLigature`, skipping code contexts.
+ *
+ *******************************************************************************/
+
 // Editor input method: type a short ASCII sequence, get the Unicode
 // math/typography symbol immediately. The substitution lives in the
 // source — there is no "rendered representation" different from the
@@ -49,6 +58,10 @@ const A_CODE = 0x41;
 const Z_CODE = 0x5a;
 const BBB_A = 0x1d538;
 
+/**
+ * Purpose: Return the blackboard-bold glyph for an ASCII capital letter.
+ * How: Prefer the BMP letter-like code point, fall back to U+1D538+offset.
+ */
 function blackboardBold(letter: string): string {
   return (
     BBB_BMP.get(letter) ??
@@ -178,6 +191,10 @@ const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
 
 // ---- Tail-match ligatures ---------------------------------------------
 
+/**
+ * Purpose: Build the tail-match map (symbol triggers + `|A`-`|Z` blackboard bold).
+ * How: Seed with curated short triggers, then loop over A-Z calling `blackboardBold`.
+ */
 // Short symbol-only triggers. The set is prefix-free so longest-first
 // resolution correctly picks the more specific match at each position.
 function buildTailLigatures(): ReadonlyMap<string, string> {
@@ -226,6 +243,10 @@ const BS_MAX_LEN = Math.max(...[...BS_COMMANDS.keys()].map((k) => k.length));
 // MathJax, which accepts Unicode operators directly).
 const LIGATURE_FRIENDLY_FENCES = new Set(['inference']);
 
+/**
+ * Purpose: Decide whether a given fenced code block opts back into ligature substitution.
+ * How: Read the `CodeInfo` child, lowercase the first token, test against the whitelist.
+ */
 function fencedCodeAllowsLigatures(
   state: EditorState,
   fenceNode: {
@@ -244,6 +265,10 @@ function fencedCodeAllowsLigatures(
   return lang !== undefined && LIGATURE_FRIENDLY_FENCES.has(lang);
 }
 
+/**
+ * Purpose: Tell whether `pos` lies inside a code context where ligatures should be skipped.
+ * How: Walk Lezer ancestors; respect the `LIGATURE_FRIENDLY_FENCES` whitelist.
+ */
 function inCodeContext(state: EditorState, pos: number): boolean {
   let node: ReturnType<typeof syntaxTree>['topNode'] | null = syntaxTree(
     state,
@@ -271,6 +296,10 @@ const BS_TAIL_RE = /\\([a-zA-Z]+)$/;
 // backslash) tells the substitution to stand down.
 const BS_PASTE_RE = /(?<!\\)\\([a-zA-Z]+)(?=[^a-zA-Z]|$)/g;
 
+/**
+ * Purpose: Suppress a 2-char tail key when the preceding char repeats the key's first char.
+ * How: Returns true when `prevChar === key[0]` (handles `-->`, `<<=`, `==>`, `[[[`, …).
+ */
 // Same-first-char guard: don't fire a 2-char tail key (`->`, `<=`,
 // `[[`, …) when the character immediately before the match is the
 // same as the key's first char. Avoids the surprise of `-->`,
@@ -281,6 +310,10 @@ function guardedByRunOn(prevChar: string, key: string): boolean {
   return prevChar !== '' && prevChar === key[0];
 }
 
+/**
+ * Purpose: Rewrite a pasted/dropped chunk: backslash commands then tail ligatures.
+ * How: First a regex pass for `\name`+terminator; then a longest-first tail scan.
+ */
 // Rewrite a chunk of pasted text. Two passes:
 //   1. `\xxx<non-letter>` → glyph, applied via a single regex pass.
 //   2. Tail-match ligatures via longest-first scan on the result.
@@ -305,6 +338,10 @@ function applyLigaturesToString(text: string): string {
   return out;
 }
 
+/**
+ * Purpose: Dispatch a single typed character: try backslash-command, then tail-match.
+ * How: Inspect doc around caret; on match queue a microtask transaction that rewrites it.
+ */
 // Direct-typing dispatch. Two paths, in order:
 //   1. If the last char is a non-letter terminator AND the chars
 //      immediately before form `\xxx` with a known command, replace
@@ -376,6 +413,10 @@ function handleTypingLigature(update: {
   }
 }
 
+/**
+ * Purpose: Apply ligature rewrites to any inserted ranges from paste/drop transactions.
+ * How: Iterate change ranges, run `applyLigaturesToString` on each non-code insert, batch-dispatch.
+ */
 function handlePasteLigature(update: {
   transactions: readonly {
     changes: {
@@ -411,6 +452,10 @@ function handlePasteLigature(update: {
   });
 }
 
+/**
+ * Purpose: CodeMirror extension that routes user input events to ligature handlers.
+ * How: `updateListener` switches on `input.type` vs `input.paste`/`input.drop` user events.
+ */
 export const ligatures: Extension = EditorView.updateListener.of((update) => {
   if (!update.docChanged) return;
   const txns = update.transactions;
@@ -429,8 +474,10 @@ export const ligatures: Extension = EditorView.updateListener.of((update) => {
 
 // ---- Help / documentation hook ----------------------------------------
 
-// Returns the full ligature table flat, with backslash commands
-// prefixed with `\` so the help table reads like LaTeX.
+/**
+ * Purpose: Flat list of every ligature (tail keys + `\`-prefixed commands) for the help table.
+ * How: Concatenate `TAIL_LIGATURES` entries with `BS_COMMANDS` ones, prefixing the latter with `\`.
+ */
 export function ligatureList(): { from: string; to: string }[] {
   const out: { from: string; to: string }[] = [];
   for (const [key, value] of TAIL_LIGATURES) {

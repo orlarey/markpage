@@ -1,3 +1,12 @@
+/********************************* help-modal.ts *******************************
+ *
+ * Purpose: In-app overlay fallback for the help dialog when popup windows
+ *   are blocked (the preferred surface is `help-window.ts`).
+ * How: Single `<div id=help-overlay>`, renders the help Markdown via marked,
+ *   then post-processes math + mermaid placeholders.
+ *
+ *******************************************************************************/
+
 import { marked } from 'marked';
 import { t } from '../i18n/strings';
 import {
@@ -8,6 +17,10 @@ import {
 
 const OVERLAY_ID = 'help-overlay';
 
+/**
+ * Purpose: Optional "Export .pdf" hook shown in the modal header.
+ * How: Async callback builds + downloads the PDF; modal disables the button while pending.
+ */
 export interface HelpModalOptions {
   /**
    * If provided, an "Exporter .pdf" button is shown in the header. The
@@ -17,6 +30,10 @@ export interface HelpModalOptions {
   onExportPdf?: () => Promise<void>;
 }
 
+/**
+ * Purpose: Open the help-modal overlay, single-instance.
+ * How: Inject panel + actions + rendered body, attach close handlers (Esc / backdrop).
+ */
 export function openHelpModal(
   helpMarkdown: string,
   options: HelpModalOptions = {},

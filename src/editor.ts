@@ -1,3 +1,12 @@
+/********************************* editor.ts ***********************************
+ *
+ * Purpose: Build the CodeMirror 6 editor instance: Markdown grammar, custom
+ *   highlight, keymap for formatting shortcuts, gutter line selection, ligatures.
+ * How: Assemble extensions on top of `basicSetup`, wire `updateListener` for
+ *   change notifications, attach DOM listeners for gutter + image handlers.
+ *
+ *******************************************************************************/
+
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, Prec } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
@@ -21,15 +30,20 @@ import {
 } from './editor-commands';
 import { ligatures } from './editor-ligatures';
 
-// Markdown formatting shortcuts. Bound at high precedence so they win over
-// the default keymap when there's overlap. `Mod-` resolves to ⌘ on macOS
-// and Ctrl on Windows / Linux.
+/**
+ * Purpose: Adapt a `(view) => void` formatter into a CodeMirror keybinding.
+ * How: Returns a `run` callback that invokes `fn` then signals "handled".
+ */
 function runWithView(fn: (v: EditorView) => void) {
   return (view: EditorView): boolean => {
     fn(view);
     return true;
   };
 }
+
+// Markdown formatting shortcuts. Bound at high precedence so they win over
+// the default keymap when there's overlap. `Mod-` resolves to ⌘ on macOS
+// and Ctrl on Windows / Linux.
 const formatKeymap = Prec.high(
   keymap.of([
     { key: 'Mod-b', run: runWithView(toggleBold) },
@@ -49,6 +63,10 @@ const formatKeymap = Prec.high(
   ]),
 );
 
+/**
+ * Purpose: Select whole-line ranges from gutter click/drag without crossing newlines.
+ * How: Convert anchor/head line numbers to line `from`/`to` offsets and dispatch.
+ */
 // Selecting whole lines from the gutter: clicking a line number selects that
 // line's content; dragging extends the selection over the range. We
 // deliberately stop at the end of the line content (NOT including the
@@ -68,6 +86,10 @@ function selectLineRange(
   view.dispatch({ selection: { anchor, head } });
 }
 
+/**
+ * Purpose: Wire gutter-line-number clicks to whole-line selection (with drag-to-extend).
+ * How: Listen on `view.dom` (the gutter lives outside `contentDOM`); track mousemove/up.
+ */
 // Listener registered directly on the editor root: EditorView.domEventHandlers
 // only sees events on the content DOM, not on the gutters, so we'd never get
 // called when clicking a line number.
@@ -124,12 +146,20 @@ const editorHighlight = HighlightStyle.define([
   { tag: tags.processingInstruction, opacity: '0.5' },
 ]);
 
+/**
+ * Purpose: Public handle returned by `createEditor` — view + getter/setter.
+ * How: Exposes the underlying `EditorView` plus convenience accessors.
+ */
 export interface Editor {
   view: EditorView;
   getValue(): string;
   setValue(content: string): void;
 }
 
+/**
+ * Purpose: Construct a CodeMirror editor in `parent` and notify `onChange` on edits.
+ * How: Compose extensions, attach gutter + image handlers, return the `Editor` handle.
+ */
 export function createEditor(
   parent: HTMLElement,
   initialDoc: string,

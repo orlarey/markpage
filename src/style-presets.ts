@@ -1,18 +1,21 @@
-// Curated PdfSettings overrides used by the showcase's "compare
-// stylings" segment. `demo.ts` looks up a preset by id (`?style=<id>`
-// in the URL) and merges it over `DEFAULT_SETTINGS`, so the iframe
-// renders the same markdown source through two visually distinct
-// presets side by side.
-//
-// Each preset is a `Partial<PdfSettings>` — only the fields that
-// differ from the default need to be specified. Nested objects
-// (`fonts`, `styles`, `margins`, …) are merged one level deep by
-// `applyStylePreset` below.
+/********************************* style-presets.ts ****************************
+ *
+ * Purpose: Curated `PdfSettings` overrides for the showcase's
+ *   "compare stylings" segment — addressed by id from `?style=<id>`.
+ * How: Each preset is a `Partial<PdfSettings>`; `applyStylePreset`
+ *   merges it over `DEFAULT_SETTINGS` one level deep into nested objects.
+ *
+ *******************************************************************************/
 
 import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
 
 export type StylePresetId = 'classic' | 'manuscript';
 
+/**
+ * Purpose: Map of preset id → partial settings overlay.
+ * How: Empty object for `classic` (= defaults); explicit override block
+ *   for `manuscript` (Roboto, black flat headings, looser leading).
+ */
 export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
   // The current defaults — blue brand accent, condensed family,
   // underlined headings, justified body. Named here only so the
@@ -68,9 +71,11 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
   },
 };
 
-// Deep-merges a preset over a base settings, one level into the
-// nested objects we know about. Anything the preset doesn't mention
-// is taken from `base`.
+/**
+ * Purpose: Overlay a preset on top of a base settings object.
+ * How: Spread `preset` over `base`, then re-merge each nested record
+ *   (margins, fonts, styles, headingSpacing, pageNumber) one level deep.
+ */
 export function applyStylePreset(
   base: PdfSettings,
   presetId: string | null,

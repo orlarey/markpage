@@ -1,3 +1,12 @@
+/********************************* showcase.ts *********************************
+ *
+ * Purpose: Long-page vitrine — builds the hero plus one section per
+ *   `SHOWCASE_DATA` entry, with live preview iframes lazy-mounted on demand.
+ * How: Construct DOM via the `el` helper, then `mountSlideShow` swaps
+ *   the active segment in response to wheel / touch / keyboard input.
+ *
+ *******************************************************************************/
+
 // Long-page vitrine for markpage. Renders a hero with a live,
 // editable markpage iframe at the top, then one section per entry
 // of `SHOWCASE_DATA` — each section a split between the static
@@ -29,6 +38,10 @@ const HERO = {
   ],
 };
 
+/**
+ * Purpose: Terse `createElement` wrapper with attributes + children variadic.
+ * How: `setAttribute` for each entry; strings auto-wrapped in text nodes.
+ */
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   attrs: Partial<Record<string, string>> = {},
@@ -44,6 +57,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
+/**
+ * Purpose: Build the top hero (brand + tagline + selling-point bullets).
+ * How: Compose `el(...)` calls from the `HERO` constant.
+ */
 function buildHero(): HTMLElement {
   const hero = el('section', { class: 'hero' });
 
@@ -66,6 +83,10 @@ function buildHero(): HTMLElement {
   return hero;
 }
 
+/**
+ * Purpose: Static `<pre><code>` rendering of an entry's Markdown source.
+ * How: Plain monospace block tagged with `language-<sourceLang>` for later HL.
+ */
 function highlightedSource(entry: ShowcaseEntry): HTMLElement {
   // Plain monospace source for v1 — proper syntax highlighting is a
   // follow-up. The Markdown is dense enough that a fixed-width font
@@ -80,6 +101,10 @@ function highlightedSource(entry: ShowcaseEntry): HTMLElement {
   return pre;
 }
 
+/**
+ * Purpose: Iframe wrapper carrying the `data-demo-src` URL to lazy-mount.
+ * How: Compose `./demo.html?id=…[&style=…]`, leave the `<iframe src>` empty.
+ */
 function buildPreview(entry: ShowcaseEntry, style?: string): HTMLElement {
   const src = style
     ? `./demo.html?id=${entry.id}&style=${style}`
@@ -94,6 +119,10 @@ function buildPreview(entry: ShowcaseEntry, style?: string): HTMLElement {
   return wrap;
 }
 
+/**
+ * Purpose: One showcase section (intro + split source/preview, or compare-styles).
+ * How: Branch on `entry.compareStyles`: two-preview layout, else source + preview.
+ */
 function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
   const section = el('section', {
     class: 'showcase-section',
@@ -143,6 +172,10 @@ function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
   return section;
 }
 
+/**
+ * Purpose: Inline two-part brand mark (`mark` + `page`) as a `<span>`.
+ * How: Build the wrapper plus two child spans; CSS handles styling.
+ */
 function makeLogoSpan(extraClass = ''): HTMLSpanElement {
   const wrap = el('span', {
     class: extraClass ? `markpage-logo ${extraClass}` : 'markpage-logo',
@@ -153,6 +186,10 @@ function makeLogoSpan(extraClass = ''): HTMLSpanElement {
   return wrap;
 }
 
+/**
+ * Purpose: Footer block with the license note and two links (GitHub, editor).
+ * How: Compose `el(...)` with the brand logo inline.
+ */
 function buildFooter(): HTMLElement {
   const logo = makeLogoSpan();
 
@@ -178,6 +215,10 @@ function buildFooter(): HTMLElement {
 const GITHUB_ICON_SVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.111.82-.261.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>`;
 const CHEVRON_DOWN_SVG = `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
+/**
+ * Purpose: Persistent overlay — logo (open editor), GitHub link, "next" chevron.
+ * How: Static DOM with two inline SVGs; chevron button drives `mountSlideShow`.
+ */
 function buildNavOverlay(): HTMLElement {
   const overlay = el('div', { class: 'nav-overlay' });
 
@@ -214,6 +255,11 @@ function buildNavOverlay(): HTMLElement {
   return overlay;
 }
 
+/**
+ * Purpose: Wire slide-deck navigation (wheel/touch/keys) + lazy iframe mounting.
+ * How: Track an `is-active` segment, swap on `setIndex`, mount iframes for the
+ *   current and next segments; wheel throttled by `wheelLockedUntil`.
+ */
 // Slide-deck navigation: all segments are stacked at the same
 // position, only the `.is-active` one is visible. Wheel / keyboard /
 // touch all funnel through `setIndex` to swap the active class,
@@ -339,6 +385,10 @@ function mountSlideShow(): void {
   });
 }
 
+/**
+ * Purpose: Entry — populate `#showcase` and start the slideshow.
+ * How: Hero + section list + footer + nav overlay, then `mountSlideShow`.
+ */
 function run(): void {
   const root = document.getElementById('showcase');
   if (!root) return;
