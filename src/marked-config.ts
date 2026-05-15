@@ -498,12 +498,19 @@ function escapeHtml(s: string): string {
 //   `T_{2}`, rendered with proper subscript instead of as adjacent
 //   letter+digit.
 //
-//   Rule C — any other multi-letter identifier (not already inside a
-//   LaTeX macro context — i.e. not preceded by `\` or `{`) is a
-//   **constructor or function name** and is wrapped in `\mathrm{}` so
-//   MathJax renders it upright (`Const`, `App`, `Lambda`, `apply`,
-//   `eval`). LaTeX commands (`\Gamma`, `\vdash`, `\to`, `\quad`, …)
-//   are skipped because the preceding `\` triggers the lookbehind.
+//   Rule C (context-aware) — any other multi-letter identifier (not
+//   inside a LaTeX macro argument) is wrapped depending on bracket
+//   depth:
+//     - **Inside** Scott brackets `⟦…⟧` (or `[[…]]`) — this is
+//       abstract-syntax territory, so the identifier is a
+//       **constructor**: wrap in `\mathbf{}`.
+//     - **Outside** brackets — this is the semantic / meta level, so
+//       the identifier is a **function / auxiliary name**: wrap in
+//       `\mathsf{}`.
+//   LaTeX commands (`\Gamma`, `\vdash`, `\to`, `\quad`, …) are skipped
+//   because the preceding `\` is detected; identifiers immediately
+//   inside `\xxx{…}` are skipped because the preceding `{` is
+//   detected (gives idempotency over our own output).
 //
 // Single capital letters (`A`, `B`, `T`, `Γ` via `\Gamma`, …) remain
 // italic — the standard math convention for type / context / term
@@ -512,8 +519,79 @@ function applyInferenceTypography(src: string): string {
   let s = src;
   s = s.replace(/(?<![\\{])\b([A-Z])(?=⟦|\[\[)/g, '\\mathcal{$1}');
   s = s.replace(/(?<![\\{])\b([A-Za-z])([0-9]+)\b/g, '$1_{$2}');
-  s = s.replace(/(?<![\\{])\b([A-Za-z]{2,})\b/g, '\\mathrm{$1}');
-  return s;
+  return wrapIdentifiersByBracketContext(s);
+}
+
+// Walks `s` left-to-right tracking Scott-bracket depth (`⟦…⟧` and the
+// ASCII fallback `[[…]]`) and wraps multi-letter identifiers in either
+// `\mathbf{}` (inside brackets — constructors of abstract syntax) or
+// `\mathsf{}` (outside — semantic functions / auxiliary names).
+// Identifiers consumed as the name of a LaTeX command, or sitting
+// immediately after a `{`, are passed through verbatim.
+function wrapIdentifiersByBracketContext(s: string): string {
+  const IDENT_RE = /^[A-Za-z]{2,}\b/;
+  let out = '';
+  let i = 0;
+  let bracketDepth = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (c === '⟦') {
+      bracketDepth += 1;
+      out += c;
+      i += 1;
+      continue;
+    }
+    if (c === '⟧') {
+      if (bracketDepth > 0) bracketDepth -= 1;
+      out += c;
+      i += 1;
+      continue;
+    }
+    if (c === '[' && s[i + 1] === '[') {
+      bracketDepth += 1;
+      out += '[[';
+      i += 2;
+      continue;
+    }
+    if (c === ']' && s[i + 1] === ']') {
+      if (bracketDepth > 0) bracketDepth -= 1;
+      out += ']]';
+      i += 2;
+      continue;
+    }
+    // LaTeX command: consume the leading `\` plus its alphabetic
+    // name so the name itself isn't treated as an identifier to wrap.
+    if (c === '\\') {
+      out += '\\';
+      i += 1;
+      while (i < s.length && /[A-Za-z]/.test(s[i] ?? '')) {
+        out += s[i];
+        i += 1;
+      }
+      continue;
+    }
+    const idMatch = IDENT_RE.exec(s.slice(i));
+    if (idMatch) {
+      const id = idMatch[0];
+      const prev = i > 0 ? s[i - 1] : '';
+      // Idempotency / safety: identifiers right after `\` (LaTeX
+      // command continuation — unreachable here but defensive) or
+      // `{` (already inside a macro argument like `\mathrm{Foo}`)
+      // are passed through.
+      if (prev === '\\' || prev === '{') {
+        out += id;
+        i += id.length;
+        continue;
+      }
+      const wrap = bracketDepth > 0 ? '\\mathbf' : '\\mathsf';
+      out += `${wrap}{${id}}`;
+      i += id.length;
+      continue;
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
 }
 
 function renderInference(src: string, label: string): string {
