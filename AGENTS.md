@@ -75,6 +75,29 @@ in parentheses appears to the right of the bar.
 LaTeX commands (`\Gamma`, `\vdash`, `\to`) and the corresponding
 Unicode (Γ, ⊢, →) are interchangeable inside the block.
 
+**Typography heuristic** (Gunter / Scott convention, applied
+automatically before MathJax sees the source) — write the source
+naturally, the renderer does the right thing:
+
+- A single capital letter immediately followed by `⟦` or `[[` is a
+  **semantic function** → rendered in calligraphic.  `E⟦e⟧` ⇒ 𝓔⟦e⟧.
+- A letter followed by digits is a **subscripted variable** →
+  `e1`, `T2` ⇒ e₁, T₂.
+- A multi-letter identifier **inside** `⟦…⟧` is a **constructor**
+  of the abstract syntax → rendered in **bold**.  `Op(o, e1, e2)`
+  inside brackets ⇒ **Op**(o, e₁, e₂).
+- A multi-letter identifier **outside** `⟦…⟧` is a **function /
+  auxiliary name** → rendered in sans-serif.  `apply(o, v1, v2)`
+  ⇒ 𝖺𝗉𝗉𝗅𝗒(o, v₁, v₂).
+- Single capital letters (`A`, `B`, `T`, `\Gamma`, …) stay italic
+  — the standard math convention for type / context / term
+  variables.
+
+You can therefore write `E⟦Op(o, e1, e2)⟧ = apply(o, E⟦e1⟧, E⟦e2⟧)`
+verbatim and get the right rendering — no need to wrap names in
+`\mathcal{}` / `\mathbf{}` / `\mathsf{}` by hand. (If you do, the
+heuristic is idempotent: existing wraps are preserved.)
+
 ---
 
 ## EBNF railroad diagrams
