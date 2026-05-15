@@ -71,13 +71,25 @@ language indication. Two categories:
   - ` ```math ` — displayed equations.
   - ` ```inference (Name) ` — inference rules (see *Notation* below).
   - ` ```ebnf ` — W3C EBNF parsed into a railroad / syntax diagram
-    per production. Preferred for grammars rather than raw EBNF in
-    a code block.
+    per production. Preferred for **concrete grammars** that benefit
+    from a syntax diagram.
+  - ` ```adt ` — algebraic-data-type definitions in BNF-ish form
+    (`LHS ::= Ctor(args) | …`), typeset with aligned `|` and
+    distinct colours for defined types vs pure constructors.
+    Preferred for **type definitions** rather than wrapping them
+    in `math` or a plain code block.
   - ` ```mermaid `, ` ```chart `, ` ```csv `, ` ```tsv ` — see
     AGENTS.md.
-- **Label-only** — info string indicates the language for the
-  reader; rendering is a generic monospace code block (` ```json `,
-  ` ```rust `, ` ```python `, etc.).
+- **Syntax-highlighted code** — info strings recognised by
+  highlight.js (a curated subset: `python`, `rust`, `c`, `cpp`,
+  `haskell`, `ocaml`, `scala`, `scheme`, `lua`, `bash`, `sql`,
+  `json`, `yaml`, `xml`/`html`, `css`, `js`/`ts`, `markdown`, plus
+  custom `faust`/`dsp`) render with proper colouring. See AGENTS.md
+  for the full list.
+- **Label-only** — any other language hint (`text`, an unknown
+  language, …) falls through to a generic monospace block. The
+  info string is preserved as a class on the `<code>` element for
+  future styling.
 
 ## Characterisation of the approach
 

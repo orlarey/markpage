@@ -112,6 +112,43 @@ whole document.
 
 ---
 
+## Algebraic data types
+
+Use the `adt` fence for BNF-ish algebraic data type definitions —
+the notation common in formal-methods papers and operational
+semantics. Distinct from `ebnf`: same `|` syntax, but expects
+`::=` (not `=`), accepts `Ctor(arg1, arg2)` constructor calls,
+and renders as a typeset table rather than a railroad diagram.
+
+````
+```adt
+Expr ::= Const(c)              (* c ∈ ℝ *)
+       | Vec(v)                 (* v ∈ 𝒱 *)
+       | Op(o, Expr, Expr)      (* o ∈ Ω *)
+       | Split(Expr)
+
+Op   ::= Add | Sub | Mul | Div
+```
+````
+
+Layout: a 4-column grid (LHS / `::=` or `|` / alternative /
+annotation). All `|` line up vertically. Trailing `(* … *)`
+comments on each alternative are pulled off and rendered as
+right-side annotations. A definition whose every alternative is
+a bare name with no args and no annotation collapses to a single
+inline row (`Op` above).
+
+Highlighting: identifiers that appear as a LHS somewhere in the
+block (defined by a rule — `Expr`, `Op` here) get the type
+colour. Pure constructors (`Const`, `Vec`, `Split`, `Add`, `Sub`,
+`Mul`, `Div`) get the constructor colour. Lowercase identifiers
+(variables like `c`, `v`, `o`) stay plain.
+
+Use `adt` for **type definitions**; use `ebnf` for **concrete
+grammars** that benefit from a syntax diagram.
+
+---
+
 ## Mermaid diagrams
 
 Flowcharts, sequence, class, state, gantt, ER, mindmap, etc.
@@ -258,6 +295,52 @@ used[^rand].
 [^avg]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal.
 [^rand]: Sedgewick proposed shuffling the array as a guard.
 ```
+
+---
+
+## Code blocks (syntax highlighting)
+
+Fenced code blocks with a recognised language hint are
+syntax-highlighted via highlight.js. The light atom-one-light
+theme is used in the preview and the PDF.
+
+The bundled language set is curated for spec writing:
+`bash`/`sh`, `c`, `cpp`, `css`, `go`, `haskell`, `html`/`xml`,
+`java`, `javascript`/`js`, `json`, `lua`, `markdown`/`md`,
+`ocaml`, `python`/`py`, `rust`/`rs`, `scala`, `scheme`, `shell`,
+`sql`, `typescript`/`ts`, `yaml`/`yml`. Any other language hint
+falls through to a plain monospace block.
+
+A custom **Faust** language is also registered (`faust` or
+`dsp`), since Faust is markpage's author's project and isn't in
+highlight.js core. Covers the keywords (`process`, `with`,
+`letrec`, `case`, `import`, `library`, `environment`, `declare`,
+`route`), types (`int`, `float`), UI primitives (`button`,
+`vslider`, `hslider`, `nentry`, `vbargraph`, `hbargraph`, …),
+audio shorthands (`_`, `!`, `mem`, `prefix`, `select2`,
+`select3`), and module accesses like `os.osc` / `ba.beat`.
+
+````markdown
+```rust
+fn quicksort<T: Ord + Clone>(xs: &[T]) -> Vec<T> {
+    if xs.len() <= 1 { return xs.to_vec(); }
+    let (pivot, rest) = xs.split_first().unwrap();
+    let (lt, gte): (Vec<_>, Vec<_>) =
+        rest.iter().cloned().partition(|x| x < pivot);
+    [quicksort(&lt), vec![pivot.clone()], quicksort(&gte)].concat()
+}
+```
+
+```faust
+declare name "Echo";
+import("stdfaust.lib");
+
+delay = vslider("delay [ms]", 100, 1, 1000, 1) * 0.001;
+fb    = vslider("feedback", 0.5, 0, 0.99, 0.01);
+
+process = + ~ (de.delay(48000, delay * ma.SR) * fb);
+```
+````
 
 ---
 

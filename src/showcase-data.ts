@@ -7,6 +7,13 @@
 // The snippets mirror the features documented in HELP.en.md / HELP.fr.md
 // but are written to render live, not to be quoted as syntax. A future
 // pass may auto-generate this file from a structured subset of HELP.
+//
+// Order: progressively generalist → specialist. Early segments cover
+// what any spec writer reaches for (text, restyling, images, notes,
+// tables, footnotes, glossaries, code). Mid-segments cover visual
+// content (charts, mermaid). Late segments cover formal-methods
+// territory (math, ligatures, inference rules, EBNF grammars, ADTs).
+// Credits closes.
 
 import pipeUrl from './assets/pipe.svg';
 import type { ShowcaseEntry } from './showcase-types';
@@ -66,6 +73,27 @@ picture.
 `,
   },
   {
+    id: 'callouts',
+    title: 'Callouts and theorem-like blocks',
+    description:
+      'Pandoc-style fenced divs (`::: theorem`, `::: warning`, `::: note`, …) with optional titles. Theorem-family classes render in the LaTeX academic style; coloured ones are good for tips and warnings.',
+    sourceLang: 'markdown',
+    source: `::: theorem [Pythagoras]
+In a right triangle, the square of the hypotenuse equals the sum of
+the squares of the other two sides.
+:::
+
+::: warning
+This action cannot be undone. Make sure you have a backup first.
+:::
+
+::: note [Why now]
+The change is motivated by a regression in the upstream behaviour.
+See the linked issue for the root cause.
+:::
+`,
+  },
+  {
     id: 'tables',
     title: 'Dense tables straight from CSV',
     description:
@@ -79,6 +107,76 @@ A4,    440.00, 69
 A#4,   466.16, 70
 B4,    493.88, 71
 C5,    523.25, 72
+\`\`\`
+`,
+  },
+  {
+    id: 'footnotes',
+    title: 'Pandoc-style footnotes',
+    description:
+      'Reference any note in the body with `[^id]` and define it elsewhere. Numbers are assigned automatically in order of appearance; the notes are grouped at the end of the document with back-links.',
+    sourceLang: 'markdown',
+    source: String.raw`## Algorithmic complexity
+
+Quicksort runs in $O(n \log n)$ on average[^avg], but degrades to
+$O(n^2)$ on already-sorted input unless a randomised pivot is used[^rand].
+The median-of-three heuristic is a popular middle ground.
+
+[^avg]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal.
+[^rand]: Sedgewick proposed shuffling the array as a guard. Linear
+    expected time, no worst-case pathology.
+`,
+  },
+  {
+    id: 'deflists',
+    title: 'Definition lists for glossaries',
+    description:
+      'A term on one line, its definition prefixed by `:` on the next. Several definitions per term are allowed. Markdown inline formatting works inside terms and definitions.',
+    sourceLang: 'markdown',
+    source: String.raw`## Acronyms
+
+DAG
+:   *Directed Acyclic Graph* — a directed graph with no cycle. Used
+    everywhere from build systems to causal inference.
+
+FFT
+:   *Fast Fourier Transform* — the $O(n \log n)$ algorithm by Cooley
+    & Tukey that made digital signal processing tractable.
+:   Also a verb. "FFT the signal" means "compute its frequency
+    representation."
+`,
+  },
+  {
+    id: 'code-highlight',
+    title: 'Syntax-highlighted code',
+    description:
+      'Fenced code blocks with a language hint get proper syntax highlighting — ~20 common languages bundled (Python, Rust, JS/TS, Go, C/C++, Haskell, OCaml, SQL, …) plus a custom Faust grammar for audio DSP specs.',
+    sourceLang: 'markdown',
+    source: `## Same idea, two languages
+
+\`\`\`python
+def quicksort(xs):
+    if len(xs) <= 1:
+        return xs
+    pivot, rest = xs[0], xs[1:]
+    return (
+        quicksort([x for x in rest if x < pivot])
+        + [pivot]
+        + quicksort([x for x in rest if x >= pivot])
+    )
+\`\`\`
+
+A custom **Faust** language is registered too — handy for audio
+DSP specs:
+
+\`\`\`faust
+declare name "Echo";
+import("stdfaust.lib");
+
+delay = vslider("delay [ms]", 100, 1, 1000, 1) * 0.001;
+fb    = vslider("feedback", 0.5, 0, 0.99, 0.01);
+
+process = + ~ (de.delay(48000, delay * ma.SR) * fb);
 \`\`\`
 `,
   },
@@ -101,6 +199,28 @@ buffer (samples), latency (ms)
 
 Latency scales linearly with the buffer size — at 48 kHz, doubling the
 buffer doubles the wait before a sample reaches the output.
+`,
+  },
+  {
+    id: 'mermaid',
+    title: 'Mermaid diagrams, SVG-crisp',
+    description:
+      'Flowcharts, sequence diagrams, class diagrams, gantt charts, mindmaps — describe with a few lines of text, render as SVG, print without pixelation.',
+    sourceLang: 'mermaid',
+    source: `## Request lifecycle
+
+\`\`\`mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Server
+    participant DB as Database
+    U->>S: GET /article/42
+    S->>DB: SELECT * FROM articles WHERE id = 42
+    DB-->>S: { title, body, author_id }
+    S->>DB: SELECT name FROM authors WHERE id = ?
+    DB-->>S: { name: "..." }
+    S-->>U: 200 OK + HTML
+\`\`\`
 `,
   },
   {
@@ -192,82 +312,21 @@ number = digit, { digit };
 `,
   },
   {
-    id: 'mermaid',
-    title: 'Mermaid diagrams, SVG-crisp',
+    id: 'adt',
+    title: 'Algebraic data types, typeset',
     description:
-      'Flowcharts, sequence diagrams, class diagrams, gantt charts, mindmaps — describe with a few lines of text, render as SVG, print without pixelation.',
-    sourceLang: 'mermaid',
-    source: `## Request lifecycle
+      'A ```adt block accepts BNF-style definitions (LHS ::= Ctor | Ctor(args)) and typesets them with aligned `|` separators, side annotations, and two-tier highlighting — defined types in one colour, pure constructors in another.',
+    sourceLang: 'markdown',
+    source: `## Abstract syntax
 
-\`\`\`mermaid
-sequenceDiagram
-    participant U as User
-    participant S as Server
-    participant DB as Database
-    U->>S: GET /article/42
-    S->>DB: SELECT * FROM articles WHERE id = 42
-    DB-->>S: { title, body, author_id }
-    S->>DB: SELECT name FROM authors WHERE id = ?
-    DB-->>S: { name: "..." }
-    S-->>U: 200 OK + HTML
+\`\`\`adt
+Expr ::= Const(c)              (* c ∈ ℝ *)
+       | Vec(v)                 (* v ∈ 𝒱 *)
+       | Op(o, Expr, Expr)      (* o ∈ Ω *)
+       | Split(Expr)
+
+Op   ::= Add | Sub | Mul | Div
 \`\`\`
-`,
-  },
-  {
-    id: 'callouts',
-    title: 'Callouts and theorem-like blocks',
-    description:
-      'Pandoc-style fenced divs (`::: theorem`, `::: warning`, `::: note`, …) with optional titles. Theorem-family classes render in the LaTeX academic style; coloured ones are good for tips and warnings.',
-    sourceLang: 'markdown',
-    source: `::: theorem [Pythagoras]
-In a right triangle, the square of the hypotenuse equals the sum of
-the squares of the other two sides.
-:::
-
-::: warning
-This action cannot be undone. Make sure you have a backup first.
-:::
-
-::: note [Why now]
-The change is motivated by a regression in the upstream behaviour.
-See the linked issue for the root cause.
-:::
-`,
-  },
-  {
-    id: 'footnotes',
-    title: 'Pandoc-style footnotes',
-    description:
-      'Reference any note in the body with `[^id]` and define it elsewhere. Numbers are assigned automatically in order of appearance; the notes are grouped at the end of the document with back-links.',
-    sourceLang: 'markdown',
-    source: String.raw`## Algorithmic complexity
-
-Quicksort runs in $O(n \log n)$ on average[^avg], but degrades to
-$O(n^2)$ on already-sorted input unless a randomised pivot is used[^rand].
-The median-of-three heuristic is a popular middle ground.
-
-[^avg]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal.
-[^rand]: Sedgewick proposed shuffling the array as a guard. Linear
-    expected time, no worst-case pathology.
-`,
-  },
-  {
-    id: 'deflists',
-    title: 'Definition lists for glossaries',
-    description:
-      'A term on one line, its definition prefixed by `:` on the next. Several definitions per term are allowed. Markdown inline formatting works inside terms and definitions.',
-    sourceLang: 'markdown',
-    source: String.raw`## Acronyms
-
-DAG
-:   *Directed Acyclic Graph* — a directed graph with no cycle. Used
-    everywhere from build systems to causal inference.
-
-FFT
-:   *Fast Fourier Transform* — the $O(n \log n)$ algorithm by Cooley
-    & Tukey that made digital signal processing tractable.
-:   Also a verb. "FFT the signal" means "compute its frequency
-    representation."
 `,
   },
   {
@@ -286,8 +345,14 @@ Thanks to everyone who maintains these projects:
   [marked](https://marked.js.org/) for the Markdown parser,
   [paged.js](https://pagedjs.org/) for paginated layout.
 - **Diagrams and formulas**:
-  [Mermaid](https://mermaid.js.org/) for diagrams,
-  [MathJax](https://www.mathjax.org/) for LaTeX formulas.
+  [Mermaid](https://mermaid.js.org/) for flowcharts and sequence
+  diagrams,
+  [MathJax](https://www.mathjax.org/) for LaTeX formulas,
+  [ebnf2railroad](https://github.com/matthijsgroen/ebnf2railroad) and
+  [railroad-diagrams](https://github.com/tabatkins/railroad-diagrams)
+  for EBNF syntax diagrams.
+- **Syntax highlighting**:
+  [highlight.js](https://highlightjs.org/) for fenced code blocks.
 - **Imports**:
   [Mammoth.js](https://github.com/mwilliamson/mammoth.js) for Word
   (\`.docx\`) import,

@@ -1082,8 +1082,14 @@ Merci à toutes les personnes qui maintiennent ces projets :
   (l'aperçu et le PDF passent par le moteur d'impression du
   navigateur sur ce même rendu).
 - **Diagrammes et formules** :
-  [Mermaid](https://mermaid.js.org/) pour les diagrammes,
-  [MathJax](https://www.mathjax.org/) pour les formules LaTeX.
+  [Mermaid](https://mermaid.js.org/) pour les flowcharts et
+  diagrammes de séquence,
+  [MathJax](https://www.mathjax.org/) pour les formules LaTeX,
+  [ebnf2railroad](https://github.com/matthijsgroen/ebnf2railroad) et
+  [railroad-diagrams](https://github.com/tabatkins/railroad-diagrams)
+  pour les diagrammes syntaxiques EBNF.
+- **Coloration syntaxique** :
+  [highlight.js](https://highlightjs.org/) pour les blocs de code.
 - **Imports** :
   [Mammoth.js](https://github.com/mwilliamson/mammoth.js) pour
   l'import Word (`.docx`),
