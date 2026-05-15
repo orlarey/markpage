@@ -127,9 +127,20 @@ does something specific and does it well.
 - [**Mermaid**](https://mermaid.js.org/) — flowcharts, sequence,
   class, state, gantt, mindmap, pie diagrams. Rendered as SVG so
   the PDF stays vector-crisp.
+- [**ebnf2railroad**](https://github.com/matthijsgroen/ebnf2railroad)
+  and [**railroad-diagrams**](https://github.com/tabatkins/railroad-diagrams)
+  — W3C EBNF → SVG railroad diagrams for the ` ```ebnf ` fence,
+  one diagram per production.
 - Charts (`line`, `bar`) come from a small custom SVG generator in
   `src/chart.ts` — light enough that it wasn't worth pulling a
   full charting library.
+
+### Syntax highlighting
+
+- [**highlight.js**](https://highlightjs.org/) — colourising for
+  fenced code blocks (a curated ~20-language subset bundled, plus
+  a custom Faust grammar shipped in `src/highlight-faust.ts`).
+  Theme: *atom-one-light*.
 
 ### Imports
 
