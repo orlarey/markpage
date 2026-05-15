@@ -1604,6 +1604,40 @@ body,
   font-size: 0.9em;
 }
 
+/* Visible diagnostic for lines that don't parse as either a head
+   (`LHS ::= …`) or a continuation (`| …`). Stays in flow above the
+   rendered definitions so a typo can't be missed. Amber tone so it
+   reads as a warning, not an error. */
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings {
+  background: #fff8e1;
+  border: 1px solid #d29922;
+  border-radius: 6px;
+  padding: 0.6em 0.9em;
+  margin: 0.5em auto;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 0.9em;
+  color: #5d4a00;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings strong {
+  display: block;
+  margin-bottom: 0.3em;
+  color: #5d4a00;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings code {
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0 0.2em;
+  border-radius: 3px;
+}
+
 /* ---- EBNF railroad diagrams (```ebnf) --------------------------- */
 
 /* `renderEbnfBlock` in src/ebnf.ts wraps the SVGs produced by

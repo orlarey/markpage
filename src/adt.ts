@@ -24,13 +24,28 @@ interface AdtDef {
   alts: AdtAlt[];
 }
 
+interface AdtWarning {
+  // 1-based line number, counting from the first line of the
+  // fenced block's body.
+  line: number;
+  text: string;
+}
+
+interface AdtParseResult {
+  defs: AdtDef[];
+  warnings: AdtWarning[];
+}
+
 export function renderAdtBlock(source: string): string {
   try {
-    const defs = parseAdtBlock(source);
-    if (defs.length === 0) {
+    const { defs, warnings } = parseAdtBlock(source);
+    if (defs.length === 0 && warnings.length === 0) {
       return `<pre class="adt-error">No ADT definitions found.</pre>`;
     }
-    return renderDefs(defs);
+    const warn =
+      warnings.length === 0 ? '' : renderWarnings(warnings);
+    const body = defs.length === 0 ? '' : renderDefs(defs);
+    return warn + body;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return `<pre class="adt-error">ADT parse error: ${escapeHtml(msg)}</pre>`;
@@ -40,34 +55,55 @@ export function renderAdtBlock(source: string): string {
 const HEAD_RE = /^([A-Za-z_]\w*)\s*::=\s*(.*)$/;
 const CONT_RE = /^\|\s*(.*)$/;
 
-function parseAdtBlock(source: string): AdtDef[] {
+function parseAdtBlock(source: string): AdtParseResult {
   const defs: AdtDef[] = [];
+  const warnings: AdtWarning[] = [];
   let current: AdtDef | null = null;
 
-  for (const rawLine of source.split('\n')) {
+  source.split('\n').forEach((rawLine, idx) => {
     const line = rawLine.trim();
-    if (line === '') continue;
+    if (line === '') return;
 
     const head = HEAD_RE.exec(line);
     if (head) {
       if (current !== null) defs.push(current);
       current = { lhs: head[1] ?? '', alts: [] };
       addAlts(current, head[2] ?? '');
-      continue;
+      return;
     }
 
     const cont = CONT_RE.exec(line);
     if (cont && current !== null) {
       addAlts(current, cont[1] ?? '');
-      continue;
+      return;
     }
-    // Unrecognised line: skip silently (could be prose between
-    // definitions, or a typo — the visible output will simply
-    // omit it).
-  }
+
+    // Unrecognised: record as a warning so a typo (`Expr :=` instead
+    // of `Expr ::=`, or a stray prose line inside the block) doesn't
+    // silently disappear from the output. For a formal-spec tool,
+    // visible feedback beats clever guesswork.
+    warnings.push({ line: idx + 1, text: line });
+  });
 
   if (current !== null) defs.push(current);
-  return defs;
+  return { defs, warnings };
+}
+
+function renderWarnings(warnings: AdtWarning[]): string {
+  const items = warnings
+    .map(
+      (w) =>
+        `<li>Line ${w.line}: <code>${escapeHtml(w.text)}</code></li>`,
+    )
+    .join('');
+  return (
+    `<div class="adt-warnings" role="alert">` +
+    `<strong>Unrecognised line${warnings.length > 1 ? 's' : ''}` +
+    ` in this ADT block — neither a <code>LHS ::= …</code> head` +
+    ` nor a <code>| …</code> continuation:</strong>` +
+    `<ol>${items}</ol>` +
+    `</div>`
+  );
 }
 
 function addAlts(def: AdtDef, rhs: string): void {

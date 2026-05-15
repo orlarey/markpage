@@ -1,0 +1,19 @@
+<h1>Algebraic data types</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>The <code>adt</code> fence renders BNF-ish type definitions with aligned
+separators and constructor / type-name highlighting.</p>
+<div data-source="```adt
+Expr ::= Const(c)              (* c ∈ ℝ *)
+       | Vec(v)                 (* v ∈ 𝒱 *)
+       | Op(o, Expr, Expr)      (* o ∈ Ω *)
+       | Split(Expr)
+
+Op   ::= Add | Sub | Mul | Div
+```" class="adt-block"><span class="adt-lhs">Expr</span><span class="adt-sep">::=</span><span class="adt-alt"><span class="adt-ctor">Const</span>(c)</span><span class="adt-ann">c ∈ ℝ</span><span class="adt-lhs"></span><span class="adt-sep">|</span><span class="adt-alt"><span class="adt-ctor">Vec</span>(v)</span><span class="adt-ann">v ∈ 𝒱</span><span class="adt-lhs"></span><span class="adt-sep">|</span><span class="adt-alt"><span class="adt-type">Op</span>(o, <span class="adt-type">Expr</span>, <span class="adt-type">Expr</span>)</span><span class="adt-ann">o ∈ Ω</span><span class="adt-lhs"></span><span class="adt-sep">|</span><span class="adt-alt"><span class="adt-ctor">Split</span>(<span class="adt-type">Expr</span>)</span><span class="adt-ann"></span><span class="adt-spacer"></span><span class="adt-lhs">Op</span><span class="adt-sep">::=</span><span class="adt-alt"><span class="adt-ctor">Add</span> <span class="adt-sep-inline">|</span> <span class="adt-ctor">Sub</span> <span class="adt-sep-inline">|</span> <span class="adt-ctor">Mul</span> <span class="adt-sep-inline">|</span> <span class="adt-ctor">Div</span></span><span class="adt-ann"></span></div><h2>Warnings on unrecognised lines</h2>
+<p>A typo in the head (here <code>:=</code> instead of <code>::=</code>) is surfaced as a
+visible warning above whatever else parsed, rather than being
+silently dropped:</p>
+<div data-source="```adt
+Expr := Bad                (* missing colon — head doesn't match *)
+Other ::= Good | AlsoGood
+```
+" class="adt-warnings" role="alert"><strong>Unrecognised line in this ADT block — neither a <code>LHS ::= …</code> head nor a <code>| …</code> continuation:</strong><ol><li>Line 1: <code>Expr := Bad                (* missing colon — head doesn't match *)</code></li></ol></div><div class="adt-block"><span class="adt-lhs">Other</span><span class="adt-sep">::=</span><span class="adt-alt"><span class="adt-ctor">Good</span> <span class="adt-sep-inline">|</span> <span class="adt-ctor">AlsoGood</span></span><span class="adt-ann"></span></div>

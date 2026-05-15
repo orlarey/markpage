@@ -26,14 +26,27 @@ A Markdown extended for technical and scientific writing:
 
 - **Math** via MathJax (`$x^2$` inline, `$$ … $$` displayed, or
   fenced `math` blocks)
-- **Inference rules** with a dedicated fenced `inference` block
+- **Inference rules** with a dedicated fenced `inference` block —
+  premises / dashes / conclusion, with automatic Gunter / Scott
+  typography (calligraphic semantic functions, **bold**
+  constructors inside `⟦…⟧`, sans-serif functions outside,
+  numeric subscripts)
+- **EBNF grammars** as railroad / syntax diagrams via the `ebnf`
+  fence, one diagram per production with aligned `=` signs
+- **Algebraic data types** via the `adt` fence — `LHS ::= Ctor |
+  Ctor(args)` definitions typeset with aligned `|` separators and
+  two-tier highlighting (defined types vs pure constructors)
 - **Mermaid diagrams** (flowcharts, sequence, class, state, …) and
   inline **`chart`** blocks (line, bar) — all rendered as SVG
+- **Syntax-highlighted code blocks** — ~20 common languages
+  bundled (Python, Rust, JS/TS, Go, C/C++, Haskell, OCaml, SQL, …)
+  plus a custom Faust grammar for audio DSP specs
 - **Callouts** (`::: theorem`, `::: note`, `::: warning`, …) with
   optional titles
 - **Footnotes**, **definition lists**, **CSV/TSV tables**
 - On-the-fly **input ligatures**: `->` becomes `→`, `\alpha` becomes
-  `α`, `\|N` becomes `ℕ`
+  `α`, `\|N` becomes `ℕ`; double-backslash escapes (`\\alpha` keeps
+  the source literal)
 - **Section auto-numbering** — write the first heading the way you
   want, the rest follows the same style
 

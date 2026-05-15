@@ -35,8 +35,13 @@ CommonMark + GFM de base :
 - Titres `#` à `######` (h1 → h6)
 - Paragraphes
 - **Gras** (`**…**`) et *italique* (`*…*`), barré (`~~…~~`)
-- Code en ligne `` `…` `` et blocs de code (```` ``` ````), sans coloration
-  syntaxique
+- Code en ligne `` `…` `` et blocs de code (```` ``` ````), avec
+  **coloration syntaxique** via `highlight.js` sur un sous-ensemble
+  curaté de langages (bash, c, cpp, css, go, haskell, html/xml, java,
+  js/ts, json, lua, markdown, ocaml, python, rust, scala, scheme,
+  shell, sql, yaml) plus une grammaire Faust custom (`faust` ou
+  `dsp`). Thème *atom-one-light*. Langues inconnues : bloc monospace
+  brut, comme un `<pre><code>` standard.
 - Listes à puces (`-`, `*`) et numérotées (`1.`)
 - Listes de tâches GFM (`- [ ]` / `- [x]`) — case visuelle, le toggle
   se fait en éditant la source
@@ -57,7 +62,24 @@ overrides du renderer `code`, voir §5 et §8) :
   `$$…$$` (convention GitHub depuis 2023). Voir §8.
 - **Règles d'inférence** — bloc ```` ```inference [Label] ```` avec
   prémisses / barre de tirets / conclusion. Rendu en LaTeX
-  `\dfrac{prem}{conc}` via MathJax. Voir §8.4.
+  `\dfrac{prem}{conc}` via MathJax, après pré-traitement
+  typographique style Gunter (`\mathcal{}` sur fonction sémantique,
+  `\mathbf{}` sur constructeur dans `⟦…⟧`, `\mathsf{}` sur fonction
+  hors brackets, subscripts numériques). Voir §8.4.
+- **Diagrammes EBNF** — bloc ```` ```ebnf ````. Parsing W3C-EBNF
+  via `ebnf2railroad`, une production = un diagramme railroad SVG
+  inline, les `=` alignés verticalement (style LaTeX
+  align-on-equals). Erreur de parsing surfacée en `<pre
+  class="ebnf-error">`.
+- **Types algébriques** — bloc ```` ```adt ````. Définitions
+  BNF-ish `LHS ::= Ctor | Ctor(args) | …` avec annotations
+  optionnelles `(* … *)`. Rendu en grid 4 colonnes (LHS / `::=`
+  ou `|` / alternative / annotation), `|` alignés. Highlighting
+  deux niveaux : noms qui apparaissent comme LHS quelque part →
+  type defini ; les autres identifiants capitalisés →
+  constructeur. Lignes non reconnues (typo `:=` au lieu de `::=`,
+  prose égarée) surfacées dans un panneau d'avertissement
+  ambré, jamais silencieusement omises.
 - **Tableaux de données** — blocs ```` ```csv ```` et ```` ```tsv ````.
   Première ligne = en-têtes, suivantes = données. Séparateur
   auto-détecté pour `csv`. Guillemets RFC-4180 supportés.
@@ -81,7 +103,6 @@ overrides du renderer `code`, voir §5 et §8) :
 
 ### 3.2. Hors périmètre actuel
 
-- Coloration syntaxique des blocs de code
 - Import des **images embarquées dans un fichier Word** (`.docx`) :
   l'import récupère le texte, les titres, listes, gras/italique, liens
   et citations, mais pas les images
@@ -2327,7 +2348,6 @@ bannière, warning SVG).
 - Recto/verso (marges alternées).
 - Mode sombre de l'éditeur.
 - Export d'un HTML autonome.
-- Coloration syntaxique des blocs de code.
 - Notes de bas de page **multi-paragraphes** (continuations 4-espaces
   à la Pandoc).
 - Numérotation automatique des admonitions académiques (« Théorème
