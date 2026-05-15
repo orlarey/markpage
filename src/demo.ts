@@ -22,6 +22,7 @@ import '@fontsource/roboto-mono/400.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 
+import 'highlight.js/styles/atom-one-light.css';
 import './style.css';
 import './marked-config'; // side-effect: registers admonitions / math / etc.
 

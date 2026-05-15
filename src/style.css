@@ -1500,6 +1500,110 @@ body,
   font: inherit;
 }
 
+/* ---- Syntax-highlighted code blocks (highlight.js) -------------- */
+
+/* highlight.js wraps each fenced code block in
+   `<pre class="hljs"><code class="hljs language-…">…</code></pre>`.
+   The colour theme (atom-one-light) is loaded as a side-effect via
+   main.ts / demo.ts; we only add the surrounding frame here. */
+:where(#preview-pane, #markpage-print-target, .help-body) pre.hljs {
+  background: #fafafa;
+  border-radius: 6px;
+  padding: 0.7em 0.9em;
+  border: 1px solid var(--border, #d0d7de);
+  overflow-x: auto;
+  margin: 0.8em 0;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) pre.hljs code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+/* ---- Algebraic-data-type definitions (```adt) ------------------- */
+
+/* `renderAdtBlock` in src/adt.ts emits a 4-column grid: LHS, the
+   `::=` / `|` separator, the alternative, and an optional
+   right-side annotation. All `|` columns line up vertically, the
+   way they would in a typeset ML / Haskell type definition. */
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block {
+  display: grid;
+  grid-template-columns: max-content max-content auto max-content;
+  column-gap: 0.6em;
+  row-gap: 0.15em;
+  align-items: baseline;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.8em auto;
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.95em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-lhs {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text, #1f2328);
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-sep {
+  color: var(--text-muted, #57606a);
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-alt {
+  color: var(--text, #1f2328);
+}
+
+/* Capitalised identifiers inside the alternatives split into two
+   classes:
+   - `.adt-type` for names that appear as a LHS somewhere in the
+     block (defined by a rule — same family as the LHS). Same
+     dark-bold style as the LHS itself.
+   - `.adt-ctor` for pure constructors (purple, the “tag” colour
+     conventionally used for data constructors). */
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-type {
+  color: var(--text, #1f2328);
+  font-weight: 600;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-ctor {
+  color: #8250df;
+  font-weight: 500;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-ann {
+  color: var(--text-muted, #57606a);
+  font-style: italic;
+  padding-left: 1em;
+  font-family: 'Roboto', system-ui, sans-serif;
+}
+
+/* In-line `|` separator used when all alternatives of a definition
+   fit on one line (e.g. `Op ::= Add | Sub | Mul | Div`). Same muted
+   tone as the column separator. */
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-sep-inline {
+  color: var(--text-muted, #57606a);
+  margin: 0 0.2em;
+}
+
+/* Vertical spacer between consecutive definitions. Empty grid row
+   that spans all four columns. */
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-spacer {
+  grid-column: 1 / -1;
+  height: 0.6em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .adt-error {
+  background: #ffebe9;
+  color: #cf222e;
+  border: 1px solid #cf222e;
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
 /* ---- EBNF railroad diagrams (```ebnf) --------------------------- */
 
 /* `renderEbnfBlock` in src/ebnf.ts wraps the SVGs produced by

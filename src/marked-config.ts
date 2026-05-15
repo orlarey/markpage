@@ -6,8 +6,10 @@
 // marked.lexer() call.
 
 import { marked, type Tokens } from 'marked';
+import { renderAdtBlock } from './adt';
 import { renderChart } from './chart';
 import { renderEbnfBlock } from './ebnf';
+import { highlightCode, isKnownLanguage } from './highlight';
 
 interface MathBlockToken {
   type: 'mathBlock';
@@ -179,6 +181,19 @@ marked.use({
       // per production. Pure SVG output, embedded as-is.
       if (lang === 'ebnf') {
         return injectSource(renderEbnfBlock(token.text), raw);
+      }
+      // ```adt — algebraic-data-type definitions in BNF-ish form
+      // (LHS ::= Ctor(args) | …), typeset with aligned `|` and
+      // constructor highlighting. Distinct from ebnf because the
+      // intent is type definition rather than grammar.
+      if (lang === 'adt') {
+        return injectSource(renderAdtBlock(token.text), raw);
+      }
+      // Programming-language fences — highlight via highlight.js
+      // (curated subset registered in src/highlight.ts). Unknown
+      // languages fall through to marked's plain monospace block.
+      if (lang !== '' && isKnownLanguage(lang)) {
+        return injectSource(highlightCode(token.text, lang), raw);
       }
       return false;
     },
