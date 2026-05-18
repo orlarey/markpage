@@ -41,6 +41,13 @@ interface FootnoteRefToken {
   isFirst: boolean;
 }
 
+interface CitationRefToken {
+  type: 'citationRef';
+  raw: string;
+  id: string;
+  isFirst: boolean;
+}
+
 interface DefListItem {
   termTokens: Tokens.Generic[];
   defsTokens: Tokens.Generic[][];
@@ -97,13 +104,18 @@ const ADMONITION_LABELS: Record<string, string> = {
 // definition appears in the source. This matches Pandoc's behaviour.
 const footnoteDefs = new Map<string, string>();
 const footnoteSeen: string[] = [];
+// Pandoc-style citations. Same shape as footnotes (registry + order-of-
+// first-appearance numbering) but a separate end-of-document section
+// titled "References", and inline rendering as `[1]` square brackets
+// rather than superscript `¹`.
+const citationDefs = new Map<string, string>();
+const citationSeen: string[] = [];
 // Re-entrance guard. The postprocess hook calls `marked.parseInline()`
-// to render each footnote's content as Markdown — but parseInline turns
-// out to trigger the preprocess/postprocess hooks too, which would
-// otherwise clear our registry mid-iteration and lose every footnote
-// after the first. Setting this flag tells the hooks to no-op for the
-// duration of the inner render.
-let inFootnoteRender = false;
+// to render each footnote / citation body as Markdown — but parseInline
+// re-enters the preprocess/postprocess hooks, which would otherwise
+// clear our registries mid-iteration. Setting this flag tells the hooks
+// to no-op for the duration of the inner render.
+let inEndnotesRender = false;
 
 // Pandoc-style fenced div: `::: classname [Optional title]\n…body…\n:::`.
 // Constraints to keep the syntax non-greedy and predictable:
@@ -204,37 +216,53 @@ marked.use({
       return false;
     },
   },
-  // Hooks for footnote bookkeeping. preprocess wipes the registry so a
-  // new parse doesn't inherit state from the previous one (preview and
-  // print run separate parses on the same module). postprocess appends
-  // the rendered footnotes section if anything was referenced.
+  // Hooks for footnote + citation bookkeeping. preprocess wipes both
+  // registries so a new parse doesn't inherit state from the previous
+  // one (preview and print run separate parses on the same module).
+  // postprocess appends the footnotes section then the references
+  // section if anything was referenced.
   hooks: {
     preprocess(src) {
-      if (inFootnoteRender) return src;
+      if (inEndnotesRender) return src;
       footnoteDefs.clear();
       footnoteSeen.length = 0;
+      citationDefs.clear();
+      citationSeen.length = 0;
       return src;
     },
     postprocess(html) {
-      if (inFootnoteRender) return html;
-      if (footnoteSeen.length === 0) return html;
-      inFootnoteRender = true;
+      if (inEndnotesRender) return html;
+      if (footnoteSeen.length === 0 && citationSeen.length === 0) return html;
+      inEndnotesRender = true;
       try {
-        const items = footnoteSeen
-          .map((id) => {
-            const content = footnoteDefs.get(id) ?? '';
-            // Inline-parse the content so users can use **bold**,
-            // $math$, links, etc. inside their footnotes. parseInline
-            // re-enters the hooks; the guard above keeps them from
-            // clearing our registry mid-iteration.
-            const inlineHtml = marked.parseInline(content) as string;
-            const idEsc = escapeHtml(id);
-            return `<li id="fn-${idEsc}">${inlineHtml} <a href="#fnref-${idEsc}" class="footnote-back" aria-label="Retour à l'appel de note">↩</a></li>`;
-          })
-          .join('');
-        return `${html}\n<section class="footnotes" role="doc-endnotes"><hr><ol>${items}</ol></section>\n`;
+        let out = html;
+        if (footnoteSeen.length > 0) {
+          const items = footnoteSeen
+            .map((id) => {
+              const content = footnoteDefs.get(id) ?? '';
+              // Inline-parse the body so users can use **bold**,
+              // $math$, links, etc. inside their footnotes.
+              const inlineHtml = marked.parseInline(content) as string;
+              const idEsc = escapeHtml(id);
+              return `<li id="fn-${idEsc}">${inlineHtml} <a href="#fnref-${idEsc}" class="footnote-back" aria-label="Retour à l'appel de note">↩</a></li>`;
+            })
+            .join('');
+          out += `\n<section class="footnotes" role="doc-endnotes"><hr><ol>${items}</ol></section>\n`;
+        }
+        if (citationSeen.length > 0) {
+          const items = citationSeen
+            .map((id) => {
+              const content = citationDefs.get(id) ?? '';
+              const inlineHtml = marked.parseInline(content) as string;
+              const idEsc = escapeHtml(id);
+              return `<li id="cite-${idEsc}">${inlineHtml} <a href="#citeref-${idEsc}" class="citation-back" aria-label="Retour à l'appel de citation">↩</a></li>`;
+            })
+            .join('');
+          out += `\n<section class="references" role="doc-bibliography"><h2>References</h2><ol>${items}</ol></section>\n`;
+        }
+        return out;
       } finally {
-        inFootnoteRender = false;
+        inEndnotesRender = false;
       }
     },
   },
@@ -389,6 +417,74 @@ marked.use({
         // with the same DOM id.
         const idAttr = t.isFirst ? ` id="fnref-${idEsc}"` : '';
         return `<sup class="footnote-ref"><a href="#fn-${idEsc}"${idAttr}>${num}</a></sup>`;
+      },
+    },
+    {
+      // Pandoc-lite citation definition: `[@key]: text`. Same shape
+      // as footnoteDef but a different sigil — keys are restricted to
+      // BibTeX-friendly chars `[A-Za-z0-9_:.-]` to keep the reference
+      // syntax unambiguous in prose.
+      name: 'citationDef',
+      level: 'block',
+      start(src: string) {
+        if (/^\[@[\w:.-]+\]:/.test(src)) return 0;
+        const m = /\n\[@[\w:.-]+\]:/.exec(src);
+        return m === null ? undefined : m.index + 1;
+      },
+      tokenizer(src: string) {
+        const match = /^\[@([\w:.-]+)\]:[ \t]*(.+)/.exec(src);
+        if (!match) return undefined;
+        const id = match[1] ?? '';
+        const content = (match[2] ?? '').trim();
+        citationDefs.set(id, content);
+        const tokens: Tokens.Generic[] = [];
+        this.lexer.inlineTokens(content, tokens);
+        return {
+          type: 'citationDef',
+          raw: match[0],
+          id,
+          tokens,
+        };
+      },
+      // Defs don't render in place — collected and emitted in the
+      // References section via the postprocess hook.
+      renderer() {
+        return '';
+      },
+    },
+    {
+      // Pandoc-lite citation reference: `[@key]`. Renders as a `[N]`
+      // square-bracketed link to the References entry. Numbering
+      // follows order of first appearance, like footnotes.
+      name: 'citationRef',
+      level: 'inline',
+      start(src: string) {
+        const m = /\[@/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\[@([\w:.-]+)\]/.exec(src);
+        if (!match) return undefined;
+        const id = match[1] ?? '';
+        // Undefined ids fall through to default Markdown so a typo
+        // doesn't silently turn into a blank `[N]`.
+        if (!citationDefs.has(id)) return undefined;
+        const isFirst = !citationSeen.includes(id);
+        if (isFirst) citationSeen.push(id);
+        const token: CitationRefToken = {
+          type: 'citationRef',
+          raw: match[0],
+          id,
+          isFirst,
+        };
+        return token as unknown as Tokens.Generic;
+      },
+      renderer(token) {
+        const t = token as unknown as CitationRefToken;
+        const num = citationSeen.indexOf(t.id) + 1;
+        const idEsc = escapeHtml(t.id);
+        const idAttr = t.isFirst ? ` id="citeref-${idEsc}"` : '';
+        return `<span class="citation-ref"><a href="#cite-${idEsc}"${idAttr}>[${num}]</a></span>`;
       },
     },
     {

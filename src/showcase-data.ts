@@ -141,6 +141,23 @@ The median-of-three heuristic is a popular middle ground.
 `,
   },
   {
+    id: 'citations',
+    title: 'Bibliographic citations (Pandoc-lite)',
+    description:
+      'Cite a paper or book with `[@key]` inline; define `[@key]: …` anywhere. References get numbered `[1]`, `[2]` in order of first appearance; a *References* section is auto-generated at the end with back-links. You write the reference text yourself — no CSL formatting, no BibTeX import.',
+    sourceLang: 'markdown',
+    source: String.raw`## Same idea, scholarly
+
+Quicksort runs in $O(n \log n)$ on average[@hoare1962], but
+degrades to $O(n^2)$ on already-sorted input unless a randomised
+pivot is used[@sedgewick1978]. Variants citing[@hoare1962] again
+reuse the same number.
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1), 10-16.
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10), 847-857.
+`,
+  },
+  {
     id: 'deflists',
     title: 'Definition lists for glossaries',
     description:

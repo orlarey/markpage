@@ -97,6 +97,14 @@ overrides du renderer `code`, voir §5 et §8) :
   `[^id]: contenu` (définition). Numérotation automatique dans l'ordre
   des références (pas des définitions) ; collectées en fin de document
   sous une fine `<hr>`. Voir §17.
+- **Citations bibliographiques** (Pandoc-lite) — `[@key]` en
+  référence, `[@key]: texte` en définition. Rendu inline `[N]`
+  numéroté dans l'ordre d'apparition ; section *References*
+  auto-générée en fin de document avec back-links. Le texte de
+  chaque référence est écrit manuellement en Markdown — pas de
+  formatage CSL/APA/IEEE automatique. Clés `[A-Za-z0-9_:.-]+`
+  (compatibles BibTeX). Clé non définie → la référence passe en
+  texte littéral (évite les `[N]` blancs sur typo).
 - **Listes de définitions** — syntaxe Pandoc `Terme\n:   Définition`.
   Plusieurs définitions par terme et plusieurs termes consécutifs dans
   la même `<dl>` supportés.
@@ -112,7 +120,6 @@ overrides du renderer `code`, voir §5 et §8) :
   à la Pandoc — single-line seulement en v1)
 - Numérotation automatique des admonitions académiques
   (« Théorème 1.2 », « Lemme 3 », …)
-- Citations bibliographiques `[@key]` et bibliographie
 
 ## 4. Interface utilisateur
 
@@ -2352,7 +2359,6 @@ bannière, warning SVG).
   à la Pandoc).
 - Numérotation automatique des admonitions académiques (« Théorème
   1.2 », « Lemme 3 ») avec compteurs CSS ou DOM.
-- Citations bibliographiques `[@key]` + bibliographie.
 - Préambule MathJax par document via un champ `mathjax-preamble:` en
   frontmatter YAML. Son contenu (typiquement `\newcommand` + ligatures
   `\mathlig`) serait préfixé à chaque source TeX avant `doc.convert()`

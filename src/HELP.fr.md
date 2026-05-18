@@ -621,6 +621,35 @@ même entrée.
 Cliquer sur l'appel `¹` saute à la note ; cliquer sur le `↩` à la
 fin de la note revient à l'appel.
 
+### Citations bibliographiques
+
+Pour citer un article ou un livre, utilisez la **syntaxe
+Pandoc-lite** : `[@key]` dans le texte, avec la définition
+`[@key]: texte de la référence` en bas de document.
+
+```
+Quicksort tourne en $O(n \log n)$ en moyenne[@hoare1962], mais
+dégénère à $O(n^2)$ sur une entrée déjà triée sans pivot
+aléatoire[@sedgewick1978].
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1), 10-16.
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10), 847-857.
+```
+
+Le rendu : chaque appel devient `[1]`, `[2]`, … numéroté dans
+l'ordre d'apparition (une référence réutilisée garde son numéro).
+Une section **References** est générée en fin de document avec les
+définitions, dans l'ordre des appels, chacune avec un back-link
+`↩` qui ramène à l'appel.
+
+Les clés acceptent lettres, chiffres et `_:.-` (compatibles
+BibTeX). Une référence à une clé non définie reste en texte
+littéral dans le rendu — ça évite les `[N]` blancs sur typo.
+
+Le texte de la référence est écrit en Markdown : vous gardez la
+main sur le format (italique pour le titre, gras pour l'auteur,
+…). Pas de formatage CSL / APA / IEEE automatique.
+
 ### Encadrés (notes, théorèmes…)
 
 Vous pouvez mettre en valeur un passage avec un **encadré** : ouvrez

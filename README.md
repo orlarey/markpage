@@ -43,7 +43,10 @@ A Markdown extended for technical and scientific writing:
   plus a custom Faust grammar for audio DSP specs
 - **Callouts** (`::: theorem`, `::: note`, `::: warning`, …) with
   optional titles
-- **Footnotes**, **definition lists**, **CSV/TSV tables**
+- **Footnotes** (`[^id]`) and **Pandoc-lite citations**
+  (`[@key]` + `[@key]: …`), each with auto-numbered end-of-document
+  sections and back-links
+- **Definition lists** and **CSV/TSV tables**
 - On-the-fly **input ligatures**: `->` becomes `→`, `\alpha` becomes
   `α`, `\|N` becomes `ℕ`; double-backslash escapes (`\\alpha` keeps
   the source literal)

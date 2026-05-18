@@ -598,6 +598,35 @@ several times — all the occurrences point to the same entry.
 Clicking on the call `¹` jumps to the note; clicking on the `↩` at
 the end of the note returns to the call.
 
+### Citations
+
+To cite a paper or a book, use the **Pandoc-lite syntax**: `[@key]`
+in the text, with the definition `[@key]: reference text` at the
+end of the document.
+
+```
+Quicksort runs in $O(n \log n)$ on average[@hoare1962], but
+degrades to $O(n^2)$ on already-sorted input without a randomised
+pivot[@sedgewick1978].
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1), 10-16.
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10), 847-857.
+```
+
+The rendering: each call becomes `[1]`, `[2]`, … numbered in order
+of appearance (a repeated reference keeps its number). A
+**References** section is generated at the end of the document
+with the definitions, in citation order, each with a `↩` back-link
+to the call.
+
+Keys accept letters, digits, and `_:.-` (BibTeX-friendly). A
+reference to an undefined key stays as literal text in the render
+— avoids blank `[N]` markers on typos.
+
+The reference text is written in Markdown: you keep control of the
+format (italic for the title, bold for the author, …). No
+automated CSL / APA / IEEE formatting.
+
 ### Callouts (notes, theorems…)
 
 You can highlight a passage with a **callout**: open with `:::`

@@ -1,0 +1,13 @@
+<h1>Citations</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Pandoc-style <code>[@key]</code> citations with manual <code>[@key]: …</code> definitions.
+Numbered in order of first appearance, collected at the end as a
+References section.</p>
+<p>Quicksort runs in <span class="math-inline" data-math="O(n \log n)"></span> on average<span class="citation-ref"><a href="#cite-hoare1962" id="citeref-hoare1962">[1]</a></span>, but degrades
+to <span class="math-inline" data-math="O(n^2)"></span> on already-sorted input unless a randomised pivot is
+used<span class="citation-ref"><a href="#cite-sedgewick1978" id="citeref-sedgewick1978">[2]</a></span>. A second reference to<span class="citation-ref"><a href="#cite-hoare1962">[1]</a></span> reuses the
+same number.</p>
+<h2>Unknown keys pass through</h2>
+<p>A reference to a key with no definition stays as literal text:
+[@nonexistent-key] is rendered verbatim.</p>
+
+<section class="references" role="doc-bibliography"><h2>References</h2><ol><li id="cite-hoare1962">Hoare, C. A. R. (1962). <em>Quicksort</em>. The Computer Journal 5(1), 10-16. <a href="#citeref-hoare1962" class="citation-back" aria-label="Retour à l'appel de citation">↩</a></li><li id="cite-sedgewick1978">Sedgewick, R. (1978). <em>Implementing Quicksort programs</em>. CACM 21(10), 847-857. <a href="#citeref-sedgewick1978" class="citation-back" aria-label="Retour à l'appel de citation">↩</a></li></ol></section>

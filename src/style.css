@@ -1002,6 +1002,43 @@ body,
   margin-left: 0.3em;
 }
 
+/* ---- Citations / References ----------------------------------------- */
+/* In-text reference: square-bracketed `[N]` link in the accent colour.
+   Inline (not superscript) — academic / spec convention for citations,
+   distinct from the footnote superscript so the two can coexist. */
+:where(#preview-pane, #markpage-print-target, .help-body) .citation-ref a {
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* End-of-document References section. Auto-generated after the
+   footnotes (when both are present). Numbered list, smaller font,
+   own H2 heading. */
+:where(#preview-pane, #markpage-print-target, .help-body) .references {
+  margin-top: 2em;
+  font-size: 0.9em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .references h2 {
+  font-size: 1.1em;
+  margin: 0 0 0.5em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .references ol {
+  padding-left: 1.6em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .references li {
+  margin: 0.35em 0;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body) .citation-back {
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: 0.3em;
+}
+
 /* ---- Admonitions ----------------------------------------------------- */
 /* Pandoc-style fenced divs (`::: classname [Title] … :::`). Two visual
    families: generic (note / tip / warning / caution / important) get a

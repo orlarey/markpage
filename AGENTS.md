@@ -321,6 +321,30 @@ used[^rand].
 
 ---
 
+## Citations (Pandoc-lite)
+
+Reference inline with `[@key]`. Define elsewhere with `[@key]: …`.
+Renders as a square-bracketed `[N]` link, numbered in order of
+first appearance, with an auto-generated "References" section at
+the end of the document. Citation keys accept letters, digits, and
+`_:.-` — BibTeX-friendly.
+
+```
+Quicksort runs in $O(n \log n)$ on average[@hoare1962], improved
+by Sedgewick's randomised pivot[@sedgewick1978].
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1), 10-16.
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10), 847-857.
+```
+
+The reference text is whatever Markdown you write — there's no
+automated formatting style (no APA / IEEE / MLA). You control the
+order of fields and the typography. References to undefined keys
+pass through as literal text so a typo doesn't silently produce a
+blank `[N]`.
+
+---
+
 ## Code blocks (syntax highlighting)
 
 Fenced code blocks with a recognised language hint are
