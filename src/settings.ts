@@ -8,6 +8,9 @@
  *
  *******************************************************************************/
 
+import type { MathFontSet } from './mathjax-fontsets';
+export type { MathFontSet };
+
 export type PageSize = 'A3' | 'A4' | 'A5' | 'B5' | 'LETTER' | 'LEGAL';
 
 export const PAGE_SIZES: PageSize[] = [
@@ -208,6 +211,13 @@ export interface PdfSettings {
   // glyphs against text fonts that run visually larger (e.g. Roboto).
   // Applied uniformly to inline and display math via a CSS variable.
   mathScale: number;
+  // Which MathJax 4 font set to render formulas with:
+  //   - newcm: NewComputerModern (default, serif TeX revival)
+  //   - fira:  Fira Math (sans-serif, pairs with Roboto / Fira Sans)
+  //   - stix2: STIX Two Math (serif, pairs with Times-like body fonts)
+  //   - asana: Asana Math (modern serif, generous x-height)
+  //   - tex:   classic MathJax TeX font (legacy look)
+  mathFontSet: MathFontSet;
 }
 
 /**
@@ -252,6 +262,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   mermaidMaxWidthPct: 1,
   mermaidMaxHeightPct: 0.7,
   mathScale: 1.0,
+  mathFontSet: 'newcm',
 };
 
 const KEY = 'markpage:settings';
@@ -320,6 +331,7 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
     mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
     mathScale: obj.mathScale ?? d.mathScale,
+    mathFontSet: obj.mathFontSet ?? d.mathFontSet,
   };
 }
 

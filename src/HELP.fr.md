@@ -421,10 +421,13 @@ Ce que vous pouvez régler :
 - **Numéro de page** : position, taille, couleur, italique
 - **Diagrammes Mermaid** : agrandissement max, largeur max,
   hauteur max (cf. section *Diagrammes Mermaid* plus bas).
-- **Formules mathématiques** : échelle des formules (50-200 %, défaut
-  100 %) — pour ajuster la taille des glyphes MathJax au visuel de la
-  police choisie (certaines polices à grande hauteur d'x font paraître
-  les formules trop petites).
+- **Formules mathématiques** :
+  - *Police des formules* — cinq fontes math au choix : NewComputerModern
+    (défaut, serif TeX), Fira Math (sans-serif, idéal avec Roboto / Fira),
+    STIX 2 ou Asana (serifs modernes), ou la fonte TeX classique.
+  - *Échelle des formules* (50-200 %, défaut 100 %) — pour ajuster la
+    taille des glyphes au visuel de la police choisie (certaines polices
+    à grande hauteur d'x font paraître les formules trop petites).
 
 Les réglages sont **mémorisés entre vos sessions**. Pour revenir aux
 valeurs par défaut, ouvrez le menu **Profil** en haut de la fenêtre

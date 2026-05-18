@@ -334,8 +334,8 @@ async function bootstrap(): Promise<void> {
     annotateSourceLines(built, source);
     await Promise.all([
       renderMermaidBlocks(built),
-      renderMathBlocks(built),
-      renderMathInlines(built),
+      renderMathBlocks(built, state.settings.mathFontSet),
+      renderMathInlines(built, state.settings.mathFontSet),
     ]);
     if (myReq !== previewReqId) return;
     await paginate(built, state.settings, previewEl);

@@ -1,11 +1,15 @@
 /********************************* math.ts **************************************
  *
  * Purpose: MathJax integration — render TeX (inline or display) to SVG for
- *   substitution into the preview / PDF.
- * How: Lazy-load MathJax via dynamic `import()` on first use, cache the
- *   renderer + per-(source,display) results, expose `renderMath` to callers.
+ *   substitution into the preview / PDF, with selectable math font set.
+ * How: Lazy-load MathJax via dynamic `import()` on first use; memoise a
+ *   renderer per font set (each binds its own `MathJax*Font` class as
+ *   `fontData`). One global `asyncLoad` dispatches dynamic variants to the
+ *   right font by parsing the path MathJax requests.
  *
  *******************************************************************************/
+
+import { FONT_SETS, type MathFontSet } from './mathjax-fontsets.js';
 
 export type MathResult =
   | { ok: true; svg: string }
@@ -15,40 +19,48 @@ interface Renderer {
   render: (latex: string, display: boolean) => Promise<string>;
 }
 
-let mathPromise: Promise<Renderer> | null = null;
+const renderers = new Map<MathFontSet, Promise<Renderer>>();
 const cache = new Map<string, MathResult>();
+let asyncLoadInstalled = false;
 
 /**
- * Purpose: Lazily load a MathJax 4 newcm-font dynamic-variant module on demand.
- * How: Dispatch on basename through a static registry (`NEWCM_DYNAMIC_VARIANTS`)
- *   so Vite can statically analyse, code-split, and resolve each variant
- *   through the same package path as the SVG output — guaranteeing the
- *   dynamic module registers on the same `MathJaxNewcmFont` class instance.
+ * Purpose: Dispatch MathJax's `asyncLoad` to the right font's variant table.
+ * How: Parse the font name out of the requested path
+ *   (`@mathjax/mathjax-<font>-font/js/svg/dynamic/<variant>.js`), look it up
+ *   in `FONT_SETS`. Static-import dispatch keeps Vite analysis happy and
+ *   guarantees the same module instance as the SVG output's `fontData`.
  */
-import { NEWCM_DYNAMIC_VARIANTS } from './mathjax-newcm-dynamic.js';
-
-async function loadNewcmVariant(name: string): Promise<unknown> {
-  // MathJax passes paths like
-  //   `@mathjax/mathjax-newcm-font/js/svg/dynamic/sans-serif.js`
-  const variant = name.match(/\/dynamic\/(.+?)(?:\.js)?$/)?.[1];
-  if (!variant) {
+async function loadFontVariant(name: string): Promise<unknown> {
+  const m = name.match(
+    /@mathjax\/mathjax-([^/]+)-font\/js\/svg\/dynamic\/(.+?)(?:\.js)?$/,
+  );
+  if (!m) {
     throw new Error(`MathJax asyncLoad: unrecognised path '${name}'`);
   }
-  const loader = NEWCM_DYNAMIC_VARIANTS[variant];
+  const [, font, variant] = m;
+  const set = FONT_SETS[font as MathFontSet];
+  if (!set) {
+    throw new Error(`MathJax asyncLoad: unknown font set '${font}'`);
+  }
+  const loader = set.variants[variant];
   if (!loader) {
-    throw new Error(`MathJax asyncLoad: no registered loader for '${variant}'`);
+    throw new Error(
+      `MathJax asyncLoad: no '${variant}' variant in font set '${font}'`,
+    );
   }
   const mod = await loader();
   return (mod as { default?: unknown }).default ?? mod;
 }
 
 /**
- * Purpose: Resolve to a fully wired MathJax `Renderer` (singleton).
- * How: Memoise a dynamic-import block that builds TeX+SVG jaxes, registers
- *   the HTML handler, and returns a `render(latex, display)` closure.
+ * Purpose: Resolve to a fully wired MathJax `Renderer` for the given font set.
+ * How: Per-font-set memoisation; first call also installs the global
+ *   `asyncLoad` (which routes by path, so works for every font afterwards).
  */
-async function loadMathJax(): Promise<Renderer> {
-  mathPromise ??= (async () => {
+async function loadMathJax(fontSet: MathFontSet): Promise<Renderer> {
+  let entry = renderers.get(fontSet);
+  if (entry) return entry;
+  entry = (async () => {
     const [
       { mathjax },
       { TeX },
@@ -56,6 +68,7 @@ async function loadMathJax(): Promise<Renderer> {
       { browserAdaptor },
       { RegisterHTMLHandler },
       { AllPackages },
+      FontClass,
     ] = await Promise.all([
       import('@mathjax/src/js/mathjax.js'),
       import('@mathjax/src/js/input/tex.js'),
@@ -63,11 +76,12 @@ async function loadMathJax(): Promise<Renderer> {
       import('@mathjax/src/js/adaptors/browserAdaptor.js'),
       import('@mathjax/src/js/handlers/html.js'),
       import('./mathjax-all-packages.js'),
+      FONT_SETS[fontSet].loadFontClass(),
     ]);
-    // v4 splits font variants (sans-serif, fraktur, script, …) into
-    // lazy-loaded chunks. Wire a Vite-aware loader so MathJax can fetch
-    // them when typesetting hits a glyph not in the default variant.
-    mathjax.asyncLoad = loadNewcmVariant;
+    if (!asyncLoadInstalled) {
+      mathjax.asyncLoad = loadFontVariant;
+      asyncLoadInstalled = true;
+    }
     const adaptor = browserAdaptor();
     RegisterHTMLHandler(adaptor);
     const tex = new TeX({ packages: AllPackages });
@@ -79,9 +93,11 @@ async function loadMathJax(): Promise<Renderer> {
     // <mjx-break>. The browser already line-breaks the surrounding text,
     // and intra-formula breaks would defeat our id-uniquification step
     // (cross-SVG xlink:href references can't be rewritten safely).
+    // fontData = the MathJax*Font class chosen by the user.
     const svg = new SVG({
       fontCache: 'local',
       linebreaks: { inline: false },
+      fontData: FontClass,
     });
     const doc = mathjax.document(document, {
       InputJax: tex,
@@ -95,30 +111,29 @@ async function loadMathJax(): Promise<Renderer> {
         }) as Promise<string>,
     };
   })();
-  return mathPromise;
+  renderers.set(fontSet, entry);
+  return entry;
 }
 
 /**
- * Purpose: Render a TeX source string to an SVG (or error) result.
- * How: Look up the per-(display,trimmed) cache; on miss, call MathJax and
- *   extract the bare `<svg>` from the `<mjx-container>` wrapper.
+ * Purpose: Render a TeX source string to an SVG (or error) result for `fontSet`.
+ * How: Per-(fontSet, display, source) cache; on miss, call MathJax and pull
+ *   the bare `<svg>` from the `<mjx-container>` wrapper.
  */
 export async function renderMath(
   source: string,
   display: boolean,
+  fontSet: MathFontSet = 'newcm',
 ): Promise<MathResult> {
   const trimmed = source.trim();
-  const key = `${display ? 'D' : 'I'}|${trimmed}`;
+  const key = `${fontSet}|${display ? 'D' : 'I'}|${trimmed}`;
   const cached = cache.get(key);
   if (cached) return cached;
 
   let result: MathResult;
   try {
-    const mj = await loadMathJax();
+    const mj = await loadMathJax(fontSet);
     const wrapper = await mj.render(trimmed, display);
-    // MathJax wraps the SVG in an <mjx-container> custom element. Extract
-    // the bare <svg> so the rest of the pipeline (centred preview block,
-    // sanitisation for pdfmake) treats it the same way as Mermaid output.
     result = { ok: true, svg: extractSvg(wrapper) };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

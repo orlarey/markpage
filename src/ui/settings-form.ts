@@ -27,6 +27,10 @@ import {
   type TextStyle,
 } from '../settings';
 import {
+  MATH_FONT_SETS,
+  type MathFontSet,
+} from '../mathjax-fontsets';
+import {
   getFontCatalog,
   parseGoogleFontsUrl,
   registerCustomFonts,
@@ -435,6 +439,16 @@ export function buildSettingsForm(
         ),
       ]),
       section(t('settings.section.math'), [
+        selectField<MathFontSet>(
+          t('settings.field.math-font-set'),
+          MATH_FONT_SETS,
+          current.mathFontSet,
+          (v) => {
+            current.mathFontSet = v;
+            emit();
+          },
+          (fs) => t(`math-font-set.${fs}`),
+        ),
         numberField(
           t('settings.field.math-scale'),
           Math.round(current.mathScale * 100),

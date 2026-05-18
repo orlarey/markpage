@@ -108,8 +108,8 @@ async function buildPrintContent(
   applyPreviewMetadata(el, settings);
   await Promise.all([
     renderMermaidBlocks(el),
-    renderMathBlocks(el),
-    renderMathInlines(el),
+    renderMathBlocks(el, settings.mathFontSet),
+    renderMathInlines(el, settings.mathFontSet),
   ]);
   return el;
 }

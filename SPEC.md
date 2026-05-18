@@ -622,11 +622,36 @@ ligatures de saisie (§18), qui restent **actives à l'intérieur de
 ``` ```inference ``` ``` ** (seule exception au comportement « ligatures
 off dans les fenced blocks »). L'utilisateur tape `|-`, `->`, `[[`,
 `|N` et la source contient déjà `⊢`, `→`, `⟦`, `ℕ` au moment où le
-renderer prend la main. MathJax 3 (avec les paquets `textmacros` et
+renderer prend la main. MathJax 4 (avec les paquets `textmacros` et
 `unicode` dans `AllPackages`) accepte ces caractères Unicode
 directement en mode math.
 
-### 8.5. Échelle des formules (`mathScale`)
+### 8.5. Choix de la fonte (`mathFontSet`)
+
+MathJax 4 livre cinq fontes math en paquets séparés ; le réglage
+`mathFontSet` (défaut `newcm`) sélectionne celle qu'on injecte
+dans `new SVG({ fontData: … })` :
+
+| Valeur  | Paquet npm                    | Style                                                                        |
+| ------- | ----------------------------- | ---------------------------------------------------------------------------- |
+| `newcm` | `@mathjax/mathjax-newcm-font` | NewComputerModern, serif TeX moderne                                         |
+| `fira`  | `@mathjax/mathjax-fira-font`  | Fira Math, sans-serif (s'accorde avec Roboto / Fira Sans)                    |
+| `stix2` | `@mathjax/mathjax-stix2-font` | STIX 2, serif (s'accorde avec Times-like)                                    |
+| `asana` | `@mathjax/mathjax-asana-font` | Asana Math, serif moderne grande x-height                                    |
+| `tex`   | `@mathjax/mathjax-tex-font`   | Fonte TeX classique (variantes toutes bundlées, pas de chargement dynamique) |
+
+Pour les quatre premières fontes les variantes (sans-serif, fraktur,
+script, …) sont en chunks à charger à la demande. `src/mathjax-fontsets.ts`
+enregistre statiquement chaque variante par fonte (un `import()` codé
+en dur par fichier — `import.meta.glob('/node_modules/…')` ou un
+template-literal `import('@…/'+v+'.js')` n'iraient pas : le premier
+crée une instance dupliquée de la classe `MathJax*Font`, le second
+échoue à la résolution de bare specifier au runtime). `math.ts`
+mémorise un renderer **par fonte** (cache `renderers: Map<MathFontSet,
+Renderer>`), et l'unique `mathjax.asyncLoad` global dispatch par nom
+de fonte extrait du chemin requis.
+
+### 8.6. Échelle des formules (`mathScale`)
 
 Le rendu MathJax SVG dimensionne ses glyphes en unités `ex` relatives
 au `font-size` du conteneur. Le réglage `mathScale` (défaut `1.0`,
