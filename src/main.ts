@@ -56,6 +56,7 @@ import {
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
+  currentPreviewAnchor,
   editorCursorAnchor,
   previewClickAnchor,
 } from './scroll-sync';
@@ -334,8 +335,8 @@ async function bootstrap(): Promise<void> {
     annotateSourceLines(built, source);
     await Promise.all([
       renderMermaidBlocks(built),
-      renderMathBlocks(built),
-      renderMathInlines(built),
+      renderMathBlocks(built, state.settings.mathFontSet),
+      renderMathInlines(built, state.settings.mathFontSet),
     ]);
     if (myReq !== previewReqId) return;
     await paginate(built, state.settings, previewEl);
@@ -530,12 +531,28 @@ async function bootstrap(): Promise<void> {
     });
     // The @page CSS depends on settings (page size, margins, page-number
     // position). Mark dirty so we repaginate on the next toggle into
-    // preview; if we're already in preview, refresh now.
+    // preview; if we're already in preview, refresh now. paged.js
+    // rebuilds the entire DOM, so capture the current viewport's top
+    // line first and re-apply it once the new render lands.
     dirty = true;
     if (viewMode === 'preview') {
-      void updatePreview(editor.getValue()).catch((err: unknown) => {
-        console.error('Preview render failed', err);
-      });
+      const anchor = currentPreviewAnchor(previewEl);
+      // Hide the preview while paged.js wipes and rebuilds + while we
+      // re-apply the captured scroll position. Otherwise the user sees
+      // a blank, then content appearing at the top, then a jump back —
+      // three frames of visual noise. visibility:hidden is instant and
+      // preserves scroll geometry.
+      previewEl.style.visibility = 'hidden';
+      void updatePreview(editor.getValue())
+        .then(() => {
+          if (anchor) applyAnchorToPreview(previewEl, anchor);
+        })
+        .catch((err: unknown) => {
+          console.error('Preview render failed', err);
+        })
+        .finally(() => {
+          previewEl.style.visibility = '';
+        });
     }
   };
 

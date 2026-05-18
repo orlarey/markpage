@@ -117,8 +117,8 @@ async function run(): Promise<void> {
   annotateSourceLines(built, entry.source);
   await Promise.all([
     renderMermaidBlocks(built),
-    renderMathBlocks(built),
-    renderMathInlines(built),
+    renderMathBlocks(built, settings.mathFontSet),
+    renderMathInlines(built, settings.mathFontSet),
   ]);
   await paginate(built, settings, previewEl);
 }

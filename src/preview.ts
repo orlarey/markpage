@@ -11,6 +11,7 @@ import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type TextStyle } from './settings';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
+import { type MathFontSet } from './mathjax-fontsets';
 import { quoteFontFamily } from './font-loader';
 
 /**
@@ -128,7 +129,10 @@ function countNewlines(s: string): number {
  * Purpose: Swap inline `$…$` placeholders for MathJax SVGs (or red error spans).
  * How: Query `.math-inline[data-math]`, render in parallel, set inner HTML.
  */
-export async function renderMathInlines(target: HTMLElement): Promise<void> {
+export async function renderMathInlines(
+  target: HTMLElement,
+  fontSet: MathFontSet = 'newcm',
+): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('span.math-inline[data-math]'),
   );
@@ -136,7 +140,7 @@ export async function renderMathInlines(target: HTMLElement): Promise<void> {
   await Promise.all(
     placeholders.map(async (el) => {
       const source = el.dataset['math'] ?? '';
-      const result = await renderMath(source, false);
+      const result = await renderMath(source, false, fontSet);
       if (result.ok) {
         el.innerHTML = makeIdsUnique(result.svg);
       } else {
@@ -208,7 +212,10 @@ function makeIdsUnique(svg: string): string {
  * Purpose: Swap `$$…$$` block placeholders for MathJax SVGs (or red error blocks).
  * How: Query `.math-block[data-math]`, render in parallel, replace inner HTML.
  */
-export async function renderMathBlocks(target: HTMLElement): Promise<void> {
+export async function renderMathBlocks(
+  target: HTMLElement,
+  fontSet: MathFontSet = 'newcm',
+): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('.math-block[data-math]'),
   );
@@ -216,7 +223,7 @@ export async function renderMathBlocks(target: HTMLElement): Promise<void> {
   await Promise.all(
     placeholders.map(async (el) => {
       const source = el.dataset['math'] ?? '';
-      const result = await renderMath(source, true);
+      const result = await renderMath(source, true, fontSet);
       if (result.ok) {
         el.innerHTML = makeIdsUnique(result.svg);
       } else {

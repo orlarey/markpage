@@ -108,6 +108,25 @@ export function editorCursorAnchor(view: EditorView): Anchor | null {
 }
 
 /**
+ * Purpose: Snapshot the topmost line currently visible in the preview viewport.
+ * How: First `[data-line]` whose top is at or below the viewport top, returned
+ *   with its current y so the post-reflow restore lands it at the same spot.
+ *   Used to preserve reading position across settings-driven re-renders.
+ */
+export function currentPreviewAnchor(previewEl: HTMLElement): Anchor | null {
+  const previewRect = previewEl.getBoundingClientRect();
+  let best: { line: number; y: number } | null = null;
+  for (const el of previewEl.querySelectorAll<HTMLElement>('[data-line]')) {
+    const line = Number(el.dataset['line']);
+    if (Number.isNaN(line)) continue;
+    const y = el.getBoundingClientRect().top - previewRect.top;
+    if (y < 0) continue;
+    if (best === null || y < best.y) best = { line, y };
+  }
+  return best;
+}
+
+/**
  * Purpose: Snapshot a preview click as (line, viewportY).
  * How: `closest('[data-line]')` then `clientY` relative to the preview rect.
  */
