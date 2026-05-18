@@ -319,6 +319,10 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane p,
     #preview-pane li,
     #preview-pane blockquote { text-align: ${align}; }
+    /* MathJax SVGs are sized in ex units (relative to the container's
+       font-size), so scaling the math wrappers' font-size resizes the
+       glyphs without re-rendering. */
+    #preview-pane :is(.math-inline, .math-block) { font-size: ${settings.mathScale}em; }
   `;
 }
 

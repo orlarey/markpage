@@ -308,6 +308,10 @@ export function pagedCss(s: PdfSettings): string {
        chains of headings nest). */
     .keep-with-next { break-inside: avoid; }
     .math-block, .mermaid-block, img { break-inside: avoid; }
+    /* MathJax SVGs are sized in ex units (relative to the container's
+       font-size), so scaling the math wrappers' font-size resizes the
+       glyphs without re-rendering. */
+    ${SCOPE} :is(.math-inline, .math-block) { font-size: ${s.mathScale}em; }
     /* Admonitions usually fit on a page (a paragraph or two); when
        they don't, the user's prose is what should split, not the
        boxed wrapper — keeping the colored bar and title together. */

@@ -434,6 +434,19 @@ export function buildSettingsForm(
           { step: 5 },
         ),
       ]),
+      section(t('settings.section.math'), [
+        numberField(
+          t('settings.field.math-scale'),
+          Math.round(current.mathScale * 100),
+          50,
+          200,
+          (v) => {
+            current.mathScale = v / 100;
+            emit();
+          },
+          { step: 5 },
+        ),
+      ]),
     );
 
     // The historical Reset button used to live in a footer here.

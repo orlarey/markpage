@@ -203,6 +203,11 @@ export interface PdfSettings {
   // dominate or exceed a full page, which would otherwise force a page
   // break before the diagram and leave the previous page half-empty.
   mermaidMaxHeightPct: number;
+  // Multiplicative size factor for MathJax output, relative to the body
+  // font-size. 1.0 = MathJax's native size; values below tighten math
+  // glyphs against text fonts that run visually larger (e.g. Roboto).
+  // Applied uniformly to inline and display math via a CSS variable.
+  mathScale: number;
 }
 
 /**
@@ -246,6 +251,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   mermaidMaxScale: 2,
   mermaidMaxWidthPct: 1,
   mermaidMaxHeightPct: 0.7,
+  mathScale: 1.0,
 };
 
 const KEY = 'markpage:settings';
@@ -313,6 +319,7 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     mermaidMaxScale: obj.mermaidMaxScale ?? d.mermaidMaxScale,
     mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
     mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
+    mathScale: obj.mathScale ?? d.mathScale,
   };
 }
 

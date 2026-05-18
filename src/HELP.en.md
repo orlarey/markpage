@@ -405,6 +405,9 @@ What you can adjust:
 - **Page number**: position, size, colour, italic
 - **Mermaid diagrams**: max upscale, max width, max height
   (cf. *Mermaid diagrams* section below).
+- **Math formulas**: formula scale (50-200 %, default 100 %) — adjusts
+  the size of MathJax glyphs to match the visual size of the body
+  font (some large-x-height fonts make formulas look too small).
 
 Settings are **remembered between sessions**. To revert to the
 default values, open the **Profile** menu at the top of the Settings

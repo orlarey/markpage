@@ -77,6 +77,7 @@ const FR = {
   'settings.section.body': 'Corps',
   'settings.section.page-number': 'Numéro de page',
   'settings.section.mermaid': 'Diagrammes Mermaid',
+  'settings.section.math': 'Formules mathématiques',
   'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Langue du document',
 
@@ -169,6 +170,7 @@ const FR = {
   'settings.field.mermaid-scale': 'Agrandissement max.',
   'settings.field.mermaid-width': 'Largeur max. (% du texte)',
   'settings.field.mermaid-height': 'Hauteur max. (% du texte)',
+  'settings.field.math-scale': 'Échelle des formules (%)',
   'settings.field.ui-language': 'Langue',
   'settings.field.editor-font': 'Police de l’éditeur',
   'settings.field.editor-text-color': 'Couleur du texte',
@@ -254,6 +256,7 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.section.body': 'Body',
   'settings.section.page-number': 'Page number',
   'settings.section.mermaid': 'Mermaid diagrams',
+  'settings.section.math': 'Math formulas',
   'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Document language',
 
@@ -346,6 +349,7 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.field.mermaid-scale': 'Max upscale',
   'settings.field.mermaid-width': 'Max width (% of text)',
   'settings.field.mermaid-height': 'Max height (% of text)',
+  'settings.field.math-scale': 'Formula scale (%)',
   'settings.field.ui-language': 'Language',
   'settings.field.editor-font': 'Editor font',
   'settings.field.editor-text-color': 'Text colour',

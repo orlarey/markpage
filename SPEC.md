@@ -626,6 +626,21 @@ renderer prend la main. MathJax 3 (avec les paquets `textmacros` et
 `unicode` dans `AllPackages`) accepte ces caractères Unicode
 directement en mode math.
 
+### 8.5. Échelle des formules (`mathScale`)
+
+Le rendu MathJax SVG dimensionne ses glyphes en unités `ex` relatives
+au `font-size` du conteneur. Le réglage `mathScale` (défaut `1.0`,
+exposé dans le panneau Réglages → *Formules mathématiques* en
+pourcentage, plage 50-200 %, pas de 5 %) règle la `font-size` des
+wrappers `.math-inline` et `.math-block` à `mathScale em`, ce qui
+redimensionne uniformément le SVG sans relancer MathJax.
+
+Cela permet de compenser visuellement les écarts d'apparence entre
+les polices d'écriture (souvent à grande hauteur d'x) et les polices
+MathJax (plus serrées). Aucun re-rendu : c'est du pur CSS, appliqué
+à la fois dans l'aperçu HTML (`applyPreviewStyles`) et dans le
+pipeline paginé (`pagedCss`).
+
 ## 9. Réglages PDF
 
 Un panneau **Réglages** (clic sur le bouton dans la toolbar ou
@@ -685,6 +700,10 @@ interface PdfSettings {
   mermaidMaxScale: number;
   mermaidMaxWidthPct: number;
   mermaidMaxHeightPct: number;
+  // Facteur multiplicatif appliqué à la taille du rendu MathJax
+  // (formules inline et display), en em du corps de texte. 1.0 = taille
+  // native MathJax. Voir §9.X "Échelle des formules".
+  mathScale: number;
 }
 ```
 
