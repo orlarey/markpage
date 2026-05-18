@@ -12,11 +12,35 @@ export type MathResult =
   | { ok: false; error: string };
 
 interface Renderer {
-  render: (latex: string, display: boolean) => string;
+  render: (latex: string, display: boolean) => Promise<string>;
 }
 
 let mathPromise: Promise<Renderer> | null = null;
 const cache = new Map<string, MathResult>();
+
+/**
+ * Purpose: Lazily load a MathJax 4 newcm-font dynamic-variant module on demand.
+ * How: Dispatch on basename through a static registry (`NEWCM_DYNAMIC_VARIANTS`)
+ *   so Vite can statically analyse, code-split, and resolve each variant
+ *   through the same package path as the SVG output — guaranteeing the
+ *   dynamic module registers on the same `MathJaxNewcmFont` class instance.
+ */
+import { NEWCM_DYNAMIC_VARIANTS } from './mathjax-newcm-dynamic.js';
+
+async function loadNewcmVariant(name: string): Promise<unknown> {
+  // MathJax passes paths like
+  //   `@mathjax/mathjax-newcm-font/js/svg/dynamic/sans-serif.js`
+  const variant = name.match(/\/dynamic\/(.+?)(?:\.js)?$/)?.[1];
+  if (!variant) {
+    throw new Error(`MathJax asyncLoad: unrecognised path '${name}'`);
+  }
+  const loader = NEWCM_DYNAMIC_VARIANTS[variant];
+  if (!loader) {
+    throw new Error(`MathJax asyncLoad: no registered loader for '${variant}'`);
+  }
+  const mod = await loader();
+  return (mod as { default?: unknown }).default ?? mod;
+}
 
 /**
  * Purpose: Resolve to a fully wired MathJax `Renderer` (singleton).
@@ -33,29 +57,42 @@ async function loadMathJax(): Promise<Renderer> {
       { RegisterHTMLHandler },
       { AllPackages },
     ] = await Promise.all([
-      import('mathjax-full/js/mathjax.js'),
-      import('mathjax-full/js/input/tex.js'),
-      import('mathjax-full/js/output/svg.js'),
-      import('mathjax-full/js/adaptors/browserAdaptor.js'),
-      import('mathjax-full/js/handlers/html.js'),
-      import('mathjax-full/js/input/tex/AllPackages.js'),
+      import('@mathjax/src/js/mathjax.js'),
+      import('@mathjax/src/js/input/tex.js'),
+      import('@mathjax/src/js/output/svg.js'),
+      import('@mathjax/src/js/adaptors/browserAdaptor.js'),
+      import('@mathjax/src/js/handlers/html.js'),
+      import('./mathjax-all-packages.js'),
     ]);
+    // v4 splits font variants (sans-serif, fraktur, script, …) into
+    // lazy-loaded chunks. Wire a Vite-aware loader so MathJax can fetch
+    // them when typesetting hits a glyph not in the default variant.
+    mathjax.asyncLoad = loadNewcmVariant;
     const adaptor = browserAdaptor();
     RegisterHTMLHandler(adaptor);
     const tex = new TeX({ packages: AllPackages });
     // 'local' = each SVG carries its own glyph <defs> and references them
     // via <use>; the SVG stays self-contained without duplicating every
     // glyph as inline path data the way 'none' would.
-    const svg = new SVG({ fontCache: 'local' });
+    // linebreaks.inline=false restores v3 behaviour: one monolithic SVG
+    // per formula instead of multiple <svg> siblings separated by
+    // <mjx-break>. The browser already line-breaks the surrounding text,
+    // and intra-formula breaks would defeat our id-uniquification step
+    // (cross-SVG xlink:href references can't be rewritten safely).
+    const svg = new SVG({
+      fontCache: 'local',
+      linebreaks: { inline: false },
+    });
     const doc = mathjax.document(document, {
       InputJax: tex,
       OutputJax: svg,
     });
     return {
-      render: (latex: string, display: boolean) => {
-        const node = doc.convert(latex, { display });
-        return adaptor.outerHTML(node);
-      },
+      render: (latex: string, display: boolean) =>
+        mathjax.handleRetriesFor(() => {
+          const node = doc.convert(latex, { display });
+          return adaptor.outerHTML(node);
+        }) as Promise<string>,
     };
   })();
   return mathPromise;
@@ -78,7 +115,7 @@ export async function renderMath(
   let result: MathResult;
   try {
     const mj = await loadMathJax();
-    const wrapper = mj.render(trimmed, display);
+    const wrapper = await mj.render(trimmed, display);
     // MathJax wraps the SVG in an <mjx-container> custom element. Extract
     // the bare <svg> so the rest of the pipeline (centred preview block,
     // sanitisation for pdfmake) treats it the same way as Mermaid output.
@@ -93,12 +130,13 @@ export async function renderMath(
 
 /**
  * Purpose: Pull the outer `<svg>…</svg>` out of MathJax's `<mjx-container>` wrapper.
- * How: Greedy regex — non-greedy would stop at the first nested `</svg>`.
+ * How: Parse as HTML (forgiving), pick the first top-level `<svg>` child of
+ *   the wrapper, serialise via outerHTML. Robust to v4 emitting sibling
+ *   elements (font cache stubs, accessibility nodes) that the previous
+ *   greedy regex would over-capture into an invalid XML fragment.
  */
 function extractSvg(html: string): string {
-  // Greedy match: MathJax SVGs nest sub-<svg> elements (one per oversized
-  // glyph like fence brackets), so a non-greedy match would only capture
-  // the first inner </svg> instead of the wrapper's.
-  const match = /<svg[\S\s]*<\/svg>/i.exec(html);
-  return match ? match[0] : html;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const svg = doc.querySelector('svg');
+  return svg ? svg.outerHTML : html;
 }
