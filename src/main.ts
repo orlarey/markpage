@@ -196,6 +196,56 @@ async function runGC(): Promise<void> {
  *   then event wiring (autosave, view toggle, profile/doc handlers, hotkeys).
  */
 async function bootstrap(): Promise<void> {
+  // If this page load is returning from the OneDrive OAuth redirect (or
+  // the previous click queued a pending upload), let MSAL parse the hash
+  // and tell us whether to resume the in-flight save once bootstrap is
+  // finished mounting the rest of the app. Restore the original `?doc=`
+  // — Microsoft does not preserve query strings across the auth bounce.
+  let onedriveResumeUuid: string | null = null;
+  if (
+    window.location.hash.includes('code=') ||
+    window.location.hash.includes('error=') ||
+    sessionStorage.getItem('markpage:onedrive-pending')
+  ) {
+    const { processOAuthRedirect } = await import('./onedrive');
+    const r = await processOAuthRedirect();
+    onedriveResumeUuid = r.resumeDocUuid;
+    if (onedriveResumeUuid) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('doc', onedriveResumeUuid);
+      url.hash = '';
+      window.history.replaceState({}, '', url.toString());
+    }
+  }
+
+  // `?import=<encoded>` is a self-contained share link: gunzip the
+  // payload, create a new local doc from it, then rewrite the URL to
+  // `?doc=<uuid>` so a refresh won't re-import. We do this BEFORE the
+  // doc-resolution cascade below so the new doc lands as `currentDoc`.
+  const importParam = new URL(window.location.href).searchParams.get('import');
+  if (importParam) {
+    try {
+      const { decodeShareContent } = await import('./share-url');
+      const source = await decodeShareContent(importParam);
+      const created = await createDoc(t('share.imported-doc-name'), source);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('import');
+      url.searchParams.set('doc', created.uuid);
+      window.history.replaceState({}, '', url.toString());
+    } catch (err) {
+      console.error('Share import failed', err);
+      globalThis.alert(
+        t('share.import-failed', {
+          msg: err instanceof Error ? err.message : String(err),
+        }),
+      );
+      // Strip the bad param so refresh doesn't loop the error.
+      const url = new URL(window.location.href);
+      url.searchParams.delete('import');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }
+
   // One-shot rebranding migration: rename every `md2pdf:` localStorage
   // key and the legacy IndexedDB database into the `markpage` namespace.
   // Idempotent, runs before any other storage module is touched.
@@ -623,6 +673,109 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
+  // Upload the same self-contained .md to the user's OneDrive app-folder
+  // via Microsoft Graph. First call: stores a pending marker + redirects
+  // to Microsoft login, then resumes here on return. Subsequent calls hit
+  // the silent token path and upload immediately. Also generates an
+  // anonymous view-only share link and copies it to the clipboard.
+  const triggerSaveToOneDrive = (): void => {
+    const source = editor.getValue();
+    void (async () => {
+      try {
+        const refified = refifyImageUrls(source);
+        const expanded = await expandRefsToDataUrls(refified);
+        const filename = `${slugifyDocName(currentDoc.name)}.md`;
+        const { uploadToOneDrive } = await import('./onedrive');
+        const result = await uploadToOneDrive(
+          filename,
+          expanded,
+          currentDoc.uuid,
+          { createShareLink: true },
+        );
+        if (result === null) return; // redirecting for login
+        if (!result.ok) {
+          globalThis.alert(t('onedrive.failed', { msg: result.error }));
+          return;
+        }
+        if (result.shareUrl) {
+          try {
+            await navigator.clipboard.writeText(result.shareUrl);
+            globalThis.alert(t('onedrive.uploaded-with-link'));
+          } catch {
+            globalThis.alert(
+              t('onedrive.uploaded-link-shown', { url: result.shareUrl }),
+            );
+          }
+        } else {
+          globalThis.alert(t('onedrive.uploaded'));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('OneDrive save failed', err);
+        globalThis.alert(t('onedrive.failed', { msg }));
+      }
+    })();
+  };
+
+  // Self-contained share link: gzip the current doc (images inlined as
+  // data URLs) + URL-safe base64 it into the `?import=…` query string.
+  // The recipient opens the URL in markpage and the doc is auto-imported
+  // as a fresh local copy. Hard-capped at MAX_SHARE_PAYLOAD chars so the
+  // URL still works in mail clients / chat apps.
+  const buildShareUrlForCurrent = async (): Promise<string | null> => {
+    const source = editor.getValue();
+    const refified = refifyImageUrls(source);
+    const expanded = await expandRefsToDataUrls(refified);
+    const { encodeShareContent, buildShareUrl, MAX_SHARE_PAYLOAD } =
+      await import('./share-url');
+    const payload = await encodeShareContent(expanded);
+    if (payload.length > MAX_SHARE_PAYLOAD) {
+      globalThis.alert(
+        t('share.too-large', {
+          size: String(payload.length),
+          max: String(MAX_SHARE_PAYLOAD),
+        }),
+      );
+      return null;
+    }
+    return buildShareUrl(payload);
+  };
+
+  const triggerShareLink = (): void => {
+    void (async () => {
+      try {
+        const url = await buildShareUrlForCurrent();
+        if (!url) return;
+        try {
+          await navigator.clipboard.writeText(url);
+          globalThis.alert(t('share.link-copied'));
+        } catch {
+          globalThis.alert(t('share.link-shown', { url }));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Share link failed', err);
+        globalThis.alert(t('share.failed', { msg }));
+      }
+    })();
+  };
+
+  const triggerShareEmail = (): void => {
+    void (async () => {
+      try {
+        const url = await buildShareUrlForCurrent();
+        if (!url) return;
+        const subject = encodeURIComponent(currentDoc.name);
+        const body = encodeURIComponent(t('share.email-body', { url }));
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Share email failed', err);
+        globalThis.alert(t('share.failed', { msg }));
+      }
+    })();
+  };
+
   // SPEC §21 — Markdown → LaTeX conversion via marked.lexer + our
   // own token walker (export-latex.ts). Single `.tex` when the doc
   // references no images / mermaid / chart blocks ; otherwise a
@@ -885,6 +1038,9 @@ async function bootstrap(): Promise<void> {
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
+          onOneDrive: triggerSaveToOneDrive,
+          onShareLink: triggerShareLink,
+          onShareEmail: triggerShareEmail,
         });
       },
       onSettings: triggerSettings,
@@ -939,6 +1095,13 @@ async function bootstrap(): Promise<void> {
   onLanguageChange(() => {
     renderToolbar();
   });
+
+  // If we just returned from the OneDrive OAuth flow with a pending
+  // upload, resume it now that everything (doc loaded, editor mounted,
+  // settings applied) is in place.
+  if (onedriveResumeUuid) {
+    triggerSaveToOneDrive();
+  }
 }
 
 await bootstrap();

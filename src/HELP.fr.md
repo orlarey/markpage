@@ -123,8 +123,10 @@ En haut de l'écran, quelques boutons :
   même menu.
 - **Aide** (jaune) — ouvre ce tutoriel.
 - **Aperçu** — bascule entre l'éditeur et le rendu paginé.
-- **Exporter ▾** — produit un fichier Markdown (`.md`), un PDF, ou
-  un source LaTeX (`.tex`).
+- **Exporter ▾** — produit un fichier Markdown (`.md`), un PDF, un
+  source LaTeX (`.tex`), envoie vers OneDrive, ou génère un lien de
+  partage que vous pouvez coller dans un email / chat (cf. *Exporter
+  votre document* plus bas).
 - **Réglages ▾** — personnaliser le rendu PDF (auteur, marges,
   polices…). S'ouvre dans une **fenêtre séparée** que vous pouvez
   poser à côté de l'aperçu pour voir l'effet de chaque changement
@@ -332,13 +334,16 @@ celui sur lequel vous travaillez. Formats acceptés : `.md`,
 
 #### Exporter votre document
 
-Le bouton **Exporter ▾** propose trois formats :
+Le bouton **Exporter ▾** propose plusieurs options :
 
-| Format | Raccourci | Effet |
+| Option | Raccourci | Effet |
 |---|---|---|
 | **Markdown (.md)** | `Cmd/Ctrl + S` | Télécharge votre document au format Markdown |
 | **PDF (.pdf)** | `Cmd/Ctrl + P` | Produit le PDF final |
 | **LaTeX (.tex)** | — | Produit un source LaTeX compilable avec `xelatex` |
+| **OneDrive…** | — | Envoie le `.md` dans votre OneDrive (dossier `Apps/markpage/`) et copie un lien de partage anonyme |
+| **Copier le lien de partage** | — | Encode le document dans une URL `?import=…` à coller dans Slack / email / SMS |
+| **Envoyer par email** | — | Même URL, ouverte dans votre client mail avec le lien pré-rempli |
 
 Le format **Markdown** (`.md`) est un format texte ouvert, lisible
 partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas markpage —
@@ -358,6 +363,21 @@ xelatex --shell-escape votre-document.tex
 (`--shell-escape` n'est nécessaire que si le document contient des
 diagrammes, et exige qu'`inkscape` soit installé.) Le commentaire
 en tête du `.tex` rappelle ces prérequis.
+
+**OneDrive** demande une connexion Microsoft à la première
+utilisation (popup OAuth, scope `Files.ReadWrite.AppFolder` —
+markpage n'a accès qu'au dossier `Apps/markpage/`, pas au reste
+de votre Drive). Le lien de partage généré est anonyme et en
+lecture seule : n'importe qui à qui vous le donnez peut télécharger
+le `.md`, mais personne ne peut le modifier dans votre OneDrive.
+
+**Le lien de partage** est une URL auto-portante : tout le document
+(texte + images en base64) est gzip-compressé puis encodé dans
+l'URL elle-même. Aucune connexion serveur, aucun compte requis. Le
+destinataire ouvre le lien dans son navigateur et le document est
+importé automatiquement comme un nouveau document local dans son
+markpage. Limite : ~8 Ko de payload (≈ 5-10 pages de markdown
+normal) — au-delà, utilisez OneDrive plutôt.
 
 Le nom du fichier exporté reprend le nom de votre document (celui
 affiché sur **Mon doc ▾**).

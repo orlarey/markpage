@@ -13,9 +13,10 @@ you save as `.pdf`, `.md`, or `.tex`.
 - **No installation.** Open the page, start writing.
 - **No account, no subscription.** A static web app — host it
   yourself in five minutes if you want.
-- **Nothing leaves your machine.** Documents, images, settings — all
-  in the browser's local storage. No server-side state, no upload,
-  no telemetry.
+- **Nothing leaves your machine by default.** Documents, images,
+  settings — all in the browser's local storage. No server-side state,
+  no telemetry. The two opt-in exports (OneDrive upload, share-link)
+  only push content out when you explicitly click them.
 - **Direct to PDF.** No round-trip to an external service. The
   browser's own print engine renders the same paged layout you see
   in the preview, you click *Save as PDF*.
@@ -53,13 +54,16 @@ A Markdown extended for technical and scientific writing:
 - **Section auto-numbering** — write the first heading the way you
   want, the rest follows the same style
 
-## Three export formats
+## Export formats and sharing
 
 | Format | Use case |
 |---|---|
 | **PDF** | The final document, paginated with the typography from Settings |
 | **Markdown (`.md`)** | Portable source, opens in any editor |
 | **LaTeX (`.tex`)** | Hand-off to a journal that wants TeX sources (compiles with `xelatex --shell-escape`) |
+| **OneDrive** | Uploads the `.md` to your OneDrive `Apps/markpage/` folder and copies an anonymous share link to the clipboard |
+| **Share link** | Encodes the doc into a `?import=…` URL anyone can open in markpage to load it as a fresh local copy — no account, no server. Capped at ~8 KB of source; bigger docs fall back to OneDrive. |
+| **Send by email** | Same encoded URL, but opens the user's mail client with the link pre-filled in the body |
 
 ## Settings, profiles, languages
 

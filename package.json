@@ -22,6 +22,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.11.0",
     "@codemirror/lang-markdown": "^6.3.0",
     "@expo-google-fonts/noto-sans-math": "^0.4.1",
     "@expo-google-fonts/noto-sans-symbols": "^0.4.1",

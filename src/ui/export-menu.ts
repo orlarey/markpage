@@ -22,6 +22,9 @@ export interface ExportMenuOptions {
   onMarkdown(): void;
   onPdf(): void;
   onLatex(): void;
+  onOneDrive(): void;
+  onShareLink(): void;
+  onShareEmail(): void;
 }
 
 /**
@@ -79,10 +82,20 @@ export function openExportMenu(
     return btn;
   };
 
+  const separator = (): HTMLElement => {
+    const hr = document.createElement('hr');
+    hr.className = 'export-menu-sep';
+    return hr;
+  };
+
   menu.append(
     item(t('export-menu.markdown'), 'Cmd/Ctrl + S', opts.onMarkdown),
     item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),
     item(t('export-menu.latex'), '', opts.onLatex),
+    item(t('export-menu.onedrive'), '', opts.onOneDrive),
+    separator(),
+    item(t('export-menu.share-link'), '', opts.onShareLink),
+    item(t('export-menu.share-email'), '', opts.onShareEmail),
   );
 
   document.body.appendChild(menu);

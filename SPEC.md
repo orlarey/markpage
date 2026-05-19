@@ -206,6 +206,16 @@ Voir §14 pour les détails de la sync par ancre.
   - `.md` produit un Markdown portable (data URLs en fin de doc en
     forme ref-style, voir §6).
   - `.pdf` exécute le pipeline §13.6 via paged.js.
+  - `.tex` exécute le pipeline LaTeX §21.
+  - **OneDrive…** : upload du `.md` via Microsoft Graph dans le
+    dossier `Apps/markpage/` du OneDrive de l'utilisateur ; génère
+    en plus un share-link anonyme view-only et le copie au
+    presse-papier (cf. §22.1).
+  - **Copier le lien de partage** / **Envoyer par email** : encode
+    le doc (gzip + base64 URL-safe) dans un `?import=<payload>`
+    auto-portant. Le destinataire ouvre le lien dans son markpage,
+    bootstrap décode + crée un doc local. ~8 Ko de payload max
+    (cf. §22.2).
   Le nom de fichier est dérivé du nom du doc courant (slugifié).
 - **Aide** : ouvre la fenêtre d'aide séparée (cf. §10).
 - **Style** : ouvre un menu déroulant avec les commandes de mise en forme.
@@ -2295,9 +2305,74 @@ omis.
   mappé est conservé tel quel et listé dans le commentaire d'en-
   tête du `.tex`.
 
-## 22. Internationalisation (FR / EN)
+## 22. Partage de documents
 
-### 22.1 Deux langues, deux axes
+Deux voies de partage, complémentaires : OneDrive pour les
+documents arbitrairement gros (passe par un compte Microsoft), et
+le lien URL auto-portant pour les petits documents (zéro infra,
+indépendant de toute identité).
+
+### 22.1. Upload OneDrive (`src/onedrive.ts`)
+
+- **Auth** : MSAL Browser v5, scope `Files.ReadWrite.AppFolder`
+  uniquement (limite l'accès au sous-dossier `Apps/markpage/` —
+  Microsoft n'exige pas de "verification" pour ce scope, contrairement
+  à `Files.ReadWrite` qui donne accès au Drive entier).
+- **Flow** : `loginRedirect` (et non popup) — la fenêtre principale
+  navigue vers Microsoft puis revient. Plus fiable que popup car ne
+  dépend pas du couple `window.opener` qui se perd lors du saut
+  cross-origin.
+- **Survie du round-trip** : sessionStorage stocke `markpage:onedrive-pending`
+  = `{ docUuid }` avant le `loginRedirect`. Au retour, `processOAuthRedirect()`
+  appelé tôt dans `bootstrap()` parse le hash, restaure `?doc=<uuid>`
+  (Microsoft drop la query string), et signale à bootstrap qu'il faut
+  re-déclencher l'upload une fois l'app montée.
+- **Upload** : `PUT https://graph.microsoft.com/v1.0/me/drive/special/approot:/<file>:/content`
+  avec `Content-Type: text/markdown`. Précédé d'un `GET` du même
+  endpoint pour provisionner le dossier (les comptes OneDrive personnels
+  créent `approot` lazily — un PUT immédiat 404).
+- **Share link** : suivi par un `POST .../items/{id}/createLink` avec
+  `{ type: 'view', scope: 'anonymous' }`. L'URL renvoyée est copiée
+  au presse-papier (avec fallback si Clipboard API échoue).
+- **Client ID** : `a7a78205-d67d-4088-a38f-7a9d2e0b3f10` (app
+  registration Azure AD enregistrée pour markpage.org). Surchargeable
+  via `VITE_ONEDRIVE_CLIENT_ID` pour les forks.
+
+### 22.2. Lien auto-portant (`src/share-url.ts`)
+
+URL de la forme `https://markpage.org/?import=<payload>` où `payload`
+est :
+
+1. Le `.md` source avec images inlinées en `data:` URLs (via
+   `expandRefsToDataUrls`).
+2. Compressé par `CompressionStream('gzip')` (API native, pas de
+   dépendance JS).
+3. Encodé en base64 URL-safe (`-_` au lieu de `+/`, pas de padding).
+
+Plafond dur à **8000 caractères** de payload (`MAX_SHARE_PAYLOAD`).
+Au-delà : message d'erreur orientant vers l'export OneDrive. Cette
+limite est conservatrice : les URLs longues passent dans les
+navigateurs (~30 Ko) mais Slack / Outlook / Gmail tronquent ou
+mettent en garde au-delà de ~8-16 Ko.
+
+Le destinataire ouvre le lien dans son markpage ; `bootstrap()`
+détecte `?import=` tôt dans son init, décode via
+`DecompressionStream('gzip')`, appelle `createDoc(name, source)` pour
+créer un doc local, puis réécrit l'URL en `?doc=<new-uuid>` pour ne
+pas re-importer au reload.
+
+### 22.3. `mailto:` comme transport
+
+L'item "Envoyer par email" génère la même URL que "Copier le lien
+de partage", puis fait `window.location.href = 'mailto:?subject=…&body=…'`.
+Le `mailto:` ne supporte pas les pièces jointes (limitation
+historique du standard, raison sécurité). On encapsule donc le lien
+dans le corps — au final équivalent à du copier-coller manuel, mais
+en un clic au lieu de deux.
+
+## 23. Internationalisation (FR / EN)
+
+### 23.1 Deux langues, deux axes
 
 Deux dimensions distinctes, gérées séparément :
 
@@ -2316,7 +2391,7 @@ Au premier lancement, les deux sont initialisées sur la même valeur
 détectée via `navigator.language` (fr-* → 'fr', tout le reste →
 'en'). Ensuite chacune évolue indépendamment.
 
-### 22.2 Module i18n (côté UI)
+### 23.2 Module i18n (côté UI)
 
 `src/i18n/locale.ts` :
 
@@ -2339,7 +2414,7 @@ détectée via `navigator.language` (fr-* → 'fr', tout le reste →
 Les clés sont à plat avec un namespace par point (`'toolbar.import'`,
 `'menu.profile.delete-confirm'`). Simple à lire, simple à grep.
 
-### 22.3 Langue du document (côté LaTeX et dates)
+### 23.3 Langue du document (côté LaTeX et dates)
 
 `PdfSettings.language` est lu par :
 
@@ -2357,7 +2432,7 @@ Les **identifiants** des environnements amsthm (`theorem`, `lemma`,
 d'affichage** changent. Donc un `\begin{theorem}…\end{theorem}`
 dans le corps fonctionne quelle que soit la langue choisie.
 
-### 22.4 HELP.md → HELP.fr.md + HELP.en.md
+### 23.4 HELP.md → HELP.fr.md + HELP.en.md
 
 Le tutoriel intégré existe en deux versions, bundlées via
 `import helpMdFr from './HELP.fr.md?raw'` et `helpMdEn`. Sélection
@@ -2373,7 +2448,7 @@ blocs de code, mêmes exemples), seul le texte rédactionnel change.
 La référence est `HELP.fr.md` ; `HELP.en.md` doit suivre quand on
 modifie l'une ou l'autre.
 
-### 22.5 Tests
+### 23.5 Tests
 
 `tests/export-latex.test.ts` reste sur la locale par défaut (`fr`)
 pour la couverture principale. `tests/export-latex-en.test.ts`
@@ -2383,7 +2458,7 @@ reprend un sous-ensemble du corpus (`01-headings`, `07-admonitions`,
 parties **language-aware** du préambule (babel, noms theorem,
 bannière, warning SVG).
 
-### 22.6 Hors v1
+### 23.6 Hors v1
 
 - Langues au-delà de FR / EN (l'archi le permet : ajouter une clé à
   `STRINGS`, traduire toutes les entrées, étendre `Language` type).
@@ -2394,7 +2469,7 @@ bannière, warning SVG).
   même un pattern custom à la `moment.js`). Aujourd'hui figé à
   `dateStyle: 'long'`.
 
-## 23. À décider plus tard
+## 24. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Mode sombre de l'éditeur.
