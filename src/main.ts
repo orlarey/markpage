@@ -218,6 +218,34 @@ async function bootstrap(): Promise<void> {
     }
   }
 
+  // `?import=<encoded>` is a self-contained share link: gunzip the
+  // payload, create a new local doc from it, then rewrite the URL to
+  // `?doc=<uuid>` so a refresh won't re-import. We do this BEFORE the
+  // doc-resolution cascade below so the new doc lands as `currentDoc`.
+  const importParam = new URL(window.location.href).searchParams.get('import');
+  if (importParam) {
+    try {
+      const { decodeShareContent } = await import('./share-url');
+      const source = await decodeShareContent(importParam);
+      const created = await createDoc(t('share.imported-doc-name'), source);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('import');
+      url.searchParams.set('doc', created.uuid);
+      window.history.replaceState({}, '', url.toString());
+    } catch (err) {
+      console.error('Share import failed', err);
+      globalThis.alert(
+        t('share.import-failed', {
+          msg: err instanceof Error ? err.message : String(err),
+        }),
+      );
+      // Strip the bad param so refresh doesn't loop the error.
+      const url = new URL(window.location.href);
+      url.searchParams.delete('import');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }
+
   // One-shot rebranding migration: rename every `md2pdf:` localStorage
   // key and the legacy IndexedDB database into the `markpage` namespace.
   // Idempotent, runs before any other storage module is touched.
@@ -689,6 +717,65 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
+  // Self-contained share link: gzip the current doc (images inlined as
+  // data URLs) + URL-safe base64 it into the `?import=…` query string.
+  // The recipient opens the URL in markpage and the doc is auto-imported
+  // as a fresh local copy. Hard-capped at MAX_SHARE_PAYLOAD chars so the
+  // URL still works in mail clients / chat apps.
+  const buildShareUrlForCurrent = async (): Promise<string | null> => {
+    const source = editor.getValue();
+    const refified = refifyImageUrls(source);
+    const expanded = await expandRefsToDataUrls(refified);
+    const { encodeShareContent, buildShareUrl, MAX_SHARE_PAYLOAD } =
+      await import('./share-url');
+    const payload = await encodeShareContent(expanded);
+    if (payload.length > MAX_SHARE_PAYLOAD) {
+      globalThis.alert(
+        t('share.too-large', {
+          size: String(payload.length),
+          max: String(MAX_SHARE_PAYLOAD),
+        }),
+      );
+      return null;
+    }
+    return buildShareUrl(payload);
+  };
+
+  const triggerShareLink = (): void => {
+    void (async () => {
+      try {
+        const url = await buildShareUrlForCurrent();
+        if (!url) return;
+        try {
+          await navigator.clipboard.writeText(url);
+          globalThis.alert(t('share.link-copied'));
+        } catch {
+          globalThis.alert(t('share.link-shown', { url }));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Share link failed', err);
+        globalThis.alert(t('share.failed', { msg }));
+      }
+    })();
+  };
+
+  const triggerShareEmail = (): void => {
+    void (async () => {
+      try {
+        const url = await buildShareUrlForCurrent();
+        if (!url) return;
+        const subject = encodeURIComponent(currentDoc.name);
+        const body = encodeURIComponent(t('share.email-body', { url }));
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('Share email failed', err);
+        globalThis.alert(t('share.failed', { msg }));
+      }
+    })();
+  };
+
   // SPEC §21 — Markdown → LaTeX conversion via marked.lexer + our
   // own token walker (export-latex.ts). Single `.tex` when the doc
   // references no images / mermaid / chart blocks ; otherwise a
@@ -952,6 +1039,8 @@ async function bootstrap(): Promise<void> {
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
           onOneDrive: triggerSaveToOneDrive,
+          onShareLink: triggerShareLink,
+          onShareEmail: triggerShareEmail,
         });
       },
       onSettings: triggerSettings,

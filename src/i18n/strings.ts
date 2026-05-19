@@ -71,6 +71,17 @@ const FR = {
   'onedrive.uploaded-link-shown':
     'Document envoyé sur OneDrive. Lien de partage : {url}',
   'onedrive.failed': 'Échec OneDrive : {msg}',
+  'export-menu.share-link': 'Copier le lien de partage',
+  'export-menu.share-email': 'Envoyer par email',
+  'share.link-copied':
+    'Lien de partage copié dans le presse-papier. Le destinataire ouvre le lien dans son navigateur et le document s’importe dans son éditeur.',
+  'share.link-shown': 'Lien de partage : {url}',
+  'share.failed': 'Échec du partage : {msg}',
+  'share.too-large':
+    'Document trop volumineux pour un lien URL ({size} caractères, max {max}). Utilise plutôt l’export OneDrive pour les gros documents.',
+  'share.email-body': 'Voici le document : {url}',
+  'share.imported-doc-name': 'Document partagé',
+  'share.import-failed': 'Échec de l’import du lien : {msg}',
 
   // ---- settings form (window title + section headers) --------------
   'settings.window-title': 'Réglages markpage',
@@ -308,6 +319,17 @@ const EN: Record<keyof typeof FR, string> = {
   'onedrive.uploaded-link-shown':
     'Document uploaded to OneDrive. Share link: {url}',
   'onedrive.failed': 'OneDrive upload failed: {msg}',
+  'export-menu.share-link': 'Copy share link',
+  'export-menu.share-email': 'Send by email',
+  'share.link-copied':
+    'Share link copied to clipboard. The recipient opens the link in their browser and the document is imported into their editor.',
+  'share.link-shown': 'Share link: {url}',
+  'share.failed': 'Share failed: {msg}',
+  'share.too-large':
+    'Document too large for a URL share ({size} chars, max {max}). Use the OneDrive export for big documents.',
+  'share.email-body': 'Here is the document: {url}',
+  'share.imported-doc-name': 'Shared document',
+  'share.import-failed': 'Share import failed: {msg}',
 
   // ---- settings form ------------------------------------------------
   'settings.window-title': 'markpage settings',
