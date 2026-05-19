@@ -8,7 +8,8 @@
  *******************************************************************************/
 
 import { marked } from 'marked';
-import { metadataLines, type PdfSettings, type TextStyle } from './settings';
+import { metadataLines, type PdfSettings, type Style } from './settings';
+import { blockBoxCss, inlineCss } from './style-emit';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
 import { type MathFontSet } from './mathjax-fontsets';
@@ -18,27 +19,28 @@ import { quoteFontFamily } from './font-loader';
  * Purpose: Heading underline CSS fragment using the editor's neutral border colour.
  * How: Emits a `border-bottom` declaration or `none` so the dynamic rule wins.
  */
-function underlineRule(s: TextStyle): string {
+function underlineRule(s: Style): string {
   return s.underline
     ? `border-bottom: 1px solid var(--border); padding-bottom: 0.2em;`
     : `border-bottom: none;`;
 }
 
 /**
- * Purpose: Per-heading italic + weight, overriding the static bold/strong rule.
- * How: Emits explicit `font-style` + `font-weight` so the dynamic rule wins.
+ * Purpose: Per-heading italic + weight + text-align, overriding static rules.
+ * How: Emits explicit `font-style` / `font-weight` / `text-align` so the
+ *   dynamic rule wins over the bold/strong + body-justify defaults.
  */
-function headingExtras(s: TextStyle): string {
-  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
+function headingExtras(s: Style): string {
+  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
 }
 
 /**
- * Purpose: Asymmetric vertical spacing — more above than below — for headings.
- * How: Uses the user-tunable `above` / `below` ratios in `em` units.
+ * Purpose: Asymmetric vertical spacing for a heading style, in em.
+ * How: Reads `marginAbove` / `marginBelow` from the heading's Style;
+ *   defaults preserved when either field is unset.
  */
-function headingMargin(settings: PdfSettings): string {
-  const { above, below } = settings.headingSpacing;
-  return `margin: ${above}em 0 ${below}em;`;
+function headingMargin(s: Style): string {
+  return `margin: ${s.marginAbove ?? 1.6}em 0 ${s.marginBelow ?? 0.6}em;`;
 }
 
 /**
@@ -295,37 +297,42 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     document.head.appendChild(el);
   }
   const s = settings.styles;
-  const align = settings.justify ? 'justify' : 'left';
+  const align = s.body.align ?? 'left';
   const f = settings.fonts;
   const headFam = `${quoteFontFamily(f.headings)}, "Roboto Condensed", sans-serif`;
   const bodyFam = `${quoteFontFamily(f.body)}, "Roboto Condensed", sans-serif`;
   const codeFam = `${quoteFontFamily(f.code)}, "Roboto Mono", monospace`;
   el.textContent = `
-    #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
+    #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
-    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} ${headingExtras(s.h1)} }
-    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} }
-    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} }
-    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} }
+    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${headingMargin(s.h1)} }
+    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} ${headingMargin(s.h2)} }
+    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} ${headingMargin(s.h3)} }
+    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }
     #preview-pane h5,
-    #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
-    #preview-pane :is(h1, h2, h3, h4, h5, h6) { ${headingMargin(settings)} }
+    #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${headingMargin(s.h4)} }
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-    #preview-pane p { margin: ${settings.paragraphSpacing}em 0; }
-    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
+    #preview-pane p { margin: ${s.body.marginAbove ?? 1}em 0 ${s.body.marginBelow ?? 1}em; }
+    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s['code-inline'].fontSize}pt; color: ${s['code-inline'].color}; }
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
-    #preview-pane blockquote {
-      font-size: ${s.quote.fontSize}pt;
-      color: ${s.quote.color};
-      border-left-color: ${s.quote.barColor};
-    }
+    /* Block code: <pre> wrapper uses the code-block style box. */
+    #preview-pane pre { ${blockBoxCss(s['code-block'])} }
+    #preview-pane blockquote { ${inlineCss(s.quote)} ${blockBoxCss(s.quote)} padding-left: ${s.quote.padding ?? 0.9}em; }
+    /* Metadata block (author / organization / date) shown after h1. */
+    #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
+    /* Inline links — color and underline come from styles['inline-link']. */
+    #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
+    /* Block math, mermaid, admonitions, tables — user-configurable box. */
+    #preview-pane .math-block { ${blockBoxCss(s['math-block'])} }
+    #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} }
+    #preview-pane .admonition { ${blockBoxCss(s.callout)} }
+    #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
     #preview-pane p,
-    #preview-pane li,
-    #preview-pane blockquote { text-align: ${align}; }
+    #preview-pane li { text-align: ${align}; }
     /* MathJax SVGs are sized in ex units (relative to the container's
        font-size), so scaling the math wrappers' font-size resizes the
        glyphs without re-rendering. */

@@ -16,15 +16,20 @@
 // from window A can't be appended into window B.
 
 import {
+  ALIGNS,
+  ELEMENT_DESCRIPTORS,
   PAGE_NUMBER_POSITIONS,
   PAGE_SIZES,
   PAGE_SIZE_LABELS,
   WEIGHT_OPTIONS,
+  type Align,
+  type AttrName,
   type DateMode,
+  type ElementKey,
   type MetadataField,
   type PageNumberPosition,
   type PdfSettings,
-  type TextStyle,
+  type Style,
 } from '../settings';
 import {
   MATH_FONT_SETS,
@@ -129,6 +134,10 @@ export function buildSettingsForm(
 
   let current: PdfSettings = clone(handlers.getSettings());
 
+  // Persisted across refresh() calls so changing one field doesn't
+  // bounce the user back to the first rail entry.
+  let activeRailId = 'app';
+
   const emit = (): void => handlers.onChange(clone(current));
   // Re-reads from handlers on every call so callers can refresh after
   // mutating state outside the form (profile switch, Reset, imports).
@@ -178,297 +187,355 @@ export function buildSettingsForm(
     });
     header.append(trigger);
 
-    const form = doc.createElement('div');
-    form.className = 'settings-form';
-
-    form.append(
-      // UI language sits at the very top because it's the one
-      // setting that doesn't belong to the PdfSettings profile — it
-      // lives in the user's localStorage and applies to every doc /
-      // profile. Changing it reloads the page (cf. setLanguage).
-      section(t('settings.section.ui-language'), [
-        uiLanguageField(),
-        editorFontField(),
-        editorTextColorField(),
-      ]),
-      section(t('settings.section.author-date'), [
-        metadataField(t('settings.field.author'), current.author, (v) => {
-          current.author = v;
-          emit();
-        }),
-        metadataField(t('settings.field.organization'), current.organization, (v) => {
-          current.organization = v;
-          emit();
-        }),
-        dateField(current.date.mode, current.date.custom, (mode, custom) => {
-          current.date = { mode, custom };
-          emit();
-          refresh();
-        }),
-      ]),
-      section(t('settings.section.page'), [
-        selectField(
-          t('settings.field.page-size'),
-          PAGE_SIZES,
-          current.pageSize,
-          (v) => {
-            current.pageSize = v;
-            emit();
-          },
-          (v) => PAGE_SIZE_LABELS[v],
-        ),
-        selectField<Language>(
-          t('settings.field.doc-language'),
-          ['fr', 'en'],
-          current.language,
-          (v) => {
-            current.language = v;
-            emit();
-          },
-          (v) => (v === 'fr' ? 'Français' : 'English'),
-        ),
-        checkboxField(t('settings.field.justify'), current.justify, (v) => {
-          current.justify = v;
-          emit();
-        }),
-        numberField(
-          t('settings.field.line-height'),
-          current.lineHeight,
-          1,
-          2.5,
-          (v) => {
-            current.lineHeight = v;
-            emit();
-          },
-          { step: 0.05 },
-        ),
-      ]),
-      section(t('settings.section.fonts'), [
-        fontField(t('settings.field.font-headings'), ['sans', 'serif'], current.fonts.headings, (v) => {
-          current.fonts.headings = v;
-          emit();
-        }),
-        fontField(t('settings.field.font-body'), ['sans', 'serif'], current.fonts.body, (v) => {
-          current.fonts.body = v;
-          emit();
-        }),
-        fontField(t('settings.field.font-code'), ['mono'], current.fonts.code, (v) => {
-          current.fonts.code = v;
-          emit();
-        }),
-        customFontsField(),
-      ]),
-      section(t('settings.section.margins'), [
-        numberField(t('settings.field.margin-top'), current.margins.top, 0, 100, (v) => {
-          current.margins.top = v;
-          emit();
-        }),
-        numberField(t('settings.field.margin-bottom'), current.margins.bottom, 0, 100, (v) => {
-          current.margins.bottom = v;
-          emit();
-        }),
-        numberField(t('settings.field.margin-left'), current.margins.left, 0, 100, (v) => {
-          current.margins.left = v;
-          emit();
-        }),
-        numberField(t('settings.field.margin-right'), current.margins.right, 0, 100, (v) => {
-          current.margins.right = v;
-          emit();
-        }),
-      ]),
-      section(t('settings.section.spacing'), [
-        numberField(
-          t('settings.field.heading-spacing-above'),
-          current.headingSpacing.above,
-          0,
-          5,
-          (v) => {
-            current.headingSpacing.above = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-        numberField(
-          t('settings.field.heading-spacing-below'),
-          current.headingSpacing.below,
-          0,
-          5,
-          (v) => {
-            current.headingSpacing.below = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-        numberField(
-          t('settings.field.paragraph-spacing'),
-          current.paragraphSpacing,
-          0,
-          3,
-          (v) => {
-            current.paragraphSpacing = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-      ]),
-      section(t('settings.section.headings'), [
-        styleRow(t('settings.field.h1'), current.styles.h1, (s) => {
-          current.styles.h1 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-        styleRow(t('settings.field.h2'), current.styles.h2, (s) => {
-          current.styles.h2 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-        styleRow(t('settings.field.h3'), current.styles.h3, (s) => {
-          current.styles.h3 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-        styleRow(t('settings.field.h4'), current.styles.h4, (s) => {
-          current.styles.h4 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-      ]),
-      section(t('settings.section.body'), [
-        styleRow(t('settings.field.body-text'), current.styles.body, (s) => {
-          current.styles.body = s;
-          emit();
-        }),
-        styleRow(t('settings.field.code-text'), current.styles.code, (s) => {
-          current.styles.code = s;
-          emit();
-        }),
-        styleRow(
-          t('settings.field.quote'),
+    // ---- Rail navigation + content -----------------------------------
+    // Each rail entry knows how to (re)build its section content; the
+    // active entry's content is the only thing displayed in the right
+    // pane. Switching entry rebuilds only that pane.
+    const railGroups: Array<{
+      titleKey:
+        | 'rail.group.app'
+        | 'rail.group.document'
+        | 'rail.group.typography'
+        | 'rail.group.content';
+      items: Array<{
+        id: string;
+        label: string;
+        build: () => HTMLElement[];
+      }>;
+    }> = [
+      {
+        titleKey: 'rail.group.app',
+        items: [
           {
-            fontSize: current.styles.quote.fontSize,
-            color: current.styles.quote.color,
+            id: 'app',
+            label: t('settings.section.ui-language'),
+            build: () => [
+              section(t('settings.section.ui-language'), [
+                uiLanguageField(),
+                editorFontField(),
+                editorTextColorField(),
+              ]),
+            ],
           },
-          (s) => {
-            current.styles.quote = {
-              ...current.styles.quote,
-              fontSize: s.fontSize,
-              color: s.color,
-            };
-            emit();
+        ],
+      },
+      {
+        titleKey: 'rail.group.document',
+        items: [
+          {
+            id: 'doc-page',
+            label: t('settings.section.page'),
+            build: () => [
+              section(t('settings.section.page'), [
+                selectField(
+                  t('settings.field.page-size'),
+                  PAGE_SIZES,
+                  current.pageSize,
+                  (v) => {
+                    current.pageSize = v;
+                    emit();
+                  },
+                  (v) => PAGE_SIZE_LABELS[v],
+                ),
+                selectField<Language>(
+                  t('settings.field.doc-language'),
+                  ['fr', 'en'],
+                  current.language,
+                  (v) => {
+                    current.language = v;
+                    emit();
+                  },
+                  (v) => (v === 'fr' ? 'Français' : 'English'),
+                ),
+                selectField<PageNumberPosition>(
+                  t('settings.field.page-number-position'),
+                  PAGE_NUMBER_POSITIONS,
+                  current.pageNumber.position,
+                  (v) => {
+                    current.pageNumber.position = v;
+                    emit();
+                  },
+                  (v) => POSITION_LABELS()[v],
+                ),
+                numberField(
+                  t('settings.field.margin-top'),
+                  current.margins.top,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.top = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.margin-bottom'),
+                  current.margins.bottom,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.bottom = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.margin-left'),
+                  current.margins.left,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.left = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.margin-right'),
+                  current.margins.right,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.right = v;
+                    emit();
+                  },
+                ),
+              ]),
+            ],
           },
-        ),
-        colorField(
-          t('settings.field.quote-bar'),
-          current.styles.quote.barColor,
-          (v) => {
-            current.styles.quote.barColor = v;
-            emit();
+          {
+            id: 'doc-metadata',
+            label: t('settings.section.author-date'),
+            build: () => [
+              section(t('settings.section.author-date'), [
+                metadataField(
+                  t('settings.field.author'),
+                  current.author,
+                  (v) => {
+                    current.author = v;
+                    emit();
+                  },
+                ),
+                metadataField(
+                  t('settings.field.organization'),
+                  current.organization,
+                  (v) => {
+                    current.organization = v;
+                    emit();
+                  },
+                ),
+                dateField(
+                  current.date.mode,
+                  current.date.custom,
+                  (mode, custom) => {
+                    current.date = { mode, custom };
+                    emit();
+                    refresh();
+                  },
+                ),
+              ]),
+            ],
           },
-        ),
-      ]),
-      section(t('settings.section.page-number'), [
-        selectField<PageNumberPosition>(
-          t('settings.field.position'),
-          PAGE_NUMBER_POSITIONS,
-          current.pageNumber.position,
-          (v) => {
-            current.pageNumber.position = v;
-            emit();
+        ],
+      },
+      {
+        titleKey: 'rail.group.typography',
+        items: [
+          {
+            id: 'typo-fonts',
+            label: t('settings.section.fonts'),
+            build: () => [
+              section(t('settings.section.fonts'), [
+                fontField(
+                  t('settings.field.font-headings'),
+                  ['sans', 'serif'],
+                  current.fonts.headings,
+                  (v) => {
+                    current.fonts.headings = v;
+                    emit();
+                  },
+                ),
+                fontField(
+                  t('settings.field.font-body'),
+                  ['sans', 'serif'],
+                  current.fonts.body,
+                  (v) => {
+                    current.fonts.body = v;
+                    emit();
+                  },
+                ),
+                fontField(
+                  t('settings.field.font-code'),
+                  ['mono'],
+                  current.fonts.code,
+                  (v) => {
+                    current.fonts.code = v;
+                    emit();
+                  },
+                ),
+                customFontsField(),
+              ]),
+            ],
           },
-          (v) => POSITION_LABELS()[v],
-        ),
-        numberField(
-          t('settings.field.size-pt'),
-          current.pageNumber.style.fontSize,
-          5,
-          24,
-          (v) => {
-            current.pageNumber.style.fontSize = v;
-            emit();
+          ...(
+            [
+              'body',
+              'h1',
+              'h2',
+              'h3',
+              'h4',
+              'code-inline',
+              'inline-link',
+              'metadata',
+              'code-block',
+              'quote',
+              'table',
+              'page-number',
+            ] as const
+          ).map((key) => ({
+            id: `typo-${key}`,
+            label: t(`element.${key}`),
+            build: () => [elementStyleSection(key, current, emit)],
+          })),
+        ],
+      },
+      {
+        titleKey: 'rail.group.content',
+        items: [
+          {
+            id: 'content-math',
+            label: t('settings.section.math'),
+            build: () => [
+              section(t('settings.section.math'), [
+                selectField<MathFontSet>(
+                  t('settings.field.math-font-set'),
+                  MATH_FONT_SETS,
+                  current.mathFontSet,
+                  (v) => {
+                    current.mathFontSet = v;
+                    emit();
+                  },
+                  (fs) => t(`math-font-set.${fs}`),
+                ),
+                numberField(
+                  t('settings.field.math-scale'),
+                  Math.round(current.mathScale * 100),
+                  50,
+                  200,
+                  (v) => {
+                    current.mathScale = v / 100;
+                    emit();
+                  },
+                  { step: 5 },
+                ),
+              ]),
+              elementStyleSection('math-block', current, emit),
+            ],
           },
-          { disabled: current.pageNumber.position === 'none' },
-        ),
-        checkboxField(
-          t('settings.field.italic'),
-          current.pageNumber.style.italics,
-          (v) => {
-            current.pageNumber.style.italics = v;
-            emit();
+          {
+            id: 'content-mermaid',
+            label: t('settings.section.mermaid'),
+            build: () => [
+              section(t('settings.section.mermaid'), [
+                numberField(
+                  t('settings.field.mermaid-scale'),
+                  current.mermaidMaxScale,
+                  1,
+                  4,
+                  (v) => {
+                    current.mermaidMaxScale = v;
+                    emit();
+                  },
+                  { step: 0.1 },
+                ),
+                numberField(
+                  t('settings.field.mermaid-width'),
+                  Math.round(current.mermaidMaxWidthPct * 100),
+                  10,
+                  100,
+                  (v) => {
+                    current.mermaidMaxWidthPct = v / 100;
+                    emit();
+                  },
+                  { step: 5 },
+                ),
+                numberField(
+                  t('settings.field.mermaid-height'),
+                  Math.round(current.mermaidMaxHeightPct * 100),
+                  10,
+                  100,
+                  (v) => {
+                    current.mermaidMaxHeightPct = v / 100;
+                    emit();
+                  },
+                  { step: 5 },
+                ),
+              ]),
+              elementStyleSection('mermaid', current, emit),
+            ],
           },
-          current.pageNumber.position === 'none',
-        ),
-        colorField(
-          t('settings.field.color'),
-          current.pageNumber.style.color,
-          (v) => {
-            current.pageNumber.style.color = v;
-            emit();
+          {
+            id: 'content-callout',
+            label: t('element.callout'),
+            build: () => [elementStyleSection('callout', current, emit)],
           },
-          current.pageNumber.position === 'none',
-        ),
-      ]),
-      section(t('settings.section.mermaid'), [
-        numberField(
-          t('settings.field.mermaid-scale'),
-          current.mermaidMaxScale,
-          1,
-          4,
-          (v) => {
-            current.mermaidMaxScale = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-        numberField(
-          t('settings.field.mermaid-width'),
-          Math.round(current.mermaidMaxWidthPct * 100),
-          10,
-          100,
-          (v) => {
-            current.mermaidMaxWidthPct = v / 100;
-            emit();
-          },
-          { step: 5 },
-        ),
-        numberField(
-          t('settings.field.mermaid-height'),
-          Math.round(current.mermaidMaxHeightPct * 100),
-          10,
-          100,
-          (v) => {
-            current.mermaidMaxHeightPct = v / 100;
-            emit();
-          },
-          { step: 5 },
-        ),
-      ]),
-      section(t('settings.section.math'), [
-        selectField<MathFontSet>(
-          t('settings.field.math-font-set'),
-          MATH_FONT_SETS,
-          current.mathFontSet,
-          (v) => {
-            current.mathFontSet = v;
-            emit();
-          },
-          (fs) => t(`math-font-set.${fs}`),
-        ),
-        numberField(
-          t('settings.field.math-scale'),
-          Math.round(current.mathScale * 100),
-          50,
-          200,
-          (v) => {
-            current.mathScale = v / 100;
-            emit();
-          },
-          { step: 5 },
-        ),
-      ]),
-    );
+        ],
+      },
+    ];
+
+    const layout = doc.createElement('div');
+    layout.className = 'settings-form settings-layout';
+
+    const rail = doc.createElement('nav');
+    rail.className = 'settings-rail';
+    rail.setAttribute('aria-label', t('settings.h1'));
+
+    const content = doc.createElement('div');
+    content.className = 'settings-content';
+
+    const allItems = railGroups.flatMap((g) => g.items);
+    if (!allItems.some((i) => i.id === activeRailId)) {
+      activeRailId = allItems[0]?.id ?? '';
+    }
+
+    const renderContent = (): void => {
+      content.innerHTML = '';
+      const item = allItems.find((i) => i.id === activeRailId);
+      if (item) content.append(...item.build());
+    };
+
+    for (const group of railGroups) {
+      const groupEl = doc.createElement('div');
+      groupEl.className = 'rail-group';
+      const h = doc.createElement('h4');
+      h.className = 'rail-group-title';
+      h.textContent = t(group.titleKey);
+      groupEl.append(h);
+      for (const item of group.items) {
+        const btn = doc.createElement('button');
+        btn.type = 'button';
+        btn.className = 'rail-item';
+        if (item.id === activeRailId) btn.classList.add('active');
+        btn.textContent = item.label;
+        btn.dataset['railId'] = item.id;
+        btn.addEventListener('click', () => {
+          activeRailId = item.id;
+          for (const b of rail.querySelectorAll<HTMLButtonElement>('.rail-item')) {
+            b.classList.toggle('active', b.dataset['railId'] === activeRailId);
+          }
+          renderContent();
+        });
+        groupEl.append(btn);
+      }
+      rail.append(groupEl);
+    }
+
+    renderContent();
+    layout.append(rail, content);
 
     // The historical Reset button used to live in a footer here.
     // It moved into the profile dropdown as the "Réinitialiser"
     // footer action (cf. SPEC §9.4.4) — it only ever meant
     // "reset the active profile to defaults", which is now
     // explicit at the call site.
-    return [header, form];
+    return [header, layout];
   };
 
   // ---- helpers (closures capturing `doc`) ------------------------------
@@ -749,6 +816,7 @@ export function buildSettingsForm(
     kinds: readonly ('sans' | 'serif' | 'mono')[],
     value: string,
     onChange: (v: string) => void,
+    inheritedLabel?: string,
   ): HTMLElement {
     // Custom fonts (user-pasted) appear in every slot regardless of
     // the requested kinds — we don't know if a Google Fonts URL points
@@ -758,8 +826,90 @@ export function buildSettingsForm(
       (f) => kinds.includes(f.family) || f.custom,
     );
     const names = allowed.map((f) => f.name);
-    if (!names.includes(value)) names.unshift(value);
-    return selectField(label, names, value, onChange);
+    if (inheritedLabel !== undefined) {
+      if (!names.includes('')) names.unshift('');
+    } else if (!names.includes(value)) {
+      names.unshift(value);
+    }
+    return selectField(
+      label,
+      names,
+      value,
+      onChange,
+      inheritedLabel !== undefined
+        ? (v) => (v === '' ? inheritedLabel : v)
+        : undefined,
+    );
+  }
+
+  /**
+   * Purpose: Visual side picker for the four `border<Side>` bools.
+   * How: One inline `<svg>` with four clickable edges (top / right / bottom
+   *   / left). Each click toggles that side's bool on the parent Style via
+   *   the same `getStyle()` / `onChange` flow the other attr controls use.
+   */
+  function borderPicker(
+    getStyle: () => Style,
+    onChange: (next: Style) => void,
+  ): HTMLElement {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = doc.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 60 40');
+    svg.setAttribute('width', '64');
+    svg.setAttribute('height', '44');
+    svg.classList.add('border-picker');
+
+    // Decorative centre + click rects per side. Layered so the click rects
+    // sit on top and capture pointer events.
+    const center = doc.createElementNS(NS, 'rect');
+    center.setAttribute('x', '14');
+    center.setAttribute('y', '11');
+    center.setAttribute('width', '32');
+    center.setAttribute('height', '18');
+    center.setAttribute('fill', 'none');
+    center.setAttribute('stroke', '#dfe3e8');
+    center.setAttribute('stroke-dasharray', '3 2');
+    svg.append(center);
+
+    const sides: Array<{
+      key: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft';
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }> = [
+      { key: 'borderTop', x: 0, y: 0, w: 60, h: 8 },
+      { key: 'borderRight', x: 52, y: 0, w: 8, h: 40 },
+      { key: 'borderBottom', x: 0, y: 32, w: 60, h: 8 },
+      { key: 'borderLeft', x: 0, y: 0, w: 8, h: 40 },
+    ];
+
+    const refresh = (): void => {
+      const s = getStyle();
+      for (const child of Array.from(svg.querySelectorAll('rect.side'))) {
+        const key = child.getAttribute('data-side');
+        child.classList.toggle('active', Boolean(s[key as keyof Style]));
+      }
+    };
+
+    for (const side of sides) {
+      const rect = doc.createElementNS(NS, 'rect');
+      rect.setAttribute('class', 'side');
+      rect.setAttribute('data-side', side.key);
+      rect.setAttribute('x', String(side.x));
+      rect.setAttribute('y', String(side.y));
+      rect.setAttribute('width', String(side.w));
+      rect.setAttribute('height', String(side.h));
+      rect.addEventListener('click', () => {
+        const s = getStyle();
+        onChange({ ...s, [side.key]: !s[side.key] });
+        refresh();
+      });
+      svg.append(rect);
+    }
+
+    refresh();
+    return svg as unknown as HTMLElement;
   }
 
   // Renders the "Polices personnalisées" sub-row: lists what the user
@@ -856,117 +1006,155 @@ export function buildSettingsForm(
     return wrap;
   }
 
-  function styleRow(
-    label: string,
-    value: TextStyle,
-    onChange: (s: TextStyle) => void,
-    opts: { underline?: boolean; italic?: boolean; weight?: boolean } = {},
+  /**
+   * Purpose: Build a `<section>` for one ElementKey, listing every attr the
+   *   element's descriptor exposes as a labelled row.
+   * How: Iterate `ELEMENT_DESCRIPTORS[key].attrs`, dispatch each name through
+   *   `attrField`, append; the section title comes from `t('element.<key>')`.
+   */
+  function elementStyleSection(
+    key: ElementKey,
+    current: PdfSettings,
+    emit: () => void,
   ): HTMLElement {
-    const wrap = doc.createElement('div');
-    wrap.className = 'style-row';
-
-    const lbl = doc.createElement('span');
-    lbl.className = 'style-row-label';
-    lbl.textContent = label;
-
-    const sizeInput = doc.createElement('input');
-    sizeInput.type = 'number';
-    sizeInput.value = String(value.fontSize);
-    sizeInput.min = '6';
-    sizeInput.max = '72';
-    sizeInput.step = '1';
-    sizeInput.title = 'Taille (pt)';
-
-    let currentColor = value.color;
-    let currentUnderline = value.underline ?? false;
-    let currentItalic = value.italic ?? false;
-    let currentWeight = value.weight ?? 500;
-    const fire = (): void => {
-      const fs = Number(sizeInput.value);
-      const next: TextStyle = {
-        fontSize: Number.isFinite(fs) ? fs : value.fontSize,
-        color: currentColor,
-      };
-      if (opts.underline) next.underline = currentUnderline;
-      if (opts.italic) next.italic = currentItalic;
-      if (opts.weight) next.weight = currentWeight;
-      onChange(next);
+    const desc = ELEMENT_DESCRIPTORS[key];
+    // The getter is called on every attr write so each control merges
+    // against the *latest* style — otherwise edits in sibling controls
+    // would silently revert because each control would `{...stale, ...}`.
+    const getStyle = (): Style => current.styles[key];
+    const update = (next: Style): void => {
+      current.styles[key] = next;
+      emit();
     };
-    sizeInput.addEventListener('input', fire);
+    const rows = desc.attrs.map((attr) =>
+      attrField(attr, getStyle, update),
+    );
+    return section(t(`element.${key}` as 'element.body'), rows);
+  }
 
-    const picker = colorPicker(value.color, (c) => {
-      currentColor = c;
-      fire();
-    });
-
-    const sizeWrap = doc.createElement('span');
-    sizeWrap.className = 'style-size';
-    sizeWrap.append(sizeInput, doc.createTextNode(` ${t('settings.unit.pt')}`));
-
-    wrap.append(lbl, sizeWrap, picker);
-
-    if (opts.weight) {
-      const select = doc.createElement('select');
-      select.className = 'style-row-weight';
-      select.title = t('settings.style-row.weight-title');
-      for (const opt of WEIGHT_OPTIONS) {
-        const o = doc.createElement('option');
-        o.value = String(opt.value);
-        // Translate the label via the dedicated `weight.<value>` keys
-        // rather than trusting whatever was bundled in WEIGHT_OPTIONS.
-        const labelKey = `weight.${opt.value}` as
-          | 'weight.300'
-          | 'weight.400'
-          | 'weight.500'
-          | 'weight.600'
-          | 'weight.700';
-        o.textContent = t(labelKey);
-        if (opt.value === currentWeight) o.selected = true;
-        select.appendChild(o);
-      }
-      select.addEventListener('change', () => {
-        currentWeight = Number(select.value);
-        fire();
-      });
-      wrap.append(select);
+  /**
+   * Purpose: Build a single labelled row for one (attr, value) pair.
+   * How: Static switch on `attr` to pick the control kind + sensible
+   *   default fallback when the value is unset. The `getStyle` thunk is
+   *   re-evaluated on every write so concurrent attr edits compose.
+   */
+  function attrField(
+    attr: AttrName,
+    getStyle: () => Style,
+    onChange: (next: Style) => void,
+  ): HTMLElement {
+    const style = getStyle();
+    const set = <K extends keyof Style>(k: K, v: Style[K]): void =>
+      onChange({ ...getStyle(), [k]: v });
+    const label = t(`attr.${attr}` as 'attr.fontSize');
+    switch (attr) {
+      case 'family':
+        return fontField(
+          label,
+          ['sans', 'serif', 'mono'],
+          style.family ?? '',
+          (v) => set('family', v || undefined),
+          t('attr.inherited'),
+        );
+      case 'fontSize':
+        return numberField(
+          label,
+          style.fontSize ?? 11,
+          6,
+          72,
+          (v) => set('fontSize', v),
+        );
+      case 'color':
+        return colorField(label, style.color ?? '#000000', (v) =>
+          set('color', v),
+        );
+      case 'weight':
+        return selectField<string>(
+          label,
+          WEIGHT_OPTIONS.map((w) => String(w.value)),
+          String(style.weight ?? 500),
+          (v) => set('weight', Number(v)),
+          (v) =>
+            t(
+              `weight.${v}` as
+                | 'weight.300'
+                | 'weight.400'
+                | 'weight.500'
+                | 'weight.600'
+                | 'weight.700',
+            ),
+        );
+      case 'italic':
+        return checkboxField(label, style.italic ?? false, (v) =>
+          set('italic', v),
+        );
+      case 'underline':
+        return checkboxField(label, style.underline ?? false, (v) =>
+          set('underline', v),
+        );
+      case 'align':
+        return selectField<Align>(
+          label,
+          ALIGNS,
+          style.align ?? 'left',
+          (v) => set('align', v),
+          (v) => t(`align.${v}` as 'align.left'),
+        );
+      case 'marginAbove':
+        return numberField(
+          label,
+          style.marginAbove ?? 0,
+          0,
+          5,
+          (v) => set('marginAbove', v),
+          { step: 0.1 },
+        );
+      case 'marginBelow':
+        return numberField(
+          label,
+          style.marginBelow ?? 0,
+          0,
+          5,
+          (v) => set('marginBelow', v),
+          { step: 0.1 },
+        );
+      case 'lineHeight':
+        return numberField(
+          label,
+          style.lineHeight ?? 1.25,
+          1,
+          3,
+          (v) => set('lineHeight', v),
+          { step: 0.05 },
+        );
+      case 'padding':
+        return numberField(
+          label,
+          style.padding ?? 0,
+          0,
+          3,
+          (v) => set('padding', v),
+          { step: 0.1 },
+        );
+      case 'background':
+        return colorField(label, style.background ?? '#ffffff', (v) =>
+          set('background', v),
+        );
+      case 'borders':
+        return row(label, borderPicker(getStyle, onChange));
+      case 'borderColor':
+        return colorField(label, style.borderColor ?? '#d0d7de', (v) =>
+          set('borderColor', v),
+        );
+      case 'borderWidth':
+        return numberField(label, style.borderWidth ?? 1, 0, 10, (v) =>
+          set('borderWidth', v),
+        );
+      case 'borderRadius':
+        return numberField(label, style.borderRadius ?? 0, 0, 20, (v) =>
+          set('borderRadius', v),
+        );
     }
-
-    if (opts.italic) {
-      const italicLbl = doc.createElement('label');
-      italicLbl.className = 'style-row-toggle';
-      italicLbl.title = t('settings.style-row.italic-title');
-      const cb = doc.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = currentItalic;
-      cb.addEventListener('change', () => {
-        currentItalic = cb.checked;
-        fire();
-      });
-      const i = doc.createElement('i');
-      i.textContent = 'i';
-      italicLbl.append(cb, doc.createTextNode(' '), i);
-      wrap.append(italicLbl);
-    }
-
-    if (opts.underline) {
-      const underlineLbl = doc.createElement('label');
-      underlineLbl.className = 'style-row-toggle';
-      underlineLbl.title = t('settings.style-row.underline-title');
-      const cb = doc.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = currentUnderline;
-      cb.addEventListener('change', () => {
-        currentUnderline = cb.checked;
-        fire();
-      });
-      underlineLbl.append(
-        cb,
-        doc.createTextNode(` ${t('settings.style-row.underline')}`),
-      );
-      wrap.append(underlineLbl);
-    }
-
-    return wrap;
   }
 
   refresh();

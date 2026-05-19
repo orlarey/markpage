@@ -32,12 +32,16 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
       code: 'Roboto Mono',
     },
     styles: {
+      ...DEFAULT_SETTINGS.styles,
       h1: {
         fontSize: 30,
         color: '#111111',
         underline: false,
         italic: false,
         weight: 700,
+        align: 'center',
+        marginAbove: 1.8,
+        marginBelow: 0.6,
       },
       h2: {
         fontSize: 22,
@@ -45,6 +49,9 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
         underline: false,
         italic: false,
         weight: 600,
+        align: 'left',
+        marginAbove: 1.8,
+        marginBelow: 0.6,
       },
       h3: {
         fontSize: 16,
@@ -52,6 +59,9 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
         underline: false,
         italic: false,
         weight: 600,
+        align: 'left',
+        marginAbove: 1.8,
+        marginBelow: 0.6,
       },
       h4: {
         fontSize: 14,
@@ -59,22 +69,37 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
         underline: false,
         italic: false,
         weight: 500,
+        align: 'left',
+        marginAbove: 1.8,
+        marginBelow: 0.6,
       },
-      body: { fontSize: 11, color: '#1a1a1a' },
-      code: { fontSize: 10, color: '#1f2328' },
-      quote: { fontSize: 11, color: '#57606a', barColor: '#d0d7de' },
+      body: {
+        fontSize: 11,
+        color: '#1a1a1a',
+        align: 'left',
+        lineHeight: 1.45,
+        marginAbove: 1.3,
+        marginBelow: 1.3,
+      },
+      'code-inline': { fontSize: 10, color: '#1f2328' },
+      'code-block': {
+        ...DEFAULT_SETTINGS.styles['code-block'],
+        fontSize: 10,
+        color: '#1f2328',
+      },
+      quote: {
+        ...DEFAULT_SETTINGS.styles.quote,
+        fontSize: 11,
+        color: '#57606a',
+      },
     },
-    headingSpacing: { above: 1.8, below: 0.6 },
-    paragraphSpacing: 1.3,
-    lineHeight: 1.45,
-    justify: false,
   },
 };
 
 /**
  * Purpose: Overlay a preset on top of a base settings object.
  * How: Spread `preset` over `base`, then re-merge each nested record
- *   (margins, fonts, styles, headingSpacing, pageNumber) one level deep.
+ *   (margins, fonts, styles, pageNumber) one level deep.
  */
 export function applyStylePreset(
   base: PdfSettings,
@@ -91,10 +116,6 @@ export function applyStylePreset(
     styles: preset.styles
       ? { ...base.styles, ...preset.styles }
       : base.styles,
-    headingSpacing: {
-      ...base.headingSpacing,
-      ...(preset.headingSpacing ?? {}),
-    },
     pageNumber: {
       ...base.pageNumber,
       ...(preset.pageNumber ?? {}),
