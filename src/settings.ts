@@ -162,6 +162,99 @@ export const ELEMENT_KEYS: ElementKey[] = [
 ];
 
 /**
+ * Purpose: Name of one tweakable attribute on a `Style`. Drives the per-
+ *   element form generator (one helper per name).
+ */
+export type AttrName =
+  | 'family'
+  | 'fontSize'
+  | 'color'
+  | 'weight'
+  | 'italic'
+  | 'underline'
+  | 'align'
+  | 'marginAbove'
+  | 'marginBelow'
+  | 'lineHeight'
+  | 'padding'
+  | 'background'
+  | 'borderSides'
+  | 'borderColor'
+  | 'borderWidth'
+  | 'borderRadius';
+
+/**
+ * Purpose: Per-element list of attributes the matrix form should surface.
+ * How: One entry per `ElementKey`; the form generator iterates `attrs`
+ *   and dispatches to the per-attribute control builder.
+ */
+export const ELEMENT_DESCRIPTORS: Record<
+  ElementKey,
+  { category: 'inline' | 'block'; attrs: AttrName[] }
+> = {
+  body: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'lineHeight', 'marginAbove', 'marginBelow'],
+  },
+  h1: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
+  },
+  h2: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
+  },
+  h3: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
+  },
+  h4: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
+  },
+  'code-inline': {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color'],
+  },
+  'inline-link': {
+    category: 'inline',
+    attrs: ['color', 'weight', 'italic', 'underline'],
+  },
+  metadata: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align'],
+  },
+  'code-block': {
+    category: 'block',
+    attrs: ['family', 'fontSize', 'color', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+  },
+  quote: {
+    category: 'block',
+    attrs: ['family', 'fontSize', 'color', 'italic', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+  },
+  'math-block': {
+    category: 'block',
+    attrs: ['align', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+  },
+  mermaid: {
+    category: 'block',
+    attrs: ['align', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+  },
+  callout: {
+    category: 'block',
+    attrs: ['padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+  },
+  table: {
+    category: 'block',
+    attrs: ['fontSize', 'color', 'borderSides', 'borderColor', 'borderWidth'],
+  },
+  'page-number': {
+    category: 'inline',
+    attrs: ['fontSize', 'color', 'italic'],
+  },
+};
+
+/**
  * Purpose: Page margins in millimetres.
  */
 export interface Margins {

@@ -16,11 +16,18 @@
 // from window A can't be appended into window B.
 
 import {
+  ALIGNS,
+  BORDER_SIDES,
+  ELEMENT_DESCRIPTORS,
   PAGE_NUMBER_POSITIONS,
   PAGE_SIZES,
   PAGE_SIZE_LABELS,
   WEIGHT_OPTIONS,
+  type Align,
+  type AttrName,
+  type BorderSides,
   type DateMode,
+  type ElementKey,
   type MetadataField,
   type PageNumberPosition,
   type PdfSettings,
@@ -311,63 +318,20 @@ export function buildSettingsForm(
           { step: 0.1 },
         ),
       ]),
-      section(t('settings.section.headings'), [
-        styleRow(t('settings.field.h1'), current.styles.h1, (s) => {
-          current.styles.h1 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-        styleRow(t('settings.field.h2'), current.styles.h2, (s) => {
-          current.styles.h2 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-        styleRow(t('settings.field.h3'), current.styles.h3, (s) => {
-          current.styles.h3 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-        styleRow(t('settings.field.h4'), current.styles.h4, (s) => {
-          current.styles.h4 = s;
-          emit();
-        }, { underline: true, italic: true, weight: true }),
-      ]),
-      section(t('settings.section.body'), [
-        styleRow(t('settings.field.body-text'), current.styles.body, (s) => {
-          current.styles.body = s;
-          emit();
-        }),
-        styleRow(t('settings.field.code-text'), current.styles['code-inline'], (s) => {
-          // Phase 1: the form's "Code" row drives both inline + block
-          // styles uniformly, preserving v0.4 behaviour. Phase 3 will
-          // split them into two rows when the per-element form lands.
-          current.styles['code-inline'] = s;
-          current.styles['code-block'] = {
-            ...current.styles['code-block'],
-            fontSize: s.fontSize,
-            color: s.color,
-          };
-          emit();
-        }),
-        styleRow(
-          t('settings.field.quote'),
-          current.styles.quote,
-          (s) => {
-            current.styles.quote = s;
-            emit();
-          },
-        ),
-        colorField(
-          t('settings.field.quote-bar'),
-          current.styles.quote.borderColor ?? '#d0d7de',
-          (v) => {
-            current.styles.quote = {
-              ...current.styles.quote,
-              borderColor: v,
-              borderSides: current.styles.quote.borderSides ?? 'left',
-              borderWidth: current.styles.quote.borderWidth ?? 3,
-            };
-            emit();
-          },
-        ),
-      ]),
+      elementStyleSection('body', current, emit),
+      elementStyleSection('h1', current, emit),
+      elementStyleSection('h2', current, emit),
+      elementStyleSection('h3', current, emit),
+      elementStyleSection('h4', current, emit),
+      elementStyleSection('code-inline', current, emit),
+      elementStyleSection('inline-link', current, emit),
+      elementStyleSection('metadata', current, emit),
+      elementStyleSection('code-block', current, emit),
+      elementStyleSection('quote', current, emit),
+      elementStyleSection('math-block', current, emit),
+      elementStyleSection('mermaid', current, emit),
+      elementStyleSection('callout', current, emit),
+      elementStyleSection('table', current, emit),
       section(t('settings.section.page-number'), [
         selectField<PageNumberPosition>(
           t('settings.field.position'),
@@ -379,45 +343,8 @@ export function buildSettingsForm(
           },
           (v) => POSITION_LABELS()[v],
         ),
-        numberField(
-          t('settings.field.size-pt'),
-          current.styles['page-number'].fontSize ?? 9,
-          5,
-          24,
-          (v) => {
-            current.styles['page-number'] = {
-              ...current.styles['page-number'],
-              fontSize: v,
-            };
-            emit();
-          },
-          { disabled: current.pageNumber.position === 'none' },
-        ),
-        checkboxField(
-          t('settings.field.italic'),
-          current.styles['page-number'].italic ?? false,
-          (v) => {
-            current.styles['page-number'] = {
-              ...current.styles['page-number'],
-              italic: v,
-            };
-            emit();
-          },
-          current.pageNumber.position === 'none',
-        ),
-        colorField(
-          t('settings.field.color'),
-          current.styles['page-number'].color ?? '#57606a',
-          (v) => {
-            current.styles['page-number'] = {
-              ...current.styles['page-number'],
-              color: v,
-            };
-            emit();
-          },
-          current.pageNumber.position === 'none',
-        ),
       ]),
+      elementStyleSection('page-number', current, emit),
       section(t('settings.section.mermaid'), [
         numberField(
           t('settings.field.mermaid-scale'),
@@ -871,118 +798,154 @@ export function buildSettingsForm(
     return wrap;
   }
 
-  function styleRow(
-    label: string,
-    value: Style,
-    onChange: (s: Style) => void,
-    opts: { underline?: boolean; italic?: boolean; weight?: boolean } = {},
+  /**
+   * Purpose: Build a `<section>` for one ElementKey, listing every attr the
+   *   element's descriptor exposes as a labelled row.
+   * How: Iterate `ELEMENT_DESCRIPTORS[key].attrs`, dispatch each name through
+   *   `attrField`, append; the section title comes from `t('element.<key>')`.
+   */
+  function elementStyleSection(
+    key: ElementKey,
+    current: PdfSettings,
+    emit: () => void,
   ): HTMLElement {
-    const wrap = doc.createElement('div');
-    wrap.className = 'style-row';
-
-    const lbl = doc.createElement('span');
-    lbl.className = 'style-row-label';
-    lbl.textContent = label;
-
-    const sizeInput = doc.createElement('input');
-    sizeInput.type = 'number';
-    sizeInput.value = String(value.fontSize ?? '');
-    sizeInput.min = '6';
-    sizeInput.max = '72';
-    sizeInput.step = '1';
-    sizeInput.title = 'Taille (pt)';
-
-    let currentColor = value.color ?? '#000000';
-    let currentUnderline = value.underline ?? false;
-    let currentItalic = value.italic ?? false;
-    let currentWeight = value.weight ?? 500;
-    const fire = (): void => {
-      const fs = Number(sizeInput.value);
-      const next: Style = {
-        ...value,
-        fontSize: Number.isFinite(fs) ? fs : value.fontSize,
-        color: currentColor,
-      };
-      if (opts.underline) next.underline = currentUnderline;
-      if (opts.italic) next.italic = currentItalic;
-      if (opts.weight) next.weight = currentWeight;
-      onChange(next);
+    const desc = ELEMENT_DESCRIPTORS[key];
+    const update = (next: Style): void => {
+      current.styles[key] = next;
+      emit();
     };
-    sizeInput.addEventListener('input', fire);
+    const rows = desc.attrs.map((attr) =>
+      attrField(attr, current.styles[key], update),
+    );
+    return section(t(`element.${key}` as 'element.body'), rows);
+  }
 
-    const picker = colorPicker(value.color ?? '#000000', (c) => {
-      currentColor = c;
-      fire();
-    });
-
-    const sizeWrap = doc.createElement('span');
-    sizeWrap.className = 'style-size';
-    sizeWrap.append(sizeInput, doc.createTextNode(` ${t('settings.unit.pt')}`));
-
-    wrap.append(lbl, sizeWrap, picker);
-
-    if (opts.weight) {
-      const select = doc.createElement('select');
-      select.className = 'style-row-weight';
-      select.title = t('settings.style-row.weight-title');
-      for (const opt of WEIGHT_OPTIONS) {
-        const o = doc.createElement('option');
-        o.value = String(opt.value);
-        // Translate the label via the dedicated `weight.<value>` keys
-        // rather than trusting whatever was bundled in WEIGHT_OPTIONS.
-        const labelKey = `weight.${opt.value}` as
-          | 'weight.300'
-          | 'weight.400'
-          | 'weight.500'
-          | 'weight.600'
-          | 'weight.700';
-        o.textContent = t(labelKey);
-        if (opt.value === currentWeight) o.selected = true;
-        select.appendChild(o);
-      }
-      select.addEventListener('change', () => {
-        currentWeight = Number(select.value);
-        fire();
-      });
-      wrap.append(select);
+  /**
+   * Purpose: Build a single labelled row for one (attr, value) pair.
+   * How: Static switch on `attr` to pick the control kind + sensible
+   *   default fallback when the value is unset.
+   */
+  function attrField(
+    attr: AttrName,
+    style: Style,
+    onChange: (next: Style) => void,
+  ): HTMLElement {
+    const set = <K extends keyof Style>(k: K, v: Style[K]): void =>
+      onChange({ ...style, [k]: v });
+    const label = t(`attr.${attr}` as 'attr.fontSize');
+    switch (attr) {
+      case 'family':
+        return fontField(
+          label,
+          ['sans', 'serif', 'mono'],
+          style.family ?? '',
+          (v) => set('family', v || undefined),
+        );
+      case 'fontSize':
+        return numberField(
+          label,
+          style.fontSize ?? 11,
+          6,
+          72,
+          (v) => set('fontSize', v),
+        );
+      case 'color':
+        return colorField(label, style.color ?? '#000000', (v) =>
+          set('color', v),
+        );
+      case 'weight':
+        return selectField<string>(
+          label,
+          WEIGHT_OPTIONS.map((w) => String(w.value)),
+          String(style.weight ?? 500),
+          (v) => set('weight', Number(v)),
+          (v) =>
+            t(
+              `weight.${v}` as
+                | 'weight.300'
+                | 'weight.400'
+                | 'weight.500'
+                | 'weight.600'
+                | 'weight.700',
+            ),
+        );
+      case 'italic':
+        return checkboxField(label, style.italic ?? false, (v) =>
+          set('italic', v),
+        );
+      case 'underline':
+        return checkboxField(label, style.underline ?? false, (v) =>
+          set('underline', v),
+        );
+      case 'align':
+        return selectField<Align>(
+          label,
+          ALIGNS,
+          style.align ?? 'left',
+          (v) => set('align', v),
+          (v) => t(`align.${v}` as 'align.left'),
+        );
+      case 'marginAbove':
+        return numberField(
+          label,
+          style.marginAbove ?? 0,
+          0,
+          5,
+          (v) => set('marginAbove', v),
+          { step: 0.1 },
+        );
+      case 'marginBelow':
+        return numberField(
+          label,
+          style.marginBelow ?? 0,
+          0,
+          5,
+          (v) => set('marginBelow', v),
+          { step: 0.1 },
+        );
+      case 'lineHeight':
+        return numberField(
+          label,
+          style.lineHeight ?? 1.25,
+          1,
+          3,
+          (v) => set('lineHeight', v),
+          { step: 0.05 },
+        );
+      case 'padding':
+        return numberField(
+          label,
+          style.padding ?? 0,
+          0,
+          3,
+          (v) => set('padding', v),
+          { step: 0.1 },
+        );
+      case 'background':
+        return colorField(label, style.background ?? '#ffffff', (v) =>
+          set('background', v),
+        );
+      case 'borderSides':
+        return selectField<BorderSides>(
+          label,
+          BORDER_SIDES,
+          style.borderSides ?? 'none',
+          (v) => set('borderSides', v),
+          (v) => t(`border-side.${v}` as 'border-side.none'),
+        );
+      case 'borderColor':
+        return colorField(label, style.borderColor ?? '#d0d7de', (v) =>
+          set('borderColor', v),
+        );
+      case 'borderWidth':
+        return numberField(label, style.borderWidth ?? 1, 0, 10, (v) =>
+          set('borderWidth', v),
+        );
+      case 'borderRadius':
+        return numberField(label, style.borderRadius ?? 0, 0, 20, (v) =>
+          set('borderRadius', v),
+        );
     }
-
-    if (opts.italic) {
-      const italicLbl = doc.createElement('label');
-      italicLbl.className = 'style-row-toggle';
-      italicLbl.title = t('settings.style-row.italic-title');
-      const cb = doc.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = currentItalic;
-      cb.addEventListener('change', () => {
-        currentItalic = cb.checked;
-        fire();
-      });
-      const i = doc.createElement('i');
-      i.textContent = 'i';
-      italicLbl.append(cb, doc.createTextNode(' '), i);
-      wrap.append(italicLbl);
-    }
-
-    if (opts.underline) {
-      const underlineLbl = doc.createElement('label');
-      underlineLbl.className = 'style-row-toggle';
-      underlineLbl.title = t('settings.style-row.underline-title');
-      const cb = doc.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = currentUnderline;
-      cb.addEventListener('change', () => {
-        currentUnderline = cb.checked;
-        fire();
-      });
-      underlineLbl.append(
-        cb,
-        doc.createTextNode(` ${t('settings.style-row.underline')}`),
-      );
-      wrap.append(underlineLbl);
-    }
-
-    return wrap;
   }
 
   refresh();
