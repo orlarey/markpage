@@ -136,6 +136,10 @@ export function buildSettingsForm(
 
   let current: PdfSettings = clone(handlers.getSettings());
 
+  // Persisted across refresh() calls so changing one field doesn't
+  // bounce the user back to the first rail entry.
+  let activeRailId = 'app';
+
   const emit = (): void => handlers.onChange(clone(current));
   // Re-reads from handlers on every call so callers can refresh after
   // mutating state outside the form (profile switch, Reset, imports).
@@ -185,232 +189,431 @@ export function buildSettingsForm(
     });
     header.append(trigger);
 
-    const form = doc.createElement('div');
-    form.className = 'settings-form';
+    // ---- Rail navigation + content -----------------------------------
+    // Each rail entry knows how to (re)build its section content; the
+    // active entry's content is the only thing displayed in the right
+    // pane. Switching entry rebuilds only that pane.
+    const railGroups: Array<{
+      titleKey:
+        | 'rail.group.app'
+        | 'rail.group.document'
+        | 'rail.group.typography'
+        | 'rail.group.content';
+      items: Array<{
+        id: string;
+        label: string;
+        build: () => HTMLElement[];
+      }>;
+    }> = [
+      {
+        titleKey: 'rail.group.app',
+        items: [
+          {
+            id: 'app',
+            label: t('settings.section.ui-language'),
+            build: () => [
+              section(t('settings.section.ui-language'), [
+                uiLanguageField(),
+                editorFontField(),
+                editorTextColorField(),
+              ]),
+            ],
+          },
+        ],
+      },
+      {
+        titleKey: 'rail.group.document',
+        items: [
+          {
+            id: 'doc-page',
+            label: t('settings.section.page'),
+            build: () => [
+              section(t('settings.section.page'), [
+                selectField(
+                  t('settings.field.page-size'),
+                  PAGE_SIZES,
+                  current.pageSize,
+                  (v) => {
+                    current.pageSize = v;
+                    emit();
+                  },
+                  (v) => PAGE_SIZE_LABELS[v],
+                ),
+                selectField<Language>(
+                  t('settings.field.doc-language'),
+                  ['fr', 'en'],
+                  current.language,
+                  (v) => {
+                    current.language = v;
+                    emit();
+                  },
+                  (v) => (v === 'fr' ? 'Français' : 'English'),
+                ),
+                checkboxField(
+                  t('settings.field.justify'),
+                  current.justify,
+                  (v) => {
+                    current.justify = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.line-height'),
+                  current.lineHeight,
+                  1,
+                  2.5,
+                  (v) => {
+                    current.lineHeight = v;
+                    emit();
+                  },
+                  { step: 0.05 },
+                ),
+              ]),
+            ],
+          },
+          {
+            id: 'doc-margins',
+            label: t('settings.section.margins'),
+            build: () => [
+              section(t('settings.section.margins'), [
+                numberField(
+                  t('settings.field.margin-top'),
+                  current.margins.top,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.top = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.margin-bottom'),
+                  current.margins.bottom,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.bottom = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.margin-left'),
+                  current.margins.left,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.left = v;
+                    emit();
+                  },
+                ),
+                numberField(
+                  t('settings.field.margin-right'),
+                  current.margins.right,
+                  0,
+                  100,
+                  (v) => {
+                    current.margins.right = v;
+                    emit();
+                  },
+                ),
+              ]),
+            ],
+          },
+          {
+            id: 'doc-metadata',
+            label: t('settings.section.author-date'),
+            build: () => [
+              section(t('settings.section.author-date'), [
+                metadataField(
+                  t('settings.field.author'),
+                  current.author,
+                  (v) => {
+                    current.author = v;
+                    emit();
+                  },
+                ),
+                metadataField(
+                  t('settings.field.organization'),
+                  current.organization,
+                  (v) => {
+                    current.organization = v;
+                    emit();
+                  },
+                ),
+                dateField(
+                  current.date.mode,
+                  current.date.custom,
+                  (mode, custom) => {
+                    current.date = { mode, custom };
+                    emit();
+                    refresh();
+                  },
+                ),
+              ]),
+            ],
+          },
+          {
+            id: 'doc-spacing',
+            label: t('settings.section.spacing'),
+            build: () => [
+              section(t('settings.section.spacing'), [
+                numberField(
+                  t('settings.field.heading-spacing-above'),
+                  current.headingSpacing.above,
+                  0,
+                  5,
+                  (v) => {
+                    current.headingSpacing.above = v;
+                    emit();
+                  },
+                  { step: 0.1 },
+                ),
+                numberField(
+                  t('settings.field.heading-spacing-below'),
+                  current.headingSpacing.below,
+                  0,
+                  5,
+                  (v) => {
+                    current.headingSpacing.below = v;
+                    emit();
+                  },
+                  { step: 0.1 },
+                ),
+                numberField(
+                  t('settings.field.paragraph-spacing'),
+                  current.paragraphSpacing,
+                  0,
+                  3,
+                  (v) => {
+                    current.paragraphSpacing = v;
+                    emit();
+                  },
+                  { step: 0.1 },
+                ),
+              ]),
+            ],
+          },
+          {
+            id: 'doc-page-number',
+            label: t('settings.section.page-number'),
+            build: () => [
+              section(t('settings.section.page-number'), [
+                selectField<PageNumberPosition>(
+                  t('settings.field.position'),
+                  PAGE_NUMBER_POSITIONS,
+                  current.pageNumber.position,
+                  (v) => {
+                    current.pageNumber.position = v;
+                    emit();
+                  },
+                  (v) => POSITION_LABELS()[v],
+                ),
+              ]),
+              elementStyleSection('page-number', current, emit),
+            ],
+          },
+        ],
+      },
+      {
+        titleKey: 'rail.group.typography',
+        items: [
+          {
+            id: 'typo-fonts',
+            label: t('settings.section.fonts'),
+            build: () => [
+              section(t('settings.section.fonts'), [
+                fontField(
+                  t('settings.field.font-headings'),
+                  ['sans', 'serif'],
+                  current.fonts.headings,
+                  (v) => {
+                    current.fonts.headings = v;
+                    emit();
+                  },
+                ),
+                fontField(
+                  t('settings.field.font-body'),
+                  ['sans', 'serif'],
+                  current.fonts.body,
+                  (v) => {
+                    current.fonts.body = v;
+                    emit();
+                  },
+                ),
+                fontField(
+                  t('settings.field.font-code'),
+                  ['mono'],
+                  current.fonts.code,
+                  (v) => {
+                    current.fonts.code = v;
+                    emit();
+                  },
+                ),
+                customFontsField(),
+              ]),
+            ],
+          },
+          ...(
+            [
+              'body',
+              'h1',
+              'h2',
+              'h3',
+              'h4',
+              'code-inline',
+              'inline-link',
+              'metadata',
+              'code-block',
+              'quote',
+              'table',
+            ] as const
+          ).map((key) => ({
+            id: `typo-${key}`,
+            label: t(`element.${key}`),
+            build: () => [elementStyleSection(key, current, emit)],
+          })),
+        ],
+      },
+      {
+        titleKey: 'rail.group.content',
+        items: [
+          {
+            id: 'content-math',
+            label: t('settings.section.math'),
+            build: () => [
+              section(t('settings.section.math'), [
+                selectField<MathFontSet>(
+                  t('settings.field.math-font-set'),
+                  MATH_FONT_SETS,
+                  current.mathFontSet,
+                  (v) => {
+                    current.mathFontSet = v;
+                    emit();
+                  },
+                  (fs) => t(`math-font-set.${fs}`),
+                ),
+                numberField(
+                  t('settings.field.math-scale'),
+                  Math.round(current.mathScale * 100),
+                  50,
+                  200,
+                  (v) => {
+                    current.mathScale = v / 100;
+                    emit();
+                  },
+                  { step: 5 },
+                ),
+              ]),
+              elementStyleSection('math-block', current, emit),
+            ],
+          },
+          {
+            id: 'content-mermaid',
+            label: t('settings.section.mermaid'),
+            build: () => [
+              section(t('settings.section.mermaid'), [
+                numberField(
+                  t('settings.field.mermaid-scale'),
+                  current.mermaidMaxScale,
+                  1,
+                  4,
+                  (v) => {
+                    current.mermaidMaxScale = v;
+                    emit();
+                  },
+                  { step: 0.1 },
+                ),
+                numberField(
+                  t('settings.field.mermaid-width'),
+                  Math.round(current.mermaidMaxWidthPct * 100),
+                  10,
+                  100,
+                  (v) => {
+                    current.mermaidMaxWidthPct = v / 100;
+                    emit();
+                  },
+                  { step: 5 },
+                ),
+                numberField(
+                  t('settings.field.mermaid-height'),
+                  Math.round(current.mermaidMaxHeightPct * 100),
+                  10,
+                  100,
+                  (v) => {
+                    current.mermaidMaxHeightPct = v / 100;
+                    emit();
+                  },
+                  { step: 5 },
+                ),
+              ]),
+              elementStyleSection('mermaid', current, emit),
+            ],
+          },
+          {
+            id: 'content-callout',
+            label: t('element.callout'),
+            build: () => [elementStyleSection('callout', current, emit)],
+          },
+        ],
+      },
+    ];
 
-    form.append(
-      // UI language sits at the very top because it's the one
-      // setting that doesn't belong to the PdfSettings profile — it
-      // lives in the user's localStorage and applies to every doc /
-      // profile. Changing it reloads the page (cf. setLanguage).
-      section(t('settings.section.ui-language'), [
-        uiLanguageField(),
-        editorFontField(),
-        editorTextColorField(),
-      ]),
-      section(t('settings.section.author-date'), [
-        metadataField(t('settings.field.author'), current.author, (v) => {
-          current.author = v;
-          emit();
-        }),
-        metadataField(t('settings.field.organization'), current.organization, (v) => {
-          current.organization = v;
-          emit();
-        }),
-        dateField(current.date.mode, current.date.custom, (mode, custom) => {
-          current.date = { mode, custom };
-          emit();
-          refresh();
-        }),
-      ]),
-      section(t('settings.section.page'), [
-        selectField(
-          t('settings.field.page-size'),
-          PAGE_SIZES,
-          current.pageSize,
-          (v) => {
-            current.pageSize = v;
-            emit();
-          },
-          (v) => PAGE_SIZE_LABELS[v],
-        ),
-        selectField<Language>(
-          t('settings.field.doc-language'),
-          ['fr', 'en'],
-          current.language,
-          (v) => {
-            current.language = v;
-            emit();
-          },
-          (v) => (v === 'fr' ? 'Français' : 'English'),
-        ),
-        checkboxField(t('settings.field.justify'), current.justify, (v) => {
-          current.justify = v;
-          emit();
-        }),
-        numberField(
-          t('settings.field.line-height'),
-          current.lineHeight,
-          1,
-          2.5,
-          (v) => {
-            current.lineHeight = v;
-            emit();
-          },
-          { step: 0.05 },
-        ),
-      ]),
-      section(t('settings.section.fonts'), [
-        fontField(t('settings.field.font-headings'), ['sans', 'serif'], current.fonts.headings, (v) => {
-          current.fonts.headings = v;
-          emit();
-        }),
-        fontField(t('settings.field.font-body'), ['sans', 'serif'], current.fonts.body, (v) => {
-          current.fonts.body = v;
-          emit();
-        }),
-        fontField(t('settings.field.font-code'), ['mono'], current.fonts.code, (v) => {
-          current.fonts.code = v;
-          emit();
-        }),
-        customFontsField(),
-      ]),
-      section(t('settings.section.margins'), [
-        numberField(t('settings.field.margin-top'), current.margins.top, 0, 100, (v) => {
-          current.margins.top = v;
-          emit();
-        }),
-        numberField(t('settings.field.margin-bottom'), current.margins.bottom, 0, 100, (v) => {
-          current.margins.bottom = v;
-          emit();
-        }),
-        numberField(t('settings.field.margin-left'), current.margins.left, 0, 100, (v) => {
-          current.margins.left = v;
-          emit();
-        }),
-        numberField(t('settings.field.margin-right'), current.margins.right, 0, 100, (v) => {
-          current.margins.right = v;
-          emit();
-        }),
-      ]),
-      section(t('settings.section.spacing'), [
-        numberField(
-          t('settings.field.heading-spacing-above'),
-          current.headingSpacing.above,
-          0,
-          5,
-          (v) => {
-            current.headingSpacing.above = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-        numberField(
-          t('settings.field.heading-spacing-below'),
-          current.headingSpacing.below,
-          0,
-          5,
-          (v) => {
-            current.headingSpacing.below = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-        numberField(
-          t('settings.field.paragraph-spacing'),
-          current.paragraphSpacing,
-          0,
-          3,
-          (v) => {
-            current.paragraphSpacing = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-      ]),
-      elementStyleSection('body', current, emit),
-      elementStyleSection('h1', current, emit),
-      elementStyleSection('h2', current, emit),
-      elementStyleSection('h3', current, emit),
-      elementStyleSection('h4', current, emit),
-      elementStyleSection('code-inline', current, emit),
-      elementStyleSection('inline-link', current, emit),
-      elementStyleSection('metadata', current, emit),
-      elementStyleSection('code-block', current, emit),
-      elementStyleSection('quote', current, emit),
-      elementStyleSection('math-block', current, emit),
-      elementStyleSection('mermaid', current, emit),
-      elementStyleSection('callout', current, emit),
-      elementStyleSection('table', current, emit),
-      section(t('settings.section.page-number'), [
-        selectField<PageNumberPosition>(
-          t('settings.field.position'),
-          PAGE_NUMBER_POSITIONS,
-          current.pageNumber.position,
-          (v) => {
-            current.pageNumber.position = v;
-            emit();
-          },
-          (v) => POSITION_LABELS()[v],
-        ),
-      ]),
-      elementStyleSection('page-number', current, emit),
-      section(t('settings.section.mermaid'), [
-        numberField(
-          t('settings.field.mermaid-scale'),
-          current.mermaidMaxScale,
-          1,
-          4,
-          (v) => {
-            current.mermaidMaxScale = v;
-            emit();
-          },
-          { step: 0.1 },
-        ),
-        numberField(
-          t('settings.field.mermaid-width'),
-          Math.round(current.mermaidMaxWidthPct * 100),
-          10,
-          100,
-          (v) => {
-            current.mermaidMaxWidthPct = v / 100;
-            emit();
-          },
-          { step: 5 },
-        ),
-        numberField(
-          t('settings.field.mermaid-height'),
-          Math.round(current.mermaidMaxHeightPct * 100),
-          10,
-          100,
-          (v) => {
-            current.mermaidMaxHeightPct = v / 100;
-            emit();
-          },
-          { step: 5 },
-        ),
-      ]),
-      section(t('settings.section.math'), [
-        selectField<MathFontSet>(
-          t('settings.field.math-font-set'),
-          MATH_FONT_SETS,
-          current.mathFontSet,
-          (v) => {
-            current.mathFontSet = v;
-            emit();
-          },
-          (fs) => t(`math-font-set.${fs}`),
-        ),
-        numberField(
-          t('settings.field.math-scale'),
-          Math.round(current.mathScale * 100),
-          50,
-          200,
-          (v) => {
-            current.mathScale = v / 100;
-            emit();
-          },
-          { step: 5 },
-        ),
-      ]),
-    );
+    const layout = doc.createElement('div');
+    layout.className = 'settings-form settings-layout';
+
+    const rail = doc.createElement('nav');
+    rail.className = 'settings-rail';
+    rail.setAttribute('aria-label', t('settings.h1'));
+
+    const content = doc.createElement('div');
+    content.className = 'settings-content';
+
+    const allItems = railGroups.flatMap((g) => g.items);
+    if (!allItems.some((i) => i.id === activeRailId)) {
+      activeRailId = allItems[0]?.id ?? '';
+    }
+
+    const renderContent = (): void => {
+      content.innerHTML = '';
+      const item = allItems.find((i) => i.id === activeRailId);
+      if (item) content.append(...item.build());
+    };
+
+    for (const group of railGroups) {
+      const groupEl = doc.createElement('div');
+      groupEl.className = 'rail-group';
+      const h = doc.createElement('h4');
+      h.className = 'rail-group-title';
+      h.textContent = t(group.titleKey);
+      groupEl.append(h);
+      for (const item of group.items) {
+        const btn = doc.createElement('button');
+        btn.type = 'button';
+        btn.className = 'rail-item';
+        if (item.id === activeRailId) btn.classList.add('active');
+        btn.textContent = item.label;
+        btn.dataset['railId'] = item.id;
+        btn.addEventListener('click', () => {
+          activeRailId = item.id;
+          for (const b of rail.querySelectorAll<HTMLButtonElement>('.rail-item')) {
+            b.classList.toggle('active', b.dataset['railId'] === activeRailId);
+          }
+          renderContent();
+        });
+        groupEl.append(btn);
+      }
+      rail.append(groupEl);
+    }
+
+    renderContent();
+    layout.append(rail, content);
 
     // The historical Reset button used to live in a footer here.
     // It moved into the profile dropdown as the "Réinitialiser"
     // footer action (cf. SPEC §9.4.4) — it only ever meant
     // "reset the active profile to defaults", which is now
     // explicit at the call site.
-    return [header, form];
+    return [header, layout];
   };
 
   // ---- helpers (closures capturing `doc`) ------------------------------
@@ -691,6 +894,7 @@ export function buildSettingsForm(
     kinds: readonly ('sans' | 'serif' | 'mono')[],
     value: string,
     onChange: (v: string) => void,
+    inheritedLabel?: string,
   ): HTMLElement {
     // Custom fonts (user-pasted) appear in every slot regardless of
     // the requested kinds — we don't know if a Google Fonts URL points
@@ -700,8 +904,20 @@ export function buildSettingsForm(
       (f) => kinds.includes(f.family) || f.custom,
     );
     const names = allowed.map((f) => f.name);
-    if (!names.includes(value)) names.unshift(value);
-    return selectField(label, names, value, onChange);
+    if (inheritedLabel !== undefined) {
+      if (!names.includes('')) names.unshift('');
+    } else if (!names.includes(value)) {
+      names.unshift(value);
+    }
+    return selectField(
+      label,
+      names,
+      value,
+      onChange,
+      inheritedLabel !== undefined
+        ? (v) => (v === '' ? inheritedLabel : v)
+        : undefined,
+    );
   }
 
   // Renders the "Polices personnalisées" sub-row: lists what the user
@@ -810,12 +1026,16 @@ export function buildSettingsForm(
     emit: () => void,
   ): HTMLElement {
     const desc = ELEMENT_DESCRIPTORS[key];
+    // The getter is called on every attr write so each control merges
+    // against the *latest* style — otherwise edits in sibling controls
+    // would silently revert because each control would `{...stale, ...}`.
+    const getStyle = (): Style => current.styles[key];
     const update = (next: Style): void => {
       current.styles[key] = next;
       emit();
     };
     const rows = desc.attrs.map((attr) =>
-      attrField(attr, current.styles[key], update),
+      attrField(attr, getStyle, update),
     );
     return section(t(`element.${key}` as 'element.body'), rows);
   }
@@ -823,15 +1043,17 @@ export function buildSettingsForm(
   /**
    * Purpose: Build a single labelled row for one (attr, value) pair.
    * How: Static switch on `attr` to pick the control kind + sensible
-   *   default fallback when the value is unset.
+   *   default fallback when the value is unset. The `getStyle` thunk is
+   *   re-evaluated on every write so concurrent attr edits compose.
    */
   function attrField(
     attr: AttrName,
-    style: Style,
+    getStyle: () => Style,
     onChange: (next: Style) => void,
   ): HTMLElement {
+    const style = getStyle();
     const set = <K extends keyof Style>(k: K, v: Style[K]): void =>
-      onChange({ ...style, [k]: v });
+      onChange({ ...getStyle(), [k]: v });
     const label = t(`attr.${attr}` as 'attr.fontSize');
     switch (attr) {
       case 'family':
@@ -840,6 +1062,7 @@ export function buildSettingsForm(
           ['sans', 'serif', 'mono'],
           style.family ?? '',
           (v) => set('family', v || undefined),
+          t('attr.inherited'),
         );
       case 'fontSize':
         return numberField(

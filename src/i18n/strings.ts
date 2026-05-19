@@ -177,6 +177,11 @@ const FR = {
   'math-font-set.stix2': 'STIX 2 (serif)',
   'math-font-set.asana': 'Asana Math (serif)',
   'math-font-set.tex': 'TeX classique',
+  // ---- settings rail navigation groups -----------------------------
+  'rail.group.app': 'Application',
+  'rail.group.document': 'Document',
+  'rail.group.typography': 'Typographie',
+  'rail.group.content': 'Contenu',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.h1': 'Titre 1 (h1)',
@@ -210,6 +215,7 @@ const FR = {
   'attr.borderColor': 'Couleur bordure',
   'attr.borderWidth': 'Épaisseur bordure (px)',
   'attr.borderRadius': 'Arrondi (px)',
+  'attr.inherited': 'Hérité',
   // ---- align options -----------------------------------------------
   'align.left': 'Gauche',
   'align.center': 'Centré',
@@ -409,6 +415,11 @@ const EN: Record<keyof typeof FR, string> = {
   'math-font-set.stix2': 'STIX 2 (serif)',
   'math-font-set.asana': 'Asana Math (serif)',
   'math-font-set.tex': 'Classic TeX',
+  // ---- settings rail navigation groups -----------------------------
+  'rail.group.app': 'Application',
+  'rail.group.document': 'Document',
+  'rail.group.typography': 'Typography',
+  'rail.group.content': 'Content',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.h1': 'Heading 1 (h1)',
@@ -442,6 +453,7 @@ const EN: Record<keyof typeof FR, string> = {
   'attr.borderColor': 'Border colour',
   'attr.borderWidth': 'Border width (px)',
   'attr.borderRadius': 'Border radius (px)',
+  'attr.inherited': 'Inherited',
   // ---- align options -----------------------------------------------
   'align.left': 'Left',
   'align.center': 'Center',
