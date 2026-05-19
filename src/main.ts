@@ -196,6 +196,28 @@ async function runGC(): Promise<void> {
  *   then event wiring (autosave, view toggle, profile/doc handlers, hotkeys).
  */
 async function bootstrap(): Promise<void> {
+  // If this page load is returning from the OneDrive OAuth redirect (or
+  // the previous click queued a pending upload), let MSAL parse the hash
+  // and tell us whether to resume the in-flight save once bootstrap is
+  // finished mounting the rest of the app. Restore the original `?doc=`
+  // — Microsoft does not preserve query strings across the auth bounce.
+  let onedriveResumeUuid: string | null = null;
+  if (
+    window.location.hash.includes('code=') ||
+    window.location.hash.includes('error=') ||
+    sessionStorage.getItem('markpage:onedrive-pending')
+  ) {
+    const { processOAuthRedirect } = await import('./onedrive');
+    const r = await processOAuthRedirect();
+    onedriveResumeUuid = r.resumeDocUuid;
+    if (onedriveResumeUuid) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('doc', onedriveResumeUuid);
+      url.hash = '';
+      window.history.replaceState({}, '', url.toString());
+    }
+  }
+
   // One-shot rebranding migration: rename every `md2pdf:` localStorage
   // key and the legacy IndexedDB database into the `markpage` namespace.
   // Idempotent, runs before any other storage module is touched.
@@ -623,6 +645,50 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
+  // Upload the same self-contained .md to the user's OneDrive app-folder
+  // via Microsoft Graph. First call: stores a pending marker + redirects
+  // to Microsoft login, then resumes here on return. Subsequent calls hit
+  // the silent token path and upload immediately. Also generates an
+  // anonymous view-only share link and copies it to the clipboard.
+  const triggerSaveToOneDrive = (): void => {
+    const source = editor.getValue();
+    void (async () => {
+      try {
+        const refified = refifyImageUrls(source);
+        const expanded = await expandRefsToDataUrls(refified);
+        const filename = `${slugifyDocName(currentDoc.name)}.md`;
+        const { uploadToOneDrive } = await import('./onedrive');
+        const result = await uploadToOneDrive(
+          filename,
+          expanded,
+          currentDoc.uuid,
+          { createShareLink: true },
+        );
+        if (result === null) return; // redirecting for login
+        if (!result.ok) {
+          globalThis.alert(t('onedrive.failed', { msg: result.error }));
+          return;
+        }
+        if (result.shareUrl) {
+          try {
+            await navigator.clipboard.writeText(result.shareUrl);
+            globalThis.alert(t('onedrive.uploaded-with-link'));
+          } catch {
+            globalThis.alert(
+              t('onedrive.uploaded-link-shown', { url: result.shareUrl }),
+            );
+          }
+        } else {
+          globalThis.alert(t('onedrive.uploaded'));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('OneDrive save failed', err);
+        globalThis.alert(t('onedrive.failed', { msg }));
+      }
+    })();
+  };
+
   // SPEC §21 — Markdown → LaTeX conversion via marked.lexer + our
   // own token walker (export-latex.ts). Single `.tex` when the doc
   // references no images / mermaid / chart blocks ; otherwise a
@@ -885,6 +951,7 @@ async function bootstrap(): Promise<void> {
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
+          onOneDrive: triggerSaveToOneDrive,
         });
       },
       onSettings: triggerSettings,
@@ -939,6 +1006,13 @@ async function bootstrap(): Promise<void> {
   onLanguageChange(() => {
     renderToolbar();
   });
+
+  // If we just returned from the OneDrive OAuth flow with a pending
+  // upload, resume it now that everything (doc loaded, editor mounted,
+  // settings applied) is in place.
+  if (onedriveResumeUuid) {
+    triggerSaveToOneDrive();
+  }
 }
 
 await bootstrap();

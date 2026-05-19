@@ -64,6 +64,13 @@ const FR = {
   'export-menu.markdown': 'Markdown (.md)',
   'export-menu.pdf': 'PDF (.pdf)',
   'export-menu.latex': 'LaTeX (.tex)',
+  'export-menu.onedrive': 'OneDrive…',
+  'onedrive.uploaded': 'Document envoyé sur OneDrive (dossier Apps/markpage).',
+  'onedrive.uploaded-with-link':
+    'Document envoyé sur OneDrive. Lien de partage copié dans le presse-papier.',
+  'onedrive.uploaded-link-shown':
+    'Document envoyé sur OneDrive. Lien de partage : {url}',
+  'onedrive.failed': 'Échec OneDrive : {msg}',
 
   // ---- settings form (window title + section headers) --------------
   'settings.window-title': 'Réglages markpage',
@@ -294,6 +301,13 @@ const EN: Record<keyof typeof FR, string> = {
   'export-menu.markdown': 'Markdown (.md)',
   'export-menu.pdf': 'PDF (.pdf)',
   'export-menu.latex': 'LaTeX (.tex)',
+  'export-menu.onedrive': 'OneDrive…',
+  'onedrive.uploaded': 'Document uploaded to OneDrive (folder Apps/markpage).',
+  'onedrive.uploaded-with-link':
+    'Document uploaded to OneDrive. Share link copied to clipboard.',
+  'onedrive.uploaded-link-shown':
+    'Document uploaded to OneDrive. Share link: {url}',
+  'onedrive.failed': 'OneDrive upload failed: {msg}',
 
   // ---- settings form ------------------------------------------------
   'settings.window-title': 'markpage settings',

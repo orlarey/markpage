@@ -22,6 +22,7 @@ export interface ExportMenuOptions {
   onMarkdown(): void;
   onPdf(): void;
   onLatex(): void;
+  onOneDrive(): void;
 }
 
 /**
@@ -83,6 +84,7 @@ export function openExportMenu(
     item(t('export-menu.markdown'), 'Cmd/Ctrl + S', opts.onMarkdown),
     item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),
     item(t('export-menu.latex'), '', opts.onLatex),
+    item(t('export-menu.onedrive'), '', opts.onOneDrive),
   );
 
   document.body.appendChild(menu);
