@@ -58,32 +58,6 @@ export type Align = 'left' | 'center' | 'right' | 'justify';
 export const ALIGNS: Align[] = ['left', 'center', 'right', 'justify'];
 
 /**
- * Purpose: Which sides of a block carry a border.
- * How: Symbolic names (not CSS shorthand) so the renderer can vary thickness
- *   per side and the form keeps a small discrete choice.
- */
-export type BorderSides =
-  | 'none'
-  | 'all'
-  | 'left'
-  | 'right'
-  | 'top'
-  | 'bottom'
-  | 'top-bottom'
-  | 'left-right';
-
-export const BORDER_SIDES: BorderSides[] = [
-  'none',
-  'all',
-  'left',
-  'right',
-  'top',
-  'bottom',
-  'top-bottom',
-  'left-right',
-];
-
-/**
  * Purpose: Unified style for any document element — every field optional.
  * How: Inline elements ignore block-only fields (padding/background/border*).
  *   The form's per-element descriptor decides which subset to surface.
@@ -102,7 +76,12 @@ export interface Style {
   // Block-only fields below.
   padding?: number; // em — uniform; if unset and renderer has a built-in default, the latter wins
   background?: string; // #rrggbb | 'transparent'
-  borderSides?: BorderSides;
+  // One bool per side — independent. The form surfaces all four as a
+  // single visual `borders` widget (see attrField).
+  borderTop?: boolean;
+  borderRight?: boolean;
+  borderBottom?: boolean;
+  borderLeft?: boolean;
   borderColor?: string; // #rrggbb
   borderWidth?: number; // px
   borderRadius?: number; // px
@@ -178,7 +157,7 @@ export type AttrName =
   | 'lineHeight'
   | 'padding'
   | 'background'
-  | 'borderSides'
+  | 'borders' // virtual — the picker drives the four `border<Side>` bools
   | 'borderColor'
   | 'borderWidth'
   | 'borderRadius';
@@ -194,7 +173,7 @@ export const ELEMENT_DESCRIPTORS: Record<
 > = {
   body: {
     category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'lineHeight', 'marginAbove', 'marginBelow'],
+    attrs: ['family', 'fontSize', 'color', 'align', 'lineHeight', 'marginAbove', 'marginBelow'],
   },
   h1: {
     category: 'inline',
@@ -226,31 +205,31 @@ export const ELEMENT_DESCRIPTORS: Record<
   },
   'code-block': {
     category: 'block',
-    attrs: ['family', 'fontSize', 'color', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+    attrs: ['family', 'fontSize', 'color', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
   },
   quote: {
     category: 'block',
-    attrs: ['family', 'fontSize', 'color', 'italic', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+    attrs: ['family', 'fontSize', 'color', 'italic', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
   },
   'math-block': {
     category: 'block',
-    attrs: ['align', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+    attrs: ['align', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
   },
   mermaid: {
     category: 'block',
-    attrs: ['align', 'padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+    attrs: ['align', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
   },
   callout: {
     category: 'block',
-    attrs: ['padding', 'background', 'borderSides', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
+    attrs: ['padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
   },
   table: {
     category: 'block',
-    attrs: ['fontSize', 'color', 'borderSides', 'borderColor', 'borderWidth'],
+    attrs: ['fontSize', 'color', 'borders', 'borderColor', 'borderWidth'],
   },
   'page-number': {
     category: 'inline',
-    attrs: ['fontSize', 'color', 'italic'],
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline'],
   },
 };
 
@@ -314,8 +293,6 @@ export interface FontTrio {
 export interface PdfSettings {
   pageSize: PageSize;
   margins: Margins;
-  justify: boolean;
-  lineHeight: number;
   fonts: FontTrio;
   author: MetadataField;
   organization: MetadataField;
@@ -331,18 +308,6 @@ export interface PdfSettings {
   // URL. They appear in every font picker slot and load on the same
   // pipeline as the bundled catalogue.
   customFonts: CustomFont[];
-  // Vertical spacing around every heading, expressed as multiples of
-  // the heading's own font-size (so `above = 1.6` on a 20pt h2 gives
-  // 32pt of space above). Asymmetric on purpose — see SPEC notes on
-  // Gestalt proximity. Applied uniformly to h1-h6.
-  headingSpacing: { above: number; below: number };
-  // Symmetric vertical margin around <p> elements, in em of the body
-  // font-size. 1.0 matches browser defaults; users can dial down for
-  // tighter copy. Note: lists, blockquotes etc. keep their own
-  // browser defaults, which still collapse with adjacent margins —
-  // so the actual space before a list won't fall below ~1em even at
-  // paragraphSpacing=0.
-  paragraphSpacing: number;
   // Document language. Distinct from the user's UI language (which
   // lives in localStorage). Drives the LaTeX `\usepackage[…]{babel}`
   // line, the theorem-env names emitted in the preamble, and the
@@ -378,8 +343,6 @@ export interface PdfSettings {
 export const DEFAULT_SETTINGS: PdfSettings = {
   pageSize: 'A4',
   margins: { top: 25, bottom: 25, left: 35, right: 35 },
-  justify: true,
-  lineHeight: 1.25,
   fonts: {
     headings: 'Roboto Condensed',
     body: 'Roboto Condensed',
@@ -389,7 +352,14 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   organization: { text: 'Mon organisation', show: true, bold: true },
   date: { mode: 'today', custom: '' },
   styles: {
-    body: { fontSize: 11, color: '#000000' },
+    body: {
+      fontSize: 11,
+      color: '#000000',
+      align: 'justify',
+      lineHeight: 1.25,
+      marginAbove: 1,
+      marginBelow: 1,
+    },
     h1: {
       fontSize: 24,
       color: '#09438b',
@@ -397,6 +367,8 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       italic: false,
       underline: true,
       align: 'center',
+      marginAbove: 1.6,
+      marginBelow: 0.6,
     },
     h2: {
       fontSize: 20,
@@ -405,6 +377,8 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       italic: false,
       underline: true,
       align: 'left',
+      marginAbove: 1.6,
+      marginBelow: 0.6,
     },
     h3: {
       fontSize: 16,
@@ -413,6 +387,8 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       italic: false,
       underline: true,
       align: 'left',
+      marginAbove: 1.6,
+      marginBelow: 0.6,
     },
     h4: {
       fontSize: 14,
@@ -421,6 +397,8 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       italic: false,
       underline: false,
       align: 'left',
+      marginAbove: 1.6,
+      marginBelow: 0.6,
     },
     'code-inline': { fontSize: 10, color: '#1f2328' },
     'inline-link': { color: '#0969da', underline: true },
@@ -429,13 +407,12 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       fontSize: 10,
       color: '#1f2328',
       background: '#f6f8fa',
-      borderSides: 'none',
       borderRadius: 4,
     },
     quote: {
       fontSize: 11,
       color: '#57606a',
-      borderSides: 'left',
+      borderLeft: true,
       borderColor: '#d0d7de',
       borderWidth: 3,
     },
@@ -444,20 +421,18 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     callout: {
       padding: 0.6,
       background: '#f6f8fa',
-      borderSides: 'left',
+      borderLeft: true,
       borderColor: '#0969da',
       borderWidth: 4,
       borderRadius: 4,
     },
     table: {},
-    'page-number': { fontSize: 9, color: '#57606a' },
+    'page-number': { fontSize: 9, color: '#57606a', weight: 400, italic: false, underline: false },
   },
   pageNumber: {
     position: 'bottom-center',
   },
   customFonts: [],
-  headingSpacing: { above: 1.6, below: 0.6 },
-  paragraphSpacing: 1,
   // First-launch default for the doc language. Re-resolved at the
   // creation of a fresh profile via `detectLanguage()` so a user
   // landing in an `en-*` browser gets English defaults. Existing
@@ -510,8 +485,6 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
   return {
     pageSize: (obj.pageSize as PageSize | undefined) ?? d.pageSize,
     margins: merge(d.margins, obj.margins as Partial<Margins> | undefined),
-    justify: (obj.justify as boolean | undefined) ?? d.justify,
-    lineHeight: (obj.lineHeight as number | undefined) ?? d.lineHeight,
     fonts: merge(d.fonts, obj.fonts as Partial<FontTrio> | undefined),
     author: merge(d.author, obj.author as Partial<MetadataField> | undefined),
     organization: merge(
@@ -519,7 +492,7 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
       obj.organization as Partial<MetadataField> | undefined,
     ),
     date: merge(d.date, obj.date as Partial<DateSetting> | undefined),
-    styles: mergeStyles(obj.styles, obj.pageNumber),
+    styles: mergeStyles(obj),
     pageNumber: {
       position:
         ((obj.pageNumber as { position?: PageNumberPosition } | undefined)
@@ -528,12 +501,6 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     customFonts: Array.isArray(obj.customFonts)
       ? (obj.customFonts as CustomFont[])
       : d.customFonts,
-    headingSpacing: merge(
-      d.headingSpacing,
-      obj.headingSpacing as Partial<{ above: number; below: number }> | undefined,
-    ),
-    paragraphSpacing:
-      (obj.paragraphSpacing as number | undefined) ?? d.paragraphSpacing,
     language: (obj.language as 'fr' | 'en' | undefined) ?? d.language,
     mermaidMaxScale:
       (obj.mermaidMaxScale as number | undefined) ?? d.mermaidMaxScale,
@@ -551,31 +518,35 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
  * Purpose: Build the per-element styles map, migrating pre-matrix shapes.
  * How: Start from defaults; copy known v0.4 keys (h1..h4, body, code, quote);
  *   split `code` into `code-inline` + `code-block`; convert `quote.barColor`
- *   to `borderColor` + `borderSides: 'left'`; lift legacy `pageNumber.style`
- *   into `styles['page-number']`.
+ *   to `borderColor` + `borderLeft: true`; lift legacy `pageNumber.style`
+ *   into `styles['page-number']`. Pre-v0.5 top-level `justify` / `lineHeight`
+ *   / `paragraphSpacing` / `headingSpacing` migrate into `body` and h1-h4.
+ *   Legacy `borderSides` enum migrates into the four `border<Side>` bools.
  */
-function mergeStyles(
-  inStyles: unknown,
-  inPageNumber: unknown,
-): Record<ElementKey, Style> {
+function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
   const d = DEFAULT_SETTINGS.styles;
   const out: Record<ElementKey, Style> = { ...d };
+  const inStyles = obj.styles;
+  const inPageNumber = obj.pageNumber;
   if (inStyles && typeof inStyles === 'object') {
-    const s = inStyles as Record<string, Style & { barColor?: string }>;
+    const s = inStyles as Record<
+      string,
+      Style & { barColor?: string; borderSides?: string }
+    >;
     for (const k of ELEMENT_KEYS) {
-      if (s[k]) out[k] = { ...d[k], ...s[k] };
+      if (s[k]) out[k] = { ...d[k], ...s[k], ...sidesFromLegacy(s[k]) };
     }
     // Legacy: 'code' was the single key for both inline + block code.
     if (s.code) {
       const c = s.code;
       out['code-inline'] = { ...d['code-inline'], ...c };
-      out['code-block'] = { ...d['code-block'], ...c };
+      out['code-block'] = { ...d['code-block'], ...c, ...sidesFromLegacy(c) };
     }
     // Legacy: quote carried `barColor` for the left vertical bar.
     if (s.quote?.barColor) {
       out.quote = {
         ...out.quote,
-        borderSides: out.quote.borderSides ?? 'left',
+        borderLeft: true,
         borderColor: s.quote.barColor,
         borderWidth: out.quote.borderWidth ?? 3,
       };
@@ -595,6 +566,69 @@ function mergeStyles(
       };
     }
   }
+  // Pre-v0.5: typography fields lived at the top level. Lift them into the
+  // appropriate per-element styles, but only when the new field hasn't been
+  // explicitly set in `styles` already (newer wins on round-trip).
+  if (typeof obj.justify === 'boolean' && out.body.align === d.body.align) {
+    out.body = { ...out.body, align: obj.justify ? 'justify' : 'left' };
+  }
+  if (typeof obj.lineHeight === 'number' && out.body.lineHeight === d.body.lineHeight) {
+    out.body = { ...out.body, lineHeight: obj.lineHeight };
+  }
+  if (
+    typeof obj.paragraphSpacing === 'number' &&
+    out.body.marginAbove === d.body.marginAbove &&
+    out.body.marginBelow === d.body.marginBelow
+  ) {
+    out.body = {
+      ...out.body,
+      marginAbove: obj.paragraphSpacing,
+      marginBelow: obj.paragraphSpacing,
+    };
+  }
+  if (obj.headingSpacing && typeof obj.headingSpacing === 'object') {
+    const hs = obj.headingSpacing as { above?: number; below?: number };
+    for (const k of ['h1', 'h2', 'h3', 'h4'] as const) {
+      if (
+        hs.above !== undefined &&
+        out[k].marginAbove === d[k].marginAbove
+      ) {
+        out[k] = { ...out[k], marginAbove: hs.above };
+      }
+      if (
+        hs.below !== undefined &&
+        out[k].marginBelow === d[k].marginBelow
+      ) {
+        out[k] = { ...out[k], marginBelow: hs.below };
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Purpose: Convert a v0.5-era `borderSides` enum value into the four
+ *   independent `border<Side>` bools introduced in the visual border picker.
+ * How: Pattern-match the eight legacy tokens; missing / unknown → no bools
+ *   (caller's spread keeps any bools already present in the new shape).
+ */
+function sidesFromLegacy(
+  s: Style & { borderSides?: string } | undefined,
+): Partial<Style> {
+  const sides = s?.borderSides;
+  if (sides === undefined) return {};
+  const out: Partial<Style> = {};
+  if (sides === 'all') {
+    out.borderTop = out.borderRight = out.borderBottom = out.borderLeft = true;
+  } else if (sides === 'top-bottom') {
+    out.borderTop = out.borderBottom = true;
+  } else if (sides === 'left-right') {
+    out.borderLeft = out.borderRight = true;
+  } else if (sides === 'top') out.borderTop = true;
+  else if (sides === 'right') out.borderRight = true;
+  else if (sides === 'bottom') out.borderBottom = true;
+  else if (sides === 'left') out.borderLeft = true;
+  // 'none' → no bools set
   return out;
 }
 

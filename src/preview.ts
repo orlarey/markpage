@@ -35,12 +35,12 @@ function headingExtras(s: Style): string {
 }
 
 /**
- * Purpose: Asymmetric vertical spacing — more above than below — for headings.
- * How: Uses the user-tunable `above` / `below` ratios in `em` units.
+ * Purpose: Asymmetric vertical spacing for a heading style, in em.
+ * How: Reads `marginAbove` / `marginBelow` from the heading's Style;
+ *   defaults preserved when either field is unset.
  */
-function headingMargin(settings: PdfSettings): string {
-  const { above, below } = settings.headingSpacing;
-  return `margin: ${above}em 0 ${below}em;`;
+function headingMargin(s: Style): string {
+  return `margin: ${s.marginAbove ?? 1.6}em 0 ${s.marginBelow ?? 0.6}em;`;
 }
 
 /**
@@ -297,25 +297,24 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     document.head.appendChild(el);
   }
   const s = settings.styles;
-  const align = settings.justify ? 'justify' : 'left';
+  const align = s.body.align ?? 'left';
   const f = settings.fonts;
   const headFam = `${quoteFontFamily(f.headings)}, "Roboto Condensed", sans-serif`;
   const bodyFam = `${quoteFontFamily(f.body)}, "Roboto Condensed", sans-serif`;
   const codeFam = `${quoteFontFamily(f.code)}, "Roboto Mono", monospace`;
   el.textContent = `
-    #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
+    #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
-    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} }
-    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} }
-    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} }
-    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} }
+    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${headingMargin(s.h1)} }
+    #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} ${headingMargin(s.h2)} }
+    #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} ${headingMargin(s.h3)} }
+    #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }
     #preview-pane h5,
-    #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; }
-    #preview-pane :is(h1, h2, h3, h4, h5, h6) { ${headingMargin(settings)} }
+    #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${headingMargin(s.h4)} }
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-    #preview-pane p { margin: ${settings.paragraphSpacing}em 0; }
+    #preview-pane p { margin: ${s.body.marginAbove ?? 1}em 0 ${s.body.marginBelow ?? 1}em; }
     #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s['code-inline'].fontSize}pt; color: ${s['code-inline'].color}; }
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
@@ -327,6 +326,11 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
     /* Inline links — color and underline come from styles['inline-link']. */
     #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
+    /* Block math, mermaid, admonitions, tables — user-configurable box. */
+    #preview-pane .math-block { ${blockBoxCss(s['math-block'])} }
+    #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} }
+    #preview-pane .admonition { ${blockBoxCss(s.callout)} }
+    #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
     #preview-pane p,
     #preview-pane li { text-align: ${align}; }
     /* MathJax SVGs are sized in ex units (relative to the container's

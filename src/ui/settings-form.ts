@@ -17,7 +17,6 @@
 
 import {
   ALIGNS,
-  BORDER_SIDES,
   ELEMENT_DESCRIPTORS,
   PAGE_NUMBER_POSITIONS,
   PAGE_SIZES,
@@ -25,7 +24,6 @@ import {
   WEIGHT_OPTIONS,
   type Align,
   type AttrName,
-  type BorderSides,
   type DateMode,
   type ElementKey,
   type MetadataField,
@@ -249,33 +247,16 @@ export function buildSettingsForm(
                   },
                   (v) => (v === 'fr' ? 'Français' : 'English'),
                 ),
-                checkboxField(
-                  t('settings.field.justify'),
-                  current.justify,
+                selectField<PageNumberPosition>(
+                  t('settings.field.page-number-position'),
+                  PAGE_NUMBER_POSITIONS,
+                  current.pageNumber.position,
                   (v) => {
-                    current.justify = v;
+                    current.pageNumber.position = v;
                     emit();
                   },
+                  (v) => POSITION_LABELS()[v],
                 ),
-                numberField(
-                  t('settings.field.line-height'),
-                  current.lineHeight,
-                  1,
-                  2.5,
-                  (v) => {
-                    current.lineHeight = v;
-                    emit();
-                  },
-                  { step: 0.05 },
-                ),
-              ]),
-            ],
-          },
-          {
-            id: 'doc-margins',
-            label: t('settings.section.margins'),
-            build: () => [
-              section(t('settings.section.margins'), [
                 numberField(
                   t('settings.field.margin-top'),
                   current.margins.top,
@@ -352,66 +333,6 @@ export function buildSettingsForm(
               ]),
             ],
           },
-          {
-            id: 'doc-spacing',
-            label: t('settings.section.spacing'),
-            build: () => [
-              section(t('settings.section.spacing'), [
-                numberField(
-                  t('settings.field.heading-spacing-above'),
-                  current.headingSpacing.above,
-                  0,
-                  5,
-                  (v) => {
-                    current.headingSpacing.above = v;
-                    emit();
-                  },
-                  { step: 0.1 },
-                ),
-                numberField(
-                  t('settings.field.heading-spacing-below'),
-                  current.headingSpacing.below,
-                  0,
-                  5,
-                  (v) => {
-                    current.headingSpacing.below = v;
-                    emit();
-                  },
-                  { step: 0.1 },
-                ),
-                numberField(
-                  t('settings.field.paragraph-spacing'),
-                  current.paragraphSpacing,
-                  0,
-                  3,
-                  (v) => {
-                    current.paragraphSpacing = v;
-                    emit();
-                  },
-                  { step: 0.1 },
-                ),
-              ]),
-            ],
-          },
-          {
-            id: 'doc-page-number',
-            label: t('settings.section.page-number'),
-            build: () => [
-              section(t('settings.section.page-number'), [
-                selectField<PageNumberPosition>(
-                  t('settings.field.position'),
-                  PAGE_NUMBER_POSITIONS,
-                  current.pageNumber.position,
-                  (v) => {
-                    current.pageNumber.position = v;
-                    emit();
-                  },
-                  (v) => POSITION_LABELS()[v],
-                ),
-              ]),
-              elementStyleSection('page-number', current, emit),
-            ],
-          },
         ],
       },
       {
@@ -466,6 +387,7 @@ export function buildSettingsForm(
               'code-block',
               'quote',
               'table',
+              'page-number',
             ] as const
           ).map((key) => ({
             id: `typo-${key}`,
@@ -920,6 +842,76 @@ export function buildSettingsForm(
     );
   }
 
+  /**
+   * Purpose: Visual side picker for the four `border<Side>` bools.
+   * How: One inline `<svg>` with four clickable edges (top / right / bottom
+   *   / left). Each click toggles that side's bool on the parent Style via
+   *   the same `getStyle()` / `onChange` flow the other attr controls use.
+   */
+  function borderPicker(
+    getStyle: () => Style,
+    onChange: (next: Style) => void,
+  ): HTMLElement {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = doc.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 60 40');
+    svg.setAttribute('width', '64');
+    svg.setAttribute('height', '44');
+    svg.classList.add('border-picker');
+
+    // Decorative centre + click rects per side. Layered so the click rects
+    // sit on top and capture pointer events.
+    const center = doc.createElementNS(NS, 'rect');
+    center.setAttribute('x', '14');
+    center.setAttribute('y', '11');
+    center.setAttribute('width', '32');
+    center.setAttribute('height', '18');
+    center.setAttribute('fill', 'none');
+    center.setAttribute('stroke', '#dfe3e8');
+    center.setAttribute('stroke-dasharray', '3 2');
+    svg.append(center);
+
+    const sides: Array<{
+      key: 'borderTop' | 'borderRight' | 'borderBottom' | 'borderLeft';
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }> = [
+      { key: 'borderTop', x: 0, y: 0, w: 60, h: 8 },
+      { key: 'borderRight', x: 52, y: 0, w: 8, h: 40 },
+      { key: 'borderBottom', x: 0, y: 32, w: 60, h: 8 },
+      { key: 'borderLeft', x: 0, y: 0, w: 8, h: 40 },
+    ];
+
+    const refresh = (): void => {
+      const s = getStyle();
+      for (const child of Array.from(svg.querySelectorAll('rect.side'))) {
+        const key = child.getAttribute('data-side');
+        child.classList.toggle('active', Boolean(s[key as keyof Style]));
+      }
+    };
+
+    for (const side of sides) {
+      const rect = doc.createElementNS(NS, 'rect');
+      rect.setAttribute('class', 'side');
+      rect.setAttribute('data-side', side.key);
+      rect.setAttribute('x', String(side.x));
+      rect.setAttribute('y', String(side.y));
+      rect.setAttribute('width', String(side.w));
+      rect.setAttribute('height', String(side.h));
+      rect.addEventListener('click', () => {
+        const s = getStyle();
+        onChange({ ...s, [side.key]: !s[side.key] });
+        refresh();
+      });
+      svg.append(rect);
+    }
+
+    refresh();
+    return svg as unknown as HTMLElement;
+  }
+
   // Renders the "Polices personnalisées" sub-row: lists what the user
   // has already added (with a remove button per entry) plus an inline
   // form to paste a fonts.googleapis.com URL. Mutations call
@@ -1148,14 +1140,8 @@ export function buildSettingsForm(
         return colorField(label, style.background ?? '#ffffff', (v) =>
           set('background', v),
         );
-      case 'borderSides':
-        return selectField<BorderSides>(
-          label,
-          BORDER_SIDES,
-          style.borderSides ?? 'none',
-          (v) => set('borderSides', v),
-          (v) => t(`border-side.${v}` as 'border-side.none'),
-        );
+      case 'borders':
+        return row(label, borderPicker(getStyle, onChange));
       case 'borderColor':
         return colorField(label, style.borderColor ?? '#d0d7de', (v) =>
           set('borderColor', v),

@@ -1361,6 +1361,24 @@ body,
   color: #57606a;
 }
 
+.border-picker {
+  cursor: pointer;
+  user-select: none;
+}
+
+.border-picker .side {
+  fill: #e1e4e8;
+  transition: fill 0.1s;
+}
+
+.border-picker .side:hover {
+  fill: #b1b8c0;
+}
+
+.border-picker .side.active {
+  fill: #09438b;
+}
+
 .settings-form > section {
   background: var(--bg);
   border: 1px solid var(--border);

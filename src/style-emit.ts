@@ -10,7 +10,7 @@
  *
  *******************************************************************************/
 
-import type { BorderSides, Style } from './settings';
+import type { Style } from './settings';
 
 /**
  * Purpose: Emit the inline-text declarations of `s`: font, color, weight,
@@ -36,8 +36,9 @@ export function inlineCss(s: Style): string {
 /**
  * Purpose: Emit the block-box declarations of `s`: padding, background,
  *   border (per side), border-radius.
- * How: `borderSides` enumerates which sides carry the border declaration so
- *   the caller can keep e.g. only `left` (blockquote bar). 'none' clears.
+ * How: Each of `borderTop/Right/Bottom/Left` is independent; only the sides
+ *   set to `true` emit a border declaration. Always reset `border: none`
+ *   first so the cascade can't bleed an outer rule onto an unset side.
  */
 export function blockBoxCss(s: Style): string {
   const parts: string[] = [];
@@ -45,41 +46,17 @@ export function blockBoxCss(s: Style): string {
   if (s.background !== undefined) parts.push(`background: ${s.background};`);
   if (s.borderRadius !== undefined)
     parts.push(`border-radius: ${s.borderRadius}px;`);
-  if (s.borderSides === 'none') {
-    parts.push('border: none;');
-  } else if (s.borderSides) {
+  const anySide =
+    s.borderTop || s.borderRight || s.borderBottom || s.borderLeft;
+  if (anySide) {
     const w = s.borderWidth ?? 1;
     const c = s.borderColor ?? '#d0d7de';
     const decl = `${w}px solid ${c}`;
     parts.push('border: none;');
-    for (const side of expandBorderSides(s.borderSides)) {
-      parts.push(`border-${side}: ${decl};`);
-    }
+    if (s.borderTop) parts.push(`border-top: ${decl};`);
+    if (s.borderRight) parts.push(`border-right: ${decl};`);
+    if (s.borderBottom) parts.push(`border-bottom: ${decl};`);
+    if (s.borderLeft) parts.push(`border-left: ${decl};`);
   }
   return parts.join(' ');
-}
-
-/**
- * Purpose: Translate a `BorderSides` token into the list of CSS side names.
- * How: Static switch; default = no sides.
- */
-function expandBorderSides(s: BorderSides): string[] {
-  switch (s) {
-    case 'all':
-      return ['top', 'right', 'bottom', 'left'];
-    case 'left':
-      return ['left'];
-    case 'right':
-      return ['right'];
-    case 'top':
-      return ['top'];
-    case 'bottom':
-      return ['bottom'];
-    case 'top-bottom':
-      return ['top', 'bottom'];
-    case 'left-right':
-      return ['left', 'right'];
-    default:
-      return [];
-  }
 }
