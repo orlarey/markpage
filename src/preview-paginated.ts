@@ -8,6 +8,7 @@
  *******************************************************************************/
 
 import type { PdfSettings, Style } from './settings';
+import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
 
 /**
@@ -268,16 +269,20 @@ export function pagedCss(s: PdfSettings): string {
       font-size: ${styles['code-inline'].fontSize}pt;
       color: ${styles['code-inline'].color};
     }
-    ${SCOPE} pre { background: #f6f8fa; padding: 0.6em 0.9em; border-radius: 4px; }
+    ${SCOPE} pre { ${blockBoxCss(styles['code-block'])} }
 
     ${SCOPE} blockquote {
-      font-size: ${styles.quote.fontSize}pt;
-      color: ${styles.quote.color};
-      border-left: 3px solid ${styles.quote.borderColor};
-      padding-left: 0.9em;
+      ${inlineCss(styles.quote)}
+      ${blockBoxCss(styles.quote)}
+      padding-left: ${styles.quote.padding ?? 0.9}em;
       margin: 0.6em 0;
       orphans: 3; widows: 3;
     }
+
+    /* Metadata block (author / organization / date) shown after h1. */
+    ${SCOPE} .preview-metadata { ${inlineCss(styles.metadata)} }
+    /* Inline links — color + underline from styles['inline-link']. */
+    ${SCOPE} a { ${inlineCss(styles['inline-link'])} text-decoration: ${styles['inline-link'].underline ? 'underline' : 'none'}; }
 
     /* Images: cap both width and height to the page's content area so
        paged.js can always fit them on a page. Without max-height,

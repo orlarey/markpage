@@ -9,6 +9,7 @@
 
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
+import { blockBoxCss, inlineCss } from './style-emit';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
 import { type MathFontSet } from './mathjax-fontsets';
@@ -319,14 +320,15 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
-    #preview-pane blockquote {
-      font-size: ${s.quote.fontSize}pt;
-      color: ${s.quote.color};
-      border-left-color: ${s.quote.borderColor};
-    }
+    /* Block code: <pre> wrapper uses the code-block style box. */
+    #preview-pane pre { ${blockBoxCss(s['code-block'])} }
+    #preview-pane blockquote { ${inlineCss(s.quote)} ${blockBoxCss(s.quote)} padding-left: ${s.quote.padding ?? 0.9}em; }
+    /* Metadata block (author / organization / date) shown after h1. */
+    #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
+    /* Inline links — color and underline come from styles['inline-link']. */
+    #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
     #preview-pane p,
-    #preview-pane li,
-    #preview-pane blockquote { text-align: ${align}; }
+    #preview-pane li { text-align: ${align}; }
     /* MathJax SVGs are sized in ex units (relative to the container's
        font-size), so scaling the math wrappers' font-size resizes the
        glyphs without re-rendering. */
