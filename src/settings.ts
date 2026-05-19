@@ -51,18 +51,61 @@ export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
 ];
 
 /**
- * Purpose: Style attributes shared by every text element (size, color,
- *   plus heading-only weight / italic / underline).
+ * Purpose: Text alignment for a styled element.
  */
-export interface TextStyle {
-  fontSize: number; // pt
-  color: string; // #rrggbb
-  // The next three apply to headings only (h1/h2/h3/h4); body, code
-  // and quote ignore them and inherit the document's font-weight /
-  // font-style from CSS defaults.
-  underline?: boolean;
-  italic?: boolean;
+export type Align = 'left' | 'center' | 'right' | 'justify';
+
+export const ALIGNS: Align[] = ['left', 'center', 'right', 'justify'];
+
+/**
+ * Purpose: Which sides of a block carry a border.
+ * How: Symbolic names (not CSS shorthand) so the renderer can vary thickness
+ *   per side and the form keeps a small discrete choice.
+ */
+export type BorderSides =
+  | 'none'
+  | 'all'
+  | 'left'
+  | 'right'
+  | 'top'
+  | 'bottom'
+  | 'top-bottom'
+  | 'left-right';
+
+export const BORDER_SIDES: BorderSides[] = [
+  'none',
+  'all',
+  'left',
+  'right',
+  'top',
+  'bottom',
+  'top-bottom',
+  'left-right',
+];
+
+/**
+ * Purpose: Unified style for any document element — every field optional.
+ * How: Inline elements ignore block-only fields (padding/background/border*).
+ *   The form's per-element descriptor decides which subset to surface.
+ */
+export interface Style {
+  family?: string; // override the trio font for this element
+  fontSize?: number; // pt
+  color?: string; // #rrggbb
   weight?: number; // one of WEIGHT_OPTIONS below
+  italic?: boolean;
+  underline?: boolean;
+  align?: Align;
+  marginAbove?: number; // em
+  marginBelow?: number; // em
+  lineHeight?: number; // multiplier; if unset, inherits from body
+  // Block-only fields below.
+  padding?: number; // em — uniform; if unset and renderer has a built-in default, the latter wins
+  background?: string; // #rrggbb | 'transparent'
+  borderSides?: BorderSides;
+  borderColor?: string; // #rrggbb
+  borderWidth?: number; // px
+  borderRadius?: number; // px
 }
 
 /**
@@ -79,20 +122,44 @@ export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
 ];
 
 /**
- * Purpose: Blockquote style — `TextStyle` plus the vertical bar color.
+ * Purpose: Stable identifier for every typographic element addressable from
+ *   the settings form / matrix. Adding a row to the styling matrix = adding
+ *   an entry here + a default in `DEFAULT_SETTINGS.styles`.
  */
-export interface QuoteStyle extends TextStyle {
-  barColor: string; // #rrggbb — the vertical bar at the left of a blockquote
-}
+export type ElementKey =
+  | 'body'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'h4'
+  | 'code-inline'
+  | 'inline-link'
+  | 'metadata'
+  | 'code-block'
+  | 'quote'
+  | 'math-block'
+  | 'mermaid'
+  | 'callout'
+  | 'table'
+  | 'page-number';
 
-/**
- * Purpose: Style of the page-number marginalia (size, italics, color).
- */
-export interface PageNumberStyle {
-  fontSize: number;
-  italics: boolean;
-  color: string;
-}
+export const ELEMENT_KEYS: ElementKey[] = [
+  'body',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'code-inline',
+  'inline-link',
+  'metadata',
+  'code-block',
+  'quote',
+  'math-block',
+  'mermaid',
+  'callout',
+  'table',
+  'page-number',
+];
 
 /**
  * Purpose: Page margins in millimetres.
@@ -160,18 +227,9 @@ export interface PdfSettings {
   author: MetadataField;
   organization: MetadataField;
   date: DateSetting;
-  styles: {
-    h1: TextStyle;
-    h2: TextStyle;
-    h3: TextStyle;
-    h4: TextStyle;
-    body: TextStyle;
-    code: TextStyle;
-    quote: QuoteStyle;
-  };
+  styles: Record<ElementKey, Style>;
   pageNumber: {
     position: PageNumberPosition;
-    style: PageNumberStyle;
   };
   // Maximum upscaling factor applied to mermaid diagrams in the PDF. The
   // diagram is scaled up to this factor, but never beyond the width and
@@ -238,17 +296,71 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   organization: { text: 'Mon organisation', show: true, bold: true },
   date: { mode: 'today', custom: '' },
   styles: {
-    h1: { fontSize: 24, color: '#09438b', underline: true, italic: false, weight: 500 },
-    h2: { fontSize: 20, color: '#09438b', underline: true, italic: false, weight: 500 },
-    h3: { fontSize: 16, color: '#09438b', underline: true, italic: false, weight: 500 },
-    h4: { fontSize: 14, color: '#09438b', underline: false, italic: false, weight: 500 },
     body: { fontSize: 11, color: '#000000' },
-    code: { fontSize: 10, color: '#1f2328' },
-    quote: { fontSize: 11, color: '#57606a', barColor: '#d0d7de' },
+    h1: {
+      fontSize: 24,
+      color: '#09438b',
+      weight: 500,
+      italic: false,
+      underline: true,
+      align: 'center',
+    },
+    h2: {
+      fontSize: 20,
+      color: '#09438b',
+      weight: 500,
+      italic: false,
+      underline: true,
+      align: 'left',
+    },
+    h3: {
+      fontSize: 16,
+      color: '#09438b',
+      weight: 500,
+      italic: false,
+      underline: true,
+      align: 'left',
+    },
+    h4: {
+      fontSize: 14,
+      color: '#09438b',
+      weight: 500,
+      italic: false,
+      underline: false,
+      align: 'left',
+    },
+    'code-inline': { fontSize: 10, color: '#1f2328' },
+    'inline-link': { color: '#0969da', underline: true },
+    metadata: { fontSize: 11, color: '#000000', align: 'center' },
+    'code-block': {
+      fontSize: 10,
+      color: '#1f2328',
+      background: '#f6f8fa',
+      borderSides: 'none',
+      borderRadius: 4,
+    },
+    quote: {
+      fontSize: 11,
+      color: '#57606a',
+      borderSides: 'left',
+      borderColor: '#d0d7de',
+      borderWidth: 3,
+    },
+    'math-block': { align: 'center' },
+    mermaid: { align: 'center' },
+    callout: {
+      padding: 0.6,
+      background: '#f6f8fa',
+      borderSides: 'left',
+      borderColor: '#0969da',
+      borderWidth: 4,
+      borderRadius: 4,
+    },
+    table: {},
+    'page-number': { fontSize: 9, color: '#57606a' },
   },
   pageNumber: {
     position: 'bottom-center',
-    style: { fontSize: 9, italics: false, color: '#57606a' },
   },
   customFonts: [],
   headingSpacing: { above: 1.6, below: 0.6 },
@@ -292,47 +404,105 @@ export function saveSettings(s: PdfSettings): void {
 
 /**
  * Purpose: Coerce a possibly-partial JSON blob into a full `PdfSettings`.
- * How: For each field, prefer `input.<field>` else the default; nested
- *   records merged one level via a tiny `merge` helper.
+ * How: Field-by-field with default fallback; v0.4-and-earlier shapes (per-
+ *   element keys `code` / `quote.barColor`, top-level `pageNumber.style`)
+ *   are detected and rewritten into the new `Record<ElementKey, Style>`.
  */
 export function mergeWithDefaults(input: unknown): PdfSettings {
   const d = DEFAULT_SETTINGS;
   if (!input || typeof input !== 'object') return d;
-  const obj = input as Partial<PdfSettings>;
+  const obj = input as Record<string, unknown>;
   const merge = <T>(def: T, partial: Partial<T> | undefined): T =>
     partial ? { ...def, ...partial } : def;
   return {
-    pageSize: obj.pageSize ?? d.pageSize,
-    margins: merge(d.margins, obj.margins),
-    justify: obj.justify ?? d.justify,
-    lineHeight: obj.lineHeight ?? d.lineHeight,
-    fonts: merge(d.fonts, obj.fonts),
-    author: merge(d.author, obj.author),
-    organization: merge(d.organization, obj.organization),
-    date: merge(d.date, obj.date),
-    styles: {
-      h1: merge(d.styles.h1, obj.styles?.h1),
-      h2: merge(d.styles.h2, obj.styles?.h2),
-      h3: merge(d.styles.h3, obj.styles?.h3),
-      h4: merge(d.styles.h4, obj.styles?.h4),
-      body: merge(d.styles.body, obj.styles?.body),
-      code: merge(d.styles.code, obj.styles?.code),
-      quote: merge(d.styles.quote, obj.styles?.quote),
-    },
+    pageSize: (obj.pageSize as PageSize | undefined) ?? d.pageSize,
+    margins: merge(d.margins, obj.margins as Partial<Margins> | undefined),
+    justify: (obj.justify as boolean | undefined) ?? d.justify,
+    lineHeight: (obj.lineHeight as number | undefined) ?? d.lineHeight,
+    fonts: merge(d.fonts, obj.fonts as Partial<FontTrio> | undefined),
+    author: merge(d.author, obj.author as Partial<MetadataField> | undefined),
+    organization: merge(
+      d.organization,
+      obj.organization as Partial<MetadataField> | undefined,
+    ),
+    date: merge(d.date, obj.date as Partial<DateSetting> | undefined),
+    styles: mergeStyles(obj.styles, obj.pageNumber),
     pageNumber: {
-      position: obj.pageNumber?.position ?? d.pageNumber.position,
-      style: merge(d.pageNumber.style, obj.pageNumber?.style),
+      position:
+        ((obj.pageNumber as { position?: PageNumberPosition } | undefined)
+          ?.position as PageNumberPosition | undefined) ?? d.pageNumber.position,
     },
-    customFonts: Array.isArray(obj.customFonts) ? obj.customFonts : d.customFonts,
-    headingSpacing: merge(d.headingSpacing, obj.headingSpacing),
-    paragraphSpacing: obj.paragraphSpacing ?? d.paragraphSpacing,
-    language: obj.language ?? d.language,
-    mermaidMaxScale: obj.mermaidMaxScale ?? d.mermaidMaxScale,
-    mermaidMaxWidthPct: obj.mermaidMaxWidthPct ?? d.mermaidMaxWidthPct,
-    mermaidMaxHeightPct: obj.mermaidMaxHeightPct ?? d.mermaidMaxHeightPct,
-    mathScale: obj.mathScale ?? d.mathScale,
-    mathFontSet: obj.mathFontSet ?? d.mathFontSet,
+    customFonts: Array.isArray(obj.customFonts)
+      ? (obj.customFonts as CustomFont[])
+      : d.customFonts,
+    headingSpacing: merge(
+      d.headingSpacing,
+      obj.headingSpacing as Partial<{ above: number; below: number }> | undefined,
+    ),
+    paragraphSpacing:
+      (obj.paragraphSpacing as number | undefined) ?? d.paragraphSpacing,
+    language: (obj.language as 'fr' | 'en' | undefined) ?? d.language,
+    mermaidMaxScale:
+      (obj.mermaidMaxScale as number | undefined) ?? d.mermaidMaxScale,
+    mermaidMaxWidthPct:
+      (obj.mermaidMaxWidthPct as number | undefined) ?? d.mermaidMaxWidthPct,
+    mermaidMaxHeightPct:
+      (obj.mermaidMaxHeightPct as number | undefined) ?? d.mermaidMaxHeightPct,
+    mathScale: (obj.mathScale as number | undefined) ?? d.mathScale,
+    mathFontSet:
+      (obj.mathFontSet as MathFontSet | undefined) ?? d.mathFontSet,
   };
+}
+
+/**
+ * Purpose: Build the per-element styles map, migrating pre-matrix shapes.
+ * How: Start from defaults; copy known v0.4 keys (h1..h4, body, code, quote);
+ *   split `code` into `code-inline` + `code-block`; convert `quote.barColor`
+ *   to `borderColor` + `borderSides: 'left'`; lift legacy `pageNumber.style`
+ *   into `styles['page-number']`.
+ */
+function mergeStyles(
+  inStyles: unknown,
+  inPageNumber: unknown,
+): Record<ElementKey, Style> {
+  const d = DEFAULT_SETTINGS.styles;
+  const out: Record<ElementKey, Style> = { ...d };
+  if (inStyles && typeof inStyles === 'object') {
+    const s = inStyles as Record<string, Style & { barColor?: string }>;
+    for (const k of ELEMENT_KEYS) {
+      if (s[k]) out[k] = { ...d[k], ...s[k] };
+    }
+    // Legacy: 'code' was the single key for both inline + block code.
+    if (s.code) {
+      const c = s.code;
+      out['code-inline'] = { ...d['code-inline'], ...c };
+      out['code-block'] = { ...d['code-block'], ...c };
+    }
+    // Legacy: quote carried `barColor` for the left vertical bar.
+    if (s.quote?.barColor) {
+      out.quote = {
+        ...out.quote,
+        borderSides: out.quote.borderSides ?? 'left',
+        borderColor: s.quote.barColor,
+        borderWidth: out.quote.borderWidth ?? 3,
+      };
+    }
+  }
+  // Legacy: pageNumber.style { fontSize, italics, color } lived at the top
+  // level; we now treat it like any other styled element.
+  if (inPageNumber && typeof inPageNumber === 'object') {
+    const ps = (inPageNumber as { style?: { fontSize?: number; italics?: boolean; color?: string } })
+      .style;
+    if (ps) {
+      out['page-number'] = {
+        ...out['page-number'],
+        ...(ps.fontSize !== undefined && { fontSize: ps.fontSize }),
+        ...(ps.color !== undefined && { color: ps.color }),
+        ...(ps.italics !== undefined && { italic: ps.italics }),
+      };
+    }
+  }
+  return out;
 }
 
 // 1 mm = 1/25.4 in × 72 pt/in.

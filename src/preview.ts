@@ -8,7 +8,7 @@
  *******************************************************************************/
 
 import { marked } from 'marked';
-import { metadataLines, type PdfSettings, type TextStyle } from './settings';
+import { metadataLines, type PdfSettings, type Style } from './settings';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
 import { type MathFontSet } from './mathjax-fontsets';
@@ -18,18 +18,19 @@ import { quoteFontFamily } from './font-loader';
  * Purpose: Heading underline CSS fragment using the editor's neutral border colour.
  * How: Emits a `border-bottom` declaration or `none` so the dynamic rule wins.
  */
-function underlineRule(s: TextStyle): string {
+function underlineRule(s: Style): string {
   return s.underline
     ? `border-bottom: 1px solid var(--border); padding-bottom: 0.2em;`
     : `border-bottom: none;`;
 }
 
 /**
- * Purpose: Per-heading italic + weight, overriding the static bold/strong rule.
- * How: Emits explicit `font-style` + `font-weight` so the dynamic rule wins.
+ * Purpose: Per-heading italic + weight + text-align, overriding static rules.
+ * How: Emits explicit `font-style` / `font-weight` / `text-align` so the
+ *   dynamic rule wins over the bold/strong + body-justify defaults.
  */
-function headingExtras(s: TextStyle): string {
-  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
+function headingExtras(s: Style): string {
+  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
 }
 
 /**
@@ -303,7 +304,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${settings.lineHeight}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
-    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; text-align: center; ${underlineRule(s.h1)} ${headingExtras(s.h1)} }
+    #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} }
     #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} }
     #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} }
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} }
@@ -314,14 +315,14 @@ export function applyPreviewStyles(settings: PdfSettings): void {
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
     #preview-pane p { margin: ${settings.paragraphSpacing}em 0; }
-    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s.code.fontSize}pt; color: ${s.code.color}; }
+    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s['code-inline'].fontSize}pt; color: ${s['code-inline'].color}; }
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
     #preview-pane blockquote {
       font-size: ${s.quote.fontSize}pt;
       color: ${s.quote.color};
-      border-left-color: ${s.quote.barColor};
+      border-left-color: ${s.quote.borderColor};
     }
     #preview-pane p,
     #preview-pane li,

@@ -24,7 +24,7 @@ import {
   type MetadataField,
   type PageNumberPosition,
   type PdfSettings,
-  type TextStyle,
+  type Style,
 } from '../settings';
 import {
   MATH_FONT_SETS,
@@ -334,30 +334,36 @@ export function buildSettingsForm(
           current.styles.body = s;
           emit();
         }),
-        styleRow(t('settings.field.code-text'), current.styles.code, (s) => {
-          current.styles.code = s;
+        styleRow(t('settings.field.code-text'), current.styles['code-inline'], (s) => {
+          // Phase 1: the form's "Code" row drives both inline + block
+          // styles uniformly, preserving v0.4 behaviour. Phase 3 will
+          // split them into two rows when the per-element form lands.
+          current.styles['code-inline'] = s;
+          current.styles['code-block'] = {
+            ...current.styles['code-block'],
+            fontSize: s.fontSize,
+            color: s.color,
+          };
           emit();
         }),
         styleRow(
           t('settings.field.quote'),
-          {
-            fontSize: current.styles.quote.fontSize,
-            color: current.styles.quote.color,
-          },
+          current.styles.quote,
           (s) => {
-            current.styles.quote = {
-              ...current.styles.quote,
-              fontSize: s.fontSize,
-              color: s.color,
-            };
+            current.styles.quote = s;
             emit();
           },
         ),
         colorField(
           t('settings.field.quote-bar'),
-          current.styles.quote.barColor,
+          current.styles.quote.borderColor ?? '#d0d7de',
           (v) => {
-            current.styles.quote.barColor = v;
+            current.styles.quote = {
+              ...current.styles.quote,
+              borderColor: v,
+              borderSides: current.styles.quote.borderSides ?? 'left',
+              borderWidth: current.styles.quote.borderWidth ?? 3,
+            };
             emit();
           },
         ),
@@ -375,29 +381,38 @@ export function buildSettingsForm(
         ),
         numberField(
           t('settings.field.size-pt'),
-          current.pageNumber.style.fontSize,
+          current.styles['page-number'].fontSize ?? 9,
           5,
           24,
           (v) => {
-            current.pageNumber.style.fontSize = v;
+            current.styles['page-number'] = {
+              ...current.styles['page-number'],
+              fontSize: v,
+            };
             emit();
           },
           { disabled: current.pageNumber.position === 'none' },
         ),
         checkboxField(
           t('settings.field.italic'),
-          current.pageNumber.style.italics,
+          current.styles['page-number'].italic ?? false,
           (v) => {
-            current.pageNumber.style.italics = v;
+            current.styles['page-number'] = {
+              ...current.styles['page-number'],
+              italic: v,
+            };
             emit();
           },
           current.pageNumber.position === 'none',
         ),
         colorField(
           t('settings.field.color'),
-          current.pageNumber.style.color,
+          current.styles['page-number'].color ?? '#57606a',
           (v) => {
-            current.pageNumber.style.color = v;
+            current.styles['page-number'] = {
+              ...current.styles['page-number'],
+              color: v,
+            };
             emit();
           },
           current.pageNumber.position === 'none',
@@ -858,8 +873,8 @@ export function buildSettingsForm(
 
   function styleRow(
     label: string,
-    value: TextStyle,
-    onChange: (s: TextStyle) => void,
+    value: Style,
+    onChange: (s: Style) => void,
     opts: { underline?: boolean; italic?: boolean; weight?: boolean } = {},
   ): HTMLElement {
     const wrap = doc.createElement('div');
@@ -871,19 +886,20 @@ export function buildSettingsForm(
 
     const sizeInput = doc.createElement('input');
     sizeInput.type = 'number';
-    sizeInput.value = String(value.fontSize);
+    sizeInput.value = String(value.fontSize ?? '');
     sizeInput.min = '6';
     sizeInput.max = '72';
     sizeInput.step = '1';
     sizeInput.title = 'Taille (pt)';
 
-    let currentColor = value.color;
+    let currentColor = value.color ?? '#000000';
     let currentUnderline = value.underline ?? false;
     let currentItalic = value.italic ?? false;
     let currentWeight = value.weight ?? 500;
     const fire = (): void => {
       const fs = Number(sizeInput.value);
-      const next: TextStyle = {
+      const next: Style = {
+        ...value,
         fontSize: Number.isFinite(fs) ? fs : value.fontSize,
         color: currentColor,
       };
@@ -894,7 +910,7 @@ export function buildSettingsForm(
     };
     sizeInput.addEventListener('input', fire);
 
-    const picker = colorPicker(value.color, (c) => {
+    const picker = colorPicker(value.color ?? '#000000', (c) => {
       currentColor = c;
       fire();
     });

@@ -32,12 +32,14 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
       code: 'Roboto Mono',
     },
     styles: {
+      ...DEFAULT_SETTINGS.styles,
       h1: {
         fontSize: 30,
         color: '#111111',
         underline: false,
         italic: false,
         weight: 700,
+        align: 'center',
       },
       h2: {
         fontSize: 22,
@@ -45,6 +47,7 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
         underline: false,
         italic: false,
         weight: 600,
+        align: 'left',
       },
       h3: {
         fontSize: 16,
@@ -52,6 +55,7 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
         underline: false,
         italic: false,
         weight: 600,
+        align: 'left',
       },
       h4: {
         fontSize: 14,
@@ -59,10 +63,20 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
         underline: false,
         italic: false,
         weight: 500,
+        align: 'left',
       },
       body: { fontSize: 11, color: '#1a1a1a' },
-      code: { fontSize: 10, color: '#1f2328' },
-      quote: { fontSize: 11, color: '#57606a', barColor: '#d0d7de' },
+      'code-inline': { fontSize: 10, color: '#1f2328' },
+      'code-block': {
+        ...DEFAULT_SETTINGS.styles['code-block'],
+        fontSize: 10,
+        color: '#1f2328',
+      },
+      quote: {
+        ...DEFAULT_SETTINGS.styles.quote,
+        fontSize: 11,
+        color: '#57606a',
+      },
     },
     headingSpacing: { above: 1.8, below: 0.6 },
     paragraphSpacing: 1.3,

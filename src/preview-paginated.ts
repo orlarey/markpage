@@ -7,25 +7,26 @@
  *
  *******************************************************************************/
 
-import type { PdfSettings, TextStyle } from './settings';
+import type { PdfSettings, Style } from './settings';
 import { quoteFontFamily } from './font-loader';
 
 /**
  * Purpose: Heading underline CSS fragment for paged.js / print output.
  * How: Uses a neutral grey border-bottom to match the historical printed look.
  */
-function pagedUnderline(s: TextStyle): string {
+function pagedUnderline(s: Style): string {
   return s.underline
     ? `border-bottom: 1px solid #d0d7de; padding-bottom: 0.2em;`
     : '';
 }
 
 /**
- * Purpose: Per-heading italic + weight for paged.js / print output.
- * How: Emits explicit `font-style` + `font-weight` declarations.
+ * Purpose: Per-heading italic + weight + text-align for paged.js / print output.
+ * How: Emits explicit `font-style` / `font-weight` / `text-align` declarations,
+ *   keeping parity with the fluid preview's `headingExtras`.
  */
-function pagedHeadingExtras(s: TextStyle): string {
-  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500};`;
+function pagedHeadingExtras(s: Style): string {
+  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
 }
 
 /**
@@ -211,8 +212,8 @@ export function pagedCss(s: PdfSettings): string {
   const sizeMm = pageSizeMm(s);
   const m = s.margins;
   const pn = s.pageNumber;
-  const pageNumberRule = pageNumberCss(pn);
   const styles = s.styles;
+  const pageNumberRule = pageNumberCss(pn, styles['page-number']);
   const headingsFamily = fontFamilyChain(s.fonts.headings, 'sans');
   const bodyFamily = fontFamilyChain(s.fonts.body, 'sans');
   const codeFamily = fontFamilyChain(s.fonts.code, 'mono');
@@ -242,7 +243,7 @@ export function pagedCss(s: PdfSettings): string {
     }
 
     ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; ${pagedHeadingMargin(s)} }
-    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; text-align: center; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} }
+    ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} }
     ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} }
     ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} }
     ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} }
@@ -264,15 +265,15 @@ export function pagedCss(s: PdfSettings): string {
 
     ${SCOPE} :is(code, pre) {
       font-family: ${codeFamily};
-      font-size: ${styles.code.fontSize}pt;
-      color: ${styles.code.color};
+      font-size: ${styles['code-inline'].fontSize}pt;
+      color: ${styles['code-inline'].color};
     }
     ${SCOPE} pre { background: #f6f8fa; padding: 0.6em 0.9em; border-radius: 4px; }
 
     ${SCOPE} blockquote {
       font-size: ${styles.quote.fontSize}pt;
       color: ${styles.quote.color};
-      border-left: 3px solid ${styles.quote.barColor};
+      border-left: 3px solid ${styles.quote.borderColor};
       padding-left: 0.9em;
       margin: 0.6em 0;
       orphans: 3; widows: 3;
@@ -361,10 +362,13 @@ function pageSizeMm(s: PdfSettings): { w: number; h: number } {
 }
 
 /**
- * Purpose: Translate the PageNumber settings into a `@<corner>` rule.
+ * Purpose: Translate the PageNumber position + style into a `@<corner>` rule.
  * How: Emits `content: counter(page)` with font styling, or "" when `none`.
  */
-function pageNumberCss(pn: PdfSettings['pageNumber']): string {
+function pageNumberCss(
+  pn: PdfSettings['pageNumber'],
+  style: Style,
+): string {
   if (pn.position === 'none') return '';
   const [, hSide] = pn.position.split('-') as [
     'top' | 'bottom',
@@ -372,12 +376,12 @@ function pageNumberCss(pn: PdfSettings['pageNumber']): string {
   ];
   const vSide = pn.position.startsWith('top') ? 'top' : 'bottom';
   const at = `@${vSide}-${hSide}`;
-  const italic = pn.style.italics ? 'font-style: italic;' : '';
+  const italic = style.italic ? 'font-style: italic;' : '';
   return `
     ${at} {
       content: counter(page);
-      font-size: ${pn.style.fontSize}pt;
-      color: ${pn.style.color};
+      ${style.fontSize !== undefined ? `font-size: ${style.fontSize}pt;` : ''}
+      ${style.color !== undefined ? `color: ${style.color};` : ''}
       ${italic}
     }
   `;
