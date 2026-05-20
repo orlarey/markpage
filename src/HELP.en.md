@@ -393,12 +393,20 @@ What you can adjust:
 - **Justification** of text
 - **Line spacing**
 - **Fonts** for headings, body and code — picked from a catalogue of
-  ~15 Google Fonts (Inter, EB Garamond, JetBrains Mono…). Fonts
+  ~17 Google Fonts (Inter, EB Garamond, JetBrains Mono…). Fonts
   are loaded on demand; first use needs a connection, after that
   the browser caches them. Roboto Condensed and Roboto Mono are
   bundled and work offline. *Note: the editor itself always keeps
   Roboto Condensed / Mono regardless of your choices — the
   input zone's appearance doesn't change.*
+- **Matching pack** — a dropdown above the three font selectors that
+  aligns all four font slots (headings / body / code / math font)
+  to a pre-coordinated pack in one click. Three packs ship by
+  default: *Roboto Condensed + NewCM* (the historical default),
+  *Fira Sans + Fira Math* (modern sans-serif, recommended for
+  math-heavy documents), *STIX Two + STIX Math* (large-x-height
+  serif for long academic texts). Tweaking any single slot
+  switches the dropdown to "Custom".
 - **Custom Google Fonts** — for a family outside the catalogue,
   paste the Google Fonts URL (for example
   `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)

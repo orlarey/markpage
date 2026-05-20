@@ -36,6 +36,12 @@ import {
   type MathFontSet,
 } from '../mathjax-fontsets';
 import {
+  FONT_PACKS,
+  FONT_PACK_IDS,
+  detectActivePack,
+  type FontPackId,
+} from '../font-packs';
+import {
   getFontCatalog,
   parseGoogleFontsUrl,
   registerCustomFonts,
@@ -341,38 +347,61 @@ export function buildSettingsForm(
           {
             id: 'typo-fonts',
             label: t('settings.section.fonts'),
-            build: () => [
-              section(t('settings.section.fonts'), [
-                fontField(
-                  t('settings.field.font-headings'),
-                  ['sans', 'serif'],
-                  current.fonts.headings,
-                  (v) => {
-                    current.fonts.headings = v;
-                    emit();
-                  },
-                ),
-                fontField(
-                  t('settings.field.font-body'),
-                  ['sans', 'serif'],
-                  current.fonts.body,
-                  (v) => {
-                    current.fonts.body = v;
-                    emit();
-                  },
-                ),
-                fontField(
-                  t('settings.field.font-code'),
-                  ['mono'],
-                  current.fonts.code,
-                  (v) => {
-                    current.fonts.code = v;
-                    emit();
-                  },
-                ),
-                customFontsField(),
-              ]),
-            ],
+            build: () => {
+              const active = detectActivePack(current);
+              return [
+                section(t('settings.section.fonts'), [
+                  selectField<FontPackId | ''>(
+                    t('settings.field.font-pack'),
+                    ['', ...FONT_PACK_IDS],
+                    active ?? '',
+                    (v) => {
+                      if (v === '') return; // Nothing selected — leave as is
+                      const pack = FONT_PACKS[v];
+                      current.fonts = { ...pack.fonts };
+                      current.mathFontSet = pack.mathFontSet;
+                      emit();
+                      refresh();
+                    },
+                    (v) =>
+                      v === ''
+                        ? t('font-pack.custom')
+                        : t(`font-pack.${v}` as 'font-pack.fira'),
+                  ),
+                  fontField(
+                    t('settings.field.font-headings'),
+                    ['sans', 'serif'],
+                    current.fonts.headings,
+                    (v) => {
+                      current.fonts.headings = v;
+                      emit();
+                      refresh();
+                    },
+                  ),
+                  fontField(
+                    t('settings.field.font-body'),
+                    ['sans', 'serif'],
+                    current.fonts.body,
+                    (v) => {
+                      current.fonts.body = v;
+                      emit();
+                      refresh();
+                    },
+                  ),
+                  fontField(
+                    t('settings.field.font-code'),
+                    ['mono'],
+                    current.fonts.code,
+                    (v) => {
+                      current.fonts.code = v;
+                      emit();
+                      refresh();
+                    },
+                  ),
+                  customFontsField(),
+                ]),
+              ];
+            },
           },
           ...(
             [

@@ -72,7 +72,9 @@ A Markdown extended for technical and scientific writing:
 - **Interface and document languages** chosen independently
   (French / English; the architecture supports adding more)
 - Pick fonts from a curated list of Google Fonts, or paste any
-  `fonts.googleapis.com` URL for a custom family
+  `fonts.googleapis.com` URL for a custom family — plus
+  pre-paired **font packs** that align the body / headings / code
+  family with the math font in one click (Fira, STIX Two, …)
 - Fine-grained typography: page format, margins, justification,
   line height, per-heading size / colour / weight / italic /
   underline, asymmetric heading and paragraph spacing

@@ -408,13 +408,22 @@ Ce que vous pouvez régler :
 - **Justification** du texte
 - **Interligne**
 - **Polices** des titres, du corps et du code — choisies parmi un
-  catalogue de ~15 polices Google Fonts (Inter, EB Garamond,
+  catalogue de ~17 polices Google Fonts (Inter, EB Garamond,
   JetBrains Mono…). Les polices sont chargées à la demande ; la
   première utilisation nécessite une connexion, ensuite le
   navigateur les met en cache. Roboto Condensed et Roboto Mono
   sont embarquées et fonctionnent hors-ligne. *Note : l'éditeur
   lui-même garde toujours Roboto Condensed / Mono, indépendamment
   de vos choix — la cohérence de la zone de saisie ne change pas.*
+- **Pack assorti** — au-dessus des trois sélecteurs de police,
+  une dropdown qui aligne les 4 fontes (titres / corps / code /
+  fonte math) en un clic vers un pack pré-coordonné. Trois packs
+  livrés : *Roboto Condensed + NewCM* (défaut, valeur historique),
+  *Fira Sans + Fira Math* (sans-serif moderne, recommandé pour les
+  docs avec beaucoup de math), *STIX Two + STIX Math* (serif à
+  grand x-height pour les longs textes académiques). Si vous
+  modifiez une seule des fontes individuellement, la dropdown
+  passe en « Personnalisé ».
 - **Polices Google personnalisées** — pour une famille hors
   catalogue, copiez l'URL Google Fonts (par exemple
   `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)

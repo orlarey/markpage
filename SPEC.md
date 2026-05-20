@@ -2031,6 +2031,30 @@ adapter avec sa propre chaîne TeX, pas un clone du PDF.
 - Mapping vers `\setmainfont{...}` en LaTeX (fragile, la police
   doit aussi être installée sur la machine qui compile).
 
+### 20.7. Packs assortis (`src/font-packs.ts`)
+
+Pour éviter à l'utilisateur de coordonner manuellement les **quatre**
+fontes (titres / corps / code / `mathFontSet`), on livre des **packs**
+pré-coordonnés visibles dans Réglages → Typographie → Polices :
+
+| Pack id              | Titres / Corps    | Code        | Math   |
+|----------------------|-------------------|-------------|--------|
+| `roboto-condensed`   | Roboto Condensed  | Roboto Mono | newcm  |
+| `fira`               | Fira Sans         | Fira Code   | fira   |
+| `stix2`              | STIX Two Text     | Roboto Mono | stix2  |
+
+Choisir un pack écrase les quatre slots simultanément (`fonts.headings`,
+`fonts.body`, `fonts.code`, `mathFontSet`). Le pack actif est
+**déduit** à chaque ouverture de la section via `detectActivePack(settings)` :
+si une seule des quatre valeurs ne correspond plus, la dropdown affiche
+*Personnalisé* — pas d'état pack persisté dans les settings, donc pas
+de divergence entre la dropdown et la réalité.
+
+Limite v1 : packs NewCM (texte) et TeX classique (Computer Modern) ne
+sont pas livrés faute de disponibilité sur Google Fonts ; on les
+ajoutera quand on aura un mécanisme de chargement non-Google pour ces
+familles (`@fontsource` ou CDN dédié).
+
 ## 21. Export LaTeX
 
 **Statut** : livré (cf. `src/export-latex.ts`,
