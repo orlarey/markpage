@@ -15,9 +15,14 @@
 // can't touch them — at the cost of requiring "Margins: Aucune" in the
 // print dialog.
 
-import { marked } from 'marked';
-import { renderMermaidBlocks, renderMathBlocks, renderMathInlines } from './preview';
-import { applyPreviewMetadata } from './preview';
+import {
+  applyPreviewMetadata,
+  renderMathBlocks,
+  renderMathInlines,
+  renderMermaidBlocks,
+  renderPreview,
+} from './preview';
+import { parseFrontmatter } from './frontmatter';
 import { paginateOnce } from './preview-paginated';
 import type { PdfSettings } from './settings';
 
@@ -104,12 +109,14 @@ async function buildPrintContent(
   settings: PdfSettings,
 ): Promise<HTMLElement> {
   const el = document.createElement('div');
-  el.innerHTML = marked.parse(source, { async: false }) as string;
-  applyPreviewMetadata(el, settings);
+  const { meta } = parseFrontmatter(source);
+  renderPreview(el, source);
+  applyPreviewMetadata(el, settings, meta);
+  const preamble = meta['mathjax-preamble'] ?? '';
   await Promise.all([
     renderMermaidBlocks(el),
-    renderMathBlocks(el, settings.mathFontSet),
-    renderMathInlines(el, settings.mathFontSet),
+    renderMathBlocks(el, settings.mathFontSet, preamble),
+    renderMathInlines(el, settings.mathFontSet, preamble),
   ]);
   return el;
 }

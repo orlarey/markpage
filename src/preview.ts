@@ -9,6 +9,7 @@
 
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
+import { parseFrontmatter, type Frontmatter } from './frontmatter';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
@@ -45,30 +46,41 @@ function headingMargin(s: Style): string {
 
 /**
  * Purpose: Render the markdown source into the target's `innerHTML`,
- *   tagging the first `<h1>` (if any) with `.doc-title` so it picks
- *   up `styles.title` rather than `styles.h1`.
- * How: Synchronous `marked.parse` — the placeholders (math, mermaid)
- *   come later. The doc-title tagging is a tiny structural transform
- *   that promotes the first heading without altering source semantics
- *   (a user with no `#` at the top simply gets no `.doc-title`).
+ *   stripping any YAML frontmatter first and surfacing the doc title
+ *   (from `title:` in the frontmatter, or fallback to the first body
+ *   `<h1>`) tagged with `.doc-title` so it picks up `styles.title`.
+ * How: Frontmatter parse → marked.parse on the body; if the meta has
+ *   `title`, prepend a fresh `<h1.doc-title>`; otherwise promote the
+ *   first body h1 to `.doc-title`.
  */
 export function renderPreview(target: HTMLElement, source: string): void {
-  target.innerHTML = marked.parse(source, { async: false });
-  const first = target.querySelector('h1');
-  if (first) first.classList.add('doc-title');
+  const { meta, body } = parseFrontmatter(source);
+  target.innerHTML = marked.parse(body, { async: false });
+  if (meta.title) {
+    const h1 = document.createElement('h1');
+    h1.classList.add('doc-title');
+    h1.textContent = meta.title;
+    target.prepend(h1);
+  } else {
+    const first = target.querySelector('h1');
+    if (first) first.classList.add('doc-title');
+  }
 }
 
 /**
  * Purpose: Insert/refresh the centered author/organization/date block after the first h1.
  * How: Removes any prior `.preview-metadata`, builds one div per line, places after h1.
+ *   `frontmatter` (optional) overrides the matching profile fields on a
+ *   per-document basis — same precedence rule as `title`.
  */
 export function applyPreviewMetadata(
   target: HTMLElement,
   settings: PdfSettings,
+  frontmatter?: Frontmatter,
 ): void {
   target.querySelector('.preview-metadata')?.remove();
 
-  const lines = metadataLines(settings);
+  const lines = metadataLines(settings, frontmatter);
   if (lines.length === 0) return;
 
   const block = document.createElement('div');
@@ -141,6 +153,7 @@ function countNewlines(s: string): number {
 export async function renderMathInlines(
   target: HTMLElement,
   fontSet: MathFontSet = 'newcm',
+  preamble = '',
 ): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('span.math-inline[data-math]'),
@@ -149,7 +162,7 @@ export async function renderMathInlines(
   await Promise.all(
     placeholders.map(async (el) => {
       const source = el.dataset['math'] ?? '';
-      const result = await renderMath(source, false, fontSet);
+      const result = await renderMath(source, false, fontSet, preamble);
       if (result.ok) {
         el.innerHTML = makeIdsUnique(result.svg);
       } else {
@@ -224,6 +237,7 @@ function makeIdsUnique(svg: string): string {
 export async function renderMathBlocks(
   target: HTMLElement,
   fontSet: MathFontSet = 'newcm',
+  preamble = '',
 ): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('.math-block[data-math]'),
@@ -232,7 +246,7 @@ export async function renderMathBlocks(
   await Promise.all(
     placeholders.map(async (el) => {
       const source = el.dataset['math'] ?? '';
-      const result = await renderMath(source, true, fontSet);
+      const result = await renderMath(source, true, fontSet, preamble);
       if (result.ok) {
         el.innerHTML = makeIdsUnique(result.svg);
       } else {

@@ -53,6 +53,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from './preview';
+import { parseFrontmatter } from './frontmatter';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
@@ -379,14 +380,16 @@ async function bootstrap(): Promise<void> {
   const updatePreview = async (source: string): Promise<void> => {
     const myReq = ++previewReqId;
     const resolved = await expandRefsToBlobUrls(source);
+    const { meta } = parseFrontmatter(resolved);
     const built = document.createElement('div');
     renderPreview(built, resolved);
-    applyPreviewMetadata(built, state.settings);
+    applyPreviewMetadata(built, state.settings, meta);
     annotateSourceLines(built, source);
+    const preamble = meta['mathjax-preamble'] ?? '';
     await Promise.all([
       renderMermaidBlocks(built),
-      renderMathBlocks(built, state.settings.mathFontSet),
-      renderMathInlines(built, state.settings.mathFontSet),
+      renderMathBlocks(built, state.settings.mathFontSet, preamble),
+      renderMathInlines(built, state.settings.mathFontSet, preamble),
     ]);
     if (myReq !== previewReqId) return;
     await paginate(built, state.settings, previewEl);

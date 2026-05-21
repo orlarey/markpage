@@ -47,6 +47,7 @@ import {
   renderMermaidBlocks,
   renderPreview,
 } from './preview';
+import { parseFrontmatter } from './frontmatter';
 import { paginate } from './preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
@@ -112,13 +113,15 @@ async function run(): Promise<void> {
   // Build the same DOM subtree as the main preview pipeline, then
   // hand it to paged.js.
   const built = document.createElement('div');
+  const { meta } = parseFrontmatter(entry.source);
   renderPreview(built, entry.source);
-  applyPreviewMetadata(built, settings);
+  applyPreviewMetadata(built, settings, meta);
   annotateSourceLines(built, entry.source);
+  const preamble = meta['mathjax-preamble'] ?? '';
   await Promise.all([
     renderMermaidBlocks(built),
-    renderMathBlocks(built, settings.mathFontSet),
-    renderMathInlines(built, settings.mathFontSet),
+    renderMathBlocks(built, settings.mathFontSet, preamble),
+    renderMathInlines(built, settings.mathFontSet, preamble),
   ]);
   await paginate(built, settings, previewEl);
 }

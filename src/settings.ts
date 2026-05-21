@@ -698,20 +698,37 @@ export interface MetadataLine {
  * Purpose: Collect the title-block metadata lines (author / org / date)
  *   in display order, dropping hidden or empty entries.
  * How: Append author and organization when `show && text.trim()`; append
- *   the formatted date when `formatDate` returns non-null.
+ *   the formatted date when `formatDate` returns non-null. Per-document
+ *   YAML frontmatter takes precedence over the profile fields when
+ *   provided.
  */
-export function metadataLines(s: PdfSettings): MetadataLine[] {
+export function metadataLines(
+  s: PdfSettings,
+  frontmatter?: {
+    author?: string;
+    organization?: string;
+    date?: string;
+  },
+): MetadataLine[] {
   const lines: MetadataLine[] = [];
-  if (s.author.show && s.author.text.trim() !== '') {
-    lines.push({ text: s.author.text.trim(), bold: s.author.bold });
+  const authorText = (frontmatter?.author ?? s.author.text).trim();
+  if (frontmatter?.author !== undefined || s.author.show) {
+    if (authorText !== '') {
+      lines.push({ text: authorText, bold: s.author.bold });
+    }
   }
-  if (s.organization.show && s.organization.text.trim() !== '') {
-    lines.push({
-      text: s.organization.text.trim(),
-      bold: s.organization.bold,
-    });
+  const orgText = (frontmatter?.organization ?? s.organization.text).trim();
+  if (frontmatter?.organization !== undefined || s.organization.show) {
+    if (orgText !== '') {
+      lines.push({ text: orgText, bold: s.organization.bold });
+    }
   }
-  const d = formatDate(s.date, s.language);
-  if (d) lines.push({ text: d, bold: false });
+  if (frontmatter?.date !== undefined) {
+    const t = frontmatter.date.trim();
+    if (t !== '') lines.push({ text: t, bold: false });
+  } else {
+    const d = formatDate(s.date, s.language);
+    if (d) lines.push({ text: d, bold: false });
+  }
   return lines;
 }
