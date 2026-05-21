@@ -11,6 +11,7 @@
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
 import { renderChart } from './chart';
+import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
 import { highlightCode, isKnownLanguage } from './highlight';
 
@@ -206,6 +207,11 @@ marked.use({
       // intent is type definition rather than grammar.
       if (lang === 'adt') {
         return injectSource(renderAdtBlock(token.text), raw);
+      }
+      // ```diff — unified-diff text with per-line green / red /
+      // grey coloration for added / removed / context lines.
+      if (lang === 'diff') {
+        return injectSource(renderDiffBlock(token.text), raw);
       }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown

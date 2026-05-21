@@ -1,0 +1,17 @@
+<h1 class="doc-title">Diff block</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A pre-<code>feat</code>/<code>fix</code> snippet, followed by the diff that lands the
+change. The dispatcher classifies each line by its leading marker:
+<code>+</code> / <code>-</code> for additions / removals, <code>@@</code> for hunks, <code>+++</code> / <code>---</code>
+for the file headers, anything else is context.</p>
+<pre data-source="```diff
+--- a/src/foo.ts
++++ b/src/foo.ts
+@@ -1,5 +1,6 @@
+ function greet(name: string): string {
+-  return `Hello, ${name}`;
++  if (!name) return 'Hello, stranger';
++  return `Hello, ${name}!`;
+ }
+```" class="diff-block"><code><span class="diff-meta">--- a/src/foo.ts</span><span class="diff-meta">+++ b/src/foo.ts</span><span class="diff-hunk">@@ -1,5 +1,6 @@</span><span class="diff-ctx"> function greet(name: string): string {</span><span class="diff-del">-  return `Hello, ${name}`;</span><span class="diff-add">+  if (!name) return 'Hello, stranger';</span><span class="diff-add">+  return `Hello, ${name}!`;</span><span class="diff-ctx"> }</span></code></pre>
+<p>Inline code like <code>git diff</code> flows through unchanged because only
+the dedicated fence triggers the special rendering.</p>

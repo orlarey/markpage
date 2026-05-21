@@ -1213,6 +1213,42 @@ body,
   border-radius: 3px;
 }
 
+/* ---- diff block (```diff fence) ----------------------------------
+   Per-line tinted background for added (+) / removed (-) lines, with
+   subtler shades for the hunk headers (@@) and file headers (+++/---).
+   `display: block` on each span forces the background to fill the row
+   width even when the line content is shorter. The outer `<pre>`'s
+   typography (padding, background, border, font) is driven by the
+   user's `code-block` settings via the dynamic preview stylesheet
+   — no need to repeat it here. */
+.diff-block .diff-add,
+.diff-block .diff-del,
+.diff-block .diff-ctx,
+.diff-block .diff-meta,
+.diff-block .diff-hunk {
+  display: block;
+}
+
+.diff-block .diff-add {
+  background: #e6ffec;
+  color: #1a7f37;
+}
+
+.diff-block .diff-del {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.diff-block .diff-meta {
+  color: #57606a;
+  font-weight: 500;
+}
+
+.diff-block .diff-hunk {
+  color: #6e7681;
+  background: #ddf4ff;
+}
+
 .preview-metadata {
   text-align: center;
   margin: 0 0 1.5rem;
