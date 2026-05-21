@@ -387,7 +387,10 @@ cut down on scrolling.
 
 What you can adjust:
 
-- **Author, organisation, date** shown under the main title
+- **Author, organisation, date** shown under the main title.
+  *To override on a per-document basis* — say a paper signed by a
+  different team — use a *YAML frontmatter* at the top of the doc
+  instead (cf. *Going further → YAML frontmatter*).
 - **Page format** (A4, A5, Letter…)
 - **Margins** in millimetres
 - **Justification** of text
@@ -792,6 +795,43 @@ states, etc., each with its own syntax). If you're writing a
 research article, a course, an algorithm spec, or technical
 documentation, you'll find what you need here. Otherwise you can
 skip straight to Credits.
+
+### YAML frontmatter
+
+At the top of a document, you can insert a **YAML block** (between
+two `---` lines) that overrides the profile metadata for that
+specific document:
+
+```yaml
+---
+title: A study of finite automata
+author: Alice Dupont
+organization: Université de Lyon
+date: 2026-05-21
+mathjax-preamble: |
+  \newcommand{\R}{\mathbb{R}}
+  \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+---
+```
+
+Recognised keys:
+
+- **`title`** — the document title. Rendered large, centred, styled
+  via *Settings → Typography → Document title*. When this key is
+  present, the `# Heading`s in the body act as **real section
+  headings** (left-aligned, more discreet, styled via *Heading 1*),
+  instead of being promoted to the title role.
+- **`author`**, **`organization`**, **`date`** — override the
+  matching profile fields. Handy for a co-authored document, or a
+  document dated differently from the profile default.
+- **`mathjax-preamble`** — TeX source (multi-line via `|`) pasted
+  before **every** MathJax formula in the document. Ideal for
+  defining once `\newcommand{\R}{\mathbb{R}}` and using it in every
+  formula without repeating the definition.
+
+The block is fully optional — a document without frontmatter keeps
+working as before, with the first `#` in the body promoted to the
+document title automatically.
 
 ### Input ligatures
 

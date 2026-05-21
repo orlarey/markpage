@@ -402,7 +402,11 @@ pour réduire le scroll.
 
 Ce que vous pouvez régler :
 
-- **Auteur, organisation, date** affichés sous le titre principal
+- **Auteur, organisation, date** affichés sous le titre principal.
+  *Pour un override par document* — par exemple un papier de
+  recherche signé d'une autre équipe — utilisez plutôt le
+  *frontmatter YAML* en tête de doc (cf. *Pour aller encore plus
+  loin → Frontmatter YAML*).
 - **Format de page** (A4, A5, Letter…)
 - **Marges** en millimètres
 - **Justification** du texte
@@ -823,6 +827,43 @@ taper, formules en LaTeX, règles d'inférence, et diagrammes Mermaid
 Si vous écrivez un article de recherche, un cours, une spec
 d'algorithme, ou de la documentation technique, vous y trouverez votre
 compte. Sinon vous pouvez sauter directement aux Crédits.
+
+### Frontmatter YAML
+
+En tête de document, vous pouvez insérer un **bloc YAML** (entre deux
+lignes de `---`) qui surcharge la métadonnée du profil pour ce
+document précis :
+
+```yaml
+---
+title: Une étude des automates finis
+author: Alice Dupont
+organization: Université de Lyon
+date: 2026-05-21
+mathjax-preamble: |
+  \newcommand{\R}{\mathbb{R}}
+  \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+---
+```
+
+Les clés reconnues :
+
+- **`title`** — le titre du document. Affiché en gros, centré, stylé
+  via *Réglages → Typographie → Titre du document*. Quand cette clé
+  est présente, vos `# Heading` dans le corps deviennent de **vrais
+  titres de section** (alignés à gauche, plus discrets, stylés via
+  *Titre 1*), au lieu d'être promus au statut de titre principal.
+- **`author`**, **`organization`**, **`date`** — surchargent les
+  champs correspondants du profil. Pratique pour un document
+  co-signé ou daté différemment du défaut.
+- **`mathjax-preamble`** — du code TeX (multi-ligne avec `|`)
+  collé avant **chaque** formule MathJax du document. Idéal pour
+  définir une fois `\newcommand{\R}{\mathbb{R}}` et l'utiliser dans
+  toutes les formules sans repéter la définition.
+
+Le bloc est entièrement optionnel — un document sans frontmatter
+continue à fonctionner exactement comme avant, le premier `#` du
+corps devient automatiquement le titre.
 
 ### Ligatures de saisie
 

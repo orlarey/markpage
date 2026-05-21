@@ -2493,7 +2493,81 @@ bannière, warning SVG).
   même un pattern custom à la `moment.js`). Aujourd'hui figé à
   `dateStyle: 'long'`.
 
-## 24. À décider plus tard
+## 24. Frontmatter YAML (`src/frontmatter.ts`)
+
+Un bloc `---` optionnel en tête de doc qui surcharge la métadonnée
+profil pour ce document précis, plus une porte d'entrée pour des
+macros TeX globales.
+
+### 24.1. Syntaxe acceptée
+
+Pandoc-style — fence d'ouverture et de fermeture sur leur propre
+ligne, paires `clé: valeur` à l'intérieur. Pour les valeurs
+multilignes (utilisée par `mathjax-preamble`), notation block scalar
+`|` :
+
+```yaml
+---
+title: Étude des automates
+author: Alice Dupont
+organization: Université de Lyon
+date: 2026-05-21
+mathjax-preamble: |
+  \newcommand{\R}{\mathbb{R}}
+  \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+---
+```
+
+Sous-ensemble très limité (pas de listes, pas de dicts imbriqués) qui
+couvre nos 5 clés reconnues. On a un parser fait main de ~120 lignes
+pour éviter de dépendre de `js-yaml` (~30 KB gzip).
+
+### 24.2. Clés reconnues
+
+| Clé                  | Effet                                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `title`              | Rendu comme `<h1 class="doc-title">`, stylé via `styles.title`. Les `#` du corps deviennent de vrais h1-sections. |
+| `author`             | Override de `settings.author.text` dans le bloc métadonnée du title-block.                                        |
+| `organization`       | Idem pour `settings.organization.text`.                                                                           |
+| `date`               | Idem pour `settings.date` ; chaîne libre (pas de reformatage Intl).                                               |
+| `mathjax-preamble`   | Source TeX collé avant chaque invocation de `renderMath()` pour ce doc.                                           |
+
+Toute autre clé est conservée dans `meta.extra` (objet) pour debug ou
+extension future, mais n'est pas câblée à un rendu.
+
+### 24.3. Pipeline
+
+`parseFrontmatter(source)` est appelé dans les trois entry-points qui
+rendent un doc :
+
+- `main.ts` `updatePreview()` (live preview)
+- `print-export.ts` `buildPrintContent()` (export PDF)
+- `demo.ts` (iframes du showcase)
+
+Le `meta` extrait est passé en paramètre à :
+
+- `renderPreview(target, source)` — qui re-parse en interne pour avoir
+  accès au `title` et l'injecter en tête du DOM rendu
+- `applyPreviewMetadata(target, settings, meta?)` — qui priorise les
+  champs `author`/`organization`/`date` du `meta` sur ceux du profil
+- `renderMathBlocks(target, fontSet, preamble?)` /
+  `renderMathInlines(target, fontSet, preamble?)` — qui propagent le
+  `preamble` jusqu'à `renderMath()`
+
+`renderMath()` colle `preamble + '\n' + source` avant l'appel MathJax,
+et inclut `preamble` dans sa clé de cache pour éviter qu'un changement
+de préambule renvoie un SVG périmé.
+
+### 24.4. Limitations connues v1
+
+- Pas de support pour des listes (`tags: [a, b, c]`) ni dicts imbriqués
+  → la valeur passe en `extra` mais ne sera pas typée.
+- Pas de chomping `|+` (préserver les trailing newlines) ni de
+  folded `>` — `|` et `|-` traités identiquement.
+- Pas d'override `language` (la langue doc reste settings-only — à
+  ajouter si le besoin remonte).
+
+## 25. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Mode sombre de l'éditeur.

@@ -53,6 +53,10 @@ A Markdown extended for technical and scientific writing:
   the source literal)
 - **Section auto-numbering** — write the first heading the way you
   want, the rest follows the same style
+- **YAML frontmatter** — optional `---` block at the top of a doc
+  with `title:` / `author:` / `organization:` / `date:` overrides
+  per-document, plus `mathjax-preamble:` for defining `\newcommand`
+  macros once and using them in every formula
 
 ## Export formats and sharing
 
