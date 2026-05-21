@@ -1,0 +1,54 @@
+<h1 class="doc-title">Tree block</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Indent-based outlines become Unicode box-drawing trees. Useful
+for filesystem layouts in READMEs, syntax trees, dependency
+hierarchies, or any other ordered nesting.</p>
+<p>A single-rooted file tree (typical README shape):</p>
+<pre data-source="```tree
+markpage
+  src
+    main.ts
+    preview.ts
+    settings.ts
+  tests
+    corpus
+      01-headings.md
+      02-inline.md
+  package.json
+```" class="tree-block">markpage
+├── src
+│   ├── main.ts
+│   ├── preview.ts
+│   └── settings.ts
+├── tests
+│   └── corpus
+│       ├── 01-headings.md
+│       └── 02-inline.md
+└── package.json
+</pre>
+<p>Multi-rooted forest (renders the roots as siblings under an
+implicit empty parent):</p>
+<pre data-source="```tree
+animals
+  mammals
+    cats
+    dogs
+  birds
+    crows
+plants
+  trees
+    oaks
+  herbs
+    basil
+```
+" class="tree-block">├── animals
+│   ├── mammals
+│   │   ├── cats
+│   │   └── dogs
+│   └── birds
+│       └── crows
+└── plants
+    ├── trees
+    │   └── oaks
+    └── herbs
+        └── basil
+</pre>

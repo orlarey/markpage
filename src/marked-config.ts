@@ -13,6 +13,7 @@ import { renderAdtBlock } from './adt';
 import { renderChart } from './chart';
 import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
+import { renderTreeBlock } from './tree';
 import { highlightCode, isKnownLanguage } from './highlight';
 
 interface MathBlockToken {
@@ -212,6 +213,11 @@ marked.use({
       // grey coloration for added / removed / context lines.
       if (lang === 'diff') {
         return injectSource(renderDiffBlock(token.text), raw);
+      }
+      // ```tree — indent-based outline rendered as a Unicode
+      // box-drawing tree (file structures, syntax trees, etc.).
+      if (lang === 'tree') {
+        return injectSource(renderTreeBlock(token.text), raw);
       }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown
