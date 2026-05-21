@@ -1249,6 +1249,22 @@ body,
   background: #ddf4ff;
 }
 
+/* ---- tree block — SVG variant (```tree svg) ----------------------
+   Render at intrinsic size when it fits the column; scale down
+   proportionally otherwise so the diagram (and its labels) stay on
+   the page at print time. `currentColor` on lines + text in the SVG
+   inherits the surrounding text colour. */
+.tree-svg-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+
+.tree-svg-wrap .tree-svg {
+  max-width: 100%;
+  height: auto;
+}
+
 .preview-metadata {
   text-align: center;
   margin: 0 0 1.5rem;

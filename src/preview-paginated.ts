@@ -286,7 +286,8 @@ export function pagedCss(s: PdfSettings): string {
       font-size: ${styles['code-inline'].fontSize}pt;
       color: ${styles['code-inline'].color};
     }
-    ${SCOPE} pre { ${blockBoxCss(styles['code-block'])} }
+    ${SCOPE} pre,
+    ${SCOPE} .tree-svg-wrap { ${blockBoxCss(styles['code-block'])} }
 
     ${SCOPE} blockquote {
       ${inlineCss(styles.quote)}

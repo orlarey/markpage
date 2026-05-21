@@ -35,3 +35,17 @@ plants
   herbs
     basil
 ```
+
+Syntax tree (top-down SVG) — same indent syntax, just add `svg`:
+
+```tree svg
+S
+  NP
+    Det
+    N
+  VP
+    V
+    NP
+      Det
+      N
+```

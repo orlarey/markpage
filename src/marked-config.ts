@@ -214,10 +214,13 @@ marked.use({
       if (lang === 'diff') {
         return injectSource(renderDiffBlock(token.text), raw);
       }
-      // ```tree — indent-based outline rendered as a Unicode
-      // box-drawing tree (file structures, syntax trees, etc.).
-      if (lang === 'tree') {
-        return injectSource(renderTreeBlock(token.text), raw);
+      // ```tree [svg] — indent-based outline rendered as either a
+      // Unicode box-drawing tree (default — file structures, code
+      // hierarchies) or a top-down SVG diagram (`svg` keyword —
+      // syntax trees, parser derivations).
+      if (lang === 'tree' || lang.startsWith('tree ')) {
+        const mode = /\bsvg\b/.test(lang) ? 'svg' : 'unicode';
+        return injectSource(renderTreeBlock(token.text, mode), raw);
       }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown

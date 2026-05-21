@@ -341,8 +341,11 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
-    /* Block code: <pre> wrapper uses the code-block style box. */
-    #preview-pane pre { ${blockBoxCss(s['code-block'])} }
+    /* Block code: <pre> wrapper uses the code-block style box.
+       Tree SVG diagrams share the same visual frame so they live in
+       the same kind of container as code blocks. */
+    #preview-pane pre,
+    #preview-pane .tree-svg-wrap { ${blockBoxCss(s['code-block'])} }
     #preview-pane blockquote { ${inlineCss(s.quote)} ${blockBoxCss(s.quote)} padding-left: ${s.quote.padding ?? 0.9}em; }
     /* Metadata block (author / organization / date) shown after h1. */
     #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
