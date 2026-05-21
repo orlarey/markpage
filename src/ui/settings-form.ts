@@ -417,6 +417,7 @@ export function buildSettingsForm(
               'code-block',
               'quote',
               'table',
+              'caption',
               'page-number',
             ] as const
           ).map((key) => ({

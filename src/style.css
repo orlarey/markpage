@@ -862,13 +862,6 @@ body,
   font-weight: 500;
 }
 
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-title {
-  font-size: 14px;
-  fill: #222;
-  text-anchor: middle;
-  font-weight: 500;
-}
-
 :where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-legend {
   font-size: 11px;
   fill: #222;
@@ -1263,6 +1256,60 @@ body,
 .tree-svg-wrap .tree-svg {
   max-width: 100%;
   height: auto;
+}
+
+/* ---- algorithm block (```algorithm "Caption") --------------------
+   algorithm2e-style listing — numbered lines, bold keywords. The
+   outer `.algorithm` wrapper inherits the user's `code-block` box
+   (background / border / padding) via the preview stylesheet. The
+   caption (if any) is rendered above by the shared figure wrapper. */
+.algorithm-body {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.algorithm-body td {
+  border: none;
+  padding: 0.05em 0.2em;
+  vertical-align: top;
+}
+
+.algorithm-line {
+  width: 2.2em;
+  text-align: right;
+  opacity: 0.6;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding-right: 0.6em !important;
+  user-select: none;
+}
+
+.algorithm-code {
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+
+/* ---- captioned figure wrapper ------------------------------------
+   `<figure class="captioned …">` groups a block with its auto-
+   numbered `<figcaption class="caption">`. The wrapper itself is
+   transparent — only the inner block and the caption are styled.
+   `break-inside: avoid` keeps the pair on the same page at print
+   time so the caption never floats away from its figure. */
+figure.captioned {
+  margin: 1em 0;
+  padding: 0;
+  break-inside: avoid;
+}
+figure.captioned > .algorithm,
+figure.captioned > .tree-svg-wrap,
+figure.captioned > pre {
+  margin: 0;
+}
+/* Default caption typography — overridden per-document by the
+   `styles.caption` settings via the preview stylesheet. */
+.caption {
+  text-align: center;
 }
 
 .preview-metadata {

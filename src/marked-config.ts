@@ -10,6 +10,8 @@
 
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
+import { renderAlgorithmBlock } from './algorithm';
+import { parseFenceInfo, resetCaptions, withCaption } from './captions';
 import { renderChart } from './chart';
 import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
@@ -177,11 +179,23 @@ marked.use({
           raw,
         );
       }
-      if (lang === 'csv') {
-        return injectSource(renderDataTable(token.text, ','), raw);
+      // For every captionable block we extract a `"…"` quoted caption
+      // via parseFenceInfo, then wrap the rendered block in a `<figure>`
+      // with an auto-numbered `<figcaption>` (Algorithme N / Figure N /
+      // Tableau N / Listing N). Bare-words after the language tag stay
+      // available as positional `args` (e.g. `chart bar`, `tree svg`).
+      const info = parseFenceInfo(lang);
+      if (lang === 'csv' || lang.startsWith('csv ')) {
+        return injectSource(
+          withCaption('table', info.caption, renderDataTable(token.text, ',')),
+          raw,
+        );
       }
-      if (lang === 'tsv') {
-        return injectSource(renderDataTable(token.text, '\t'), raw);
+      if (lang === 'tsv' || lang.startsWith('tsv ')) {
+        return injectSource(
+          withCaption('table', info.caption, renderDataTable(token.text, '\t')),
+          raw,
+        );
       }
       // ```inference (Label) — premises / dashes / conclusion. The
       // info string after `inference` is the optional rule label.
@@ -190,43 +204,80 @@ marked.use({
         const label = labelMatch ? (labelMatch[1] ?? '').trim() : '';
         return injectSource(renderInference(token.text, label), raw);
       }
-      // ```chart <type> [Title] — see chart.ts. Everything after the
-      // word "chart" (type + optional title) is forwarded as the info
-      // string; the helper does its own parsing.
+      // ```chart <type> "Caption" — `type` is a positional arg
+      // (bar / line / area / pie / scatter). Caption is uniform with
+      // the other figure-like blocks (Figure N: …).
       if (lang === 'chart' || lang.startsWith('chart ')) {
-        const m = /^chart\s*(.*)$/.exec(lang);
-        return injectSource(renderChart(token.text, m?.[1] ?? ''), raw);
+        const type = info.args[0] ?? '';
+        return injectSource(
+          withCaption('figure', info.caption, renderChart(token.text, type)),
+          raw,
+        );
       }
       // ```ebnf — W3C EBNF parsed into a railroad / syntax diagram
       // per production. Pure SVG output, embedded as-is.
-      if (lang === 'ebnf') {
-        return injectSource(renderEbnfBlock(token.text), raw);
+      if (lang === 'ebnf' || lang.startsWith('ebnf ')) {
+        return injectSource(
+          withCaption('figure', info.caption, renderEbnfBlock(token.text)),
+          raw,
+        );
       }
       // ```adt — algebraic-data-type definitions in BNF-ish form
       // (LHS ::= Ctor(args) | …), typeset with aligned `|` and
       // constructor highlighting. Distinct from ebnf because the
       // intent is type definition rather than grammar.
-      if (lang === 'adt') {
-        return injectSource(renderAdtBlock(token.text), raw);
+      if (lang === 'adt' || lang.startsWith('adt ')) {
+        return injectSource(
+          withCaption('listing', info.caption, renderAdtBlock(token.text)),
+          raw,
+        );
       }
       // ```diff — unified-diff text with per-line green / red /
       // grey coloration for added / removed / context lines.
-      if (lang === 'diff') {
-        return injectSource(renderDiffBlock(token.text), raw);
+      if (lang === 'diff' || lang.startsWith('diff ')) {
+        return injectSource(
+          withCaption('listing', info.caption, renderDiffBlock(token.text)),
+          raw,
+        );
       }
       // ```tree [svg] — indent-based outline rendered as either a
       // Unicode box-drawing tree (default — file structures, code
       // hierarchies) or a top-down SVG diagram (`svg` keyword —
       // syntax trees, parser derivations).
       if (lang === 'tree' || lang.startsWith('tree ')) {
-        const mode = /\bsvg\b/.test(lang) ? 'svg' : 'unicode';
-        return injectSource(renderTreeBlock(token.text, mode), raw);
+        const mode = info.args.includes('svg') ? 'svg' : 'unicode';
+        return injectSource(
+          withCaption(
+            'figure',
+            info.caption,
+            renderTreeBlock(token.text, mode),
+          ),
+          raw,
+        );
+      }
+      // ```algorithm "Caption" — pseudocode with auto-numbered caption,
+      // line numbers, and bolded keywords (for / while / if / return…).
+      if (lang === 'algorithm' || lang.startsWith('algorithm ')) {
+        return injectSource(
+          withCaption('algorithm', info.caption, renderAlgorithmBlock(token.text)),
+          raw,
+        );
       }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown
       // languages fall through to marked's plain monospace block.
-      if (lang !== '' && isKnownLanguage(lang)) {
-        return injectSource(highlightCode(token.text, lang), raw);
+      // A `"caption"` may follow the language tag for a Listing N
+      // caption (e.g. ```python "Helpers" `).
+      const baseLang = lang.split(/\s+/)[0] ?? '';
+      if (baseLang !== '' && isKnownLanguage(baseLang)) {
+        return injectSource(
+          withCaption(
+            'listing',
+            info.caption,
+            highlightCode(token.text, baseLang),
+          ),
+          raw,
+        );
       }
       return false;
     },
@@ -243,6 +294,7 @@ marked.use({
       footnoteSeen.length = 0;
       citationDefs.clear();
       citationSeen.length = 0;
+      resetCaptions();
       return src;
     },
     postprocess(html) {

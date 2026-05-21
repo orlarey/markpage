@@ -27,12 +27,18 @@ function underlineRule(s: Style): string {
 }
 
 /**
- * Purpose: Per-heading italic + weight + text-align, overriding static rules.
- * How: Emits explicit `font-style` / `font-weight` / `text-align` so the
- *   dynamic rule wins over the bold/strong + body-justify defaults.
+ * Purpose: Per-heading family + italic + weight + text-align, overriding the
+ *   static rules so the dynamic rule wins over the bold/strong + body-justify
+ *   defaults.
+ * How: Emits explicit `font-family` (when overridden), `font-style`,
+ *   `font-weight`, `text-align`.
  */
 function headingExtras(s: Style): string {
-  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
+  const fam =
+    s.family !== undefined && s.family.trim() !== ''
+      ? `font-family: ${quoteFontFamily(s.family)}; `
+      : '';
+  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
 }
 
 /**
@@ -320,9 +326,13 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   const s = settings.styles;
   const align = s.body.align ?? 'left';
   const f = settings.fonts;
+  // Per-element family overrides the trio; the trio is the fallback
+  // when the matrix leaves `family` undefined.
+  const bodyName = (s.body.family ?? '').trim() || f.body;
+  const codeName = (s['code-inline'].family ?? '').trim() || f.code;
   const headFam = `${quoteFontFamily(f.headings)}, "Roboto Condensed", sans-serif`;
-  const bodyFam = `${quoteFontFamily(f.body)}, "Roboto Condensed", sans-serif`;
-  const codeFam = `${quoteFontFamily(f.code)}, "Roboto Mono", monospace`;
+  const bodyFam = `${quoteFontFamily(bodyName)}, "Roboto Condensed", sans-serif`;
+  const codeFam = `${quoteFontFamily(codeName)}, "Roboto Mono", monospace`;
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
@@ -341,20 +351,25 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
-    /* Block code: <pre> wrapper uses the code-block style box.
-       Tree SVG diagrams share the same visual frame so they live in
-       the same kind of container as code blocks. */
+    /* Block code: <pre> wrapper uses the code-block style box +
+       per-element typography (family/fontSize/color/margins) that
+       overrides the code-inline rule above for <pre> specifically.
+       Tree SVG diagrams and algorithm listings share the same frame. */
     #preview-pane pre,
-    #preview-pane .tree-svg-wrap { ${blockBoxCss(s['code-block'])} }
+    #preview-pane .tree-svg-wrap,
+    #preview-pane .algorithm { ${blockBoxCss(s['code-block'])} ${inlineCss(s['code-block'])} }
     #preview-pane blockquote { ${inlineCss(s.quote)} ${blockBoxCss(s.quote)} padding-left: ${s.quote.padding ?? 0.9}em; }
     /* Metadata block (author / organization / date) shown after h1. */
     #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
+    /* Auto-numbered figure / algorithm / table / listing caption. */
+    #preview-pane .caption { ${inlineCss(s.caption)} }
     /* Inline links — color and underline come from styles['inline-link']. */
     #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
-    /* Block math, mermaid, admonitions, tables — user-configurable box. */
-    #preview-pane .math-block { ${blockBoxCss(s['math-block'])} }
-    #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} }
-    #preview-pane .admonition { ${blockBoxCss(s.callout)} }
+    /* Block math, mermaid, admonitions, tables — user-configurable
+       box + inline (align / margins). */
+    #preview-pane .math-block { ${blockBoxCss(s['math-block'])} ${inlineCss(s['math-block'])} }
+    #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} ${inlineCss(s.mermaid)} }
+    #preview-pane .admonition { ${blockBoxCss(s.callout)} ${inlineCss(s.callout)} }
     #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
     #preview-pane p,
     #preview-pane li { text-align: ${align}; }

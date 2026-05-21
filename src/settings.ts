@@ -121,6 +121,7 @@ export type ElementKey =
   | 'mermaid'
   | 'callout'
   | 'table'
+  | 'caption'
   | 'page-number';
 
 export const ELEMENT_KEYS: ElementKey[] = [
@@ -139,6 +140,7 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'mermaid',
   'callout',
   'table',
+  'caption',
   'page-number',
 ];
 
@@ -232,6 +234,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   table: {
     category: 'block',
     attrs: ['fontSize', 'color', 'borders', 'borderColor', 'borderWidth'],
+  },
+  caption: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
   },
   'page-number': {
     category: 'inline',
@@ -443,6 +449,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       borderRadius: 4,
     },
     table: {},
+    caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
     'page-number': { fontSize: 9, color: '#57606a', weight: 400, italic: false, underline: false },
   },
   pageNumber: {

@@ -1,0 +1,62 @@
+<h1 class="doc-title">Captions across block types</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A <code>"quoted caption"</code> after the language tag wraps any block in an
+auto-numbered <code>&lt;figure&gt;</code>. Each kind keeps its own counter:
+<code>Figure N</code> for visual blocks, <code>Tableau N</code> for data, <code>Listing N</code> for
+code, <code>Algorithme N</code> for pseudocode.</p>
+<p>A captioned table:</p>
+<figure data-source="```csv &quot;Effectifs par équipe&quot;
+Équipe, Effectif, Budget
+Backend, 12, 1.2M
+Frontend, 8, 0.7M
+Data, 5, 0.5M
+```" class="captioned captioned-table"><table class="data-table"><thead><tr><th>Équipe</th><th>Effectif</th><th>Budget</th></tr></thead><tbody><tr><td>Backend</td><td>12</td><td>1.2M</td></tr><tr><td>Frontend</td><td>8</td><td>0.7M</td></tr><tr><td>Data</td><td>5</td><td>0.5M</td></tr></tbody></table>
+
+<figcaption class="caption">Tableau 1: Effectifs par équipe</figcaption></figure>
+<p>A captioned tree diagram:</p>
+<figure data-source="```tree svg &quot;Décomposition de la phrase&quot;
+S
+  NP
+    Det
+    N
+  VP
+    V
+    NP
+      Det
+      N
+```" class="captioned captioned-figure"><div class="tree-svg-wrap"><svg class="tree-svg" width="176" height="180" viewBox="0 0 176 180" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="76" y1="24" x2="40" y2="54" stroke="currentColor" stroke-width="1"></line><line x1="76" y1="24" x2="112" y2="54" stroke="currentColor" stroke-width="1"></line><line x1="40" y1="72" x2="24" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="40" y1="72" x2="56" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="112" y1="72" x2="88" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="112" y1="72" x2="136" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="136" y1="120" x2="120" y2="150" stroke="currentColor" stroke-width="1"></line><line x1="136" y1="120" x2="152" y2="150" stroke="currentColor" stroke-width="1"></line><text x="76" y="18" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">S</text><text x="40" y="66" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">NP</text><text x="24" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Det</text><text x="56" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">N</text><text x="112" y="66" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">VP</text><text x="88" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">V</text><text x="136" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">NP</text><text x="120" y="162" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Det</text><text x="152" y="162" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">N</text></svg></div>
+
+<figcaption class="caption">Figure 1: Décomposition de la phrase</figcaption></figure>
+<p>A captioned code listing:</p>
+<figure data-source="```python &quot;Fonction utilitaire&quot;
+def median(xs):
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+```" class="captioned captioned-listing"><pre class="hljs"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">median</span>(<span class="hljs-params">xs</span>):
+    s = <span class="hljs-built_in">sorted</span>(xs)
+    n = <span class="hljs-built_in">len</span>(s)
+    <span class="hljs-keyword">return</span> s[n // <span class="hljs-number">2</span>] <span class="hljs-keyword">if</span> n % <span class="hljs-number">2</span> <span class="hljs-keyword">else</span> (s[n // <span class="hljs-number">2</span> - <span class="hljs-number">1</span>] + s[n // <span class="hljs-number">2</span>]) / <span class="hljs-number">2</span></code></pre>
+<figcaption class="caption">Listing 1: Fonction utilitaire</figcaption></figure>
+<p>A captioned algorithm:</p>
+<figure data-source="```algorithm &quot;Recherche linéaire&quot;
+Input: array A, value x
+for i from 0 to length(A) - 1 do
+  if A[i] = x then
+    return i
+  end
+end
+return -1
+```" class="captioned captioned-algorithm"><div class="algorithm"><table class="algorithm-body"><tbody><tr><td class="algorithm-line">1</td><td class="algorithm-code"><strong>Input</strong>: array A, value x</td></tr><tr><td class="algorithm-line">2</td><td class="algorithm-code"><strong>for</strong> i from 0 <strong>to</strong> length(A) - 1 <strong>do</strong></td></tr><tr><td class="algorithm-line">3</td><td class="algorithm-code">&nbsp;&nbsp;<strong>if</strong> A[i] = x <strong>then</strong></td></tr><tr><td class="algorithm-line">4</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;<strong>return</strong> i</td></tr><tr><td class="algorithm-line">5</td><td class="algorithm-code">&nbsp;&nbsp;<strong>end</strong></td></tr><tr><td class="algorithm-line">6</td><td class="algorithm-code"><strong>end</strong></td></tr><tr><td class="algorithm-line">7</td><td class="algorithm-code"><strong>return</strong> -1</td></tr></tbody></table></div>
+
+<figcaption class="caption">Algorithme 1: Recherche linéaire</figcaption></figure>
+<p>Same kinds without a caption fall through to the plain renderer
+(no <code>&lt;figure&gt;</code> wrapper, no number burned):</p>
+<table data-source="```csv
+A, B
+1, 2
+```" class="data-table"><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>
+<div data-source="```tree svg
+root
+  leaf
+```
+" class="tree-svg-wrap"><svg class="tree-svg" width="56" height="84" viewBox="0 0 56 84" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="28" y1="24" x2="28" y2="54" stroke="currentColor" stroke-width="1"></line><text x="28" y="18" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">root</text><text x="28" y="66" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">leaf</text></svg></div>

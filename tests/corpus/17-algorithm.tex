@@ -1,0 +1,143 @@
+% markpage — export LaTeX (cible : xelatex ou lualatex).
+% La compilation avec pdflatex échouera : fontspec + UTF-8 natif
+% dans les blocs de code requièrent xelatex / lualatex.
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{}
+\IfFontExistsTF{DejaVu Sans}{\setsansfont{DejaVu Sans}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+
+\IfFileExists{french.ldf}{\usepackage[french]{babel}}{}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[normalem]{ulem}
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{newunicodechar}
+
+% DejaVu Serif (our main text font) doesn't ship the Unicode
+% math-bracket / logic glyphs that show up in our prose (e.g.
+% explanations of the editor's ligatures). Redirect each known
+% glyph to its LaTeX command via \ensuremath, so it renders
+% from the math font even when typed in normal text.
+\newunicodechar{⟦}{\ensuremath{\llbracket}}
+\newunicodechar{⟧}{\ensuremath{\rrbracket}}
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+\newunicodechar{⊣}{\ensuremath{\dashv}}
+\newunicodechar{⊨}{\ensuremath{\models}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{∉}{\ensuremath{\notin}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{⊂}{\ensuremath{\subset}}
+\newunicodechar{⊆}{\ensuremath{\subseteq}}
+\newunicodechar{⊃}{\ensuremath{\supset}}
+\newunicodechar{⊇}{\ensuremath{\supseteq}}
+\newunicodechar{∪}{\ensuremath{\cup}}
+\newunicodechar{∩}{\ensuremath{\cap}}
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{¬}{\ensuremath{\neg}}
+\newunicodechar{★}{\ensuremath{\bigstar}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{♥}{\ensuremath{\heartsuit}}
+\newunicodechar{♦}{\ensuremath{\diamondsuit}}
+\newunicodechar{♠}{\ensuremath{\spadesuit}}
+\newunicodechar{♣}{\ensuremath{\clubsuit}}
+\newunicodechar{⚠}{\textbf{[!]}}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+}
+
+% Theorem-like environments matching the ::: admonitions (§17 of
+% the markpage SPEC). The shared counter `theorem` keeps lemma /
+% proposition / corollary numbered in the same sequence as the
+% theorems themselves, which is the usual mathematical convention.
+\newtheorem{theorem}{Théorème}
+\newtheorem{lemma}[theorem]{Lemme}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollaire}
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}
+\newtheorem{example}{Exemple}
+\newtheorem{remark}{Remarque}
+
+\title{Algorithm block}
+\author{Test Author \\ Test Org}
+\date{2026-01-01}
+
+\begin{document}
+\maketitle
+
+Pseudocode listings with auto-numbered captions, line numbers and
+bolded keywords. The caption goes between double quotes after the
+language tag.
+
+
+\begin{lstlisting}
+Input: array A of length n
+Output: A sorted in place
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+return A
+\end{lstlisting}
+
+
+A second algorithm in the same document keeps incrementing the
+counter, so the next caption reads \texttt{Algorithme 2}:
+
+
+\begin{lstlisting}
+Input: sorted array A, target x
+Output: index of x in A, or -1
+lo := 0
+hi := length(A) - 1
+while lo <= hi do
+  mid := (lo + hi) / 2
+  if A[mid] = x then
+    return mid
+  elif A[mid] < x then
+    lo := mid + 1
+  else
+    hi := mid - 1
+  end
+end
+return -1
+\end{lstlisting}
+
+
+Caption is optional — a bare \texttt{```algorithm} fence skips the
+\texttt{<figure>} wrapper entirely:
+
+
+\begin{lstlisting}
+repeat
+  x := f(x)
+until converged
+return x
+\end{lstlisting}
+
+\end{document}
