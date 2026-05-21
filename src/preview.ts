@@ -44,11 +44,18 @@ function headingMargin(s: Style): string {
 }
 
 /**
- * Purpose: Render the markdown source into the target's `innerHTML`.
- * How: Synchronous `marked.parse` — the placeholders (math, mermaid) come later.
+ * Purpose: Render the markdown source into the target's `innerHTML`,
+ *   tagging the first `<h1>` (if any) with `.doc-title` so it picks
+ *   up `styles.title` rather than `styles.h1`.
+ * How: Synchronous `marked.parse` — the placeholders (math, mermaid)
+ *   come later. The doc-title tagging is a tiny structural transform
+ *   that promotes the first heading without altering source semantics
+ *   (a user with no `#` at the top simply gets no `.doc-title`).
  */
 export function renderPreview(target: HTMLElement, source: string): void {
   target.innerHTML = marked.parse(source, { async: false });
+  const first = target.querySelector('h1');
+  if (first) first.classList.add('doc-title');
 }
 
 /**
@@ -306,6 +313,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
     #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${headingMargin(s.h1)} }
+    #preview-pane h1.doc-title { font-size: ${s.title.fontSize}pt; color: ${s.title.color}; ${underlineRule(s.title)} ${headingExtras(s.title)} ${headingMargin(s.title)} }
     #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} ${headingMargin(s.h2)} }
     #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} ${headingMargin(s.h3)} }
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }

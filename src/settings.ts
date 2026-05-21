@@ -107,6 +107,7 @@ export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
  */
 export type ElementKey =
   | 'body'
+  | 'title'
   | 'h1'
   | 'h2'
   | 'h3'
@@ -124,6 +125,7 @@ export type ElementKey =
 
 export const ELEMENT_KEYS: ElementKey[] = [
   'body',
+  'title',
   'h1',
   'h2',
   'h3',
@@ -174,6 +176,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   body: {
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'align', 'lineHeight', 'marginAbove', 'marginBelow'],
+  },
+  title: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
   },
   h1: {
     category: 'inline',
@@ -360,13 +366,23 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       marginAbove: 1,
       marginBelow: 1,
     },
-    h1: {
+    title: {
       fontSize: 24,
       color: '#09438b',
       weight: 500,
       italic: false,
       underline: true,
       align: 'center',
+      marginAbove: 0.4,
+      marginBelow: 1.2,
+    },
+    h1: {
+      fontSize: 22,
+      color: '#09438b',
+      weight: 500,
+      italic: false,
+      underline: false,
+      align: 'left',
       marginAbove: 1.6,
       marginBelow: 0.6,
     },
@@ -550,6 +566,13 @@ function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
         borderColor: s.quote.barColor,
         borderWidth: out.quote.borderWidth ?? 3,
       };
+    }
+    // Pre-v0.8: `h1` doubled as the document title. The renderer now
+    // distinguishes the two — lift the user's old h1 styling onto the
+    // new `title` element so existing docs keep their look. Only fires
+    // when the profile pre-dates the split (no explicit `title`).
+    if (s.h1 && !s.title) {
+      out.title = { ...d.title, ...s.h1 };
     }
   }
   // Legacy: pageNumber.style { fontSize, italics, color } lived at the top

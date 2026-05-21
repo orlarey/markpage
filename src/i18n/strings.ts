@@ -208,6 +208,7 @@ const FR = {
   'rail.group.content': 'Contenu',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
+  'element.title': 'Titre du document',
   'element.h1': 'Titre 1 (h1)',
   'element.h2': 'Titre 2 (h2)',
   'element.h3': 'Titre 3 (h3)',
@@ -461,6 +462,7 @@ const EN: Record<keyof typeof FR, string> = {
   'rail.group.content': 'Content',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
+  'element.title': 'Document title',
   'element.h1': 'Heading 1 (h1)',
   'element.h2': 'Heading 2 (h2)',
   'element.h3': 'Heading 3 (h3)',
