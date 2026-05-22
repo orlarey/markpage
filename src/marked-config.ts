@@ -17,6 +17,13 @@ import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
 import { renderTreeBlock } from './tree';
 import { highlightCode, isKnownLanguage } from './highlight';
+import {
+  anchorId,
+  prescanLabels,
+  resetRefs,
+  resolveRef,
+  stripLabels,
+} from './refs';
 
 interface MathBlockToken {
   type: 'mathBlock';
@@ -187,13 +194,13 @@ marked.use({
       const info = parseFenceInfo(lang);
       if (lang === 'csv' || lang.startsWith('csv ')) {
         return injectSource(
-          withCaption('table', info.caption, renderDataTable(token.text, ',')),
+          withCaption('table', info.caption, renderDataTable(token.text, ','), info.label),
           raw,
         );
       }
       if (lang === 'tsv' || lang.startsWith('tsv ')) {
         return injectSource(
-          withCaption('table', info.caption, renderDataTable(token.text, '\t')),
+          withCaption('table', info.caption, renderDataTable(token.text, '\t'), info.label),
           raw,
         );
       }
@@ -210,7 +217,7 @@ marked.use({
       if (lang === 'chart' || lang.startsWith('chart ')) {
         const type = info.args[0] ?? '';
         return injectSource(
-          withCaption('figure', info.caption, renderChart(token.text, type)),
+          withCaption('figure', info.caption, renderChart(token.text, type), info.label),
           raw,
         );
       }
@@ -218,7 +225,7 @@ marked.use({
       // per production. Pure SVG output, embedded as-is.
       if (lang === 'ebnf' || lang.startsWith('ebnf ')) {
         return injectSource(
-          withCaption('figure', info.caption, renderEbnfBlock(token.text)),
+          withCaption('figure', info.caption, renderEbnfBlock(token.text), info.label),
           raw,
         );
       }
@@ -228,7 +235,7 @@ marked.use({
       // intent is type definition rather than grammar.
       if (lang === 'adt' || lang.startsWith('adt ')) {
         return injectSource(
-          withCaption('listing', info.caption, renderAdtBlock(token.text)),
+          withCaption('listing', info.caption, renderAdtBlock(token.text), info.label),
           raw,
         );
       }
@@ -236,7 +243,7 @@ marked.use({
       // grey coloration for added / removed / context lines.
       if (lang === 'diff' || lang.startsWith('diff ')) {
         return injectSource(
-          withCaption('listing', info.caption, renderDiffBlock(token.text)),
+          withCaption('listing', info.caption, renderDiffBlock(token.text), info.label),
           raw,
         );
       }
@@ -251,6 +258,7 @@ marked.use({
             'figure',
             info.caption,
             renderTreeBlock(token.text, mode),
+            info.label,
           ),
           raw,
         );
@@ -259,7 +267,7 @@ marked.use({
       // line numbers, and bolded keywords (for / while / if / return…).
       if (lang === 'algorithm' || lang.startsWith('algorithm ')) {
         return injectSource(
-          withCaption('algorithm', info.caption, renderAlgorithmBlock(token.text)),
+          withCaption('algorithm', info.caption, renderAlgorithmBlock(token.text), info.label),
           raw,
         );
       }
@@ -275,11 +283,29 @@ marked.use({
             'listing',
             info.caption,
             highlightCode(token.text, baseLang),
+            info.label,
           ),
           raw,
         );
       }
       return false;
+    },
+    // Heading renderer override: when the heading source contains
+    // `\label{sec:foo}`, emit `<hN id="sec-foo">` so `\ref{sec:foo}`
+    // can scroll/jump there. The label itself is hidden by the
+    // labelMark inline extension. Everything else falls through to
+    // marked's default heading rendering shape.
+    heading(token) {
+      const t = token as Tokens.Heading;
+      // The labelMark inline extension renders `\label{}` as empty, but
+      // the text token before it keeps its trailing space — trim so the
+      // heading doesn't end with a dangling space before `</hN>`.
+      const text = this.parser.parseInline(t.tokens).trimEnd();
+      const labelKey =
+        (/\\label\{([^}\n]+)\}/.exec(t.raw ?? '') ?? [, ''])[1] ?? '';
+      const idAttr =
+        labelKey !== '' ? ` id="${anchorId('section', labelKey)}"` : '';
+      return `<h${t.depth}${idAttr}>${text}</h${t.depth}>\n`;
     },
   },
   // Hooks for footnote + citation bookkeeping. preprocess wipes both
@@ -295,6 +321,11 @@ marked.use({
       citationDefs.clear();
       citationSeen.length = 0;
       resetCaptions();
+      // Pre-scan the whole source so `\ref{}` can resolve forward refs
+      // to labels that appear later in the doc. Populates the registry
+      // before any rendering happens.
+      resetRefs();
+      prescanLabels(src);
       return src;
     },
     postprocess(html) {
@@ -356,12 +387,28 @@ marked.use({
         return token as unknown as Tokens.Generic;
       },
       // Renderer emits a placeholder element. The preview pipeline finds
-      // these and swaps in the MathJax SVG once it's loaded.
+      // these and swaps in the MathJax SVG once it's loaded. When the
+      // math source carries a `\label{eq:foo}`, we strip it and inject a
+      // `\tag{N}` so MathJax renders the equation number on the right.
+      // N is sourced from the cross-ref registry (populated in the
+      // pre-scan) so the number matches what `\ref{eq:foo}` will resolve
+      // to. The label key also drives an anchor id on the wrapper.
       renderer(token) {
         const t = token as unknown as MathBlockToken;
-        const escaped = escapeHtml(t.text);
+        const labelKey = (/\\label\{([^}\n]+)\}/.exec(t.text) ?? [, ''])[1] ?? '';
+        let mathSrc = t.text;
+        let idAttr = '';
+        if (labelKey !== '') {
+          const entry = resolveRef(labelKey);
+          mathSrc = stripLabels(mathSrc);
+          if (entry !== null) {
+            mathSrc = `${mathSrc} \\tag{${entry.text}}`;
+            idAttr = ` id="${anchorId('equation', labelKey)}"`;
+          }
+        }
+        const escaped = escapeHtml(mathSrc);
         return injectSource(
-          `<div class="math-block" data-math="${escaped}"></div>\n`,
+          `<div class="math-block" data-math="${escaped}"${idAttr}></div>\n`,
           t.raw,
         );
       },
@@ -616,6 +663,60 @@ marked.use({
         const t = token as unknown as MathInlineToken;
         const escaped = escapeHtml(t.text);
         return `<span class="math-inline" data-math="${escaped}"></span>`;
+      },
+    },
+    {
+      // `\label{key}` — invisible label marker. The actual registration
+      // happens in the preprocess hook's pre-scan (so forward refs
+      // work); the inline extension just suppresses the visible text.
+      name: 'labelMark',
+      level: 'inline',
+      start(src: string) {
+        const m = /\\label\{/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\\label\{([^}\n]+)\}/.exec(src);
+        if (!match) return undefined;
+        return {
+          type: 'labelMark',
+          raw: match[0],
+          key: match[1] ?? '',
+        };
+      },
+      renderer() {
+        return '';
+      },
+    },
+    {
+      // `\ref{key}` — cross-reference to a labeled target. Resolves
+      // via the registry populated by the pre-scan; unknown keys
+      // render as a visible red `[?]` so typos are spotted at proof
+      // time, not at print time.
+      name: 'refMark',
+      level: 'inline',
+      start(src: string) {
+        const m = /\\ref\{/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\\ref\{([^}\n]+)\}/.exec(src);
+        if (!match) return undefined;
+        return {
+          type: 'refMark',
+          raw: match[0],
+          key: (match[1] ?? '').trim(),
+        };
+      },
+      renderer(token) {
+        const t = token as unknown as { key: string };
+        const entry = resolveRef(t.key);
+        if (!entry) {
+          const keyEsc = escapeHtml(t.key);
+          return `<span class="xref-broken" title="référence inconnue: ${keyEsc}">[?]</span>`;
+        }
+        const href = `#${anchorId(entry.kind, t.key)}`;
+        return `<a class="xref" href="${href}">${escapeHtml(entry.text)}</a>`;
       },
     },
   ],

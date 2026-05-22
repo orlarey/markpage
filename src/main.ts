@@ -466,9 +466,23 @@ async function bootstrap(): Promise<void> {
     else enterEditor(null);
   };
 
-  // Click inside the preview returns to the editor at that source line.
+  // Click inside the preview returns to the editor at that source line —
+  // except when the click hits a real hyperlink (cross-ref, footnote
+  // ref, citation back-link, external link…). Then we honour the link:
+  // in-doc fragments scroll the preview, external URLs open in a new
+  // tab so markpage stays put.
   previewEl.addEventListener('click', (e) => {
     if (viewMode !== 'preview') return;
+    const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
+      'a[href]',
+    );
+    if (link) {
+      const href = link.getAttribute('href') ?? '';
+      if (href.startsWith('#')) return; // browser handles anchor scroll
+      e.preventDefault();
+      window.open(link.href, '_blank', 'noopener');
+      return;
+    }
     const anchor = previewClickAnchor(e, previewEl);
     if (anchor) enterEditor(anchor);
   });

@@ -6,11 +6,14 @@
  *   the `<figure>` wrapper that pairs a block with its caption.
  * How: A single module-level counter map (one entry per kind) reset by the
  *   marked preprocess hook. `parseFenceInfo` extracts the first `"…"` from
- *   the info string and returns the surrounding tokens as positional args.
+ *   the info string, returns the surrounding tokens as positional args, and
+ *   picks up any `\label{}` so cross-refs can target the block.
  *   `withCaption` wraps any block HTML in a `<figure>` + `<figcaption>`,
- *   placing the caption above or below per the per-kind convention.
+ *   emitting an anchor `id` when a label is present.
  *
  *******************************************************************************/
+
+import { anchorId, extractLabel } from './refs';
 
 /**
  * Purpose: The four block "kinds" that can carry a caption.
@@ -72,10 +75,17 @@ export function nextCaptionNumber(kind: CaptionKind): number {
  */
 export function parseFenceInfo(
   lang: string,
-): { args: string[]; caption: string | null } {
+): { args: string[]; caption: string | null; label: string | null } {
   // Drop the language tag — callers pass the full info string. The first
   // whitespace-separated word is consumed; everything after is the body.
-  const body = lang.replace(/^\S+\s*/, '');
+  let body = lang.replace(/^\S+\s*/, '');
+  // Extract any `\label{…}` first (LaTeX convention: caption + label are
+  // separate, written like ` ```algorithm "Foo" \label{alg:foo} `).
+  // Pull it out of the body so it doesn't pollute the positional args.
+  const label = extractLabel(body);
+  if (label !== null) {
+    body = body.replaceAll(/\\label\{[^}\n]+\}/g, '').replace(/\s+/g, ' ').trim();
+  }
   // Extract the first quoted run — double or single quotes. We don't
   // support escapes; a caption that needs both kinds of quote is rare
   // enough to defer.
@@ -83,7 +93,7 @@ export function parseFenceInfo(
   const m = QUOTED.exec(body);
   if (!m) {
     const args = body.trim() === '' ? [] : body.trim().split(/\s+/);
-    return { args, caption: null };
+    return { args, caption: null, label };
   }
   const caption = (m[1] ?? m[2] ?? '').trim();
   const before = body.slice(0, m.index).trim();
@@ -92,7 +102,7 @@ export function parseFenceInfo(
     ...(before === '' ? [] : before.split(/\s+/)),
     ...(after === '' ? [] : after.split(/\s+/)),
   ];
-  return { args, caption: caption === '' ? null : caption };
+  return { args, caption: caption === '' ? null : caption, label };
 }
 
 /**
@@ -108,11 +118,17 @@ export function withCaption(
   kind: CaptionKind,
   caption: string | null,
   blockHtml: string,
+  labelKey: string | null = null,
 ): string {
   if (caption === null) return blockHtml;
   const num = nextCaptionNumber(kind);
-  const label = `${CAPTION_LABELS[kind]} ${num}`;
-  const capHtml = `<figcaption class="caption">${escapeHtml(label)}: ${escapeHtml(caption)}</figcaption>`;
+  const prefix = `${CAPTION_LABELS[kind]} ${num}`;
+  // When a label is present we emit an id on the figcaption so `\ref{key}`
+  // can scroll/jump there. The kind in `anchorId` maps the caption kind
+  // 1:1 to the matching RefKind (algorithm/figure/table/listing).
+  const idAttr =
+    labelKey !== null ? ` id="${anchorId(kind, labelKey)}"` : '';
+  const capHtml = `<figcaption class="caption"${idAttr}>${escapeHtml(prefix)}: ${escapeHtml(caption)}</figcaption>`;
   return `<figure class="captioned captioned-${kind}">${blockHtml}\n${capHtml}</figure>\n`;
 }
 

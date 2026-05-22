@@ -1,0 +1,81 @@
+<h1 id="sec-sec:intro" class="doc-title">Cross-references</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Cross-references follow LaTeX conventions: a <code>\label{key}</code> attaches an
+anchor to a numbered target, <code>\ref{key}</code> resolves to the number with a
+clickable link. The user writes the prefix word themselves so the
+grammar stays natural — "voir algorithme <a class="xref" href="#alg-alg:bubble">1</a>" rather
+than a frozen "Algorithme 1".</p>
+<h2 id="sec-sec:blocks">Captioned blocks</h2>
+<p>A figure carries a label after the caption:</p>
+<figure data-source="```tree svg &quot;Décomposition de la phrase&quot; \label{fig:syntax}
+S
+  NP
+    Det
+    N
+  VP
+    V
+    NP
+      Det
+      N
+```" class="captioned captioned-figure"><div class="tree-svg-wrap"><svg class="tree-svg" width="176" height="180" viewBox="0 0 176 180" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="76" y1="24" x2="40" y2="54" stroke="currentColor" stroke-width="1"></line><line x1="76" y1="24" x2="112" y2="54" stroke="currentColor" stroke-width="1"></line><line x1="40" y1="72" x2="24" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="40" y1="72" x2="56" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="112" y1="72" x2="88" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="112" y1="72" x2="136" y2="102" stroke="currentColor" stroke-width="1"></line><line x1="136" y1="120" x2="120" y2="150" stroke="currentColor" stroke-width="1"></line><line x1="136" y1="120" x2="152" y2="150" stroke="currentColor" stroke-width="1"></line><text x="76" y="18" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">S</text><text x="40" y="66" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">NP</text><text x="24" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Det</text><text x="56" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">N</text><text x="112" y="66" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">VP</text><text x="88" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">V</text><text x="136" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">NP</text><text x="120" y="162" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Det</text><text x="152" y="162" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">N</text></svg></div>
+
+<figcaption class="caption" id="fig-fig:syntax">Figure 1: Décomposition de la phrase</figcaption></figure>
+<p>A table:</p>
+<figure data-source="```csv &quot;Effectifs par équipe&quot; \label{tab:teams}
+Équipe, Effectif
+Backend, 12
+Frontend, 8
+```" class="captioned captioned-table"><table class="data-table"><thead><tr><th>Équipe</th><th>Effectif</th></tr></thead><tbody><tr><td>Backend</td><td>12</td></tr><tr><td>Frontend</td><td>8</td></tr></tbody></table>
+
+<figcaption class="caption" id="tab-tab:teams">Tableau 1: Effectifs par équipe</figcaption></figure>
+<p>An algorithm:</p>
+<figure data-source="```algorithm &quot;Tri à bulles&quot; \label{alg:bubble}
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+return A
+```" class="captioned captioned-algorithm"><div class="algorithm"><table class="algorithm-body"><tbody><tr><td class="algorithm-line">1</td><td class="algorithm-code"><strong>for</strong> i from 1 <strong>to</strong> n - 1 <strong>do</strong></td></tr><tr><td class="algorithm-line">2</td><td class="algorithm-code">&nbsp;&nbsp;<strong>for</strong> j from 0 <strong>to</strong> n - i - 1 <strong>do</strong></td></tr><tr><td class="algorithm-line">3</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;<strong>if</strong> A[j] &gt; A[j + 1] <strong>then</strong></td></tr><tr><td class="algorithm-line">4</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;swap A[j] <strong>and</strong> A[j + 1]</td></tr><tr><td class="algorithm-line">5</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;<strong>end</strong></td></tr><tr><td class="algorithm-line">6</td><td class="algorithm-code">&nbsp;&nbsp;<strong>end</strong></td></tr><tr><td class="algorithm-line">7</td><td class="algorithm-code"><strong>end</strong></td></tr><tr><td class="algorithm-line">8</td><td class="algorithm-code"><strong>return</strong> A</td></tr></tbody></table></div>
+
+<figcaption class="caption" id="alg-alg:bubble">Algorithme 1: Tri à bulles</figcaption></figure>
+<p>A code listing:</p>
+<figure data-source="```python &quot;Médiane&quot; \label{lst:median}
+def median(xs):
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+```" class="captioned captioned-listing"><pre class="hljs"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">median</span>(<span class="hljs-params">xs</span>):
+    s = <span class="hljs-built_in">sorted</span>(xs)
+    n = <span class="hljs-built_in">len</span>(s)
+    <span class="hljs-keyword">return</span> s[n // <span class="hljs-number">2</span>] <span class="hljs-keyword">if</span> n % <span class="hljs-number">2</span> <span class="hljs-keyword">else</span> (s[n // <span class="hljs-number">2</span> - <span class="hljs-number">1</span>] + s[n // <span class="hljs-number">2</span>]) / <span class="hljs-number">2</span></code></pre>
+<figcaption class="caption" id="lst-lst:median">Listing 1: Médiane</figcaption></figure>
+<h2 id="sec-sec:equations">Équations</h2>
+<p>Une équation étiquetée se voit attribuer un numéro à droite :</p>
+<div data-source="$
+\int_0^1 x^2 \, dx = \frac{1}{3} \label{eq:cube}
+$" class="math-block" data-math="\int_0^1 x^2 \, dx = \frac{1}{3} \tag{1}" id="eq-eq:cube"></div>
+<p>Tandis qu'une équation non étiquetée n'en reçoit pas :</p>
+<div data-source="$
+e^{i\pi} + 1 = 0
+$" class="math-block" data-math="e^{i\pi} + 1 = 0"></div>
+<p>Une seconde équation étiquetée prend le numéro suivant dans la
+séquence des équations numérotées :</p>
+<div data-source="$
+\sum_{k=1}^n k = \frac{n(n+1)}{2} \label{eq:gauss}
+$" class="math-block" data-math="\sum_{k=1}^n k = \frac{n(n+1)}{2} \tag{2}" id="eq-eq:gauss"></div>
+<h2 id="sec-sec:refs">Références croisées</h2>
+<p>On peut maintenant écrire : « <a class="xref" href="#sec-sec:intro">Cross-references</a> » introduit la
+notation, la figure <a class="xref" href="#fig-fig:syntax">1</a> illustre la décomposition,
+le tableau <a class="xref" href="#tab-tab:teams">1</a> donne les effectifs, l'algorithme
+<a class="xref" href="#alg-alg:bubble">1</a> décrit le tri, et le listing <a class="xref" href="#lst-lst:median">1</a>
+calcule la médiane. Voir aussi l'équation <a class="xref" href="#eq-eq:cube">1</a> pour
+l'intégrale, et l'équation <a class="xref" href="#eq-eq:gauss">2</a> pour la somme. Les
+références aux <strong>sections</strong> rendent le titre lui-même (pratique
+quand les sections ne sont pas numérotées), tandis que celles aux
+<strong>figures / tableaux / algos / listings / équations</strong> rendent le
+numéro.</p>
+<h2>Erreur de référence</h2>
+<p>Une référence inconnue (typo) est rendue visible en rouge avec
+un tooltip : voir la section <span class="xref-broken" title="référence inconnue: sec:typo-inexistante">[?]</span>.</p>

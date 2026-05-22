@@ -11,7 +11,7 @@ repartir d'une page blanche.
 Le bouton **Aide** (sur fond jaune) rouvre cette page d'aide à tout
 moment, sans toucher à votre document.
 
-## Pour commencer
+## Pour commencer \label{sec:start}
 
 Vous n'avez besoin que de **cinq ou six outils** pour écrire la
 plupart des documents. Suivez ce tutoriel pas à pas — l'idée est que
@@ -109,7 +109,7 @@ Trois moyens, au choix :
 L'image est automatiquement redimensionnée et compressée (max 2000 px
 de côté), et s'insère à la position du curseur.
 
-### La toolbar
+### La toolbar \label{sec:toolbar}
 
 En haut de l'écran, quelques boutons :
 
@@ -147,7 +147,7 @@ curseur revient pile sur la ligne cliquée. Pratique : si vous voyez
 une faute, cliquez dessus, vous arrivez direct au mot dans l'éditeur
 pour la corriger. Ou rappuyez sur `Cmd/Ctrl + Enter`.
 
-### Exporter en PDF
+### Exporter en PDF \label{sec:pdf-export}
 
 Cliquez sur **Exporter ▾** puis **PDF (.pdf)**, ou utilisez le
 raccourci `Cmd/Ctrl + P` directement.
@@ -183,7 +183,7 @@ revenez plus tard.
 
 ---
 
-## Pour aller plus loin
+## Pour aller plus loin \label{sec:further}
 
 Tout ce qui suit est **optionnel**. Picorez selon vos besoins. Chaque
 section est indépendante. Cette partie regroupe ce qui sert à
@@ -299,7 +299,7 @@ Markdown classique pour de petits tableaux :
 (Pour les **tableaux de données denses**, voir la section *Tableaux
 de données (CSV / TSV)* plus bas.)
 
-### Gérer plusieurs documents
+### Gérer plusieurs documents \label{sec:multi-doc}
 
 markpage garde **tous vos documents** dans le navigateur. La liste se
 trouve derrière le bouton **Mon doc ▾**, qui affiche aussi le nom
@@ -386,7 +386,7 @@ Votre travail est **automatiquement sauvegardé** dans le navigateur,
 donc si vous fermez l'onglet par accident, tout est récupéré à la
 prochaine ouverture.
 
-### Personnaliser le rendu PDF (Réglages)
+### Personnaliser le rendu PDF (Réglages) \label{sec:settings}
 
 Le bouton **Réglages ▾** (raccourci `Cmd/Ctrl + ,`) ouvre une
 **fenêtre séparée** où vous pouvez configurer le PDF sans toucher
@@ -508,7 +508,7 @@ Les flèches (→, ←, ↑, ↓), les opérateurs mathématiques (≤, ≥, ≠
 symboles divers (★, ♥, ✓) sont gérés correctement, à l'écran comme
 dans le PDF.
 
-### Numérotation des sections
+### Numérotation des sections \label{sec:numbering}
 
 Pour numéroter les titres d'un long document sans configurer de menu,
 il suffit de **donner l'exemple sur le premier titre de chaque
@@ -633,7 +633,7 @@ Polynôme
 À l'intérieur des termes et des définitions vous pouvez utiliser du
 Markdown inline (gras, italique, code, formules, liens).
 
-### Notes de bas de page
+### Notes de bas de page \label{sec:footnotes}
 
 Vous pouvez ajouter une **note de bas de page** avec la syntaxe
 Pandoc : un appel de note `[^id]` dans le texte, et la définition
@@ -661,7 +661,7 @@ même entrée.
 Cliquer sur l'appel `¹` saute à la note ; cliquer sur le `↩` à la
 fin de la note revient à l'appel.
 
-### Citations bibliographiques
+### Citations bibliographiques \label{sec:citations}
 
 Pour citer un article ou un livre, utilisez la **syntaxe
 Pandoc-lite** : `[@key]` dans le texte, avec la définition
@@ -690,7 +690,52 @@ Le texte de la référence est écrit en Markdown : vous gardez la
 main sur le format (italique pour le titre, gras pour l'auteur,
 …). Pas de formatage CSL / APA / IEEE automatique.
 
-### Encadrés (notes, théorèmes…)
+### Références croisées \label{sec:xrefs}
+
+Pour écrire « voir la section sur les \ref{sec:math} » ou « cf.
+l'algorithme 1 » sans recopier de numéro à la main, attachez un
+**`\label{clé}`** à votre cible et référencez-la depuis n'importe où
+dans le document avec **`\ref{clé}`** :
+
+- sur un **titre** : `## Réglages \label{sec:settings}`
+- sur un **bloc captionné** (figure, tableau, algorithme, listing) :
+  `\label{}` après la caption — ` ```algorithm "Tri à bulles" \label{alg:tri} `
+- sur une **équation** en bloc : `\label{}` à l'intérieur du
+  `$$ … $$` — déclenche automatiquement la numérotation à droite
+  (style `amsmath`)
+
+Le rendu de `\ref{clé}` s'adapte au type de cible :
+
+- **Section** → le titre de la section lui-même (les sections n'étant
+  pas numérotées par défaut dans markpage, montrer un numéro serait
+  parlant pour personne). Exemple : « voir la \ref{sec:settings} »
+  devient « voir la *Personnaliser le rendu PDF (Réglages)* »,
+  cliquable.
+- **Figure / tableau / algorithme / listing / équation** → le numéro
+  attribué par leur caption ou leur `\tag` (toujours visible à côté
+  de la cible). Exemple : « algorithme \ref{alg:tri} » → « algorithme
+  2 ».
+
+C'est vous qui écrivez le **mot d'introduction** (« voir la »,
+« algorithme », « équation », …) — le moteur fournit seulement le
+numéro ou le titre, ce qui laisse la grammaire naturelle.
+
+> **Conventions de clés.** Tout est libre, mais le préfixe `sec:`,
+> `fig:`, `tab:`, `alg:`, `lst:`, `eq:` est l'usage LaTeX classique :
+> ça permet de retrouver une référence d'un coup d'œil et garde les
+> noms uniques entre les types de cibles.
+
+**Référence cassée.** Une `\ref{clé-inexistante}` rend un `[?]` en
+rouge avec un *tooltip* (« référence inconnue : … ») — vous repérez
+le typo immédiatement, sans qu'il passe en silence dans le PDF.
+
+> **Cette page d'aide elle-même.** Toutes les sections importantes
+> sont étiquetées : `sec:start`, `sec:toolbar`, `sec:settings`,
+> `sec:math`, `sec:mermaid`, etc. Vous pouvez donc renvoyer vers
+> elles depuis vos propres documents si vous souhaitez faire
+> référence à un point de la documentation.
+
+### Encadrés (notes, théorèmes…) \label{sec:callouts}
 
 Vous pouvez mettre en valeur un passage avec un **encadré** : ouvrez
 avec `:::` suivi du nom de l'encadré, écrivez votre contenu, fermez
@@ -730,7 +775,7 @@ neutre — utile pour vos propres conventions.
 L'intérieur d'un encadré est du Markdown comme le reste : texte mis
 en forme, listes, formules, voire des tableaux.
 
-### Graphiques
+### Graphiques \label{sec:charts}
 
 Pour tracer une courbe ou un diagramme à partir de données, utilisez
 un *fenced block* `chart` :
@@ -818,7 +863,7 @@ droite identifiant chaque série.
 
 ---
 
-## Pour aller encore plus loin
+## Pour aller encore plus loin \label{sec:expert}
 
 Cette dernière partie regroupe les outils **plus spécialisés** :
 ligatures de saisie qui rendent l'Unicode mathématique confortable à
@@ -828,7 +873,7 @@ Si vous écrivez un article de recherche, un cours, une spec
 d'algorithme, ou de la documentation technique, vous y trouverez votre
 compte. Sinon vous pouvez sauter directement aux Crédits.
 
-### Frontmatter YAML
+### Frontmatter YAML \label{sec:frontmatter}
 
 En tête de document, vous pouvez insérer un **bloc YAML** (entre deux
 lignes de `---`) qui surcharge la métadonnée du profil pour ce
@@ -967,7 +1012,7 @@ Pour annuler une ligature qui s'est déclenchée alors que vous vouliez
 le texte littéral, faites `Cmd/Ctrl + Z` immédiatement après — la
 substitution se défait, le texte ASCII est restauré.
 
-### Formules mathématiques
+### Formules mathématiques \label{sec:math}
 
 Vous pouvez inclure des **formules en LaTeX**, soit **en bloc** entre
 `$$ … $$` (la formule s'affiche centrée sur sa propre ligne), soit
@@ -1063,7 +1108,7 @@ Soit $\epsilon > 0$ tel que…
   flèches (`\to`, `\Rightarrow`), environnements `pmatrix` /
   `bmatrix` / `align*`, etc.
 
-### Règles d'inférence
+### Règles d'inférence \label{sec:inference}
 
 Pour écrire une **règle d'inférence** (déduction logique, sémantique
 opérationnelle, etc.), utilisez un *fenced block* avec le langage
@@ -1095,7 +1140,7 @@ Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
 ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), tapez-les directement.
 
-### Diagrammes Mermaid
+### Diagrammes Mermaid \label{sec:mermaid}
 
 [Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
 quelques lignes de texte. Placez votre code dans un bloc dont le

@@ -1001,6 +1001,20 @@ body,
   margin-left: 0.3em;
 }
 
+/* ---- Cross-references (\ref{}) -------------------------------------- */
+/* Plain number link, accent colour, no underline — the user writes the
+   prefix word ("voir algorithme N") themselves. Unknown refs show `[?]`
+   in red so typos are spotted at proof time. */
+:where(#preview-pane, #markpage-print-target, .help-body) .xref {
+  color: var(--accent);
+  text-decoration: none;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .xref-broken {
+  color: #cf222e;
+  font-weight: 500;
+  cursor: help;
+}
+
 /* ---- Citations / References ----------------------------------------- */
 /* In-text reference: square-bracketed `[N]` link in the accent colour.
    Inline (not superscript) — academic / spec convention for citations,
