@@ -273,10 +273,10 @@ const BS_MAX_LEN = Math.max(...[...BS_COMMANDS.keys()].map((k) => k.length));
 // Fence info strings that *re-enable* ligatures even inside the fenced
 // block, because the block ultimately becomes math (rendered by
 // MathJax, which accepts Unicode operators directly) or because the
-// block's own grammar tolerates Unicode identifiers (catdiagram —
+// block's own grammar tolerates Unicode identifiers (category —
 // `\pi_1` typed in the editor becomes `π₁` in the source, and the
 // parser treats it as a single Unicode-aware identifier).
-const LIGATURE_FRIENDLY_FENCES = new Set(['inference', 'catdiagram']);
+const LIGATURE_FRIENDLY_FENCES = new Set(['inference', 'category']);
 
 /**
  * Purpose: Decide whether a given fenced code block opts back into ligature substitution.

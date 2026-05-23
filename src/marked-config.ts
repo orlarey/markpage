@@ -11,9 +11,9 @@
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
 import { renderAlgorithmBlock } from './algorithm';
-import { parse as parseCatdiagram, typecheck as typecheckCatdiagram } from './catdiagram';
-import { emitMermaid as emitCatdiagramMermaid } from './catdiagram-mermaid';
-import { emitSvg as emitCatdiagramSvg } from './catdiagram-svg';
+import { parse as parseCategory, typecheck as typecheckCategory } from './category';
+import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
+import { emitSvg as emitCategorySvg } from './category-svg';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
 import { renderChart } from './chart';
 import { renderDiffBlock } from './diff';
@@ -242,13 +242,13 @@ marked.use({
           raw,
         );
       }
-      // ```catdiagram — declarative commutative-diagram DSL (CD-SPEC).
-      // Parsed + typechecked by `catdiagram.ts`, then transpiled to a
+      // ```category — declarative commutative-diagram DSL (CD-SPEC).
+      // Parsed + typechecked by `category.ts`, then transpiled to a
       // Mermaid `graph` source that piggybacks on the existing mermaid
       // pipeline for SVG rendering. Parse / typecheck errors render in
       // their own red error block, like math-error / mermaid-error.
-      if (lang === 'catdiagram' || lang.startsWith('catdiagram ')) {
-        const block = renderCatdiagram(token.text);
+      if (lang === 'category' || lang.startsWith('category ')) {
+        const block = renderCategory(token.text);
         return injectSource(
           withCaption('figure', info.caption, block, info.label),
           raw,
@@ -732,17 +732,17 @@ marked.use({
  * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
  */
 /**
- * Purpose: Render a `catdiagram` block — parse + typecheck, then emit a
+ * Purpose: Render a `category` block — parse + typecheck, then emit a
  *   Mermaid `<pre><code.language-mermaid>` placeholder that the existing
  *   mermaid pipeline picks up at runtime. Parse / typecheck errors render
  *   as a red error block listing every diagnostic with its line number.
- * How: Delegates to `catdiagram.parse` + `catdiagram.typecheck` +
- *   `catdiagram-mermaid.emitMermaid`. Errors are collected from both
+ * How: Delegates to `category.parse` + `category.typecheck` +
+ *   `category-mermaid.emitMermaid`. Errors are collected from both
  *   phases so the user sees every problem at once.
  */
-function renderCatdiagram(source: string): string {
-  const { ast, errors: parseErrors } = parseCatdiagram(source);
-  const tcErrors = parseErrors.length === 0 ? typecheckCatdiagram(ast) : [];
+function renderCategory(source: string): string {
+  const { ast, errors: parseErrors } = parseCategory(source);
+  const tcErrors = parseErrors.length === 0 ? typecheckCategory(ast) : [];
   const all = [...parseErrors, ...tcErrors];
   if (all.length > 0) {
     const items = all
@@ -752,8 +752,8 @@ function renderCatdiagram(source: string): string {
       })
       .join('');
     return (
-      `<div class="catdiagram-error">` +
-      `<div class="catdiagram-error-msg">Erreur catdiagram</div>` +
+      `<div class="category-error">` +
+      `<div class="category-error-msg">Erreur category</div>` +
       `<ul>${items}</ul>` +
       `<pre>${escapeHtml(source)}</pre>` +
       `</div>\n`
@@ -762,11 +762,11 @@ function renderCatdiagram(source: string): string {
   // Native SVG renderer first — returns null when its grid-placement
   // algorithm can't find an acceptable layout (rare topologies, large
   // diagrams). In that case fall through to the Mermaid backend.
-  const svg = emitCatdiagramSvg(ast);
+  const svg = emitCategorySvg(ast);
   if (svg !== null) {
-    return `<div class="catdiagram-wrap">${svg}</div>\n`;
+    return `<div class="category-wrap">${svg}</div>\n`;
   }
-  const mermaidSrc = emitCatdiagramMermaid(ast);
+  const mermaidSrc = emitCategoryMermaid(ast);
   return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
 }
 

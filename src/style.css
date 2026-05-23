@@ -1204,32 +1204,32 @@ body,
   font-size: 0.9em;
 }
 
-/* ---- catdiagram native SVG ------------------------------------------
-   The native renderer (src/catdiagram-svg.ts) emits an inline `<svg>`
-   inside `.catdiagram-wrap`. Everything draws in `currentColor` so the
+/* ---- category native SVG ------------------------------------------
+   The native renderer (src/category-svg.ts) emits an inline `<svg>`
+   inside `.category-wrap`. Everything draws in `currentColor` so the
    diagram inherits body-text colour. Wrap centres horizontally and
    lets the SVG shrink below its intrinsic width on narrow pages. */
-.catdiagram-wrap {
+.category-wrap {
   display: flex;
   justify-content: center;
   margin: 0.8em 0;
 }
-.catdiagram-wrap .catdiagram-svg {
+.category-wrap .category-svg {
   max-width: 100%;
   height: auto;
 }
-.catdiagram-svg .cd-obj {
+.category-svg .cd-obj {
   font-weight: 500;
 }
-.catdiagram-svg .cd-edge-label {
+.category-svg .cd-edge-label {
   font-size: 0.85em;
 }
 
-/* ---- catdiagram error block ----------------------------------------
-   Parser / typechecker diagnostics for a `catdiagram` fence. Same
+/* ---- category error block ----------------------------------------
+   Parser / typechecker diagnostics for a `category` fence. Same
    visual frame as the math-error block (red bar + tinted background),
    with a bulleted list of diagnostics and the offending source. */
-.catdiagram-error {
+.category-error {
   display: block;
   border-left: 4px solid #d1242f;
   background: #ffeef0;
@@ -1237,17 +1237,17 @@ body,
   margin: 0.6em 0;
   border-radius: 0 4px 4px 0;
 }
-.catdiagram-error .catdiagram-error-msg {
+.category-error .category-error-msg {
   color: #d1242f;
   font-weight: 500;
   margin-bottom: 0.3em;
 }
-.catdiagram-error ul {
+.category-error ul {
   margin: 0.3em 0 0.6em 1.2em;
   padding: 0;
   font-size: 0.95em;
 }
-.catdiagram-error pre {
+.category-error pre {
   margin: 0;
   background: transparent;
   padding: 0;
