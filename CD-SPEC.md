@@ -19,9 +19,14 @@ Les langages existants couvrent mal le besoin d'une intégration Markdown :
 
 ### 1.2 Stratégie d'implémentation
 
-`catdiagram` ne réinvente pas la roue du *layout graphique*. Le parser-typechecker de markpage transpile vers **Mermaid**, déjà intégré dans la pipeline de rendu : on hérite gratuitement de l'algorithme de placement (`dagre`), du tracé SVG, des flèches diagonales et de la mise en cache. Notre travail se concentre là où Mermaid ne sait rien faire — le typage des morphismes, la composition, le statut $\exists!$ des flèches universelles, la vérification de commutativité.
+Le parser-typechecker de markpage produit un AST de catégorie présentée (objets / morphismes / équations / flèches induites). Deux backends de rendu coexistent :
 
-Voir §7 pour le détail de la transpilation.
+- **SVG natif** (par défaut, §7.A) — moteur sur mesure pour la fourchette typique des diagrammes commutatifs (3-10 objets). Tire parti de la séparation arêtes squelettiques / raccourcis / induites pour placer les objets sur une grille où les morphismes générateurs deviennent strictement horizontaux ou verticaux, et garantit lignes droites + esthétique textbook (objets sans encadrement, têtes de flèche classiques, labels au milieu des arêtes).
+- **Mermaid** (fallback, §7.B) — utilisé quand le renderer natif ne trouve pas de placement valide (topologie non plongeable en grille, ou `n > 15`). Hérite du moteur `dagre` au prix d'une esthétique moins canonique.
+
+Notre travail à nous, dans tous les cas, se concentre là où ces deux moteurs sont aveugles — le typage des morphismes, la composition, le statut $\exists!$ des flèches universelles, la vérification de commutativité.
+
+Voir §7 pour le détail des deux pipelines.
 
 ### 1.3 Objectifs de conception
 
@@ -100,7 +105,7 @@ Four points cleaned up from the v0.1 draft :
 - `arglist` may be **empty** so the absolute-universal form `by ()` (terminal / initial objects, §6.10) is grammatical.
 - `ident` recursively allows one level of balanced `(...)` so `F(X)`, `G(h)`, `Hom(A, B)` parse cleanly without admitting unbalanced runs like `F(X(`.
 - `prop` no longer lists `id`: an identity morphism `id_A : A -> A` is just a morphism with the same domain and codomain — no separate modifier needed.
-- `letter` and `digit` are interpreted as the **Unicode categories L (letter, all subcategories) and N (number, all subcategories)** — *not* limited to ASCII. Greek letters (`π`, `α`, `Γ`), Unicode subscripts and superscripts (`₁`, `²`), blackboard bold (`ℕ`, `ℝ`) all participate naturally in identifier names. This matches how the editor's ligature layer (§7.5) produces source text — `\pi_1` becomes `π₁`, and `π₁` is a single valid identifier.
+- `letter` and `digit` are interpreted as the **Unicode categories L (letter, all subcategories) and N (number, all subcategories)** — *not* limited to ASCII. Greek letters (`π`, `α`, `Γ`), Unicode subscripts and superscripts (`₁`, `²`), blackboard bold (`ℕ`, `ℝ`) all participate naturally in identifier names. This matches how the editor's ligature layer (§7.B.6) produces source text — `\pi_1` becomes `π₁`, and `π₁` is a single valid identifier.
 
 ### 3.2 Notes de lecture
 
@@ -406,15 +411,115 @@ L'objet initial est le dual exact : `induced: i : I -> A by ()`.
 
 ---
 
-## 7. Stratégie de rendu : transpilation vers Mermaid
+## 7. Stratégie de rendu
 
-### 7.1 Justification
+Deux moteurs cohabitent. Le **renderer SVG natif** (§7.A) est appliqué par défaut : il est optimisé pour les petits diagrammes typiques (3-6 objets, jusqu'à ~10) et garantit l'esthétique attendue par les mathématiciens — lignes droites, objets sans encadrement, placement canonique. Le **backend Mermaid** (§7.B) sert de filet de sauvetage quand le renderer natif échoue (topologie qu'il ne sait pas plonger sur grille) ou quand l'utilisateur le force via la directive `renderer: mermaid` en tête de bloc.
+
+---
+
+## 7.A Renderer SVG natif (par défaut)
+
+### 7.A.1 Justification
+
+Les algorithmes de layout généraux (`dagre`, `elk`) sont conçus pour des graphes de centaines voire milliers de nœuds — ils privilégient la robustesse au détriment de l'esthétique sur les *petits* cas. Pour 3 à 10 objets — la fourchette de tous les diagrammes commutatifs courants — un algorithme *ad hoc* qui exploite la structure (séparation arêtes squelettiques / raccourcis / induites) produit des dessins de qualité textbook sans recourir à des heuristiques coûteuses.
+
+Le code reste raisonnable : ~400-500 lignes de SVG explicite, sans dépendance, avec contrôle total sur typographie, têtes de flèche, placement des labels.
+
+### 7.A.2 Classification des arêtes
+
+Trois statuts différents, lus depuis l'AST :
+
+- **Squelettique** — morphisme déclaré dans `morphisms:` qui n'apparaît PAS comme membre de gauche d'une équation dont le membre de droite est une composition (longueur > 1). Représente une arête « primitive » de la structure.
+- **Raccourci** — morphisme déclaré dans `morphisms:` qui apparaît dans une équation `m = path` avec `|path| > 1`. C'est un raccourci visuel pour une composition (typiquement `h = g.f` dans un triangle).
+- **Induite** — morphisme de la section `induced:`. Statut $\exists!$, toujours dessinée distinctement (pointillé).
+
+### 7.A.3 Phase 1 — placement sur grille
+
+L'objectif : trouver des positions `(x, y) ∈ ℤ²` pour chaque objet telles que **chaque arête squelettique relie deux cases voisines** (distance de Manhattan = 1, donc trait strictement horizontal ou vertical). Les arêtes raccourcis et induites n'imposent aucune contrainte de placement — elles seront tracées en diagonale.
+
+Algorithme BFS avec backtracking :
+
+1. Choisir l'objet *ancre* : celui ayant le degré squelettique maximal. Le placer à `(0, 0)`.
+2. Pile = `[ancre]`. Tant que la pile n'est pas vide :
+   - Dépiler `O`. Pour chaque arête squelettique `(O, P)` ou `(P, O)` où `P` n'est pas placé :
+     - Énumérer les 4 cases adjacentes à `O` (`±1` en x ou y).
+     - Pour chaque candidat libre (pas d'objet déjà placé dessus), brancher.
+     - Empiler `P`.
+3. Scorer chaque placement complet par :
+   - `+10` par arête squelettique satisfaite (H/V de distance 1).
+   - `-5` par collision visuelle (deux arêtes sur la même droite grille, sans gap).
+   - `-1` par objet non placé (composante déconnectée du squelette).
+4. Retenir la meilleure solution. Normaliser (translation pour avoir `min(x) = min(y) = 0`).
+
+Borne pratique : pour `n ≤ 6`, l'arbre de recherche est ≤ 4ⁿ branches = ~4000, instantané. Pour `n` jusqu'à 10 : ajout d'une heuristique de coupure (abandonner les branches dont le score partiel est déjà inférieur à la meilleure complète).
+
+### 7.A.4 Phase 2 — rendu SVG
+
+Une fois les positions calculées, paramètres en `em` (donc proportionnels à la taille de police du conteneur, pour préservation lors du zoom et impression PDF) :
+
+| Élément | Spécification |
+|---|---|
+| Cellule de grille | `cellSize = 4em` carré |
+| Marge SVG | `padding = 1em` autour du contenu |
+| Label d'objet | texte centré aux coordonnées `(x * cellSize, y * cellSize)`, font hérité du body, **pas de cadre ni de fond** |
+| Arête squelettique | `<line>` droit entre les *bords* des deux objets (offset de `0.6em` pour ne pas toucher le glyphe) |
+| Arête raccourci | `<line>` droit diagonal, idem offset bord-à-bord |
+| Arête induite | `<line stroke-dasharray="3,3">` (pointillé) |
+| Tête de flèche | triangle SVG à l'extrémité cible, taille `0.5em` côté |
+| Label d'arête | texte au point milieu, offset perpendiculaire `0.4em` du côté qui ne masque pas le trait, `font-size: 0.9em` |
+| Style global | `currentColor` partout — hérite la couleur de texte ambiante |
+
+Stratégie d'offset pour les labels d'arête : pour une arête horizontale, label *au-dessus* (offset y négatif) ; verticale, label *à droite* (offset x positif) ; diagonale, perpendiculaire à la pente, du côté qui ne croise pas un autre objet. Pour les **paires parallèles** (deux arêtes squelettiques entre les mêmes endpoints, ex. égaliseur `f, g : A → B`), offset opposé : une au-dessus, une en-dessous.
+
+### 7.A.5 Cas spéciaux
+
+- **Paire parallèle** (deux morphismes squelettiques `f, g : A → B`) : tracer les deux arêtes avec un léger offset perpendiculaire (l'une à `+0.3em`, l'autre à `-0.3em`) et placer les labels sur le côté correspondant. Visuellement on voit deux traits côte à côte avec leurs étiquettes.
+- **Boucle** (`f : A → A`) : arc de cercle au-dessus de l'objet, label au sommet de l'arc.
+- **Arêtes coïncidentes** (raccourci dont la diagonale traverse un autre objet) : courbure légère (arc de Bézier au lieu d'un trait droit) pour passer à côté.
+
+### 7.A.6 Fallback : layout polygonal
+
+Quand l'algorithme BFS ne trouve pas de placement valide (score < 0, ou squelette contient un 3-cycle de générateurs `A → B → C → A` qui ne peut pas se plonger sur ℤ²), il bascule sur une disposition polygonale :
+
+- Placer les `n` objets aux sommets d'un polygone régulier de rayon `R = cellSize * n / (2π)`.
+- Toutes les arêtes deviennent des cordes du polygone (lignes droites garanties).
+- L'esthétique est moins canonique mais le rendu reste lisible.
+
+### 7.A.7 Validation sur le corpus §6
+
+Trace des placements attendus pour les exemples canoniques :
+
+| § | Diagramme | Placement attendu |
+| --- | --- | --- |
+| 6.1 | Triangle (`f, g, h=g.f`) | `A(0,0)`, `B(1,0)`, `C(1,-1)` — L parfaite, `h` diagonal de A à C |
+| 6.2 | Produit | `P(0,0)`, `A(-1,0)`, `B(1,0)`, `X(0,1)`, `u(X→P)` diagonal vertical |
+| 6.4 | Carré naturalité | `F(X)(0,1)`, `F(Y)(1,1)`, `G(X)(0,0)`, `G(Y)(1,0)` — carré 2×2 |
+| 6.5 | Pullback | `P(0,1)`, `A(1,1)`, `B(0,0)`, `C(1,0)`, `X(-1,1)` — carré + cône à gauche |
+| 6.7 | Égaliseur | `E(0,0)`, `A(1,0)`, `B(2,0)`, `Z(1,1)` — paire parallèle `f, g` côte à côte |
+| 6.9 | Fonctorialité | `F(A)(0,0)`, `F(B)(1,0)`, `F(C)(1,-1)` — L (comme triangle) |
+| 6.10 | Terminal | `A(0,0)`, `T(1,0)`, `t` induit horizontal pointillé |
+
+Pour chacun le BFS retiendra cette grille parce que c'est elle qui maximise le score (toutes les arêtes squelettiques sont H/V de distance 1).
+
+---
+
+## 7.B Backend Mermaid (fallback)
+
+### 7.B.1 Quand l'utiliser
+
+Trois cas :
+
+1. **Échec du renderer natif** : score final inférieur à un seuil (par exemple `n / 2`), indiquant qu'aucun placement satisfaisant n'a été trouvé. Le moteur logue un avertissement et bascule sur Mermaid.
+2. **Forçage par directive** : `renderer: mermaid` en tête de bloc (à ajouter à la grammaire si besoin).
+3. **Diagrammes très grands** : `n > 15`, où le BFS devient coûteux et l'esthétique « grille » perd de son sens.
+
+### 7.B.2 Justification historique
 
 Écrire un moteur de layout générique pour diagrammes commutatifs représenterait plusieurs milliers de lignes : algorithme de placement (force-directed ou *layered*), gestion de chevauchements, courbure de flèches qui passent au-dessus d'objets, choix de directions selon la topologie. C'est précisément ce que `dagre` — l'algorithme derrière Mermaid — fait déjà très bien pour la classe de graphes orientés qui nous concerne.
 
 Mermaid est par ailleurs **déjà une dépendance** de markpage : un bloc `catdiagram` qui se compile vers du Mermaid réutilise le pipeline existant (rendu SVG, cache, export PDF, paginé).
 
-### 7.2 Le pipeline en trois étapes
+### 7.B.3 Le pipeline en trois étapes
 
 ```
 catdiagram source
@@ -427,7 +532,7 @@ catdiagram source
       │
       ▼  (rejet visible si mal typé : message d'erreur)
       │
-[3] émetteur Mermaid       — §7.3 (table de correspondance)
+[3] émetteur Mermaid       — §7.B.4 (table de correspondance)
       │
       ▼
 mermaid `graph TB` source
@@ -438,7 +543,7 @@ pipeline mermaid existant  — dagre + rendu SVG
 
 Le découpage en trois passes (parser / typechecker / émetteur) permet de tester chacune en isolation et de produire un diagnostic clair quand quelque chose cloche. Le typechecker **précède** la transpilation : l'utilisateur ne voit jamais un message d'erreur Mermaid énigmatique sur un diagramme dont l'erreur est conceptuelle.
 
-### 7.3 Table de correspondance
+### 7.B.4 Table de correspondance
 
 | Construit `catdiagram` | Construit Mermaid émis |
 |---|---|
@@ -454,7 +559,7 @@ La clause `by (...)` n'est pas rendue visuellement ; elle informe le typechecker
 
 Les équations ne se voient pas dans le diagramme rendu (Mermaid n'a rien pour ça) — elles vivent dans la prose autour, ou dans le typechecker qui les a validées. Une amélioration future pourrait afficher un *badge* `commutes ✓` à côté du diagramme quand toutes les équations sont vérifiées.
 
-### 7.4 Choix de direction
+### 7.B.5 Choix de direction
 
 Mermaid demande `graph TB` (top-bottom), `graph LR` (left-right), `BT`, ou `RL`. Heuristique appliquée :
 
@@ -471,7 +576,7 @@ direction: TB
 objects: ...
 ```
 
-### 7.5 Typographie mathématique des labels
+### 7.B.6 Typographie mathématique des labels (commune aux deux backends)
 
 Mermaid ne rend pas LaTeX dans ses étiquettes. **L'éditeur s'en charge en amont** : la table de ligatures de `src/editor-ligatures.ts` substitue dès la frappe `\pi` → `π`, `\eta` → `η`, etc., ainsi que les indices et exposants chiffrés (`\pi_1` → `π₁`, `f^-1` → `f⁻¹`, `e^x_2` → `eˣ₂` après suffixage chiffré). Le source `catdiagram` arrive donc à notre parser **déjà en Unicode** ; la transpilation vers Mermaid est un passthrough propre, pas une seconde couche de substitution.
 
@@ -479,7 +584,7 @@ Couverture pratique : lettres grecques (toutes), indices et exposants à un chif
 
 **Limite restante (différée à une éventuelle v2)** — les labels qui sortent du périmètre Unicode (`\sum_{i=0}^n`, fractions, accents empilés, indices alphabétiques au-delà des quelques `ᵢⱼₓ` disponibles) rendent leur source LaTeX littéralement. Pour les traiter, il faudrait parser le SVG Mermaid après rendu et remplacer les `<text>` des labels concernés par des `<foreignObject>` contenant un rendu MathJax — gestion non triviale des coordonnées et tailles, à implémenter si une vraie demande émerge.
 
-### 7.6 Exemple complet de transpilation
+### 7.B.7 Exemple complet de transpilation Mermaid
 
 Source `catdiagram` tel qu'il apparaît dans l'éditeur **après** que les ligatures aient agi (l'utilisateur a tapé `\pi_1` et `\pi_2`, l'éditeur les a remplacés en temps réel par `π₁` et `π₂`) :
 
@@ -514,7 +619,7 @@ graph LR
 
 Le typechecker a validé les deux équations avant émission ; elles ne paraissent pas dans le rendu (mais auraient bloqué la transpilation si elles avaient été mal typées).
 
-### 7.7 Trois transpilations supplémentaires (corpus de validation)
+### 7.B.8 Trois transpilations supplémentaires (corpus de validation Mermaid)
 
 Pour s'assurer que la stratégie Mermaid tient sur des topologies variées, voici les sorties attendues pour trois des exemples §6 les plus exigeants. (Une fois Phase 1 codée, ces extraits deviendront des snapshots de test.)
 
@@ -601,11 +706,18 @@ Le choix de transpiler vers Mermaid (§7) apporte des bénéfices considérables
 
 - **Esthétique du layout.** `dagre` produit des placements valides et lisibles, mais pas toujours canoniques. Un pullback ne « ressemblera » pas forcément à un carré avec l'objet universel en haut à gauche tel qu'on le trouve dans Mac Lane. Pour les diagrammes très spécifiques (snake lemma, sphères de Postnikov), un rendu manuel via tikz-cd reste préférable.
 - **Affichage des équations.** Mermaid ne sait pas annoter visuellement un diagramme avec « commute » ou afficher l'équation à côté. Les équations sont validées par le typechecker mais n'apparaissent pas dans le rendu (l'utilisateur les écrit en prose autour).
-- **Typographie des labels.** La couche de ligatures de l'éditeur (§7.5) couvre lettres grecques + indices/exposants chiffrés — soit ~95 % des cas. Les expressions plus complexes (`\sum_{i=0}^n`, fractions empilées, indices alphabétiques étendus) rendront littéralement le source LaTeX tant qu'une couche MathJax dans `<foreignObject>` n'est pas implémentée.
+- **Typographie des labels.** La couche de ligatures de l'éditeur (§7.B.6) couvre lettres grecques + indices/exposants chiffrés — soit ~95 % des cas. Les expressions plus complexes (`\sum_{i=0}^n`, fractions empilées, indices alphabétiques étendus) rendront littéralement le source LaTeX tant qu'une couche MathJax dans `<foreignObject>` n'est pas implémentée.
 - **Modificateurs visuels.** `mono`/`epi`/`iso` sont rendus par un caractère Unicode suffixé au label, faute de styles de tête de flèche dans Mermaid. C'est lisible mais ne suit pas la convention typographique du « crochet » des flèches en LaTeX.
 - **Pas de courbure manuelle.** L'utilisateur ne peut pas demander à une flèche de passer au-dessus d'une autre par un arc particulier — `dagre` choisit.
 
-Une réimplémentation future avec un moteur SVG dédié (estimée à ~2000 lignes) lèverait ces contraintes au prix d'un effort de développement substantiel ; à ne considérer que si une vraie demande émerge.
+### 9.3 Limites du renderer SVG natif
+
+Le renderer SVG natif (§7.A) lève la plupart des limites Mermaid mais introduit ses propres bornes :
+
+- **Plongement en grille requis.** L'algorithme BFS ne marche que si le sous-graphe squelettique se plonge sur ℤ² avec arêtes de distance 1. Un 3-cycle de morphismes générateurs (`A → B → C → A` sans aucune équation) n'admet pas de plongement valide — fallback automatique sur le polygone régulier ou sur Mermaid.
+- **Diagrammes très grands.** Au-delà de ~10 objets, l'arbre de recherche explose ; le renderer abandonne et délègue à Mermaid.
+- **Pas de placement manuel.** Comme Mermaid, l'utilisateur ne peut pas forcer une position. L'algorithme choisit (en cherchant à maximiser le score §7.A.3). Si le résultat n'est pas canonique, la solution est d'éditer le source pour exposer la structure différemment (réordonner morphismes, ajouter ou retirer des équations).
+- **Boucles.** Les morphismes `f : A → A` sont rendus en arc, mais le placement de leur label peut chevaucher d'autres arêtes dans des configurations denses.
 
 ---
 

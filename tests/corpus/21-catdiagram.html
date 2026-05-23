@@ -1,0 +1,229 @@
+<h1 class="doc-title">catdiagram — diagrammes commutatifs déclaratifs</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Le fence <code>```catdiagram</code> accepte la syntaxe documentée dans CD-SPEC.md
+(signature + équations + flèches universelles). Le parser produit du
+Mermaid que le pipeline existant rend en SVG.</p>
+<h2>Triangle commutatif</h2>
+<figure data-source="```catdiagram &quot;Triangle commutatif&quot; \label{fig:triangle}
+objects:  A, B, C
+morphisms:
+  f : A -> B
+  g : B -> C
+  h : A -> C
+equations:
+  h = g . f
+```" class="captioned captioned-figure"><pre><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  A[A]
+  B[B]
+  C[C]
+  A -- f --&gt; B
+  B -- g --&gt; C
+  A -- h --&gt; C
+  classDef cd-obj fill:none,stroke:none
+  class A,B,C cd-obj</code></pre>
+
+<figcaption class="caption" id="fig-fig:triangle">Figure 1: Triangle commutatif</figcaption></figure>
+<p>Voir <a class="xref" href="#lst-fig:triangle">1</a>.</p>
+<h2>Carré du produit</h2>
+<pre data-source="```catdiagram
+objects:  X, A, B, P
+morphisms:
+  pi1 : P -> A
+  pi2 : P -> B
+  f   : X -> A
+  g   : X -> B
+induced:
+  u : X -> P  by (f, g)
+equations:
+  pi1 . u = f
+  pi2 . u = g
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  X[X]
+  A[A]
+  B[B]
+  P[P]
+  P -- pi1 --&gt; A
+  P -- pi2 --&gt; B
+  X -- f --&gt; A
+  X -- g --&gt; B
+  X -. u .-&gt; P
+  classDef cd-obj fill:none,stroke:none
+  class X,A,B,P cd-obj</code></pre>
+<h2>Coproduit</h2>
+<pre data-source="```catdiagram
+objects:  X, A, B, S
+morphisms:
+  i1 : A -> S
+  i2 : B -> S
+  f  : A -> X
+  g  : B -> X
+induced:
+  v : S -> X  by (f, g)
+equations:
+  v . i1 = f
+  v . i2 = g
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  X[X]
+  A[A]
+  B[B]
+  S[S]
+  A -- i1 --&gt; S
+  B -- i2 --&gt; S
+  A -- f --&gt; X
+  B -- g --&gt; X
+  S -. v .-&gt; X
+  classDef cd-obj fill:none,stroke:none
+  class X,A,B,S cd-obj</code></pre>
+<h2>Carré de naturalité</h2>
+<pre data-source="```catdiagram
+objects:  F(X), F(Y), G(X), G(Y)
+morphisms:
+  Fh    : F(X) -> F(Y)
+  Gh    : G(X) -> G(Y)
+  eta_X : F(X) -> G(X)
+  eta_Y : F(Y) -> G(Y)
+equations:
+  Gh . eta_X = eta_Y . Fh
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  FX["F(X)"]
+  FY["F(Y)"]
+  GX["G(X)"]
+  GY["G(Y)"]
+  FX -- Fh --&gt; FY
+  GX -- Gh --&gt; GY
+  FX -- eta_X --&gt; GX
+  FY -- eta_Y --&gt; GY
+  classDef cd-obj fill:none,stroke:none
+  class FX,FY,GX,GY cd-obj</code></pre>
+<h2>Pullback</h2>
+<figure data-source="```catdiagram &quot;Pullback&quot; \label{fig:pullback}
+objects:  X, A, B, C, P
+morphisms:
+  f  : A -> C
+  g  : B -> C
+  p1 : P -> A
+  p2 : P -> B
+  h  : X -> A
+  k  : X -> B
+induced:
+  u : X -> P  by (h, k)
+equations:
+  f . p1 = g . p2
+  f . h  = g . k
+  p1 . u = h
+  p2 . u = k
+```" class="captioned captioned-figure"><pre><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  X[X]
+  A[A]
+  B[B]
+  C[C]
+  P[P]
+  A -- f --&gt; C
+  B -- g --&gt; C
+  P -- p1 --&gt; A
+  P -- p2 --&gt; B
+  X -- h --&gt; A
+  X -- k --&gt; B
+  X -. u .-&gt; P
+  classDef cd-obj fill:none,stroke:none
+  class X,A,B,C,P cd-obj</code></pre>
+
+<figcaption class="caption" id="fig-fig:pullback">Figure 2: Pullback</figcaption></figure>
+<h2>Égaliseur (paire parallèle)</h2>
+<pre data-source="```catdiagram
+objects:  E, A, B, Z
+morphisms:
+  f : A -> B
+  g : A -> B
+  e : E -> A
+  h : Z -> A
+induced:
+  u : Z -> E  by (h)
+equations:
+  f . e = g . e
+  f . h = g . h
+  e . u = h
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  E[E]
+  A[A]
+  B[B]
+  Z[Z]
+  A -- f --&gt; B
+  A -- g --&gt; B
+  E -- e --&gt; A
+  Z -- h --&gt; A
+  Z -. u .-&gt; E
+  classDef cd-obj fill:none,stroke:none
+  class E,A,B,Z cd-obj</code></pre>
+<h2>Fonctorialité</h2>
+<pre data-source="```catdiagram
+objects:  F(A), F(B), F(C)
+morphisms:
+  Ff   : F(A) -> F(B)
+  Fg   : F(B) -> F(C)
+  Fgof : F(A) -> F(C)
+equations:
+  Fgof = Fg . Ff
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  FA["F(A)"]
+  FB["F(B)"]
+  FC["F(C)"]
+  FA -- Ff --&gt; FB
+  FB -- Fg --&gt; FC
+  FA -- Fgof --&gt; FC
+  classDef cd-obj fill:none,stroke:none
+  class FA,FB,FC cd-obj</code></pre>
+<h2>Objet terminal</h2>
+<pre data-source="```catdiagram
+objects:  T, A
+induced:
+  t : A -> T  by ()
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  T[T]
+  A[A]
+  A -. t .-&gt; T
+  classDef cd-obj fill:none,stroke:none
+  class T,A cd-obj</code></pre>
+<h2>Avec modificateurs (mono / epi / iso)</h2>
+<pre data-source="```catdiagram
+direction: LR
+objects:  A, B, C
+morphisms:
+  i : A -> B (mono)
+  p : B -> C (epi)
+  q : A -> C (iso)
+```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph LR
+  A[A]
+  B[B]
+  C[C]
+  A -- "i ↣" --&gt; B
+  B -- "p ↠" --&gt; C
+  A -- "q ≅" --&gt; C
+  classDef cd-obj fill:none,stroke:none
+  class A,B,C cd-obj</code></pre>
+<h2>Cas d'erreur — équation mal typée</h2>
+<p>L'équation <code>f = g</code> ci-dessous est mal typée (f va de A vers B, g va de
+B vers C). Le typechecker doit la rejeter avec une diagnostic
+positionnel.</p>
+<div data-source="```catdiagram
+objects:  A, B, C
+morphisms:
+  f : A -> B
+  g : B -> C
+equations:
+  f = g
+```
+" class="catdiagram-error"><div class="catdiagram-error-msg">Erreur catdiagram</div><ul><li>ligne 6: equation endpoints differ: lhs is A→B, rhs is B→C</li></ul><pre>objects:  A, B, C
+morphisms:
+  f : A -&gt; B
+  g : B -&gt; C
+equations:
+  f = g</pre></div>

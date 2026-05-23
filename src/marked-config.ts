@@ -11,6 +11,8 @@
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
 import { renderAlgorithmBlock } from './algorithm';
+import { parse as parseCatdiagram, typecheck as typecheckCatdiagram } from './catdiagram';
+import { emitMermaid as emitCatdiagramMermaid } from './catdiagram-mermaid';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
 import { renderChart } from './chart';
 import { renderDiffBlock } from './diff';
@@ -236,6 +238,18 @@ marked.use({
       if (lang === 'ebnf' || lang.startsWith('ebnf ')) {
         return injectSource(
           withCaption('figure', info.caption, renderEbnfBlock(token.text), info.label),
+          raw,
+        );
+      }
+      // ```catdiagram — declarative commutative-diagram DSL (CD-SPEC).
+      // Parsed + typechecked by `catdiagram.ts`, then transpiled to a
+      // Mermaid `graph` source that piggybacks on the existing mermaid
+      // pipeline for SVG rendering. Parse / typecheck errors render in
+      // their own red error block, like math-error / mermaid-error.
+      if (lang === 'catdiagram' || lang.startsWith('catdiagram ')) {
+        const block = renderCatdiagram(token.text);
+        return injectSource(
+          withCaption('figure', info.caption, block, info.label),
           raw,
         );
       }
@@ -716,6 +730,38 @@ marked.use({
  * Purpose: Thread the original fenced-block markdown into the first tag of `html`.
  * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
  */
+/**
+ * Purpose: Render a `catdiagram` block — parse + typecheck, then emit a
+ *   Mermaid `<pre><code.language-mermaid>` placeholder that the existing
+ *   mermaid pipeline picks up at runtime. Parse / typecheck errors render
+ *   as a red error block listing every diagnostic with its line number.
+ * How: Delegates to `catdiagram.parse` + `catdiagram.typecheck` +
+ *   `catdiagram-mermaid.emitMermaid`. Errors are collected from both
+ *   phases so the user sees every problem at once.
+ */
+function renderCatdiagram(source: string): string {
+  const { ast, errors: parseErrors } = parseCatdiagram(source);
+  const tcErrors = parseErrors.length === 0 ? typecheckCatdiagram(ast) : [];
+  const all = [...parseErrors, ...tcErrors];
+  if (all.length > 0) {
+    const items = all
+      .map((e) => {
+        const where = e.line > 0 ? `ligne ${e.line}: ` : '';
+        return `<li>${escapeHtml(where + e.message)}</li>`;
+      })
+      .join('');
+    return (
+      `<div class="catdiagram-error">` +
+      `<div class="catdiagram-error-msg">Erreur catdiagram</div>` +
+      `<ul>${items}</ul>` +
+      `<pre>${escapeHtml(source)}</pre>` +
+      `</div>\n`
+    );
+  }
+  const mermaidSrc = emitCatdiagramMermaid(ast);
+  return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
+}
+
 /**
  * Purpose: Turn a display-math source into the `<div class="math-block">`
  *   placeholder, handling equation labels uniformly across `$$…$$` and
