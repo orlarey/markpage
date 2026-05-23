@@ -125,6 +125,10 @@ const FENCE_KIND: Record<string, RefKind> = {
   ebnf: 'figure',
   adt: 'listing',
   diff: 'listing',
+  // ```math is captionable too (typical use: commutative diagrams
+  // wrapped as figures); a `\label{eq:…}` *inside* the body still
+  // registers separately as an equation, handled below.
+  math: 'figure',
   // bare language tags (python / js / ts / …) all map to listing — caught
   // by the fallback in scanFences.
 };
@@ -157,12 +161,23 @@ export function prescanLabels(source: string): void {
       const info = fenceOpen[3] ?? '';
       // Consume until matching close fence (same or longer marker char).
       let j = i + 1;
+      const bodyLines: string[] = [];
       while (j < lines.length) {
         const close = new RegExp(`^${marker[0]}{${marker.length},}[ \\t]*$`);
         if (close.test(lines[j] ?? '')) break;
+        bodyLines.push(lines[j] ?? '');
         j += 1;
       }
       handleFenceInfo(info, captionCounters);
+      // ```math body can carry `\label{eq:…}` exactly like `$$…$$`
+      // does — register as equation so cross-refs resolve.
+      const lang = (info.split(/\s+/)[0] ?? '').toLowerCase();
+      if (lang === 'math') {
+        const bodyLabel = extractLabel(bodyLines.join('\n'));
+        if (bodyLabel !== null) {
+          registerLabel(bodyLabel, 'equation', nextEquationNumber());
+        }
+      }
       i = j + 1;
       continue;
     }

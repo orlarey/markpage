@@ -179,19 +179,29 @@ marked.use({
       // even on blocks whose output (table / SVG / math placeholder)
       // doesn't preserve the markdown form.
       const raw = token.raw ?? '';
-      if (lang === 'math') {
-        const escaped = escapeHtml(token.text);
-        return injectSource(
-          `<div class="math-block" data-math="${escaped}"></div>\n`,
-          raw,
-        );
-      }
       // For every captionable block we extract a `"…"` quoted caption
       // via parseFenceInfo, then wrap the rendered block in a `<figure>`
       // with an auto-numbered `<figcaption>` (Algorithme N / Figure N /
       // Tableau N / Listing N). Bare-words after the language tag stay
       // available as positional `args` (e.g. `chart bar`, `tree svg`).
       const info = parseFenceInfo(lang);
+      // ```math — display math (GitHub-style alias for $$…$$). Emits the
+      // same placeholder div that the mathBlock extension below uses;
+      // MathJax replaces it with an SVG later. Optionally captioned
+      // (`` ```math "Universal property" \label{fig:up} `` ` `) —
+      // typical use case is commutative diagrams (\begin{CD}…\end{CD})
+      // that benefit from a figure number.
+      if (lang === 'math' || lang.startsWith('math ')) {
+        // Body may carry a `\label{eq:…}` (numbered equation, same as
+        // `$$…$$`) and / or the fence info may carry a caption +
+        // `\label{fig:…}` (figure wrapper, typical for commutative
+        // diagrams). The two label kinds coexist independently.
+        const block = renderMathPlaceholder(token.text);
+        return injectSource(
+          withCaption('figure', info.caption, block, info.label),
+          raw,
+        );
+      }
       if (lang === 'csv' || lang.startsWith('csv ')) {
         return injectSource(
           withCaption('table', info.caption, renderDataTable(token.text, ','), info.label),
@@ -386,31 +396,11 @@ marked.use({
         };
         return token as unknown as Tokens.Generic;
       },
-      // Renderer emits a placeholder element. The preview pipeline finds
-      // these and swaps in the MathJax SVG once it's loaded. When the
-      // math source carries a `\label{eq:foo}`, we strip it and inject a
-      // `\tag{N}` so MathJax renders the equation number on the right.
-      // N is sourced from the cross-ref registry (populated in the
-      // pre-scan) so the number matches what `\ref{eq:foo}` will resolve
-      // to. The label key also drives an anchor id on the wrapper.
+      // Renderer emits a placeholder element. Body labels + tag
+      // injection handled by the shared `renderMathPlaceholder` helper.
       renderer(token) {
         const t = token as unknown as MathBlockToken;
-        const labelKey = (/\\label\{([^}\n]+)\}/.exec(t.text) ?? [, ''])[1] ?? '';
-        let mathSrc = t.text;
-        let idAttr = '';
-        if (labelKey !== '') {
-          const entry = resolveRef(labelKey);
-          mathSrc = stripLabels(mathSrc);
-          if (entry !== null) {
-            mathSrc = `${mathSrc} \\tag{${entry.text}}`;
-            idAttr = ` id="${anchorId('equation', labelKey)}"`;
-          }
-        }
-        const escaped = escapeHtml(mathSrc);
-        return injectSource(
-          `<div class="math-block" data-math="${escaped}"${idAttr}></div>\n`,
-          t.raw,
-        );
+        return injectSource(renderMathPlaceholder(t.text), t.raw);
       },
     },
     {
@@ -726,6 +716,31 @@ marked.use({
  * Purpose: Thread the original fenced-block markdown into the first tag of `html`.
  * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
  */
+/**
+ * Purpose: Turn a display-math source into the `<div class="math-block">`
+ *   placeholder, handling equation labels uniformly across `$$…$$` and
+ *   ```math fences.
+ * How: If the source has a `\label{eq:foo}` and the cross-ref registry
+ *   resolved it (pre-scan populated the number), strip the label and
+ *   inject `\tag{N}` so MathJax renders the number on the right; also
+ *   emit `id="eq-foo"` on the wrapper so `\ref{eq:foo}` jumps here.
+ */
+function renderMathPlaceholder(source: string): string {
+  const labelKey = (/\\label\{([^}\n]+)\}/.exec(source) ?? [, ''])[1] ?? '';
+  let mathSrc = source;
+  let idAttr = '';
+  if (labelKey !== '') {
+    const entry = resolveRef(labelKey);
+    mathSrc = stripLabels(mathSrc);
+    if (entry !== null) {
+      mathSrc = `${mathSrc} \\tag{${entry.text}}`;
+      idAttr = ` id="${anchorId('equation', labelKey)}"`;
+    }
+  }
+  const escaped = escapeHtml(mathSrc);
+  return `<div class="math-block" data-math="${escaped}"${idAttr}></div>\n`;
+}
+
 function injectSource(html: string, raw: string): string {
   const escaped = escapeHtml(raw);
   return html.replace(/<(\w+)/, `<$1 data-source="${escaped}"`);

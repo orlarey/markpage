@@ -921,14 +921,18 @@ sont complètes :
 
 | Tapez | Obtenez | Tapez | Obtenez |
 |---|---|---|---|
-| `[[` | ⟦ | `<<` | ⟨ |
-| `]]` | ⟧ | `>>` | ⟩ |
+| `[[` | ⟦ | `]]` | ⟧ |
 | `->` | → | `<-` | ← |
 | `=>` | ⇒ | | |
 | `<=` | ≤ | `>=` | ≥ |
 | `!=` | ≠ | `+-` | ± |
 | `\|-` | ⊢ | `-\|` | ⊣ |
 | `...` | … | | |
+
+> Les **chevrons** `⟨` et `⟩` (angle brackets) s'obtiennent uniquement
+> via `\langle` et `\rangle` (cf. ci-dessous). Pas de ligature `<<` /
+> `>>` pour ne pas entrer en collision avec la syntaxe des flèches
+> AMS-CD (`@>>label>`) dans les diagrammes commutatifs.
 
 Les **commandes LaTeX** (`\xxx`) attendent un **caractère terminateur**
 (espace, ponctuation, opérateur, retour à la ligne) avant de se
@@ -981,6 +985,15 @@ Majuscules (seulement celles qui diffèrent du latin) :
 
 **Grandes flèches** : `\mapsto` ↦, `\Leftarrow` ⇐, `\Rightarrow` ⇒,
 `\Leftrightarrow` ⇔.
+
+**Chevrons** : `\langle` ⟨, `\rangle` ⟩.
+
+**Indices et exposants** (chiffres uniquement) : `_0`…`_9` deviennent
+₀…₉ et `^0`…`^9` deviennent ⁰…⁹. La forme négative `^-1`…`^-9` donne
+⁻¹…⁻⁹ (utile pour les inverses). Exemples : `\pi_1` → π₁, `x_1` →
+x₁, `f^-1` → f⁻¹, `e^2` → e². Pour éviter une ligature dans le rare
+cas d'un mot italique terminé par un chiffre (`_label_1_`), préférer
+les astérisques (`*label_1*`).
 
 > Pour écrire une commande **littéralement** dans la prose (par
 > exemple pour documenter `\alpha`), doublez le backslash :
@@ -1139,6 +1152,54 @@ blocs de code".
 Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
 ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), tapez-les directement.
+
+### Diagrammes commutatifs \label{sec:cd}
+
+Pour les **diagrammes commutatifs** (carrés, triangles, factorisations
+universelles), utilisez l'environnement **AMS-CD** à l'intérieur d'un
+bloc math :
+
+````
+$$
+\begin{CD}
+  A  @>f>>  B \\
+  @VgVV    @VVhV \\
+  C  @>>k>  D
+\end{CD}
+$$
+````
+
+Les **flèches** sont écrites entre les colonnes :
+
+- **Horizontales** : `@>label>>` (vers la droite, label au-dessus),
+  `@>>label<` (label en-dessous), `@<label<<` (vers la gauche),
+  `@=` (signe `=`).
+- **Verticales** : `@VlabelVV` (vers le bas, label à gauche),
+  `@VVlabelV` (label à droite), `@AlabelAA` (vers le haut), `@|`
+  (signe `=` vertical).
+- **Cellule vide** : laisser le contenu vide (`A @>>> B \\ @>>> C`
+  pour un triangle).
+
+Vous pouvez **nommer le diagramme** en l'enveloppant dans un bloc
+` ```math ` avec une légende et un label de cross-référence :
+
+````
+```math "Propriété universelle du produit fibré" \label{fig:pullback}
+\begin{CD}
+  P  @>p_1>>  A \\
+  @Vp_2VV    @VVfV \\
+  B  @>>g>    C
+\end{CD}
+```
+````
+
+Le diagramme est alors numéroté comme une figure, et `\ref{fig:pullback}`
+y renvoie depuis n'importe où dans le document.
+
+> **Limitations.** AMS-CD ne gère que les diagrammes **alignés sur
+> grille** — pas de flèches diagonales ni courbes. Pour ces cas
+> avancés (cf. xy-pic / tikz-cd en LaTeX), MathJax n'a pas de
+> support natif ; un éventuel renderer SVG dédié reste à l'étude.
 
 ### Diagrammes Mermaid \label{sec:mermaid}
 

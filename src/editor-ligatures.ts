@@ -187,6 +187,14 @@ const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
   ['Leftarrow', '⇐'],
   ['Rightarrow', '⇒'],
   ['Leftrightarrow', '⇔'],
+
+  // ---- Angle brackets — replace the old `<<` / `>>` tail ligatures
+  // which conflicted with the AMS-CD `@>>label>` / `@<<label<` arrow
+  // syntax in commutative diagrams. Now the LaTeX command form is
+  // the only way to get them, mirroring how `\langle` / `\rangle`
+  // are written in proper math.
+  ['langle', '⟨'],
+  ['rangle', '⟩'],
 ]);
 
 // ---- Tail-match ligatures ---------------------------------------------
@@ -199,11 +207,12 @@ const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
 // resolution correctly picks the more specific match at each position.
 function buildTailLigatures(): ReadonlyMap<string, string> {
   const m = new Map<string, string>([
-    // Brackets
+    // Brackets — Scott brackets only. Angle brackets `⟨` / `⟩`
+    // moved to the `\langle` / `\rangle` LaTeX commands so the
+    // tail forms `<<` / `>>` don't conflict with the AMS-CD
+    // `@>>label>` arrow syntax in `\begin{CD}…\end{CD}` blocks.
     ['[[', '⟦'],
     [']]', '⟧'],
-    ['<<', '⟨'],
-    ['>>', '⟩'],
     // Arrows
     ['->', '→'],
     ['<-', '←'],
@@ -225,6 +234,29 @@ function buildTailLigatures(): ReadonlyMap<string, string> {
   for (let c = A_CODE; c <= Z_CODE; c += 1) {
     const letter = String.fromCodePoint(c);
     m.set(`|${letter}`, blackboardBold(letter));
+  }
+  // Subscript digits `_0`..`_9` → Unicode subscripts ₀..₉. Fires
+  // unconditionally on any preceding character — including a Latin
+  // letter — so `x_1` → `x₁`, `\pi_1` → `π_1` → `π₁`, etc. The
+  // trade-off : italic markdown that ends with `_word_1_` would
+  // see its trailing `_1` turn into `₁`, breaking the italic
+  // delimiter. This is extremely rare in practice (italic is
+  // almost always around words, not "word + digit") and a user
+  // who hits it can fall back to asterisk italic (`*word_1*`).
+  for (let d = 0; d <= 9; d += 1) {
+    m.set(`_${d}`, String.fromCodePoint(0x2080 + d));
+  }
+  // Superscript digits `^0`..`^9` → ⁰..⁹, plus `^-1`..`^-9` →
+  // ⁻¹..⁻⁹ for negative exponents (`f^-1` → `f⁻¹`). Unicode
+  // superscripts aren't a contiguous block, hence the explicit
+  // string. `^` has no Markdown meaning so there's no italic
+  // conflict to worry about.
+  const SUPS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  for (let d = 0; d <= 9; d += 1) {
+    m.set(`^${d}`, SUPS[d] ?? '');
+  }
+  for (let d = 1; d <= 9; d += 1) {
+    m.set(`^-${d}`, `⁻${SUPS[d] ?? ''}`);
   }
   return m;
 }

@@ -884,14 +884,17 @@ with their mathematical equivalent. Two mechanics coexist:
 
 | Type | Get | Type | Get |
 |---|---|---|---|
-| `[[` | ⟦ | `<<` | ⟨ |
-| `]]` | ⟧ | `>>` | ⟩ |
+| `[[` | ⟦ | `]]` | ⟧ |
 | `->` | → | `<-` | ← |
 | `=>` | ⇒ | | |
 | `<=` | ≤ | `>=` | ≥ |
 | `!=` | ≠ | `+-` | ± |
 | `\|-` | ⊢ | `-\|` | ⊣ |
 | `...` | … | | |
+
+> The **angle brackets** `⟨` and `⟩` are only available via `\langle`
+> and `\rangle` (see below). No `<<` / `>>` ligature, to avoid clashing
+> with the AMS-CD arrow syntax (`@>>label>`) in commutative diagrams.
 
 **LaTeX commands** (`\xxx`) wait for a **terminator character**
 (space, punctuation, operator, newline) before firing. Type `\alpha`
@@ -943,6 +946,15 @@ Uppercase (only those that differ from Latin):
 
 **Long arrows**: `\mapsto` ↦, `\Leftarrow` ⇐, `\Rightarrow` ⇒,
 `\Leftrightarrow` ⇔.
+
+**Angle brackets**: `\langle` ⟨, `\rangle` ⟩.
+
+**Subscripts and superscripts** (digits only): `_0`…`_9` become ₀…₉
+and `^0`…`^9` become ⁰…⁹. The negative form `^-1`…`^-9` produces
+⁻¹…⁻⁹ (handy for inverses). Examples: `\pi_1` → π₁, `x_1` → x₁,
+`f^-1` → f⁻¹, `e^2` → e². To avoid the ligature in the rare case
+of an italic word ending in a digit (`_label_1_`), use asterisks
+instead (`*label_1*`).
 
 > To write a command **literally** in prose (for instance to document
 > `\alpha`), double the backslash: `\\alpha` stays as-is in the
@@ -1099,6 +1111,54 @@ render in math mode as-is. It's the only exception to the usual
 For LaTeX commands that have no Unicode equivalent in our ligatures
 (for example `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), type them directly.
+
+### Commutative diagrams \label{sec:cd}
+
+For **commutative diagrams** (squares, triangles, universal
+factorisations), use the **AMS-CD** environment inside any math
+block:
+
+````
+$$
+\begin{CD}
+  A  @>f>>  B \\
+  @VgVV    @VVhV \\
+  C  @>>k>  D
+\end{CD}
+$$
+````
+
+**Arrows** sit between the columns:
+
+- **Horizontal**: `@>label>>` (rightward, label above),
+  `@>>label<` (label below), `@<label<<` (leftward), `@=` (equals
+  sign).
+- **Vertical**: `@VlabelVV` (downward, label on the left),
+  `@VVlabelV` (label on the right), `@AlabelAA` (upward), `@|`
+  (vertical equals sign).
+- **Empty cell**: leave the content blank (`A @>>> B \\ @>>> C`
+  for a triangle).
+
+You can **name the diagram** by wrapping it in a ` ```math ` fence
+with a caption and a cross-reference label:
+
+````
+```math "Universal property of the pullback" \label{fig:pullback}
+\begin{CD}
+  P  @>p_1>>  A \\
+  @Vp_2VV    @VVfV \\
+  B  @>>g>    C
+\end{CD}
+```
+````
+
+The diagram is then numbered as a figure, and `\ref{fig:pullback}`
+references it from anywhere in the document.
+
+> **Limitations.** AMS-CD only handles **grid-aligned** diagrams —
+> no diagonal or curved arrows. For these (cf. xy-pic / tikz-cd in
+> LaTeX), MathJax has no native support; a dedicated SVG renderer
+> remains under consideration.
 
 ### Mermaid diagrams \label{sec:mermaid}
 
