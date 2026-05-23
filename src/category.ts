@@ -1,10 +1,10 @@
-/********************************* catdiagram.ts *******************************
+/********************************* category.ts *******************************
  *
- * Purpose: Parse + typecheck the `catdiagram` DSL (CD-SPEC.md) — a textual
+ * Purpose: Parse + typecheck the `category` DSL (CD-SPEC.md) — a textual
  *   description of a small category (signature + commutativity equations +
  *   universal arrows) intended for transpilation to a graphical backend
- *   (SVG native by default, Mermaid fallback). See [catdiagram-svg.ts] /
- *   [catdiagram-mermaid.ts].
+ *   (SVG native by default, Mermaid fallback). See [category-svg.ts] /
+ *   [category-mermaid.ts].
  * How: Hand-written recursive-descent parser, one declaration per line.
  *   Lines are classified by their tokens — `:` + `->` for a morphism
  *   declaration (with `by (…)` it's induced; with `= path` after the
@@ -98,7 +98,7 @@ const RESERVED = new Set([
 ]);
 
 /**
- * Purpose: Parse a `catdiagram` source string into an AST + diagnostics.
+ * Purpose: Parse a `category` source string into an AST + diagnostics.
  * How: Normalise Unicode arrows to ASCII, strip comments, walk each non-
  *   blank line through `parseLine`. Diagnostics are collected — we
  *   don't abort on first error so the user sees them all at once.
@@ -116,7 +116,7 @@ export function parse(source: string): CdParseResult {
   };
 
   // The editor's input ligatures convert `->` to `→` at typing time —
-  // so a catdiagram written naturally in the editor arrives with
+  // so a category written naturally in the editor arrives with
   // Unicode arrows. Normalise to ASCII so the rest of the parser stays
   // purely ASCII for the syntactic markers.
   const normalized = source.replaceAll('→', '->').replaceAll('⟶', '->');

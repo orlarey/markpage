@@ -1,12 +1,12 @@
-# catdiagram — diagrammes commutatifs déclaratifs
+# category — diagrammes commutatifs déclaratifs
 
-Le fence ` ```catdiagram ` accepte la syntaxe documentée dans CD-SPEC.md :
+Le fence ` ```category ` accepte la syntaxe documentée dans CD-SPEC.md :
 chaque ligne déclare un morphisme `f : A -> B` ou une équation, dans
 la convention CS / mathématique habituelle.
 
 ## Triangle commutatif
 
-```catdiagram "Triangle commutatif" \label{fig:triangle}
+```category "Triangle commutatif" \label{fig:triangle}
 f : A -> B
 g : B -> C
 h : A -> C = g . f
@@ -16,7 +16,7 @@ Voir \ref{fig:triangle}.
 
 ## Carré du produit
 
-```catdiagram
+```category
 pi1 : P -> A
 pi2 : P -> B
 f   : X -> A
@@ -29,7 +29,7 @@ pi2 . u = g
 
 ## Coproduit
 
-```catdiagram
+```category
 i1 : A -> S
 i2 : B -> S
 f  : A -> X
@@ -42,7 +42,7 @@ v . i2 = g
 
 ## Carré de naturalité
 
-```catdiagram
+```category
 Fh    : F(X) -> F(Y)
 Gh    : G(X) -> G(Y)
 eta_X : F(X) -> G(X)
@@ -53,7 +53,7 @@ Gh . eta_X = eta_Y . Fh
 
 ## Pullback
 
-```catdiagram "Pullback" \label{fig:pullback}
+```category "Pullback" \label{fig:pullback}
 f  : A -> C
 g  : B -> C
 p1 : P -> A
@@ -70,7 +70,7 @@ p2 . u = k
 
 ## Égaliseur (paire parallèle)
 
-```catdiagram
+```category
 f : A -> B
 g : A -> B
 e : E -> A
@@ -84,7 +84,7 @@ e . u = h
 
 ## Fonctorialité
 
-```catdiagram
+```category
 Ff   : F(A) -> F(B)
 Fg   : F(B) -> F(C)
 Fgof : F(A) -> F(C) = Fg . Ff
@@ -92,13 +92,13 @@ Fgof : F(A) -> F(C) = Fg . Ff
 
 ## Objet terminal
 
-```catdiagram
+```category
 t : A -> T by ()
 ```
 
 ## Avec modificateurs (mono / epi / iso)
 
-```catdiagram
+```category
 direction: LR
 i : A -> B (mono)
 p : B -> C (epi)
@@ -110,7 +110,7 @@ q : A -> C (iso)
 L'équation `f = g` ci-dessous est mal typée (f va de A vers B, g va de
 B vers C). Le typechecker doit la rejeter avec un diagnostic positionnel.
 
-```catdiagram
+```category
 f : A -> B
 g : B -> C
 f = g

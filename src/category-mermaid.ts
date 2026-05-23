@@ -1,7 +1,7 @@
-/********************************* catdiagram-mermaid.ts ***********************
+/********************************* category-mermaid.ts ***********************
  *
- * Purpose: Transpile a `catdiagram` AST (parsed + typechecked by
- *   [catdiagram.ts]) to a Mermaid `graph` source. The output goes through
+ * Purpose: Transpile a `category` AST (parsed + typechecked by
+ *   [category.ts]) to a Mermaid `graph` source. The output goes through
  *   the existing markpage Mermaid pipeline for SVG rendering and caching.
  * How: Walk the AST in three passes — node declarations (one per object),
  *   solid edges (morphisms, with `↣`/`↠`/`≅` suffixes for mono/epi/iso),
@@ -11,7 +11,7 @@
  *
  *******************************************************************************/
 
-import type { CdAst, MorphismProp } from './catdiagram';
+import type { CdAst, MorphismProp } from './category';
 
 /**
  * Purpose: Emit a Mermaid `graph <dir>` source for the given AST.

@@ -1,6 +1,6 @@
-/********************************* catdiagram-svg.ts ***************************
+/********************************* category-svg.ts ***************************
  *
- * Purpose: Render a `catdiagram` AST as a native SVG — textbook-quality
+ * Purpose: Render a `category` AST as a native SVG — textbook-quality
  *   commutative diagram with objects placed on a grid such that every
  *   skeletal morphism becomes a strictly horizontal or vertical arrow.
  *   Implements CD-SPEC §7.A.
@@ -18,7 +18,7 @@
  *
  *******************************************************************************/
 
-import type { CdAst, Morphism, Induced } from './catdiagram';
+import type { CdAst, Morphism, Induced } from './category';
 
 // All geometry in pixels at a 16 px base font-size. The SVG carries
 // explicit width / height in px so the diagram retains its intrinsic
@@ -516,7 +516,7 @@ export function emitSvg(ast: CdAst): string | null {
   const vbH = Math.ceil(bbox.maxY - bbox.minY) + 2 * SAFETY;
 
   const header =
-    `<svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" ` +
+    `<svg xmlns="http://www.w3.org/2000/svg" class="category-svg" ` +
     `width="${vbW}" height="${vbH}" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" ` +
     `font-family="inherit" font-size="${FONT_PX}" role="img">`;
   const defs =

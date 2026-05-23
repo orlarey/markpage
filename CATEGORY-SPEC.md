@@ -1,4 +1,4 @@
-# Spécification du langage `catdiagram`
+# Spécification du langage `category`
 
 **Version :** 0.1 (brouillon)
 **Objet :** une syntaxe textuelle, intégrable en Markdown, pour décrire les diagrammes de théorie des catégories.
@@ -51,17 +51,17 @@ C'est la présentation d'une catégorie par générateurs et relations. La secti
 
 ## 2. Intégration Markdown
 
-Un diagramme est un bloc de code clôturé dont l'identifiant de langage est `catdiagram` :
+Un diagramme est un bloc de code clôturé dont l'identifiant de langage est `category` :
 
 ````markdown
-```catdiagram
+```category
 f : A -> B
 g : B -> C
 h : A -> C = g . f
 ```
 ````
 
-Le choix du bloc de code garantit la **dégradation gracieuse** : un lecteur dont le moteur Markdown ignore `catdiagram` voit le bloc rendu comme du texte préformaté — toujours lisible. Un moteur compatible remplace le bloc par le diagramme rendu.
+Le choix du bloc de code garantit la **dégradation gracieuse** : un lecteur dont le moteur Markdown ignore `category` voit le bloc rendu comme du texte préformaté — toujours lisible. Un moteur compatible remplace le bloc par le diagramme rendu.
 
 ---
 
@@ -141,13 +141,13 @@ La directive **optionnelle** `objects:` sert deux cas :
 - **Objet isolé** sans morphisme incident (rare en pratique mais syntaxiquement légal) ;
 - **Validation stricte des typos** : quand `objects:` est présente, tout endpoint de morphisme absent de la liste déclenche une erreur (« objet inconnu `Aaa` ») au lieu d'être silencieusement créé.
 
-```catdiagram
+```category
 # Objets inférés — pas de déclaration nécessaire
 f : A -> B
 g : B -> C
 ```
 
-```catdiagram
+```category
 # Déclaration explicite — un endpoint en dehors de la liste serait rejeté
 objects: A, B, C
 f : A -> B
@@ -158,7 +158,7 @@ g : B -> C
 
 Chaque ligne `f : A -> B` déclare un morphisme *(nom, domaine, codomaine)*. Ces morphismes sont les **générateurs** de $\text{Mor}(\mathcal{J})$ ; les autres morphismes du diagramme (les composés) existent par composition mais ne sont pas listés — sauf comme **raccourcis** déclarés (§4.3 ci-dessous).
 
-```catdiagram
+```category
 f : A -> B
 g : B -> C
 ```
@@ -173,7 +173,7 @@ Un morphisme peut porter des annotations de propriété entre parenthèses :
 | `(epi)` | épimorphisme | label suffixé `↠` |
 | `(iso)` | isomorphisme | label suffixé `≅` |
 
-```catdiagram
+```category
 i : A -> B (mono)
 p : B -> A (epi)
 ```
@@ -184,7 +184,7 @@ Un morphisme **identité** n'est pas un modificateur : `id_A : A -> A` est simpl
 
 Une **équation autonome** `path = path` impose une relation de commutativité, sur une ligne sans `:` ni `->` :
 
-```catdiagram
+```category
 f : A -> B
 g : B -> C
 h : A -> C
@@ -194,7 +194,7 @@ h = g . f          # équation autonome
 
 Quand un morphisme déclaré n'est qu'un **raccourci visuel** pour une composition, l'équation peut se loger **dans la déclaration** du morphisme via le suffixe `= path` :
 
-```catdiagram
+```category
 f : A -> B
 g : B -> C
 h : A -> C = g . f          # raccourci co-localisé
@@ -227,9 +227,9 @@ Un vérificateur rejette toute équation mal typée **avant** le rendu.
 
 ### 4.4 Morphismes induits — les flèches universelles
 
-C'est la construction qui distingue `catdiagram` d'une syntaxe de graphe. Un morphisme dont la déclaration porte la clause **`by (…)`** n'est pas postulé : son existence et son unicité sont garanties par une propriété universelle. Visuellement il est rendu **en pointillés**.
+C'est la construction qui distingue `category` d'une syntaxe de graphe. Un morphisme dont la déclaration porte la clause **`by (…)`** n'est pas postulé : son existence et son unicité sont garanties par une propriété universelle. Visuellement il est rendu **en pointillés**.
 
-```catdiagram
+```category
 pi1 : P -> A
 pi2 : P -> B
 f   : X -> A
@@ -247,7 +247,7 @@ La clause `by (f, g)` enregistre les morphismes dont $u$ est la factorisation. C
 
 Pour les **universels absolus** (objet terminal, objet initial), la liste d'arguments est vide :
 
-```catdiagram
+```category
 t : A -> T by ()
 ```
 
@@ -257,7 +257,7 @@ Une seule ligne : `T` est inféré comme codomaine, `A` comme domaine, et `t` es
 
 ## 5. Un seul point d'entrée
 
-La v1 expose **uniquement** le bloc `catdiagram` déclaratif. Pas de
+La v1 expose **uniquement** le bloc `category` déclaratif. Pas de
 notation inline alternative ni de syntaxe ASCII positionnelle :
 
 - **Cohérence pédagogique** — une seule syntaxe à apprendre, une seule
@@ -272,7 +272,7 @@ notation inline alternative ni de syntaxe ASCII positionnelle :
 
 Si l'usage révèle plus tard un cas vraiment courant qui mériterait
 une forme abrégée, on l'ajoutera après coup — toujours en transpilant
-vers la même représentation interne. Pour v1, le bloc `catdiagram` est
+vers la même représentation interne. Pour v1, le bloc `category` est
 le point d'entrée canonique.
 
 ---
@@ -283,7 +283,7 @@ le point d'entrée canonique.
 
 `h` est un raccourci pour `g ∘ f` — équation co-localisée avec la déclaration.
 
-```catdiagram
+```category
 f : A -> B
 g : B -> C
 h : A -> C = g . f
@@ -293,7 +293,7 @@ h : A -> C = g . f
 
 `u` est induit par la paire `(f, g)` — clause `by` sur la même ligne. Les deux équations qui suivent expriment la commutativité du cône.
 
-```catdiagram
+```category
 pi1 : P -> A
 pi2 : P -> B
 f   : X -> A
@@ -308,7 +308,7 @@ pi2 . u = g
 
 Obtenu en renversant toutes les flèches du produit — illustration du principe de dualité.
 
-```catdiagram
+```category
 i1 : A -> S
 i2 : B -> S
 f  : A -> X
@@ -321,7 +321,7 @@ v . i2 = g
 
 ### 6.4 Carré de naturalité
 
-```catdiagram
+```category
 Fh    : F(X) -> F(Y)
 Gh    : G(X) -> G(Y)
 eta_X : F(X) -> G(X)
@@ -334,7 +334,7 @@ Gh . eta_X = eta_Y . Fh
 
 Le pullback diffère du produit : l'apex `P` n'est plus libre, il est contraint par la commutativité de la *cospan* `A → C ← B`. Le `u : X -> P` factorise toute paire `(h, k)` qui rend le cône extérieur commutatif.
 
-```catdiagram
+```category
 f  : A -> C
 g  : B -> C
 p1 : P -> A
@@ -353,7 +353,7 @@ p2 . u = k
 
 Obtenu en renversant toutes les flèches.
 
-```catdiagram
+```category
 f  : C -> A
 g  : C -> B
 i1 : A -> P
@@ -372,7 +372,7 @@ u . i2 = k
 
 Deux morphismes `f, g : A -> B` partagent les mêmes endpoints — la grammaire les distingue par leurs noms distincts.
 
-```catdiagram
+```category
 f : A -> B
 g : A -> B          # paire parallèle, mêmes endpoints
 e : E -> A
@@ -386,7 +386,7 @@ e . u = h           # factorisation universelle
 
 ### 6.8 Coégaliseur (dual de l'égaliseur)
 
-```catdiagram
+```category
 f : A -> B
 g : A -> B
 q : B -> Q
@@ -402,7 +402,7 @@ u . q = h
 
 Encode `F(g ∘ f) = F(g) ∘ F(f)` — l'axiome de préservation des compositions par un foncteur. Pas d'induction, juste une équation de raccourci. Les identifiants `F(A)` exercent la grammaire récursive de §3.1.
 
-```catdiagram
+```category
 Ff   : F(A) -> F(B)
 Fg   : F(B) -> F(C)
 Fgof : F(A) -> F(C) = Fg . Ff
@@ -412,7 +412,7 @@ Fgof : F(A) -> F(C) = Fg . Ff
 
 L'objet terminal `T` : pour tout objet, une unique flèche vers `T`. Le cas particulier de la *forme absolue* `by ()` — arglist vide, l'unicité ne dépend d'aucun morphisme antérieur. Une seule ligne suffit.
 
-```catdiagram
+```category
 t : A -> T by ()
 ```
 
@@ -526,12 +526,12 @@ Trois cas :
 
 Écrire un moteur de layout générique pour diagrammes commutatifs représenterait plusieurs milliers de lignes : algorithme de placement (force-directed ou *layered*), gestion de chevauchements, courbure de flèches qui passent au-dessus d'objets, choix de directions selon la topologie. C'est précisément ce que `dagre` — l'algorithme derrière Mermaid — fait déjà très bien pour la classe de graphes orientés qui nous concerne.
 
-Mermaid est par ailleurs **déjà une dépendance** de markpage : un bloc `catdiagram` qui se compile vers du Mermaid réutilise le pipeline existant (rendu SVG, cache, export PDF, paginé).
+Mermaid est par ailleurs **déjà une dépendance** de markpage : un bloc `category` qui se compile vers du Mermaid réutilise le pipeline existant (rendu SVG, cache, export PDF, paginé).
 
 ### 7.B.3 Le pipeline en trois étapes
 
 ```
-catdiagram source
+category source
       │
       ▼
 [1] parser + AST           — §3 (grammaire)
@@ -554,7 +554,7 @@ Le découpage en trois passes (parser / typechecker / émetteur) permet de teste
 
 ### 7.B.4 Table de correspondance
 
-| Construit `catdiagram` | Construit Mermaid émis |
+| Construit `category` | Construit Mermaid émis |
 |---|---|
 | `objects: A, B, C` | un nœud par identifiant — `A[A]`, `B[B]`, `C[C]` |
 | `f : A -> B` | arête solide étiquetée — `A -- f --> B` |
@@ -580,7 +580,7 @@ Mermaid demande `graph TB` (top-bottom), `graph LR` (left-right), `BT`, ou `RL`.
 
 L'utilisateur peut forcer la direction via une **directive en-tête optionnelle** :
 
-```catdiagram
+```category
 direction: TB
 f : A -> B
 …
@@ -588,7 +588,7 @@ f : A -> B
 
 ### 7.B.6 Typographie mathématique des labels (commune aux deux backends)
 
-Mermaid ne rend pas LaTeX dans ses étiquettes. **L'éditeur s'en charge en amont** : la table de ligatures de `src/editor-ligatures.ts` substitue dès la frappe `\pi` → `π`, `\eta` → `η`, etc., ainsi que les indices et exposants chiffrés (`\pi_1` → `π₁`, `f^-1` → `f⁻¹`, `e^x_2` → `eˣ₂` après suffixage chiffré). Le source `catdiagram` arrive donc à notre parser **déjà en Unicode** ; la transpilation vers Mermaid est un passthrough propre, pas une seconde couche de substitution.
+Mermaid ne rend pas LaTeX dans ses étiquettes. **L'éditeur s'en charge en amont** : la table de ligatures de `src/editor-ligatures.ts` substitue dès la frappe `\pi` → `π`, `\eta` → `η`, etc., ainsi que les indices et exposants chiffrés (`\pi_1` → `π₁`, `f^-1` → `f⁻¹`, `e^x_2` → `eˣ₂` après suffixage chiffré). Le source `category` arrive donc à notre parser **déjà en Unicode** ; la transpilation vers Mermaid est un passthrough propre, pas une seconde couche de substitution.
 
 Couverture pratique : lettres grecques (toutes), indices et exposants à un chiffre (et `^-N` négatifs), opérateurs courants. ~95 % des labels rencontrés dans les diagrammes typiques.
 
@@ -596,9 +596,9 @@ Couverture pratique : lettres grecques (toutes), indices et exposants à un chif
 
 ### 7.B.7 Exemple complet de transpilation Mermaid
 
-Source `catdiagram` tel qu'il apparaît dans l'éditeur **après** que les ligatures aient agi (l'utilisateur a tapé `\pi_1` et `\pi_2`, l'éditeur les a remplacés en temps réel par `π₁` et `π₂`) :
+Source `category` tel qu'il apparaît dans l'éditeur **après** que les ligatures aient agi (l'utilisateur a tapé `\pi_1` et `\pi_2`, l'éditeur les a remplacés en temps réel par `π₁` et `π₂`) :
 
-```catdiagram
+```category
 π₁ : P -> A
 π₂ : P -> B
 f  : X -> A
@@ -705,7 +705,7 @@ Les points de placement géométrique (positions, courbure des flèches) ne sont
 - **2-cellules.** La syntaxe couvre les diagrammes 1-catégoriques. Les transformations naturelles dessinées comme flèches doubles *entre* des flèches (2-cellules) ne sont pas exprimables : le texte linéaire ne capture pas cette 2-dimensionnalité. Une section `cells:` est envisagée pour une version ultérieure.
 - **Diagrammes de cordes (string diagrams).** Hors périmètre. Ils relèvent d'une syntaxe géométrique à part entière, où la déformation continue du dessin *est* une preuve d'égalité — ce n'est plus une notation mais un calcul.
 - **Catégories ambiantes.** La spécification décrit le patron $\mathcal{J}$ et ses relations, mais ne nomme pas la catégorie ambiante $\mathcal{C}$ ni l'interprétation concrète des objets. Une extension pourrait ajouter une section `in: Set` et des liaisons `A := {...}`.
-- **Sémantique formelle.** La fonction d'interprétation qui envoie une expression `catdiagram` vers le foncteur $D$ qu'elle dénote n'est pas encore spécifiée ; elle ferait l'objet d'une annexe dédiée.
+- **Sémantique formelle.** La fonction d'interprétation qui envoie une expression `category` vers le foncteur $D$ qu'elle dénote n'est pas encore spécifiée ; elle ferait l'objet d'une annexe dédiée.
 
 ### 9.2 Limites héritées du backend Mermaid
 
