@@ -69,7 +69,9 @@ Le choix du bloc de code garantit la **dégradation gracieuse** : un lecteur don
 ### 3.1 Grammaire complète (EBNF)
 
 ```
-diagram      ::= obj-section mor-section induced-section? eq-section?
+diagram      ::= directive? obj-section mor-section induced-section? eq-section?
+
+directive    ::= "direction:" ("TB" | "BT" | "LR" | "RL")
 
 obj-section  ::= "objects:" objlist
 objlist      ::= ident ("," ident)*
@@ -77,19 +79,28 @@ objlist      ::= ident ("," ident)*
 mor-section  ::= "morphisms:" morphism+
 morphism     ::= ident ":" ident "->" ident modifier?
 modifier     ::= "(" prop ("," prop)* ")"
-prop         ::= "epi" | "mono" | "iso" | "id"
+prop         ::= "epi" | "mono" | "iso"
 
 induced-section ::= "induced:" induced+
 induced      ::= ident ":" ident "->" ident "by" "(" arglist ")"
-arglist      ::= ident ("," ident)*
+arglist      ::= (ident ("," ident)*)?     # empty for absolute universals (terminal / initial)
 
 eq-section   ::= "equations:" equation+
 equation     ::= path "=" path
 path         ::= ident ("." ident)*
 
-ident        ::= letter (letter | digit | "_" | "(" | ")")*
+ident        ::= name ("(" arglist-id ")")?    # `F(X)`, `G(h)` admit one balanced parenthesis level
+name         ::= letter (letter | digit | "_")*
+arglist-id   ::= ident ("," ident)*
 comment      ::= "#" { any-char-but-newline }
 ```
+
+Four points cleaned up from the v0.1 draft :
+
+- `arglist` may be **empty** so the absolute-universal form `by ()` (terminal / initial objects, §6.10) is grammatical.
+- `ident` recursively allows one level of balanced `(...)` so `F(X)`, `G(h)`, `Hom(A, B)` parse cleanly without admitting unbalanced runs like `F(X(`.
+- `prop` no longer lists `id`: an identity morphism `id_A : A -> A` is just a morphism with the same domain and codomain — no separate modifier needed.
+- `letter` and `digit` are interpreted as the **Unicode categories L (letter, all subcategories) and N (number, all subcategories)** — *not* limited to ASCII. Greek letters (`π`, `α`, `Γ`), Unicode subscripts and superscripts (`₁`, `²`), blackboard bold (`ℕ`, `ℝ`) all participate naturally in identifier names. This matches how the editor's ligature layer (§7.5) produces source text — `\pi_1` becomes `π₁`, and `π₁` is a single valid identifier.
 
 ### 3.2 Notes de lecture
 
@@ -129,10 +140,11 @@ Un morphisme peut porter des annotations de propriété entre parenthèses :
 
 | Modificateur | Signification | Rendu suggéré |
 |---|---|---|
-| `(mono)` | monomorphisme | flèche à queue : `↣` |
-| `(epi)` | épimorphisme | flèche à double pointe : `↠` |
-| `(iso)` | isomorphisme | flèche à double sens ou label `≅` |
-| `(id)` | morphisme identité | boucle |
+| `(mono)` | monomorphisme | label suffixé `↣` (Mermaid) ou flèche à queue `↣` (LaTeX) |
+| `(epi)` | épimorphisme | label suffixé `↠` (Mermaid) ou flèche à double pointe `↠` (LaTeX) |
+| `(iso)` | isomorphisme | label suffixé `≅` (Mermaid) ou flèche à double sens (LaTeX) |
+
+Un morphisme **identité** n'est pas un modificateur : `id_A : A -> A` est simplement un morphisme dont les domaine et codomaine coïncident. Le moteur de rendu peut le détecter et l'afficher en boucle s'il le souhaite (non normé).
 
 ```catdiagram
 objects:  A, B
@@ -286,15 +298,111 @@ equations:
   Gh . eta_X = eta_Y . Fh
 ```
 
-### 6.5 Objet terminal
+### 6.5 Pullback (cône au-dessus d'un cospan)
 
-L'objet terminal `T` : pour tout objet, une unique flèche vers `T`. Ici sans équation — la propriété est portée par `induced` seule.
+Le pullback diffère du produit : l'apex `P` n'est plus libre, il est contraint par la commutativité de la *cospan* `A → C ← B`. Le `u : X -> P` factorise toute paire `(h, k)` qui rend le cône extérieur commutatif.
+
+```catdiagram
+objects:  X, A, B, C, P
+morphisms:
+  f  : A -> C
+  g  : B -> C
+  p1 : P -> A
+  p2 : P -> B
+  h  : X -> A
+  k  : X -> B
+induced:
+  u : X -> P  by (h, k)
+equations:
+  f . p1 = g . p2          # le carré du pullback commute
+  f . h  = g . k            # cône externe au-dessus de C
+  p1 . u = h
+  p2 . u = k
+```
+
+### 6.6 Pushout (dual du pullback)
+
+Obtenu en renversant toutes les flèches.
+
+```catdiagram
+objects:  X, A, B, C, P
+morphisms:
+  f  : C -> A
+  g  : C -> B
+  i1 : A -> P
+  i2 : B -> P
+  h  : A -> X
+  k  : B -> X
+induced:
+  u : P -> X  by (h, k)
+equations:
+  i1 . f = i2 . g
+  h . f = k . g
+  u . i1 = h
+  u . i2 = k
+```
+
+### 6.7 Égaliseur (paire parallèle)
+
+Deux morphismes `f, g : A -> B` partagent les mêmes endpoints — exercice de la syntaxe : la même paire `dom -> cod` peut accueillir plusieurs morphismes nommés distinctement.
+
+```catdiagram
+objects:  E, A, B, Z
+morphisms:
+  f : A -> B
+  g : A -> B          # paire parallèle, mêmes endpoints
+  e : E -> A
+  h : Z -> A
+induced:
+  u : Z -> E  by (h)
+equations:
+  f . e = g . e        # cône de l'égaliseur
+  f . h = g . h         # cône externe
+  e . u = h             # factorisation universelle
+```
+
+### 6.8 Coégaliseur (dual de l'égaliseur)
+
+```catdiagram
+objects:  A, B, Q, Z
+morphisms:
+  f : A -> B
+  g : A -> B
+  q : B -> Q
+  h : B -> Z
+induced:
+  u : Q -> Z  by (h)
+equations:
+  q . f = q . g
+  h . f = h . g
+  u . q = h
+```
+
+### 6.9 Fonctorialité de la composition
+
+Encode `F(g ∘ f) = F(g) ∘ F(f)` — l'axiome de préservation des compositions par un foncteur. Pas de section `induced` ; juste une équation. Les identifiants `F(A)` exercent la grammaire récursive de §3.1.
+
+```catdiagram
+objects:  F(A), F(B), F(C)
+morphisms:
+  Ff   : F(A) -> F(B)
+  Fg   : F(B) -> F(C)
+  Fgof : F(A) -> F(C)
+equations:
+  Fgof = Fg . Ff
+```
+
+### 6.10 Objet terminal
+
+L'objet terminal `T` : pour tout objet, une unique flèche vers `T`. Le cas particulier de la *forme absolue* `by ()` — arglist vide, l'unicité ne dépend d'aucun morphisme antérieur.
 
 ```catdiagram
 objects:  T, A
 induced:
   t : A -> T  by ()
 ```
+
+L'objet initial est le dual exact : `induced: i : I -> A by ()`.
 
 ---
 
@@ -373,23 +481,23 @@ Couverture pratique : lettres grecques (toutes), indices et exposants à un chif
 
 ### 7.6 Exemple complet de transpilation
 
-Source `catdiagram` :
+Source `catdiagram` tel qu'il apparaît dans l'éditeur **après** que les ligatures aient agi (l'utilisateur a tapé `\pi_1` et `\pi_2`, l'éditeur les a remplacés en temps réel par `π₁` et `π₂`) :
 
 ```catdiagram
 objects:  X, A, B, P
 morphisms:
-  pi1 : P -> A
-  pi2 : P -> B
-  f   : X -> A
-  g   : X -> B
+  π₁ : P -> A
+  π₂ : P -> B
+  f  : X -> A
+  g  : X -> B
 induced:
   u : X -> P  by (f, g)
 equations:
-  pi1 . u = f
-  pi2 . u = g
+  π₁ . u = f
+  π₂ . u = g
 ```
 
-Mermaid émis :
+Mermaid émis (les noms d'identifiants passent en l'état, aucune nouvelle substitution dans le transpilateur) :
 
 ```mermaid
 graph LR
@@ -397,14 +505,69 @@ graph LR
   A[A]
   B[B]
   P[P]
-  P -- "π₁" --> A
-  P -- "π₂" --> B
+  P -- π₁ --> A
+  P -- π₂ --> B
   X -- f --> A
   X -- g --> B
   X -. u .-> P
 ```
 
 Le typechecker a validé les deux équations avant émission ; elles ne paraissent pas dans le rendu (mais auraient bloqué la transpilation si elles avaient été mal typées).
+
+### 7.7 Trois transpilations supplémentaires (corpus de validation)
+
+Pour s'assurer que la stratégie Mermaid tient sur des topologies variées, voici les sorties attendues pour trois des exemples §6 les plus exigeants. (Une fois Phase 1 codée, ces extraits deviendront des snapshots de test.)
+
+**§6.5 Pullback** — 5 objets, cône externe `X`, flèche induite pointillée.
+
+```mermaid
+graph LR
+  X[X]
+  A[A]
+  B[B]
+  C[C]
+  P[P]
+  A -- f --> C
+  B -- g --> C
+  P -- p1 --> A
+  P -- p2 --> B
+  X -- h --> A
+  X -- k --> B
+  X -. u .-> P
+```
+
+Le layout `dagre` placera vraisemblablement `X` en haut à gauche, `P` au milieu, le cospan `A → C ← B` à droite — pas le carré canonique de Mac Lane, mais lisible. L'utilisateur peut forcer `direction: TB` pour rapprocher du dessin classique.
+
+**§6.7 Égaliseur** — la paire parallèle `f, g : A -> B` est rendue par deux arêtes étiquetées distinctes (l'utilisateur verra deux flèches presque superposées, étiquetées différemment).
+
+```mermaid
+graph LR
+  E[E]
+  A[A]
+  B[B]
+  Z[Z]
+  A -- f --> B
+  A -- g --> B
+  E -- e --> A
+  Z -- h --> A
+  Z -. u .-> E
+```
+
+`dagre` dessine deux arêtes parallèles distinctes ; certains thèmes Mermaid les *courbent* légèrement pour éviter le chevauchement. Acceptable. Si la séparation visuelle est insuffisante, une amélioration future pourrait préfixer les labels par un séparateur invisible.
+
+**§6.9 Fonctorialité** — démontre qu'aucune `induced` n'est nécessaire pour les diagrammes purement équationnels ; les équations sont validées par le typechecker mais n'apparaissent pas dans le rendu (Mermaid n'a rien pour les afficher).
+
+```mermaid
+graph LR
+  FA["F(A)"]
+  FB["F(B)"]
+  FC["F(C)"]
+  FA -- Ff --> FB
+  FB -- Fg --> FC
+  FA -- Fgof --> FC
+```
+
+Note : les parenthèses dans les noms d'objets nécessitent un quoting `["F(A)"]` côté Mermaid (les `(` y sont des delimiters de forme de nœud). Le générateur les ajoute automatiquement quand un identifiant contient un caractère non-alphanumérique.
 
 ---
 
@@ -450,11 +613,12 @@ Une réimplémentation future avec un moteur SVG dédié (estimée à ~2000 lign
 
 | Section | Rôle mathématique | Forme syntaxique | Obligatoire |
 |---|---|---|---|
-| `objects`   | $\text{Ob}(\mathcal{J})$              | liste d'identifiants     | oui |
-| `morphisms` | générateurs de $\text{Mor}(\mathcal{J})$ | triplets `f : A -> B` | oui |
-| `induced`   | flèches universelles ($\exists!$)     | `u : X -> P by (...)`    | non |
-| `equations` | quotient (commutativité)              | `path = path`            | non |
+| `direction:` | indice de layout pour Mermaid | `TB` / `BT` / `LR` / `RL` | non |
+| `objects:` | $\text{Ob}(\mathcal{J})$ | liste d'identifiants | oui |
+| `morphisms:` | générateurs de $\text{Mor}(\mathcal{J})$ | triplets `f : A -> B` | oui |
+| `induced:` | flèches universelles ($\exists!$) | `u : X -> P by (...)` | non |
+| `equations:` | quotient (commutativité) | `path = path` | non |
 
 ## Annexe B — Mots-clés réservés
 
-`objects`, `morphisms`, `induced`, `equations`, `by`, `with`, `epi`, `mono`, `iso`, `id`.
+`direction`, `objects`, `morphisms`, `induced`, `equations`, `by`, `epi`, `mono`, `iso`, et les valeurs `TB`, `BT`, `LR`, `RL`.
