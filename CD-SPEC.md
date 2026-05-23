@@ -55,13 +55,9 @@ Un diagramme est un bloc de code clôturé dont l'identifiant de langage est `ca
 
 ````markdown
 ```catdiagram
-objects:  A, B, C
-morphisms:
-  f : A -> B
-  g : B -> C
-  h : A -> C
-equations:
-  h = g . f
+f : A -> B
+g : B -> C
+h : A -> C = g . f
 ```
 ````
 
@@ -73,70 +69,98 @@ Le choix du bloc de code garantit la **dégradation gracieuse** : un lecteur don
 
 ### 3.1 Grammaire complète (EBNF)
 
+Une syntaxe **orientée ligne**, dans la convention des DSL graphes (Mermaid, Graphviz). Chaque ligne déclare une *seule* chose : une directive, un morphisme, ou une équation. Les objets sont **inférés** des endpoints des morphismes ; une déclaration explicite `objects:` reste possible pour les objets isolés ou pour activer la détection stricte des typos.
+
+L'écriture des morphismes suit la convention CS / mathématique standard `f : A -> B` (« f est de type A → B »), reconnue par tout texte de catégorie ou type system.
+
 ```
-diagram      ::= directive? obj-section mor-section induced-section? eq-section?
+diagram         ::= line+
 
-directive    ::= "direction:" ("TB" | "BT" | "LR" | "RL")
+line            ::= directive
+                  | objects-decl
+                  | morphism-decl
+                  | induced-decl
+                  | equation
+                  | comment
 
-obj-section  ::= "objects:" objlist
-objlist      ::= ident ("," ident)*
+directive       ::= "direction:" ("TB" | "BT" | "LR" | "RL")
+objects-decl    ::= "objects:" objlist     # optionnel
+objlist         ::= ident ("," ident)*
 
-mor-section  ::= "morphisms:" morphism+
-morphism     ::= ident ":" ident "->" ident modifier?
-modifier     ::= "(" prop ("," prop)* ")"
-prop         ::= "epi" | "mono" | "iso"
+morphism-decl   ::= ident ":" ident "->" ident modifier? equation-suffix?
+modifier        ::= "(" prop ("," prop)* ")"
+equation-suffix ::= "=" path
+prop            ::= "epi" | "mono" | "iso"
 
-induced-section ::= "induced:" induced+
-induced      ::= ident ":" ident "->" ident "by" "(" arglist ")"
-arglist      ::= (ident ("," ident)*)?     # empty for absolute universals (terminal / initial)
+induced-decl    ::= ident ":" ident "->" ident "by" "(" arglist ")"
+arglist         ::= (ident ("," ident)*)?       # vide pour les universels absolus (terminal / initial)
 
-eq-section   ::= "equations:" equation+
-equation     ::= path "=" path
-path         ::= ident ("." ident)*
+equation        ::= path "=" path
+path            ::= ident ("." ident)*
 
-ident        ::= name ("(" arglist-id ")")?    # `F(X)`, `G(h)` admit one balanced parenthesis level
-name         ::= letter (letter | digit | "_")*
-arglist-id   ::= ident ("," ident)*
-comment      ::= "#" { any-char-but-newline }
+ident           ::= name ("(" arglist-id ")")?  # `F(X)`, `G(h)` : un niveau de parenthèses équilibrées
+name            ::= letter (letter | digit | "_")*
+arglist-id      ::= ident ("," ident)*
+comment         ::= "#" { any-char-but-newline }
 ```
-
-Four points cleaned up from the v0.1 draft :
-
-- `arglist` may be **empty** so the absolute-universal form `by ()` (terminal / initial objects, §6.10) is grammatical.
-- `ident` recursively allows one level of balanced `(...)` so `F(X)`, `G(h)`, `Hom(A, B)` parse cleanly without admitting unbalanced runs like `F(X(`.
-- `prop` no longer lists `id`: an identity morphism `id_A : A -> A` is just a morphism with the same domain and codomain — no separate modifier needed.
-- `letter` and `digit` are interpreted as the **Unicode categories L (letter, all subcategories) and N (number, all subcategories)** — *not* limited to ASCII. Greek letters (`π`, `α`, `Γ`), Unicode subscripts and superscripts (`₁`, `²`), blackboard bold (`ℕ`, `ℝ`) all participate naturally in identifier names. This matches how the editor's ligature layer (§7.B.6) produces source text — `\pi_1` becomes `π₁`, and `π₁` is a single valid identifier.
 
 ### 3.2 Notes de lecture
 
-- **Ordre des sections** : `objects`, puis `morphisms`, puis (optionnellement) `induced`, puis (optionnellement) `equations`. L'ordre suit les dépendances : on ne peut typer un morphisme qu'une fois ses objets connus.
-- **Commentaires** : tout ce qui suit `#` jusqu'à la fin de ligne est ignoré.
-- **Identifiants** : les parenthèses sont admises dans les identifiants pour autoriser `F(X)`, `G(h)`, etc. — l'application d'un foncteur fait partie du nom de l'objet ou du morphisme.
+- **Lignes indépendantes** : chaque ligne est une déclaration complète. Pas de mot-clé de section, pas d'ordre obligatoire. Le parser distingue les types de lignes par leurs tokens (`:` + `->` → morphisme ; `by` + parenthèses → induit ; `=` sans `->` ni `:` → équation ; `direction:` ou `objects:` → directive).
+- **Inférence des objets** : tout identifiant cité comme domaine ou codomaine dans une déclaration `morphism-decl` ou `induced-decl` est implicitement un objet. La déclaration `objects:` n'est utile que pour (a) déclarer des objets isolés sans morphisme incident, ou (b) activer une validation stricte qui rejette tout endpoint absent de la liste.
+- **Commentaires** : tout ce qui suit `#` jusqu'à la fin de ligne est ignoré. Lignes vides ignorées aussi.
+- **Identifiants** : les parenthèses sont admises pour autoriser `F(X)`, `G(h)`, `Hom(A, B)` — l'application d'un foncteur fait partie du nom de l'objet ou du morphisme.
 - **Sensibilité à la casse** : `A` et `a` sont distincts.
+- **Unicode** : `letter` et `digit` suivent les **catégories Unicode L (letter, toutes sous-catégories) et N (number, toutes sous-catégories)** — *pas* limités à l'ASCII. Greek (`π`, `α`, `Γ`), indices/exposants Unicode (`₁`, `²`), blackboard bold (`ℕ`, `ℝ`) participent naturellement. Cohérent avec ce que produit la couche ligatures de l'éditeur (§7.B.6) — `\pi_1` devient `π₁`, un identifiant unique valide.
+- **Mots-clés réservés** : `direction`, `objects`, `by`, `epi`, `mono`, `iso`, et les valeurs de direction `TB`, `BT`, `LR`, `RL`. Ne peuvent pas servir de nom d'objet ni de morphisme.
+
+### 3.3 Disambiguation par tokens
+
+Le parser classifie chaque ligne par les tokens qu'elle contient :
+
+| Tokens présents | Type |
+| --- | --- |
+| commence par `direction:` | directive de layout |
+| commence par `objects:` | déclaration explicite optionnelle |
+| contient `:` et `->`, **avec** `by (…)` | morphisme induit |
+| contient `:` et `->`, **avec** `= path` après les endpoints et modificateurs | morphisme + équation de raccourci |
+| contient `:` et `->`, sans `by` ni `= path` | morphisme simple |
+| contient `=` sans `:` ni `->` | équation autonome |
+| commence par `#` ou vide | commentaire / blanc |
 
 ---
 
-## 4. Sémantique des sections
+## 4. Sémantique des constructions
 
-### 4.1 `objects` — les objets
+### 4.1 Objets — inférés ou déclarés
 
-Liste les objets, c'est-à-dire l'image de $\text{Ob}(\mathcal{J})$. Chaque identifiant désigne un sommet du diagramme.
+Les objets sont **inférés** des endpoints des morphismes : tout identifiant cité comme domaine ou codomaine devient un objet. Le triangle `f : A -> B`, `g : B -> C`, `h : A -> C` produit l'ensemble $\text{Ob}(\mathcal{J}) = \{A, B, C\}$ sans déclaration explicite.
+
+La directive **optionnelle** `objects:` sert deux cas :
+
+- **Objet isolé** sans morphisme incident (rare en pratique mais syntaxiquement légal) ;
+- **Validation stricte des typos** : quand `objects:` est présente, tout endpoint de morphisme absent de la liste déclenche une erreur (« objet inconnu `Aaa` ») au lieu d'être silencieusement créé.
 
 ```catdiagram
-objects:  X, A, B, P
+# Objets inférés — pas de déclaration nécessaire
+f : A -> B
+g : B -> C
 ```
 
-### 4.2 `morphisms` — les générateurs
+```catdiagram
+# Déclaration explicite — un endpoint en dehors de la liste serait rejeté
+objects: A, B, C
+f : A -> B
+g : B -> C
+```
 
-Chaque ligne `f : A -> B` est un triplet *(nom, domaine, codomaine)*. Ces morphismes sont les **générateurs** de $\text{Mor}(\mathcal{J})$ ; les autres morphismes du diagramme (les composés) ne sont pas listés ici — ils existent par composition.
+### 4.2 Morphismes — les générateurs
 
-Contrainte : le domaine et le codomaine doivent figurer dans `objects`.
+Chaque ligne `f : A -> B` déclare un morphisme *(nom, domaine, codomaine)*. Ces morphismes sont les **générateurs** de $\text{Mor}(\mathcal{J})$ ; les autres morphismes du diagramme (les composés) existent par composition mais ne sont pas listés — sauf comme **raccourcis** déclarés (§4.3 ci-dessous).
 
 ```catdiagram
-objects:  A, B, C
-morphisms:
-  f : A -> B
-  g : B -> C
+f : A -> B
+g : B -> C
 ```
 
 #### Modificateurs
@@ -144,23 +168,39 @@ morphisms:
 Un morphisme peut porter des annotations de propriété entre parenthèses :
 
 | Modificateur | Signification | Rendu suggéré |
-|---|---|---|
-| `(mono)` | monomorphisme | label suffixé `↣` (Mermaid) ou flèche à queue `↣` (LaTeX) |
-| `(epi)` | épimorphisme | label suffixé `↠` (Mermaid) ou flèche à double pointe `↠` (LaTeX) |
-| `(iso)` | isomorphisme | label suffixé `≅` (Mermaid) ou flèche à double sens (LaTeX) |
-
-Un morphisme **identité** n'est pas un modificateur : `id_A : A -> A` est simplement un morphisme dont les domaine et codomaine coïncident. Le moteur de rendu peut le détecter et l'afficher en boucle s'il le souhaite (non normé).
+| --- | --- | --- |
+| `(mono)` | monomorphisme | label suffixé `↣` |
+| `(epi)` | épimorphisme | label suffixé `↠` |
+| `(iso)` | isomorphisme | label suffixé `≅` |
 
 ```catdiagram
-objects:  A, B
-morphisms:
-  i : A -> B (mono)
-  p : B -> A (epi)
+i : A -> B (mono)
+p : B -> A (epi)
 ```
 
-### 4.3 `equations` — le quotient
+Un morphisme **identité** n'est pas un modificateur : `id_A : A -> A` est simplement un morphisme dont domaine et codomaine coïncident.
 
-Chaque équation `chemin = chemin` impose une relation de commutativité. C'est cette section qui transforme un graphe libre en catégorie présentée.
+### 4.3 Équations — le quotient
+
+Une **équation autonome** `path = path` impose une relation de commutativité, sur une ligne sans `:` ni `->` :
+
+```catdiagram
+f : A -> B
+g : B -> C
+h : A -> C
+
+h = g . f          # équation autonome
+```
+
+Quand un morphisme déclaré n'est qu'un **raccourci visuel** pour une composition, l'équation peut se loger **dans la déclaration** du morphisme via le suffixe `= path` :
+
+```catdiagram
+f : A -> B
+g : B -> C
+h : A -> C = g . f          # raccourci co-localisé
+```
+
+Les deux formes sont sémantiquement équivalentes ; la seconde est préférée quand l'équation **définit** le morphisme à elle seule.
 
 #### Composition : la règle de réécriture
 
@@ -185,38 +225,33 @@ WELLTYPED-EQ :   dom(lhs) = dom(rhs)   et   cod(lhs) = cod(rhs)
 
 Un vérificateur rejette toute équation mal typée **avant** le rendu.
 
-```catdiagram
-objects:  A, B, C
-morphisms:
-  f : A -> B
-  g : B -> C
-  h : A -> C
-equations:
-  h = g . f          # bien typé : A -> C des deux côtés
-```
+### 4.4 Morphismes induits — les flèches universelles
 
-### 4.4 `induced` — les flèches universelles
-
-C'est la section qui distingue `catdiagram` d'une syntaxe de graphe. Une flèche `induced` n'est pas *postulée* : son existence et son unicité sont *garanties* par une propriété universelle.
+C'est la construction qui distingue `catdiagram` d'une syntaxe de graphe. Un morphisme dont la déclaration porte la clause **`by (…)`** n'est pas postulé : son existence et son unicité sont garanties par une propriété universelle. Visuellement il est rendu **en pointillés**.
 
 ```catdiagram
-objects:  X, A, B, P
-morphisms:
-  pi1 : P -> A
-  pi2 : P -> B
-  f   : X -> A
-  g   : X -> B
-induced:
-  u : X -> P  by (f, g)
-equations:
-  pi1 . u = f
-  pi2 . u = g
+pi1 : P -> A
+pi2 : P -> B
+f   : X -> A
+g   : X -> B
+u   : X -> P by (f, g)
+
+pi1 . u = f
+pi2 . u = g
 ```
 
 La clause `by (f, g)` enregistre les morphismes dont $u$ est la factorisation. Conséquences :
 
 - **Logique** : $u$ porte un statut $\exists!$ — elle existe et est unique.
 - **Rendu** : ce statut justifie un tracé en pointillés. Le style visuel est une *conséquence* du statut logique, jamais une décision arbitraire.
+
+Pour les **universels absolus** (objet terminal, objet initial), la liste d'arguments est vide :
+
+```catdiagram
+t : A -> T by ()
+```
+
+Une seule ligne : `T` est inféré comme codomaine, `A` comme domaine, et `t` est l'unique morphisme universel de `A` vers `T`.
 
 ---
 
@@ -246,30 +281,27 @@ le point d'entrée canonique.
 
 ### 6.1 Triangle commutatif
 
+`h` est un raccourci pour `g ∘ f` — équation co-localisée avec la déclaration.
+
 ```catdiagram
-objects:  A, B, C
-morphisms:
-  f : A -> B
-  g : B -> C
-  h : A -> C
-equations:
-  h = g . f
+f : A -> B
+g : B -> C
+h : A -> C = g . f
 ```
 
 ### 6.2 Propriété universelle du produit
 
+`u` est induit par la paire `(f, g)` — clause `by` sur la même ligne. Les deux équations qui suivent expriment la commutativité du cône.
+
 ```catdiagram
-objects:  X, A, B, P
-morphisms:
-  pi1 : P -> A
-  pi2 : P -> B
-  f   : X -> A
-  g   : X -> B
-induced:
-  u : X -> P  by (f, g)
-equations:
-  pi1 . u = f
-  pi2 . u = g
+pi1 : P -> A
+pi2 : P -> B
+f   : X -> A
+g   : X -> B
+u   : X -> P by (f, g)
+
+pi1 . u = f
+pi2 . u = g
 ```
 
 ### 6.3 Coproduit (le dual)
@@ -277,30 +309,25 @@ equations:
 Obtenu en renversant toutes les flèches du produit — illustration du principe de dualité.
 
 ```catdiagram
-objects:  X, A, B, S
-morphisms:
-  i1 : A -> S
-  i2 : B -> S
-  f  : A -> X
-  g  : B -> X
-induced:
-  v : S -> X  by (f, g)
-equations:
-  v . i1 = f
-  v . i2 = g
+i1 : A -> S
+i2 : B -> S
+f  : A -> X
+g  : B -> X
+v  : S -> X by (f, g)
+
+v . i1 = f
+v . i2 = g
 ```
 
 ### 6.4 Carré de naturalité
 
 ```catdiagram
-objects:  F(X), F(Y), G(X), G(Y)
-morphisms:
-  Fh    : F(X) -> F(Y)
-  Gh    : G(X) -> G(Y)
-  eta_X : F(X) -> G(X)
-  eta_Y : F(Y) -> G(Y)
-equations:
-  Gh . eta_X = eta_Y . Fh
+Fh    : F(X) -> F(Y)
+Gh    : G(X) -> G(Y)
+eta_X : F(X) -> G(X)
+eta_Y : F(Y) -> G(Y)
+
+Gh . eta_X = eta_Y . Fh
 ```
 
 ### 6.5 Pullback (cône au-dessus d'un cospan)
@@ -308,21 +335,18 @@ equations:
 Le pullback diffère du produit : l'apex `P` n'est plus libre, il est contraint par la commutativité de la *cospan* `A → C ← B`. Le `u : X -> P` factorise toute paire `(h, k)` qui rend le cône extérieur commutatif.
 
 ```catdiagram
-objects:  X, A, B, C, P
-morphisms:
-  f  : A -> C
-  g  : B -> C
-  p1 : P -> A
-  p2 : P -> B
-  h  : X -> A
-  k  : X -> B
-induced:
-  u : X -> P  by (h, k)
-equations:
-  f . p1 = g . p2          # le carré du pullback commute
-  f . h  = g . k            # cône externe au-dessus de C
-  p1 . u = h
-  p2 . u = k
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2          # le carré du pullback commute
+f . h  = g . k           # cône externe au-dessus de C
+p1 . u = h
+p2 . u = k
 ```
 
 ### 6.6 Pushout (dual du pullback)
@@ -330,84 +354,69 @@ equations:
 Obtenu en renversant toutes les flèches.
 
 ```catdiagram
-objects:  X, A, B, C, P
-morphisms:
-  f  : C -> A
-  g  : C -> B
-  i1 : A -> P
-  i2 : B -> P
-  h  : A -> X
-  k  : B -> X
-induced:
-  u : P -> X  by (h, k)
-equations:
-  i1 . f = i2 . g
-  h . f = k . g
-  u . i1 = h
-  u . i2 = k
+f  : C -> A
+g  : C -> B
+i1 : A -> P
+i2 : B -> P
+h  : A -> X
+k  : B -> X
+u  : P -> X by (h, k)
+
+i1 . f = i2 . g
+h . f = k . g
+u . i1 = h
+u . i2 = k
 ```
 
 ### 6.7 Égaliseur (paire parallèle)
 
-Deux morphismes `f, g : A -> B` partagent les mêmes endpoints — exercice de la syntaxe : la même paire `dom -> cod` peut accueillir plusieurs morphismes nommés distinctement.
+Deux morphismes `f, g : A -> B` partagent les mêmes endpoints — la grammaire les distingue par leurs noms distincts.
 
 ```catdiagram
-objects:  E, A, B, Z
-morphisms:
-  f : A -> B
-  g : A -> B          # paire parallèle, mêmes endpoints
-  e : E -> A
-  h : Z -> A
-induced:
-  u : Z -> E  by (h)
-equations:
-  f . e = g . e        # cône de l'égaliseur
-  f . h = g . h         # cône externe
-  e . u = h             # factorisation universelle
+f : A -> B
+g : A -> B          # paire parallèle, mêmes endpoints
+e : E -> A
+h : Z -> A
+u : Z -> E by (h)
+
+f . e = g . e       # cône de l'égaliseur
+f . h = g . h       # cône externe
+e . u = h           # factorisation universelle
 ```
 
 ### 6.8 Coégaliseur (dual de l'égaliseur)
 
 ```catdiagram
-objects:  A, B, Q, Z
-morphisms:
-  f : A -> B
-  g : A -> B
-  q : B -> Q
-  h : B -> Z
-induced:
-  u : Q -> Z  by (h)
-equations:
-  q . f = q . g
-  h . f = h . g
-  u . q = h
+f : A -> B
+g : A -> B
+q : B -> Q
+h : B -> Z
+u : Q -> Z by (h)
+
+q . f = q . g
+h . f = h . g
+u . q = h
 ```
 
 ### 6.9 Fonctorialité de la composition
 
-Encode `F(g ∘ f) = F(g) ∘ F(f)` — l'axiome de préservation des compositions par un foncteur. Pas de section `induced` ; juste une équation. Les identifiants `F(A)` exercent la grammaire récursive de §3.1.
+Encode `F(g ∘ f) = F(g) ∘ F(f)` — l'axiome de préservation des compositions par un foncteur. Pas d'induction, juste une équation de raccourci. Les identifiants `F(A)` exercent la grammaire récursive de §3.1.
 
 ```catdiagram
-objects:  F(A), F(B), F(C)
-morphisms:
-  Ff   : F(A) -> F(B)
-  Fg   : F(B) -> F(C)
-  Fgof : F(A) -> F(C)
-equations:
-  Fgof = Fg . Ff
+Ff   : F(A) -> F(B)
+Fg   : F(B) -> F(C)
+Fgof : F(A) -> F(C) = Fg . Ff
 ```
 
 ### 6.10 Objet terminal
 
-L'objet terminal `T` : pour tout objet, une unique flèche vers `T`. Le cas particulier de la *forme absolue* `by ()` — arglist vide, l'unicité ne dépend d'aucun morphisme antérieur.
+L'objet terminal `T` : pour tout objet, une unique flèche vers `T`. Le cas particulier de la *forme absolue* `by ()` — arglist vide, l'unicité ne dépend d'aucun morphisme antérieur. Une seule ligne suffit.
 
 ```catdiagram
-objects:  T, A
-induced:
-  t : A -> T  by ()
+t : A -> T by ()
 ```
 
-L'objet initial est le dual exact : `induced: i : I -> A by ()`.
+L'objet initial est le dual exact : `i : I -> A by ()`.
 
 ---
 
@@ -429,9 +438,9 @@ Le code reste raisonnable : ~400-500 lignes de SVG explicite, sans dépendance, 
 
 Trois statuts différents, lus depuis l'AST :
 
-- **Squelettique** — morphisme déclaré dans `morphisms:` qui n'apparaît PAS comme membre de gauche d'une équation dont le membre de droite est une composition (longueur > 1). Représente une arête « primitive » de la structure.
-- **Raccourci** — morphisme déclaré dans `morphisms:` qui apparaît dans une équation `m = path` avec `|path| > 1`. C'est un raccourci visuel pour une composition (typiquement `h = g.f` dans un triangle).
-- **Induite** — morphisme de la section `induced:`. Statut $\exists!$, toujours dessinée distinctement (pointillé).
+- **Squelettique** — morphisme déclaré sans clause `by` ni équation de raccourci (`= path`). Représente une arête « primitive » de la structure, à placer sur la grille.
+- **Raccourci** — morphisme dont la déclaration porte un suffixe `= path` avec `|path| > 1`, **ou** qui apparaît comme membre d'une équation autonome `m = path` (avec `path` ne contenant aucun induit). C'est un raccourci visuel pour une composition (typiquement `h : A -> C = g . f` dans un triangle). Une équation comme `pi1 . u = f` avec `u` induit ne marque pas `f` comme raccourci : la composition contient un induit, l'équation décrit la propriété universelle de `u`, pas une définition de `f`.
+- **Induite** — morphisme avec clause `by (…)` dans sa déclaration. Statut $\exists!$, toujours dessinée distinctement (pointillé).
 
 ### 7.A.3 Phase 1 — placement sur grille
 
@@ -552,8 +561,8 @@ Le découpage en trois passes (parser / typechecker / émetteur) permet de teste
 | `f : A -> B (mono)` | arête solide, label suffixé `↣` — `A -- "f ↣" --> B` |
 | `f : A -> B (epi)` | arête solide, label suffixé `↠` — `A -- "f ↠" --> B` |
 | `f : A -> B (iso)` | arête solide, label suffixé `≅` — `A -- "f ≅" --> B` |
-| `induced: u : X -> P by (f, g)` | arête **pointillée** étiquetée — `X -. u .-> P` |
-| `equations:` (relations) | non transpilé — sert uniquement au typechecker |
+| `u : X -> P by (f, g)` | arête **pointillée** étiquetée — `X -. u .-> P` |
+| équations autonomes `path = path` | non transpilé — sert uniquement au typechecker |
 
 La clause `by (...)` n'est pas rendue visuellement ; elle informe le typechecker du caractère universel de `u` et déclenche le style pointillé Mermaid `-. .->`.
 
@@ -573,7 +582,8 @@ L'utilisateur peut forcer la direction via une **directive en-tête optionnelle*
 
 ```catdiagram
 direction: TB
-objects: ...
+f : A -> B
+…
 ```
 
 ### 7.B.6 Typographie mathématique des labels (commune aux deux backends)
@@ -589,17 +599,14 @@ Couverture pratique : lettres grecques (toutes), indices et exposants à un chif
 Source `catdiagram` tel qu'il apparaît dans l'éditeur **après** que les ligatures aient agi (l'utilisateur a tapé `\pi_1` et `\pi_2`, l'éditeur les a remplacés en temps réel par `π₁` et `π₂`) :
 
 ```catdiagram
-objects:  X, A, B, P
-morphisms:
-  π₁ : P -> A
-  π₂ : P -> B
-  f  : X -> A
-  g  : X -> B
-induced:
-  u : X -> P  by (f, g)
-equations:
-  π₁ . u = f
-  π₂ . u = g
+π₁ : P -> A
+π₂ : P -> B
+f  : X -> A
+g  : X -> B
+u  : X -> P by (f, g)
+
+π₁ . u = f
+π₂ . u = g
 ```
 
 Mermaid émis (les noms d'identifiants passent en l'état, aucune nouvelle substitution dans le transpilateur) :

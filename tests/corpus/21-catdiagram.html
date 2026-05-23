@@ -1,229 +1,101 @@
 <h1 class="doc-title">catdiagram — diagrammes commutatifs déclaratifs</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
-<p>Le fence <code>```catdiagram</code> accepte la syntaxe documentée dans CD-SPEC.md
-(signature + équations + flèches universelles). Le parser produit du
-Mermaid que le pipeline existant rend en SVG.</p>
+<p>Le fence <code>```catdiagram</code> accepte la syntaxe documentée dans CD-SPEC.md :
+chaque ligne déclare un morphisme <code>f : A -&gt; B</code> ou une équation, dans
+la convention CS / mathématique habituelle.</p>
 <h2>Triangle commutatif</h2>
 <figure data-source="```catdiagram &quot;Triangle commutatif&quot; \label{fig:triangle}
-objects:  A, B, C
-morphisms:
-  f : A -> B
-  g : B -> C
-  h : A -> C
-equations:
-  h = g . f
-```" class="captioned captioned-figure"><pre><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  A[A]
-  B[B]
-  C[C]
-  A -- f --&gt; B
-  B -- g --&gt; C
-  A -- h --&gt; C
-  classDef cd-obj fill:none,stroke:none
-  class A,B,C cd-obj</code></pre>
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```" class="captioned captioned-figure"><div class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="104" height="105" viewBox="-4 -5 104 105" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="24" y1="16" x2="72" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="6" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">f</text><line x1="80" y1="24" x2="80" y2="72" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="90" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">g</text><line x1="21.7" y1="21.7" x2="74.3" y2="74.3" class="cd-edge cd-edge-shortcut" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="40.9" y="55.1" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">h</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">C</text></svg></div>
 
 <figcaption class="caption" id="fig-fig:triangle">Figure 1: Triangle commutatif</figcaption></figure>
 <p>Voir <a class="xref" href="#lst-fig:triangle">1</a>.</p>
 <h2>Carré du produit</h2>
-<pre data-source="```catdiagram
-objects:  X, A, B, P
-morphisms:
-  pi1 : P -> A
-  pi2 : P -> B
-  f   : X -> A
-  g   : X -> B
-induced:
-  u : X -> P  by (f, g)
-equations:
-  pi1 . u = f
-  pi2 . u = g
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  X[X]
-  A[A]
-  B[B]
-  P[P]
-  P -- pi1 --&gt; A
-  P -- pi2 --&gt; B
-  X -- f --&gt; A
-  X -- g --&gt; B
-  X -. u .-&gt; P
-  classDef cd-obj fill:none,stroke:none
-  class X,A,B,P cd-obj</code></pre>
+<div data-source="```catdiagram
+pi1 : P -> A
+pi2 : P -> B
+f   : X -> A
+g   : X -> B
+u   : X -> P by (f, g)
+
+pi1 . u = f
+pi2 . u = g
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="118" height="114" viewBox="-18 -13 118 114" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="24" y1="16" x2="72" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="-2" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">pi1</text><line x1="16" y1="24" x2="16" y2="72" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="-2" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">pi2</text><line x1="80" y1="72" x2="80" y2="24" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="90" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">f</text><line x1="72" y1="80" x2="24" y2="80" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="90" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">g</text><line x1="74.3" y1="74.3" x2="21.7" y2="21.7" class="cd-edge cd-edge-induced" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#cd-arrow)"></line><text x="40.9" y="55.1" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">u</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">P</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="16" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">X</text></svg></div>
 <h2>Coproduit</h2>
-<pre data-source="```catdiagram
-objects:  X, A, B, S
-morphisms:
-  i1 : A -> S
-  i2 : B -> S
-  f  : A -> X
-  g  : B -> X
-induced:
-  v : S -> X  by (f, g)
-equations:
-  v . i1 = f
-  v . i2 = g
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  X[X]
-  A[A]
-  B[B]
-  S[S]
-  A -- i1 --&gt; S
-  B -- i2 --&gt; S
-  A -- f --&gt; X
-  B -- g --&gt; X
-  S -. v .-&gt; X
-  classDef cd-obj fill:none,stroke:none
-  class X,A,B,S cd-obj</code></pre>
+<div data-source="```catdiagram
+i1 : A -> S
+i2 : B -> S
+f  : A -> X
+g  : B -> X
+v  : S -> X by (f, g)
+
+v . i1 = f
+v . i2 = g
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="110" height="110" viewBox="-4 -9 110 110" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="24" y1="16" x2="72" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="2" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">i1</text><line x1="80" y1="72" x2="80" y2="24" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="94" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">i2</text><line x1="16" y1="24" x2="16" y2="72" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="6" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">f</text><line x1="72" y1="80" x2="24" y2="80" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="90" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">g</text><line x1="74.3" y1="21.7" x2="21.7" y2="74.3" class="cd-edge cd-edge-induced" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#cd-arrow)"></line><text x="55.1" y="55.1" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">v</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">S</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="16" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">X</text></svg></div>
 <h2>Carré de naturalité</h2>
-<pre data-source="```catdiagram
-objects:  F(X), F(Y), G(X), G(Y)
-morphisms:
-  Fh    : F(X) -> F(Y)
-  Gh    : G(X) -> G(Y)
-  eta_X : F(X) -> G(X)
-  eta_Y : F(Y) -> G(Y)
-equations:
-  Gh . eta_X = eta_Y . Fh
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  FX["F(X)"]
-  FY["F(Y)"]
-  GX["G(X)"]
-  GY["G(Y)"]
-  FX -- Fh --&gt; FY
-  GX -- Gh --&gt; GY
-  FX -- eta_X --&gt; GX
-  FY -- eta_Y --&gt; GY
-  classDef cd-obj fill:none,stroke:none
-  class FX,FY,GX,GY cd-obj</code></pre>
+<div data-source="```catdiagram
+Fh    : F(X) -> F(Y)
+Gh    : G(X) -> G(Y)
+eta_X : F(X) -> G(X)
+eta_Y : F(Y) -> G(Y)
+
+Gh . eta_X = eta_Y . Fh
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="164" height="114" viewBox="-34 -9 164 114" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="36" y1="16" x2="60" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="2" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">Fh</text><line x1="36" y1="80" x2="60" y2="80" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="94" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">Gh</text><line x1="16" y1="36" x2="16" y2="60" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="-10" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">eta_X</text><line x1="80" y1="36" x2="80" y2="60" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="106" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">eta_Y</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">F(X)</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">F(Y)</text><text x="16" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">G(X)</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">G(Y)</text></svg></div>
 <h2>Pullback</h2>
 <figure data-source="```catdiagram &quot;Pullback&quot; \label{fig:pullback}
-objects:  X, A, B, C, P
-morphisms:
-  f  : A -> C
-  g  : B -> C
-  p1 : P -> A
-  p2 : P -> B
-  h  : X -> A
-  k  : X -> B
-induced:
-  u : X -> P  by (h, k)
-equations:
-  f . p1 = g . p2
-  f . h  = g . k
-  p1 . u = h
-  p2 . u = k
-```" class="captioned captioned-figure"><pre><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  X[X]
-  A[A]
-  B[B]
-  C[C]
-  P[P]
-  A -- f --&gt; C
-  B -- g --&gt; C
-  P -- p1 --&gt; A
-  P -- p2 --&gt; B
-  X -- h --&gt; A
-  X -- k --&gt; B
-  X -. u .-&gt; P
-  classDef cd-obj fill:none,stroke:none
-  class X,A,B,C,P cd-obj</code></pre>
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+f . h  = g . k
+p1 . u = h
+p2 . u = k
+```" class="captioned captioned-figure"><div class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="168" height="170" viewBox="-4 -5 168 170" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="24" y1="144" x2="136" y2="144" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="80" y="154" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">f</text><line x1="144" y1="24" x2="144" y2="136" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="154" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">g</text><line x1="74.3" y1="85.7" x2="21.7" y2="138.3" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="57.9" y="121.9" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">p1</text><line x1="85.7" y1="74.3" x2="138.3" y2="21.7" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="102.1" y="38.1" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">p2</text><line x1="16" y1="24" x2="16" y2="136" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="6" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">h</text><line x1="24" y1="16" x2="136" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="80" y="6" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">k</text><line x1="21.7" y1="21.7" x2="74.3" y2="74.3" class="cd-edge cd-edge-induced" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#cd-arrow)"></line><text x="55.1" y="40.9" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">u</text><text x="16" y="144" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="144" y="144" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">C</text><text x="144" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">P</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">X</text></svg></div>
 
 <figcaption class="caption" id="fig-fig:pullback">Figure 2: Pullback</figcaption></figure>
 <h2>Égaliseur (paire parallèle)</h2>
-<pre data-source="```catdiagram
-objects:  E, A, B, Z
-morphisms:
-  f : A -> B
-  g : A -> B
-  e : E -> A
-  h : Z -> A
-induced:
-  u : Z -> E  by (h)
-equations:
-  f . e = g . e
-  f . h = g . h
-  e . u = h
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  E[E]
-  A[A]
-  B[B]
-  Z[Z]
-  A -- f --&gt; B
-  A -- g --&gt; B
-  E -- e --&gt; A
-  Z -- h --&gt; A
-  Z -. u .-&gt; E
-  classDef cd-obj fill:none,stroke:none
-  class E,A,B,Z cd-obj</code></pre>
+<div data-source="```catdiagram
+f : A -> B
+g : A -> B
+e : E -> A
+h : Z -> A
+u : Z -> E by (h)
+
+f . e = g . e
+f . h = g . h
+e . u = h
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="168" height="111" viewBox="-4 -4 168 111" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="88" y1="86" x2="136" y2="86" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="112" y="96" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">f</text><line x1="88" y1="74" x2="136" y2="74" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="112" y="64" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">g</text><line x1="24" y1="80" x2="72" y2="80" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="90" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">e</text><line x1="80" y1="24" x2="80" y2="72" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="70" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">h</text><line x1="74.3" y1="21.7" x2="21.7" y2="74.3" class="cd-edge cd-edge-induced" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#cd-arrow)"></line><text x="40.9" y="40.9" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">u</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="144" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="16" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">E</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">Z</text></svg></div>
 <h2>Fonctorialité</h2>
-<pre data-source="```catdiagram
-objects:  F(A), F(B), F(C)
-morphisms:
-  Ff   : F(A) -> F(B)
-  Fg   : F(B) -> F(C)
-  Fgof : F(A) -> F(C)
-equations:
-  Fgof = Fg . Ff
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  FA["F(A)"]
-  FB["F(B)"]
-  FC["F(C)"]
-  FA -- Ff --&gt; FB
-  FB -- Fg --&gt; FC
-  FA -- Fgof --&gt; FC
-  classDef cd-obj fill:none,stroke:none
-  class FA,FB,FC cd-obj</code></pre>
+<div data-source="```catdiagram
+Ff   : F(A) -> F(B)
+Fg   : F(B) -> F(C)
+Fgof : F(A) -> F(C) = Fg . Ff
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="110" height="109" viewBox="-4 -9 110 109" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="36" y1="16" x2="60" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="2" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">Ff</text><line x1="80" y1="36" x2="80" y2="60" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="94" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">Fg</text><line x1="30.1" y1="30.1" x2="65.9" y2="65.9" class="cd-edge cd-edge-shortcut" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="32.4" y="63.6" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">Fgof</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">F(B)</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">F(A)</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">F(C)</text></svg></div>
 <h2>Objet terminal</h2>
-<pre data-source="```catdiagram
-objects:  T, A
-induced:
-  t : A -> T  by ()
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  T[T]
-  A[A]
-  A -. t .-&gt; T
-  classDef cd-obj fill:none,stroke:none
-  class T,A cd-obj</code></pre>
+<div data-source="```catdiagram
+t : A -> T by ()
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="168" height="41" viewBox="-4 -5 168 41" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="24" y1="16" x2="136" y2="16" class="cd-edge cd-edge-induced" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#cd-arrow)"></line><text x="80" y="6" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">t</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="144" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">T</text></svg></div>
 <h2>Avec modificateurs (mono / epi / iso)</h2>
-<pre data-source="```catdiagram
+<div data-source="```catdiagram
 direction: LR
-objects:  A, B, C
-morphisms:
-  i : A -> B (mono)
-  p : B -> C (epi)
-  q : A -> C (iso)
-```"><code class="language-mermaid">%%{init: {'flowchart': {'curve': 'linear'}}}%%
-graph LR
-  A[A]
-  B[B]
-  C[C]
-  A -- "i ↣" --&gt; B
-  B -- "p ↠" --&gt; C
-  A -- "q ≅" --&gt; C
-  classDef cd-obj fill:none,stroke:none
-  class A,B,C cd-obj</code></pre>
+i : A -> B (mono)
+p : B -> C (epi)
+q : A -> C (iso)
+```" class="catdiagram-wrap"><svg xmlns="http://www.w3.org/2000/svg" class="catdiagram-svg" width="118" height="113" viewBox="-4 -13 118 113" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"></path></marker></defs><line x1="24" y1="16" x2="72" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="48" y="-2" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">i ↣</text><line x1="80" y1="24" x2="80" y2="72" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="98" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">p ↠</text><line x1="21.7" y1="21.7" x2="74.3" y2="74.3" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"></line><text x="35.3" y="60.7" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">q ≅</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">C</text></svg></div>
 <h2>Cas d'erreur — équation mal typée</h2>
 <p>L'équation <code>f = g</code> ci-dessous est mal typée (f va de A vers B, g va de
-B vers C). Le typechecker doit la rejeter avec une diagnostic
-positionnel.</p>
+B vers C). Le typechecker doit la rejeter avec un diagnostic positionnel.</p>
 <div data-source="```catdiagram
-objects:  A, B, C
-morphisms:
-  f : A -> B
-  g : B -> C
-equations:
-  f = g
+f : A -> B
+g : B -> C
+f = g
 ```
-" class="catdiagram-error"><div class="catdiagram-error-msg">Erreur catdiagram</div><ul><li>ligne 6: equation endpoints differ: lhs is A→B, rhs is B→C</li></ul><pre>objects:  A, B, C
-morphisms:
-  f : A -&gt; B
-  g : B -&gt; C
-equations:
-  f = g</pre></div>
+" class="catdiagram-error"><div class="catdiagram-error-msg">Erreur catdiagram</div><ul><li>ligne 3: equation endpoints differ: lhs is A→B, rhs is B→C</li></ul><pre>f : A -&gt; B
+g : B -&gt; C
+f = g</pre></div>

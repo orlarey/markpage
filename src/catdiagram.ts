@@ -3,18 +3,21 @@
  * Purpose: Parse + typecheck the `catdiagram` DSL (CD-SPEC.md) — a textual
  *   description of a small category (signature + commutativity equations +
  *   universal arrows) intended for transpilation to a graphical backend
- *   (Mermaid; see [catdiagram-mermaid.ts]).
- * How: Hand-written recursive-descent parser that walks the source line by
- *   line. The grammar is small (4 sections + a directive) so we don't need a
- *   separate lexer pass — sections start at column 0, contents are indented.
- *   Comments (`# …`) and blank lines are dropped first; section headers
- *   (`objects:`, `morphisms:`, etc.) drive a state machine.
+ *   (SVG native by default, Mermaid fallback). See [catdiagram-svg.ts] /
+ *   [catdiagram-mermaid.ts].
+ * How: Hand-written recursive-descent parser, one declaration per line.
+ *   Lines are classified by their tokens — `:` + `->` for a morphism
+ *   declaration (with `by (…)` it's induced; with `= path` after the
+ *   endpoints it carries a shortcut equation), bare `path = path` for a
+ *   standalone equation, leading `direction:` / `objects:` for the two
+ *   directives. No section keywords; order doesn't matter.
  *
- *   The typechecker walks the AST after parsing: every object referenced in
- *   a morphism / induced clause must be declared in `objects:`; every
- *   morphism in an `induced … by (…)` must be in `morphisms:` or a prior
- *   `induced`; every equation's two sides must have matching dom + cod
- *   after right-to-left composition (`g . f` = $g \circ f$).
+ *   Typechecker walks the AST after parsing: every object referenced in
+ *   a morphism / induced clause must exist (inferred from endpoints, or
+ *   explicitly listed if `objects:` was given); every morphism in an
+ *   `induced … by (…)` must be in the morphism table; every equation's
+ *   two sides must have matching dom + cod after right-to-left
+ *   composition (`g . f` = $g \circ f$).
  *
  *******************************************************************************/
 
@@ -50,6 +53,10 @@ export interface CdAst {
   morphisms: Morphism[];
   induced: Induced[];
   equations: Equation[];
+  // True when the source contained an explicit `objects:` directive.
+  // Drives stricter typo detection (every morphism endpoint must be in
+  // the declared list); when false, objects are inferred from endpoints.
+  objectsDeclared: boolean;
 }
 
 export interface CdError {
@@ -73,19 +80,29 @@ const IDENT_RE = new RegExp(
   String.raw`^${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?$`,
   'u',
 );
-// Matches an identifier and returns the matched string (used by tokenizers
-// that need to consume an identifier out of a longer string).
-const IDENT_CAPTURE_RE = new RegExp(
-  `(${NAME_RE}(?:\\(\\s*${NAME_RE}(?:\\s*,\\s*${NAME_RE})*\\s*\\))?)`,
-  'u',
-);
+// Same pattern but as a capture for use inside larger regexes.
+const IDENT = `(?:${NAME_RE}(?:\\(\\s*${NAME_RE}(?:\\s*,\\s*${NAME_RE})*\\s*\\))?)`;
+
+// Reserved words: can't be used as object or morphism names.
+const RESERVED = new Set([
+  'direction',
+  'objects',
+  'by',
+  'epi',
+  'mono',
+  'iso',
+  'TB',
+  'BT',
+  'LR',
+  'RL',
+]);
 
 /**
  * Purpose: Parse a `catdiagram` source string into an AST + diagnostics.
- * How: Strip comments, drive a section state machine line by line, call the
- *   per-section parser. Parser errors don't abort — we collect as many as
- *   possible so the user sees all problems at once. Typecheck happens
- *   separately via `typecheck` below.
+ * How: Normalise Unicode arrows to ASCII, strip comments, walk each non-
+ *   blank line through `parseLine`. Diagnostics are collected — we
+ *   don't abort on first error so the user sees them all at once.
+ *   Typecheck happens separately via `typecheck` below.
  */
 export function parse(source: string): CdParseResult {
   const errors: CdError[] = [];
@@ -95,195 +112,204 @@ export function parse(source: string): CdParseResult {
     morphisms: [],
     induced: [],
     equations: [],
+    objectsDeclared: false,
   };
 
   // The editor's input ligatures convert `->` to `→` at typing time —
-  // so a catdiagram written naturally in the editor arrives here with
-  // Unicode arrows, not ASCII. Normalise back to `->` (and the long
-  // form `⟶`) so the rest of the parser stays purely ASCII.
+  // so a catdiagram written naturally in the editor arrives with
+  // Unicode arrows. Normalise to ASCII so the rest of the parser stays
+  // purely ASCII for the syntactic markers.
   const normalized = source.replaceAll('→', '->').replaceAll('⟶', '->');
 
-  // Strip comments (`#` to EOL) but keep line numbering by replacing
-  // commented text with empty so line indices stay aligned.
-  const rawLines = normalized.split('\n').map((l) => l.replace(/#.*$/u, '').trimEnd());
-
-  type Section = 'direction' | 'objects' | 'morphisms' | 'induced' | 'equations' | null;
-  // The grammar requires a fixed order (direction? objects morphisms induced? equations?).
-  // The state machine refuses out-of-order section headers.
-  const SECTION_ORDER: Section[] = ['direction', 'objects', 'morphisms', 'induced', 'equations'];
-  let lastSectionIdx = -1;
-  let currentSection: Section = null;
-
-  for (let i = 0; i < rawLines.length; i += 1) {
+  const lines = normalized.split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
     const lineNum = i + 1;
-    const line = rawLines[i] ?? '';
-    if (line.trim() === '') continue;
-
-    // Section header? Headers start at column 0 with a known keyword
-    // followed by `:`. Indented content always belongs to the current
-    // section.
-    const headerMatch = /^(direction|objects|morphisms|induced|equations)\s*:\s*(.*)$/u.exec(line);
-    if (headerMatch && line[0] !== ' ' && line[0] !== '\t') {
-      const name = headerMatch[1] as Section;
-      const rest = (headerMatch[2] ?? '').trim();
-      if (name === null) continue;
-      const newIdx = SECTION_ORDER.indexOf(name);
-      if (newIdx <= lastSectionIdx) {
-        errors.push({
-          line: lineNum,
-          message: `section "${name}" appears after "${SECTION_ORDER[lastSectionIdx] ?? '?'}" — required order is directive → objects → morphisms → induced → equations`,
-        });
-      }
-      lastSectionIdx = newIdx;
-      currentSection = name;
-      if (rest !== '') parseSectionLine(name, rest, lineNum, ast, errors);
-      continue;
-    }
-
-    // Body line — dispatch to current section's parser.
-    if (currentSection === null) {
-      errors.push({ line: lineNum, message: `content before any section header: "${line.trim()}"` });
-      continue;
-    }
-    parseSectionLine(currentSection, line.trim(), lineNum, ast, errors);
+    // Strip comment (`#` to EOL) — but only at top level, not inside
+    // an identifier (we don't have `#` in identifiers, so simple).
+    const stripped = (lines[i] ?? '').replace(/#.*$/u, '').trim();
+    if (stripped === '') continue;
+    parseLine(stripped, lineNum, ast, errors);
   }
 
-  if (ast.objects.length === 0) {
-    errors.push({ line: 0, message: 'missing required "objects:" section' });
-  }
   if (ast.morphisms.length === 0 && ast.induced.length === 0) {
-    errors.push({ line: 0, message: 'missing required "morphisms:" section (or `induced:`)' });
+    errors.push({
+      line: 0,
+      message: 'empty diagram — declare at least one morphism (`f : A -> B`)',
+    });
+  }
+
+  // Sanity-check: every morphism / induced endpoint produces an inferred
+  // object. Collect those into the objects list (deduplicated, preserving
+  // first-mention order) unless an explicit `objects:` was given.
+  if (!ast.objectsDeclared) {
+    const seen = new Set<string>();
+    for (const o of ast.objects) seen.add(o.name);
+    const consider = (name: string, line: number): void => {
+      if (name === '' || seen.has(name)) return;
+      seen.add(name);
+      ast.objects.push({ line, name });
+    };
+    for (const m of ast.morphisms) {
+      consider(m.dom, m.line);
+      consider(m.cod, m.line);
+    }
+    for (const i of ast.induced) {
+      consider(i.dom, i.line);
+      consider(i.cod, i.line);
+    }
   }
 
   return { ok: errors.length === 0, ast, errors };
 }
 
 /**
- * Purpose: Dispatch one body line to the right per-section parser.
- * How: Switch on the current section; the parser mutates `ast` and pushes
- *   any diagnostic onto `errors`.
+ * Purpose: Classify one source line and dispatch to the right parser.
+ * How: Cheap prefix / token tests determine the line's kind (directive,
+ *   morphism, induced, equation). Each branch validates + pushes to AST
+ *   or errors.
  */
-function parseSectionLine(
-  section: 'direction' | 'objects' | 'morphisms' | 'induced' | 'equations',
-  content: string,
-  line: number,
-  ast: CdAst,
-  errors: CdError[],
-): void {
-  switch (section) {
-    case 'direction':
-      parseDirective(content, line, ast, errors);
-      return;
-    case 'objects':
-      parseObjects(content, line, ast, errors);
-      return;
-    case 'morphisms':
-      parseMorphism(content, line, ast, errors);
-      return;
-    case 'induced':
-      parseInduced(content, line, ast, errors);
-      return;
-    case 'equations':
-      parseEquation(content, line, ast, errors);
-      return;
-  }
-}
-
-function parseDirective(content: string, line: number, ast: CdAst, errors: CdError[]): void {
-  const trimmed = content.trim();
-  if (!/^(TB|BT|LR|RL)$/u.test(trimmed)) {
-    errors.push({ line, message: `direction must be TB / BT / LR / RL, got "${trimmed}"` });
+function parseLine(text: string, line: number, ast: CdAst, errors: CdError[]): void {
+  // Directives — start with a keyword + colon.
+  const dirMatch = /^(direction|objects)\s*:\s*(.*)$/u.exec(text);
+  if (dirMatch) {
+    const keyword = dirMatch[1];
+    const rest = (dirMatch[2] ?? '').trim();
+    if (keyword === 'direction') parseDirection(rest, line, ast, errors);
+    else parseObjects(rest, line, ast, errors);
     return;
   }
-  ast.direction = trimmed as Direction;
+
+  // Morphism / induced — must have `:` (after the name) AND `->`. The
+  // `:` distinguishes from a bare equation `g . f = h . k`.
+  // The check is structural: a morphism line matches the pattern
+  //   <name> : <dom> -> <cod>  [optional (modifier)]  [optional = path]  [optional by (…)]
+  if (/^[^=]*:[^=]*->/u.test(text)) {
+    parseMorphismLine(text, line, ast, errors);
+    return;
+  }
+
+  // Equation — contains `=` but no morphism-declaration pattern.
+  if (text.includes('=')) {
+    parseEquation(text, line, ast, errors);
+    return;
+  }
+
+  errors.push({
+    line,
+    message: `unrecognised line (expected morphism, equation, or directive): "${text}"`,
+  });
 }
 
-function parseObjects(content: string, line: number, ast: CdAst, errors: CdError[]): void {
-  // Comma-separated identifiers, possibly across the header line and
-  // continuation lines.
-  const parts = content.split(',').map((p) => p.trim()).filter((p) => p !== '');
-  for (const p of parts) {
-    if (!IDENT_RE.test(p)) {
-      errors.push({ line, message: `invalid object identifier: "${p}"` });
+function parseDirection(rest: string, line: number, ast: CdAst, errors: CdError[]): void {
+  if (!/^(TB|BT|LR|RL)$/u.test(rest)) {
+    errors.push({ line, message: `direction must be TB / BT / LR / RL, got "${rest}"` });
+    return;
+  }
+  ast.direction = rest as Direction;
+}
+
+function parseObjects(rest: string, line: number, ast: CdAst, errors: CdError[]): void {
+  ast.objectsDeclared = true;
+  const names = rest.split(',').map((s) => s.trim()).filter((s) => s !== '');
+  for (const n of names) {
+    if (!IDENT_RE.test(n)) {
+      errors.push({ line, message: `invalid object identifier: "${n}"` });
       continue;
     }
-    if (ast.objects.some((o) => o.name === p)) {
-      errors.push({ line, message: `duplicate object: "${p}"` });
+    if (RESERVED.has(n)) {
+      errors.push({ line, message: `"${n}" is a reserved keyword, can't be an object name` });
       continue;
     }
-    ast.objects.push({ line, name: p });
+    if (ast.objects.some((o) => o.name === n)) {
+      errors.push({ line, message: `duplicate object: "${n}"` });
+      continue;
+    }
+    ast.objects.push({ line, name: n });
   }
 }
 
-// Matches `<name> : <dom> -> <cod> [(prop, prop, …)]` — the optional
-// modifier list groups property tags inside one set of parens.
-const MORPHISM_RE = new RegExp(
-  String.raw`^(${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?)\s*:\s*` +
-    String.raw`(${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?)\s*->\s*` +
-    String.raw`(${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?)` +
-    String.raw`(?:\s*\(\s*([^)]+)\s*\))?\s*$`,
+// Morphism declaration matcher:
+//   <name> ":" <dom> "->" <cod>  [<modifier>]  ([= <path>]  |  [by (<args>)])
+//
+// The two trailing forms are mutually exclusive — `=` for a shortcut
+// equation, `by (...)` for an induced morphism. Both are forbidden on
+// the same line.
+const MORPHISM_HEAD_RE = new RegExp(
+  `^(${NAME_RE}(?:\\(\\s*${NAME_RE}(?:\\s*,\\s*${NAME_RE})*\\s*\\))?)` +
+    `\\s*:\\s*` +
+    `(${NAME_RE}(?:\\(\\s*${NAME_RE}(?:\\s*,\\s*${NAME_RE})*\\s*\\))?)` +
+    `\\s*->\\s*` +
+    `(${NAME_RE}(?:\\(\\s*${NAME_RE}(?:\\s*,\\s*${NAME_RE})*\\s*\\))?)` +
+    `(?:\\s*\\(\\s*([^)]+?)\\s*\\))?` + // optional (mono, epi, iso)
+    `\\s*(.*)$`, // trailing: either `= path` or `by (...)` or nothing
   'u',
 );
 
-function parseMorphism(content: string, line: number, ast: CdAst, errors: CdError[]): void {
-  const m = MORPHISM_RE.exec(content);
-  if (!m) {
-    errors.push({ line, message: `morphism syntax: expected "name : Dom -> Cod [(prop, …)]", got "${content}"` });
-    return;
-  }
-  const [, name, dom, cod, propsRaw] = m;
-  const props: MorphismProp[] = [];
-  if (propsRaw !== undefined) {
-    for (const raw of propsRaw.split(',').map((s) => s.trim())) {
-      if (raw === 'epi' || raw === 'mono' || raw === 'iso') {
-        if (!props.includes(raw)) props.push(raw);
-      } else {
-        errors.push({ line, message: `unknown modifier "${raw}" (allowed: epi, mono, iso)` });
-      }
-    }
-  }
-  ast.morphisms.push({ line, name: name ?? '', dom: dom ?? '', cod: cod ?? '', props });
-}
-
-// `name : Dom -> Cod by ( a, b, … )` — same as morphism but with a
-// mandatory `by (…)` arglist that may be empty for absolute universals.
-const INDUCED_RE = new RegExp(
-  String.raw`^(${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?)\s*:\s*` +
-    String.raw`(${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?)\s*->\s*` +
-    String.raw`(${NAME_RE}(?:\(\s*${NAME_RE}(?:\s*,\s*${NAME_RE})*\s*\))?)` +
-    String.raw`\s+by\s*\(\s*([^)]*)\s*\)\s*$`,
-  'u',
-);
-
-function parseInduced(content: string, line: number, ast: CdAst, errors: CdError[]): void {
-  const m = INDUCED_RE.exec(content);
+function parseMorphismLine(text: string, line: number, ast: CdAst, errors: CdError[]): void {
+  const m = MORPHISM_HEAD_RE.exec(text);
   if (!m) {
     errors.push({
       line,
-      message: `induced syntax: expected "name : Dom -> Cod by (m1, m2, …)" or "… by ()", got "${content}"`,
+      message: `morphism syntax: expected "name : Dom -> Cod [(mono|epi|iso)] [= path | by (args)]", got "${text}"`,
     });
     return;
   }
-  const [, name, dom, cod, argsRaw] = m;
-  const by = (argsRaw ?? '').trim() === ''
-    ? []
-    : (argsRaw ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
-  for (const a of by) {
-    if (!IDENT_RE.test(a)) {
-      errors.push({ line, message: `invalid morphism reference in by(): "${a}"` });
-    }
-  }
-  ast.induced.push({ line, name: name ?? '', dom: dom ?? '', cod: cod ?? '', by });
-}
-
-function parseEquation(content: string, line: number, ast: CdAst, errors: CdError[]): void {
-  const eqIdx = content.indexOf('=');
-  if (eqIdx === -1) {
-    errors.push({ line, message: `equation must contain "=" — got "${content}"` });
+  const [, name, dom, cod, modRaw, trailRaw] = m;
+  if (RESERVED.has(name ?? '')) {
+    errors.push({ line, message: `"${name}" is a reserved keyword, can't be a morphism name` });
     return;
   }
-  const lhs = parsePath(content.slice(0, eqIdx).trim(), line, errors);
-  const rhs = parsePath(content.slice(eqIdx + 1).trim(), line, errors);
+  const props: MorphismProp[] = [];
+  if (modRaw !== undefined) {
+    for (const p of modRaw.split(',').map((s) => s.trim())) {
+      if (p === 'epi' || p === 'mono' || p === 'iso') {
+        if (!props.includes(p)) props.push(p);
+      } else {
+        errors.push({ line, message: `unknown modifier "${p}" (allowed: epi, mono, iso)` });
+      }
+    }
+  }
+  const trail = (trailRaw ?? '').trim();
+  if (trail === '') {
+    ast.morphisms.push({ line, name: name ?? '', dom: dom ?? '', cod: cod ?? '', props });
+    return;
+  }
+  // `by (...)` — induced morphism.
+  const byMatch = /^by\s*\(\s*([^)]*)\s*\)\s*$/u.exec(trail);
+  if (byMatch) {
+    const argRaw = byMatch[1] ?? '';
+    const by = argRaw.trim() === ''
+      ? []
+      : argRaw.split(',').map((s) => s.trim()).filter((s) => s !== '');
+    for (const a of by) {
+      if (!IDENT_RE.test(a)) {
+        errors.push({ line, message: `invalid morphism reference in by(): "${a}"` });
+      }
+    }
+    ast.induced.push({ line, name: name ?? '', dom: dom ?? '', cod: cod ?? '', by });
+    return;
+  }
+  // `= path` — shortcut equation co-located with declaration.
+  if (trail.startsWith('=')) {
+    const rhs = trail.slice(1).trim();
+    const path = parsePath(rhs, line, errors);
+    if (path === null) return;
+    ast.morphisms.push({ line, name: name ?? '', dom: dom ?? '', cod: cod ?? '', props });
+    ast.equations.push({ line, lhs: [name ?? ''], rhs: path });
+    return;
+  }
+  errors.push({
+    line,
+    message: `unexpected trailing tokens after morphism declaration: "${trail}" (expected "= path" or "by (args)")`,
+  });
+}
+
+function parseEquation(text: string, line: number, ast: CdAst, errors: CdError[]): void {
+  const eqIdx = text.indexOf('=');
+  const lhsTxt = text.slice(0, eqIdx).trim();
+  const rhsTxt = text.slice(eqIdx + 1).trim();
+  const lhs = parsePath(lhsTxt, line, errors);
+  const rhs = parsePath(rhsTxt, line, errors);
   if (lhs === null || rhs === null) return;
   ast.equations.push({ line, lhs, rhs });
 }
@@ -316,7 +342,9 @@ function parsePath(text: string, line: number, errors: CdError[]): string[] | nu
  *   agree on (dom, cod).
  * How: Build a single morphism table (regular + induced share the same
  *   namespace), then walk equations applying COMPOSE and WELLTYPED-EQ
- *   (CD-SPEC §4.3).
+ *   (CD-SPEC §4.3). When `objects:` was declared explicitly, validate
+ *   each endpoint is in that list; otherwise the parser already
+ *   inferred them, so just check the morphism table cross-refs.
  */
 export function typecheck(ast: CdAst): CdError[] {
   const errors: CdError[] = [];
@@ -324,11 +352,13 @@ export function typecheck(ast: CdAst): CdError[] {
   const morTable = new Map<string, { dom: string; cod: string; line: number }>();
 
   for (const m of ast.morphisms) {
-    if (!objSet.has(m.dom)) {
-      errors.push({ line: m.line, message: `unknown object "${m.dom}" (domain of ${m.name})` });
-    }
-    if (!objSet.has(m.cod)) {
-      errors.push({ line: m.line, message: `unknown object "${m.cod}" (codomain of ${m.name})` });
+    if (ast.objectsDeclared) {
+      if (!objSet.has(m.dom)) {
+        errors.push({ line: m.line, message: `unknown object "${m.dom}" (domain of ${m.name})` });
+      }
+      if (!objSet.has(m.cod)) {
+        errors.push({ line: m.line, message: `unknown object "${m.cod}" (codomain of ${m.name})` });
+      }
     }
     if (morTable.has(m.name)) {
       errors.push({ line: m.line, message: `duplicate morphism name "${m.name}"` });
@@ -338,11 +368,13 @@ export function typecheck(ast: CdAst): CdError[] {
   }
 
   for (const i of ast.induced) {
-    if (!objSet.has(i.dom)) {
-      errors.push({ line: i.line, message: `unknown object "${i.dom}" (domain of ${i.name})` });
-    }
-    if (!objSet.has(i.cod)) {
-      errors.push({ line: i.line, message: `unknown object "${i.cod}" (codomain of ${i.name})` });
+    if (ast.objectsDeclared) {
+      if (!objSet.has(i.dom)) {
+        errors.push({ line: i.line, message: `unknown object "${i.dom}" (domain of ${i.name})` });
+      }
+      if (!objSet.has(i.cod)) {
+        errors.push({ line: i.line, message: `unknown object "${i.cod}" (codomain of ${i.name})` });
+      }
     }
     if (morTable.has(i.name)) {
       errors.push({ line: i.line, message: `duplicate morphism name "${i.name}"` });
@@ -411,6 +443,5 @@ function typeOfPath(
   return { dom, cod };
 }
 
-// Re-export the identifier regex for the emitter (so the same notion of
-// "needs quoting in a Mermaid label" applies).
-export { IDENT_CAPTURE_RE, NAME_RE };
+// Keep IDENT exported for tooling that wants the same identifier regex.
+export { IDENT, NAME_RE };

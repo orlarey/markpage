@@ -13,6 +13,7 @@ import { renderAdtBlock } from './adt';
 import { renderAlgorithmBlock } from './algorithm';
 import { parse as parseCatdiagram, typecheck as typecheckCatdiagram } from './catdiagram';
 import { emitMermaid as emitCatdiagramMermaid } from './catdiagram-mermaid';
+import { emitSvg as emitCatdiagramSvg } from './catdiagram-svg';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
 import { renderChart } from './chart';
 import { renderDiffBlock } from './diff';
@@ -757,6 +758,13 @@ function renderCatdiagram(source: string): string {
       `<pre>${escapeHtml(source)}</pre>` +
       `</div>\n`
     );
+  }
+  // Native SVG renderer first — returns null when its grid-placement
+  // algorithm can't find an acceptable layout (rare topologies, large
+  // diagrams). In that case fall through to the Mermaid backend.
+  const svg = emitCatdiagramSvg(ast);
+  if (svg !== null) {
+    return `<div class="catdiagram-wrap">${svg}</div>\n`;
   }
   const mermaidSrc = emitCatdiagramMermaid(ast);
   return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
