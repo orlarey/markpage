@@ -10,7 +10,7 @@ blank page.
 The **Help** button (yellow background) reopens this help page any
 time, without touching your own document.
 
-## Getting started
+## Getting started \label{sec:start}
 
 You only need **five or six tools** to write most documents. Follow
 this tutorial step by step — the idea is that you write your first
@@ -105,7 +105,7 @@ Three options:
 The image is automatically resized and compressed (2000 px max on
 each side), and gets inserted at the cursor position.
 
-### The toolbar
+### The toolbar \label{sec:toolbar}
 
 At the top of the screen, a handful of buttons:
 
@@ -140,7 +140,7 @@ cursor lands right on the line you clicked. Handy: if you spot a
 typo, click on it and you land straight on the word in the editor
 to fix it. Or press `Cmd/Ctrl + Enter` again.
 
-### Exporting to PDF
+### Exporting to PDF \label{sec:pdf-export}
 
 Click on **Export ▾** then **PDF (.pdf)**, or use the shortcut
 `Cmd/Ctrl + P` directly.
@@ -173,7 +173,7 @@ write your document now and come back later.
 
 ---
 
-## Going further
+## Going further \label{sec:further}
 
 Everything that follows is **optional**. Pick what you need. Each
 section is independent. This part gathers what you need to **write
@@ -286,7 +286,7 @@ Classic Markdown for small tables:
 (For **dense data tables**, see the *Data tables (CSV / TSV)*
 section below.)
 
-### Managing multiple documents
+### Managing multiple documents \label{sec:multi-doc}
 
 markpage keeps **all your documents** in the browser. The list lives
 behind the **My doc ▾** button, which also shows the name of the
@@ -371,7 +371,7 @@ Your work is **saved automatically** in the browser, so if you
 close the tab by mistake, everything is recovered the next time
 you open it.
 
-### Customising the PDF render (Settings)
+### Customising the PDF render (Settings) \label{sec:settings}
 
 The **Settings ▾** button (shortcut `Cmd/Ctrl + ,`) opens a
 **separate window** where you can configure the PDF without touching
@@ -387,7 +387,10 @@ cut down on scrolling.
 
 What you can adjust:
 
-- **Author, organisation, date** shown under the main title
+- **Author, organisation, date** shown under the main title.
+  *To override on a per-document basis* — say a paper signed by a
+  different team — use a *YAML frontmatter* at the top of the doc
+  instead (cf. *Going further → YAML frontmatter*).
 - **Page format** (A4, A5, Letter…)
 - **Margins** in millimetres
 - **Justification** of text
@@ -486,7 +489,7 @@ Inside the menu:
 Arrows (→, ←, ↑, ↓), math operators (≤, ≥, ≠), miscellaneous
 symbols (★, ♥, ✓) are handled correctly, on screen as in the PDF.
 
-### Numbering sections
+### Numbering sections \label{sec:numbering}
 
 To number the headings of a long document without configuring a
 menu, just **show the example on the first heading of each level**:
@@ -607,7 +610,7 @@ Polynomial
 Inside terms and definitions you can use inline Markdown (bold,
 italic, code, formulas, links).
 
-### Footnotes
+### Footnotes \label{sec:footnotes}
 
 You can add a **footnote** with the Pandoc syntax: a footnote call
 `[^id]` in the text, and the definition `[^id]: content` anywhere
@@ -633,7 +636,7 @@ several times — all the occurrences point to the same entry.
 Clicking on the call `¹` jumps to the note; clicking on the `↩` at
 the end of the note returns to the call.
 
-### Citations
+### Citations \label{sec:citations}
 
 To cite a paper or a book, use the **Pandoc-lite syntax**: `[@key]`
 in the text, with the definition `[@key]: reference text` at the
@@ -662,7 +665,48 @@ The reference text is written in Markdown: you keep control of the
 format (italic for the title, bold for the author, …). No
 automated CSL / APA / IEEE formatting.
 
-### Callouts (notes, theorems…)
+### Cross-references \label{sec:xrefs}
+
+To write "see the \ref{sec:math} section" or "cf. algorithm 1"
+without copying numbers by hand, attach a **`\label{key}`** to your
+target and reference it from anywhere in the document with
+**`\ref{key}`**:
+
+- on a **heading**: `## Settings \label{sec:settings}`
+- on a **captioned block** (figure, table, algorithm, listing):
+  `\label{}` after the caption — ` ```algorithm "Quicksort" \label{alg:sort} `
+- on a **display equation**: `\label{}` inside the `$$ … $$` —
+  automatically triggers right-side numbering (`amsmath` style)
+
+`\ref{key}` adapts its output to the kind of target:
+
+- **Section** → the heading text itself (markpage sections aren't
+  numbered by default, so a number would be meaningless). Example:
+  "see \ref{sec:settings}" becomes "see *Customising the PDF render
+  (Settings)*", clickable.
+- **Figure / table / algorithm / listing / equation** → the number
+  assigned by their caption or `\tag` (always shown next to the
+  target). Example: "algorithm \ref{alg:sort}" → "algorithm 2".
+
+You write the **lead-in word** ("see", "algorithm", "equation", …)
+yourself — the engine only provides the number or the title, which
+keeps the grammar natural.
+
+> **Key conventions.** Anything goes, but the `sec:`, `fig:`, `tab:`,
+> `alg:`, `lst:`, `eq:` prefixes are classic LaTeX usage: a glance
+> tells you the kind of target, and the names stay unique across
+> kinds.
+
+**Broken reference.** A `\ref{nonexistent-key}` renders as a red
+`[?]` with a tooltip ("référence inconnue: …") — you spot the typo
+right away, no silent failure in the PDF.
+
+> **This help page itself.** All the major sections are labelled:
+> `sec:start`, `sec:toolbar`, `sec:settings`, `sec:math`,
+> `sec:mermaid`, etc. So you can reference them from your own
+> documents to point at a piece of the documentation.
+
+### Callouts (notes, theorems…) \label{sec:callouts}
 
 You can highlight a passage with a **callout**: open with `:::`
 followed by the callout name, write your content, close with `:::`
@@ -701,7 +745,7 @@ useful for your own conventions.
 The inside of a callout is Markdown like the rest: formatted text,
 lists, formulas, even tables.
 
-### Charts
+### Charts \label{sec:charts}
 
 To draw a curve or chart from data, use a `chart` *fenced block*:
 
@@ -783,7 +827,7 @@ identifying each series.
 
 ---
 
-## Going even further
+## Going even further \label{sec:expert}
 
 This last part gathers **more specialised tools**: input ligatures
 that make mathematical Unicode comfortable to type, LaTeX formulas,
@@ -792,6 +836,43 @@ states, etc., each with its own syntax). If you're writing a
 research article, a course, an algorithm spec, or technical
 documentation, you'll find what you need here. Otherwise you can
 skip straight to Credits.
+
+### YAML frontmatter \label{sec:frontmatter}
+
+At the top of a document, you can insert a **YAML block** (between
+two `---` lines) that overrides the profile metadata for that
+specific document:
+
+```yaml
+---
+title: A study of finite automata
+author: Alice Dupont
+organization: Université de Lyon
+date: 2026-05-21
+mathjax-preamble: |
+  \newcommand{\R}{\mathbb{R}}
+  \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+---
+```
+
+Recognised keys:
+
+- **`title`** — the document title. Rendered large, centred, styled
+  via *Settings → Typography → Document title*. When this key is
+  present, the `# Heading`s in the body act as **real section
+  headings** (left-aligned, more discreet, styled via *Heading 1*),
+  instead of being promoted to the title role.
+- **`author`**, **`organization`**, **`date`** — override the
+  matching profile fields. Handy for a co-authored document, or a
+  document dated differently from the profile default.
+- **`mathjax-preamble`** — TeX source (multi-line via `|`) pasted
+  before **every** MathJax formula in the document. Ideal for
+  defining once `\newcommand{\R}{\mathbb{R}}` and using it in every
+  formula without repeating the definition.
+
+The block is fully optional — a document without frontmatter keeps
+working as before, with the first `#` in the body promoted to the
+document title automatically.
 
 ### Input ligatures
 
@@ -803,14 +884,17 @@ with their mathematical equivalent. Two mechanics coexist:
 
 | Type | Get | Type | Get |
 |---|---|---|---|
-| `[[` | ⟦ | `<<` | ⟨ |
-| `]]` | ⟧ | `>>` | ⟩ |
+| `[[` | ⟦ | `]]` | ⟧ |
 | `->` | → | `<-` | ← |
 | `=>` | ⇒ | | |
 | `<=` | ≤ | `>=` | ≥ |
 | `!=` | ≠ | `+-` | ± |
 | `\|-` | ⊢ | `-\|` | ⊣ |
 | `...` | … | | |
+
+> The **angle brackets** `⟨` and `⟩` are only available via `\langle`
+> and `\rangle` (see below). No `<<` / `>>` ligature, to avoid clashing
+> with the AMS-CD arrow syntax (`@>>label>`) in commutative diagrams.
 
 **LaTeX commands** (`\xxx`) wait for a **terminator character**
 (space, punctuation, operator, newline) before firing. Type `\alpha`
@@ -863,6 +947,15 @@ Uppercase (only those that differ from Latin):
 **Long arrows**: `\mapsto` ↦, `\Leftarrow` ⇐, `\Rightarrow` ⇒,
 `\Leftrightarrow` ⇔.
 
+**Angle brackets**: `\langle` ⟨, `\rangle` ⟩.
+
+**Subscripts and superscripts** (digits only): `_0`…`_9` become ₀…₉
+and `^0`…`^9` become ⁰…⁹. The negative form `^-1`…`^-9` produces
+⁻¹…⁻⁹ (handy for inverses). Examples: `\pi_1` → π₁, `x_1` → x₁,
+`f^-1` → f⁻¹, `e^2` → e². To avoid the ligature in the rare case
+of an italic word ending in a digit (`_label_1_`), use asterisks
+instead (`*label_1*`).
+
 > To write a command **literally** in prose (for instance to document
 > `\alpha`), double the backslash: `\\alpha` stays as-is in the
 > source — and renders as `\alpha` in Markdown, which interprets
@@ -892,7 +985,7 @@ To undo a ligature that fired when you wanted the literal text,
 press `Cmd/Ctrl + Z` immediately after — the substitution is
 undone, the ASCII text is restored.
 
-### Math formulas
+### Math formulas \label{sec:math}
 
 You can include **LaTeX formulas**, either **as a block** between
 `$$ … $$` (the formula is centred on its own line), or **inline**
@@ -988,7 +1081,7 @@ Let $\epsilon > 0$ such that…
   `\Rightarrow`), environments `pmatrix` / `bmatrix` / `align*`,
   etc.
 
-### Inference rules
+### Inference rules \label{sec:inference}
 
 To write an **inference rule** (logical deduction, operational
 semantics, etc.), use a *fenced block* with the language
@@ -1019,7 +1112,140 @@ For LaTeX commands that have no Unicode equivalent in our ligatures
 (for example `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), type them directly.
 
-### Mermaid diagrams
+### Commutative diagrams \label{sec:cd}
+
+For **commutative diagrams** (squares, triangles, universal
+factorisations), use the **AMS-CD** environment inside any math
+block:
+
+````
+$$
+\begin{CD}
+  A  @>f>>  B \\
+  @VgVV    @VVhV \\
+  C  @>>k>  D
+\end{CD}
+$$
+````
+
+**Arrows** sit between the columns:
+
+- **Horizontal**: `@>label>>` (rightward, label above),
+  `@>>label<` (label below), `@<label<<` (leftward), `@=` (equals
+  sign).
+- **Vertical**: `@VlabelVV` (downward, label on the left),
+  `@VVlabelV` (label on the right), `@AlabelAA` (upward), `@|`
+  (vertical equals sign).
+- **Empty cell**: leave the content blank (`A @>>> B \\ @>>> C`
+  for a triangle).
+
+You can **name the diagram** by wrapping it in a ` ```math ` fence
+with a caption and a cross-reference label:
+
+````
+```math "Universal property of the pullback" \label{fig:pullback}
+\begin{CD}
+  P  @>p_1>>  A \\
+  @Vp_2VV    @VVfV \\
+  B  @>>g>    C
+\end{CD}
+```
+````
+
+The diagram is then numbered as a figure, and `\ref{fig:pullback}`
+references it from anywhere in the document.
+
+> **Limitations.** AMS-CD only handles **grid-aligned** diagrams —
+> no diagonal or curved arrows. For more complex diagrams (pullback,
+> equalizer, universal properties with a distinct induced arrow),
+> see \ref{sec:category} below.
+
+### Declarative category diagrams \label{sec:category}
+
+For commutative diagrams with **induced arrows** (pullbacks, products,
+equalizers…) or topologies AMS-CD can't place cleanly, the
+` ```category ` fence offers a richer **declarative** syntax: each
+line declares a morphism in the standard CS / math convention
+`f : A -> B`, and the engine computes the layout automatically.
+
+Commutative triangle:
+
+````
+```category
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+````
+
+The `= g . f` suffix declares `h` as a shortcut for the composition
+`g ∘ f` — the typechecker validates commutativity before rendering,
+and `h` is drawn as a secondary edge.
+
+**Pullback** (cone over a cospan):
+
+````
+```category "Pullback universal property"
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+p1 . u = h
+p2 . u = k
+```
+````
+
+The **`by (h, k)`** clause marks `u` as a **universal arrow**: it
+exists and is unique by the property of `h` and `k`. The engine draws
+it **dashed** (textbook convention for universal factorisations). The
+following equations express the cone's commutativity.
+
+**Keywords**:
+
+| Form | Meaning |
+| --- | --- |
+| `f : A -> B` | morphism |
+| `f : A -> B (mono)` | monomorphism (label suffixed `↣`) |
+| `f : A -> B (epi)` | epimorphism (label suffixed `↠`) |
+| `f : A -> B (iso)` | isomorphism (label suffixed `≅`) |
+| `h : A -> B = g . f` | morphism + shortcut equation |
+| `u : X -> P by (f, g)` | induced morphism (dashed render) |
+| `g . f = h . k` | standalone equation (commutativity) |
+| `direction: TB` | force layout direction (`TB`, `BT`, `LR`, `RL`) |
+| `objects: T, X` | optional declaration (isolated objects or strict typo detection) |
+
+**What the engine does for you**:
+
+- **Object inference** from morphism endpoints — no need to list them.
+- **Typechecking**: ill-typed compositions (`f . g` when
+  `cod(g) ≠ dom(f)`) and equations whose sides don't share
+  domain/codomain are rejected before rendering, with a positional
+  diagnostic.
+- **Automatic layout**: two-pass algorithm, optimising for horizontal
+  and vertical arrows first, then expanding to a rotated frame
+  (45° + scaling) if the topology requires it (pullback, pushout…).
+  Edge labels positioned on the outside of the figure.
+- **Captions and cross-refs** like any captionable block: `"Title"
+  \label{fig:xxx}` after `category` numbers as `Figure N` and enables
+  `\ref{fig:xxx}` elsewhere in the document.
+
+**Editor input ligatures** (\pi → π, digit subscripts) are active
+inside the block — `\pi_1` typed becomes `π₁` and the parser accepts
+Unicode identifiers (Greek letters, subscripts, superscripts).
+
+> **When to use which.** For a simple rectangular diagram (square,
+> triangle), AMS-CD via `$$\begin{CD}…\end{CD}$$` is concise. For
+> anything involving an induced arrow, a pullback, an equalizer, or a
+> topology where you want the engine to find a good placement,
+> `category` is the tool. The full spec lives in `CATEGORY-SPEC.md`
+> at the root of the repository.
+
+### Mermaid diagrams \label{sec:mermaid}
 
 [Mermaid](https://mermaid.js.org/) lets you describe a diagram with
 a few lines of text. Place your code in a block whose language is

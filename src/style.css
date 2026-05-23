@@ -862,13 +862,6 @@ body,
   font-weight: 500;
 }
 
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-title {
-  font-size: 14px;
-  fill: #222;
-  text-anchor: middle;
-  font-weight: 500;
-}
-
 :where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-legend {
   font-size: 11px;
   fill: #222;
@@ -1006,6 +999,20 @@ body,
   color: var(--accent);
   text-decoration: none;
   margin-left: 0.3em;
+}
+
+/* ---- Cross-references (\ref{}) -------------------------------------- */
+/* Plain number link, accent colour, no underline — the user writes the
+   prefix word ("voir algorithme N") themselves. Unknown refs show `[?]`
+   in red so typos are spotted at proof time. */
+:where(#preview-pane, #markpage-print-target, .help-body) .xref {
+  color: var(--accent);
+  text-decoration: none;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .xref-broken {
+  color: #cf222e;
+  font-weight: 500;
+  cursor: help;
 }
 
 /* ---- Citations / References ----------------------------------------- */
@@ -1197,6 +1204,57 @@ body,
   font-size: 0.9em;
 }
 
+/* ---- category native SVG ------------------------------------------
+   The native renderer (src/category-svg.ts) emits an inline `<svg>`
+   inside `.category-wrap`. Everything draws in `currentColor` so the
+   diagram inherits body-text colour. Wrap centres horizontally and
+   lets the SVG shrink below its intrinsic width on narrow pages. */
+.category-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+.category-wrap .category-svg {
+  max-width: 100%;
+  height: auto;
+}
+.category-svg .cd-obj {
+  font-weight: 500;
+}
+.category-svg .cd-edge-label {
+  font-size: 0.85em;
+}
+
+/* ---- category error block ----------------------------------------
+   Parser / typechecker diagnostics for a `category` fence. Same
+   visual frame as the math-error block (red bar + tinted background),
+   with a bulleted list of diagnostics and the offending source. */
+.category-error {
+  display: block;
+  border-left: 4px solid #d1242f;
+  background: #ffeef0;
+  padding: 0.6em 0.9em;
+  margin: 0.6em 0;
+  border-radius: 0 4px 4px 0;
+}
+.category-error .category-error-msg {
+  color: #d1242f;
+  font-weight: 500;
+  margin-bottom: 0.3em;
+}
+.category-error ul {
+  margin: 0.3em 0 0.6em 1.2em;
+  padding: 0;
+  font-size: 0.95em;
+}
+.category-error pre {
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 /* Inline math: MathJax sets `vertical-align: -…ex` on the SVG itself, so
    leaving the span as inline lets the browser line up the formula's
    baseline with the surrounding text automatically. */
@@ -1211,6 +1269,112 @@ body,
   background: #ffeef0;
   padding: 0 0.2em;
   border-radius: 3px;
+}
+
+/* ---- diff block (```diff fence) ----------------------------------
+   Per-line tinted background for added (+) / removed (-) lines, with
+   subtler shades for the hunk headers (@@) and file headers (+++/---).
+   `display: block` on each span forces the background to fill the row
+   width even when the line content is shorter. The outer `<pre>`'s
+   typography (padding, background, border, font) is driven by the
+   user's `code-block` settings via the dynamic preview stylesheet
+   — no need to repeat it here. */
+.diff-block .diff-add,
+.diff-block .diff-del,
+.diff-block .diff-ctx,
+.diff-block .diff-meta,
+.diff-block .diff-hunk {
+  display: block;
+}
+
+.diff-block .diff-add {
+  background: #e6ffec;
+  color: #1a7f37;
+}
+
+.diff-block .diff-del {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.diff-block .diff-meta {
+  color: #57606a;
+  font-weight: 500;
+}
+
+.diff-block .diff-hunk {
+  color: #6e7681;
+  background: #ddf4ff;
+}
+
+/* ---- tree block — SVG variant (```tree svg) ----------------------
+   Render at intrinsic size when it fits the column; scale down
+   proportionally otherwise so the diagram (and its labels) stay on
+   the page at print time. `currentColor` on lines + text in the SVG
+   inherits the surrounding text colour. */
+.tree-svg-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+
+.tree-svg-wrap .tree-svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---- algorithm block (```algorithm "Caption") --------------------
+   algorithm2e-style listing — numbered lines, bold keywords. The
+   outer `.algorithm` wrapper inherits the user's `code-block` box
+   (background / border / padding) via the preview stylesheet. The
+   caption (if any) is rendered above by the shared figure wrapper. */
+.algorithm-body {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.algorithm-body td {
+  border: none;
+  padding: 0.05em 0.2em;
+  vertical-align: top;
+}
+
+.algorithm-line {
+  width: 2.2em;
+  text-align: right;
+  opacity: 0.6;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  padding-right: 0.6em !important;
+  user-select: none;
+}
+
+.algorithm-code {
+  font-family: var(--font-mono);
+  white-space: pre;
+}
+
+/* ---- captioned figure wrapper ------------------------------------
+   `<figure class="captioned …">` groups a block with its auto-
+   numbered `<figcaption class="caption">`. The wrapper itself is
+   transparent — only the inner block and the caption are styled.
+   `break-inside: avoid` keeps the pair on the same page at print
+   time so the caption never floats away from its figure. */
+figure.captioned {
+  margin: 1em 0;
+  padding: 0;
+  break-inside: avoid;
+}
+figure.captioned > .algorithm,
+figure.captioned > .tree-svg-wrap,
+figure.captioned > pre {
+  margin: 0;
+}
+/* Default caption typography — overridden per-document by the
+   `styles.caption` settings via the preview stylesheet. */
+.caption {
+  text-align: center;
 }
 
 .preview-metadata {

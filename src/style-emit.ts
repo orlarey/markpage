@@ -10,15 +10,20 @@
  *
  *******************************************************************************/
 
+import { quoteFontFamily } from './font-loader';
 import type { Style } from './settings';
 
 /**
  * Purpose: Emit the inline-text declarations of `s`: font, color, weight,
  *   italic, alignment, margin, line-height. `underline` is left to the caller.
  * How: Skip fields that are undefined; the cascade keeps existing rules.
+ *   `family` (per-element override) is emitted as a bare quoted name —
+ *   the surrounding selector's parent rule provides the fallback chain.
  */
 export function inlineCss(s: Style): string {
   const parts: string[] = [];
+  if (s.family !== undefined && s.family.trim() !== '')
+    parts.push(`font-family: ${quoteFontFamily(s.family)};`);
   if (s.fontSize !== undefined) parts.push(`font-size: ${s.fontSize}pt;`);
   if (s.color !== undefined) parts.push(`color: ${s.color};`);
   if (s.weight !== undefined) parts.push(`font-weight: ${s.weight};`);

@@ -53,6 +53,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from './preview';
+import { parseFrontmatter } from './frontmatter';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
@@ -379,14 +380,16 @@ async function bootstrap(): Promise<void> {
   const updatePreview = async (source: string): Promise<void> => {
     const myReq = ++previewReqId;
     const resolved = await expandRefsToBlobUrls(source);
+    const { meta } = parseFrontmatter(resolved);
     const built = document.createElement('div');
     renderPreview(built, resolved);
-    applyPreviewMetadata(built, state.settings);
+    applyPreviewMetadata(built, state.settings, meta);
     annotateSourceLines(built, source);
+    const preamble = meta['mathjax-preamble'] ?? '';
     await Promise.all([
       renderMermaidBlocks(built),
-      renderMathBlocks(built, state.settings.mathFontSet),
-      renderMathInlines(built, state.settings.mathFontSet),
+      renderMathBlocks(built, state.settings.mathFontSet, preamble),
+      renderMathInlines(built, state.settings.mathFontSet, preamble),
     ]);
     if (myReq !== previewReqId) return;
     await paginate(built, state.settings, previewEl);
@@ -463,9 +466,23 @@ async function bootstrap(): Promise<void> {
     else enterEditor(null);
   };
 
-  // Click inside the preview returns to the editor at that source line.
+  // Click inside the preview returns to the editor at that source line —
+  // except when the click hits a real hyperlink (cross-ref, footnote
+  // ref, citation back-link, external link…). Then we honour the link:
+  // in-doc fragments scroll the preview, external URLs open in a new
+  // tab so markpage stays put.
   previewEl.addEventListener('click', (e) => {
     if (viewMode !== 'preview') return;
+    const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
+      'a[href]',
+    );
+    if (link) {
+      const href = link.getAttribute('href') ?? '';
+      if (href.startsWith('#')) return; // browser handles anchor scroll
+      e.preventDefault();
+      window.open(link.href, '_blank', 'noopener');
+      return;
+    }
     const anchor = previewClickAnchor(e, previewEl);
     if (anchor) enterEditor(anchor);
   });

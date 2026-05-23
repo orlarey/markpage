@@ -58,11 +58,6 @@ interface ParsedData {
   xKind: XKind;
 }
 
-interface ChartInfo {
-  type: 'line' | 'bar';
-  title: string;
-}
-
 // --- Parsing ----------------------------------------------------------
 
 /**
@@ -117,24 +112,6 @@ function parseIsoDate(s: string): number | null {
   if (!ISO_DATE_RE.test(t)) return null;
   const ts = Date.parse(t);
   return Number.isNaN(ts) ? null : ts;
-}
-
-/**
- * Purpose: Parse the info string (everything after ` ```chart `) into type+title.
- * How: One regex extracting an optional word (type) and an optional quoted or
- *   bare-words title.
- */
-function parseInfoString(info: string): ChartInfo {
-  // info already stripped of leading "chart". Forms accepted:
-  //   ""                  → line, no title
-  //   "line"              → line, no title
-  //   "bar"               → bar, no title
-  //   "line My Title"     → line + bare-words title
-  //   `bar "My Title"`    → bar + quoted title (allows trailing/leading spaces)
-  const m = /^\s*(\w+)?\s*(?:"([^"]*)"|(.*))?$/.exec(info);
-  const type: 'line' | 'bar' = m?.[1] === 'bar' ? 'bar' : 'line';
-  const title = (m?.[2] ?? m?.[3] ?? '').trim();
-  return { type, title };
 }
 
 /**
@@ -543,27 +520,18 @@ function buildLegend(parts: string[], data: ParsedData): void {
 }
 
 /**
- * Purpose: Emit the centred chart title above the plot, if any.
- * How: Single `<text>` at the top-centre of the viewBox.
- */
-function buildTitle(parts: string[], title: string): void {
-  if (title === '') return;
-  parts.push(
-    `<text x="${VIEW_W / 2}" y="20" class="chart-title">${escapeXml(title)}</text>`,
-  );
-}
-
-/**
- * Purpose: Public entry — turn fenced-block body + info string into an SVG block.
+ * Purpose: Public entry — turn fenced-block body + chart type into an SVG block.
  * How: Parse data, compute padded ranges (bar charts get half-slot padding +
- *   y-anchor at 0), then assemble title / axes / series / legend.
+ *   y-anchor at 0), then assemble axes / series / legend. The optional
+ *   caption is wrapped externally by [src/captions.ts]; we don't render a
+ *   title inside the SVG anymore.
  */
-export function renderChart(src: string, info: string): string {
+export function renderChart(src: string, typeArg: string): string {
   const data = parseChartData(src);
   if (!data || data.rows.length === 0) {
     return `<div class="chart-error">Données du graphique invalides</div>`;
   }
-  const { type, title } = parseInfoString(info);
+  const type: 'line' | 'bar' = typeArg === 'bar' ? 'bar' : 'line';
 
   const xs = data.rows.map((r) => r.x);
   const ys = data.rows.flatMap((r) => r.ys);
@@ -584,7 +552,6 @@ export function renderChart(src: string, info: string): string {
   const yMax = type === 'bar' ? Math.max(0, yRawMax) : yRawMax;
 
   const parts: string[] = [];
-  buildTitle(parts, title);
   const { xToPx, yToPx } = buildAxes(parts, xMin, xMax, yMin, yMax, data, type);
   if (type === 'line') {
     buildLineSeries(parts, data, xToPx, yToPx);
@@ -593,6 +560,6 @@ export function renderChart(src: string, info: string): string {
   }
   buildLegend(parts, data);
 
-  const svg = `<svg class="chart-svg" viewBox="0 0 ${VIEW_W} ${VIEW_H}" xmlns="http://www.w3.org/2000/svg" role="img"${title === '' ? '' : ` aria-label="${escapeXml(title)}"`}>${parts.join('')}</svg>`;
+  const svg = `<svg class="chart-svg" viewBox="0 0 ${VIEW_W} ${VIEW_H}" xmlns="http://www.w3.org/2000/svg" role="img">${parts.join('')}</svg>`;
   return `<div class="chart-block">${svg}</div>\n`;
 }

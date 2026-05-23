@@ -1,0 +1,48 @@
+<h1 class="doc-title">Algorithm block</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Pseudocode listings with auto-numbered captions, line numbers and
+bolded keywords. The caption goes between double quotes after the
+language tag.</p>
+<figure data-source="```algorithm &quot;Bubble sort&quot;
+Input: array A of length n
+Output: A sorted in place
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+return A
+```" class="captioned captioned-algorithm"><div class="algorithm"><table class="algorithm-body"><tbody><tr><td class="algorithm-line">1</td><td class="algorithm-code"><strong>Input</strong>: array A of length n</td></tr><tr><td class="algorithm-line">2</td><td class="algorithm-code"><strong>Output</strong>: A sorted <strong>in</strong> place</td></tr><tr><td class="algorithm-line">3</td><td class="algorithm-code"><strong>for</strong> i from 1 <strong>to</strong> n - 1 <strong>do</strong></td></tr><tr><td class="algorithm-line">4</td><td class="algorithm-code">&nbsp;&nbsp;<strong>for</strong> j from 0 <strong>to</strong> n - i - 1 <strong>do</strong></td></tr><tr><td class="algorithm-line">5</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;<strong>if</strong> A[j] &gt; A[j + 1] <strong>then</strong></td></tr><tr><td class="algorithm-line">6</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;swap A[j] <strong>and</strong> A[j + 1]</td></tr><tr><td class="algorithm-line">7</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;<strong>end</strong></td></tr><tr><td class="algorithm-line">8</td><td class="algorithm-code">&nbsp;&nbsp;<strong>end</strong></td></tr><tr><td class="algorithm-line">9</td><td class="algorithm-code"><strong>end</strong></td></tr><tr><td class="algorithm-line">10</td><td class="algorithm-code"><strong>return</strong> A</td></tr></tbody></table></div>
+
+<figcaption class="caption">Algorithme 1: Bubble sort</figcaption></figure>
+<p>A second algorithm in the same document keeps incrementing the
+counter, so the next caption reads <code>Algorithme 2</code>:</p>
+<figure data-source="```algorithm &quot;Binary search&quot;
+Input: sorted array A, target x
+Output: index of x in A, or -1
+lo := 0
+hi := length(A) - 1
+while lo <= hi do
+  mid := (lo + hi) / 2
+  if A[mid] = x then
+    return mid
+  elif A[mid] < x then
+    lo := mid + 1
+  else
+    hi := mid - 1
+  end
+end
+return -1
+```" class="captioned captioned-algorithm"><div class="algorithm"><table class="algorithm-body"><tbody><tr><td class="algorithm-line">1</td><td class="algorithm-code"><strong>Input</strong>: sorted array A, target x</td></tr><tr><td class="algorithm-line">2</td><td class="algorithm-code"><strong>Output</strong>: index of x <strong>in</strong> A, <strong>or</strong> -1</td></tr><tr><td class="algorithm-line">3</td><td class="algorithm-code">lo := 0</td></tr><tr><td class="algorithm-line">4</td><td class="algorithm-code">hi := length(A) - 1</td></tr><tr><td class="algorithm-line">5</td><td class="algorithm-code"><strong>while</strong> lo &lt;= hi <strong>do</strong></td></tr><tr><td class="algorithm-line">6</td><td class="algorithm-code">&nbsp;&nbsp;mid := (lo + hi) / 2</td></tr><tr><td class="algorithm-line">7</td><td class="algorithm-code">&nbsp;&nbsp;<strong>if</strong> A[mid] = x <strong>then</strong></td></tr><tr><td class="algorithm-line">8</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;<strong>return</strong> mid</td></tr><tr><td class="algorithm-line">9</td><td class="algorithm-code">&nbsp;&nbsp;<strong>elif</strong> A[mid] &lt; x <strong>then</strong></td></tr><tr><td class="algorithm-line">10</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;lo := mid + 1</td></tr><tr><td class="algorithm-line">11</td><td class="algorithm-code">&nbsp;&nbsp;<strong>else</strong></td></tr><tr><td class="algorithm-line">12</td><td class="algorithm-code">&nbsp;&nbsp;&nbsp;&nbsp;hi := mid - 1</td></tr><tr><td class="algorithm-line">13</td><td class="algorithm-code">&nbsp;&nbsp;<strong>end</strong></td></tr><tr><td class="algorithm-line">14</td><td class="algorithm-code"><strong>end</strong></td></tr><tr><td class="algorithm-line">15</td><td class="algorithm-code"><strong>return</strong> -1</td></tr></tbody></table></div>
+
+<figcaption class="caption">Algorithme 2: Binary search</figcaption></figure>
+<p>Caption is optional — a bare <code>```algorithm</code> fence skips the
+<code>&lt;figure&gt;</code> wrapper entirely:</p>
+<div data-source="```algorithm
+repeat
+  x := f(x)
+until converged
+return x
+```
+" class="algorithm"><table class="algorithm-body"><tbody><tr><td class="algorithm-line">1</td><td class="algorithm-code"><strong>repeat</strong></td></tr><tr><td class="algorithm-line">2</td><td class="algorithm-code">&nbsp;&nbsp;x := f(x)</td></tr><tr><td class="algorithm-line">3</td><td class="algorithm-code"><strong>until</strong> converged</td></tr><tr><td class="algorithm-line">4</td><td class="algorithm-code"><strong>return</strong> x</td></tr></tbody></table></div>

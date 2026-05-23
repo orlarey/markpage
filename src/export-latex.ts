@@ -22,6 +22,7 @@ import { collectImageRefs } from './image';
 import { getImage } from './image-store';
 import { renderMermaid } from './mermaid';
 import { renderChart } from './chart';
+import { parseFenceInfo } from './captions';
 
 /**
  * Purpose: Result of `exportLatex` — the `.tex` source plus its resource bundle.
@@ -346,9 +347,13 @@ async function loadChartResource(
   ctx.chartCount += 1;
   const path = `images/chart-${ctx.chartCount}.svg`;
   ctx.chartBySourceInfo.set(key, path);
+  // renderChart now takes the chart type alone (the optional caption
+  // is wrapped externally by the captions module). Extract it from the
+  // positional args via the shared fence-info parser.
+  const typeArg = parseFenceInfo(info).args[0] ?? '';
   // renderChart is sync today; await Promise.resolve so the call
   // shape matches the others if that ever changes.
-  const svg = await Promise.resolve(renderChart(src, info));
+  const svg = await Promise.resolve(renderChart(src, typeArg));
   ctx.resources.set(
     path,
     new Blob([sanitizeSvgForInkscape(svg)], { type: 'image/svg+xml' }),

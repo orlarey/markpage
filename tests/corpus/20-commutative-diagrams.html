@@ -1,0 +1,46 @@
+<h1 class="doc-title">Commutative diagrams</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>Commutative diagrams are typeset with the <strong>AMS-CD</strong> environment,
+available inside any <code>$$ … $$</code> block or <code>```math</code> fence. Each
+row uses <code>&amp;</code> to separate columns; arrows live between them.</p>
+<p>A basic square:</p>
+<div data-source="$
+\begin{CD}
+  A  @>f>>  B \\
+  @VgVV    @VVhV \\
+  C  @>>k>  D
+\end{CD}
+$" class="math-block" data-math="\begin{CD}
+  A  @>f>>  B \\
+  @VgVV    @VVhV \\
+  C  @>>k>  D
+\end{CD}"></div>
+<p>Wrapped as a figure with a caption and a cross-reference target:</p>
+<figure data-source="```math &quot;Universal property of the pullback&quot; \label{fig:pullback}
+\begin{CD}
+  P  @>p_1>>  A \\
+  @Vp_2VV    @VVfV \\
+  B  @>>g>    C
+\end{CD}
+```" class="captioned captioned-figure"><div class="math-block" data-math="\begin{CD}
+  P  @>p_1>>  A \\
+  @Vp_2VV    @VVfV \\
+  B  @>>g>    C
+\end{CD}"></div>
+
+<figcaption class="caption" id="fig-fig:pullback">Figure 1: Universal property of the pullback</figcaption></figure>
+<p>The pullback diagram in <a class="xref" href="#fig-fig:pullback">1</a> is universal: any pair
+of arrows from another object factors uniquely through (P).</p>
+<p>Functoriality, in one row (cf. <a class="xref" href="#fig-fig:pullback">1</a> above for a 2D
+shape):</p>
+<div data-source="$
+\begin{CD}
+  F(X)  @>F(f)>>  F(Y) \\
+  @|              @| \\
+  F(X)  @>>F(f)>  F(Y)
+\end{CD}
+$
+" class="math-block" data-math="\begin{CD}
+  F(X)  @>F(f)>>  F(Y) \\
+  @|              @| \\
+  F(X)  @>>F(f)>  F(Y)
+\end{CD}"></div>

@@ -1,0 +1,218 @@
+% markpage — export LaTeX (cible : xelatex ou lualatex).
+% La compilation avec pdflatex échouera : fontspec + UTF-8 natif
+% dans les blocs de code requièrent xelatex / lualatex.
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{}
+\IfFontExistsTF{DejaVu Sans}{\setsansfont{DejaVu Sans}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+
+\IfFileExists{french.ldf}{\usepackage[french]{babel}}{}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[normalem]{ulem}
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{newunicodechar}
+
+% DejaVu Serif (our main text font) doesn't ship the Unicode
+% math-bracket / logic glyphs that show up in our prose (e.g.
+% explanations of the editor's ligatures). Redirect each known
+% glyph to its LaTeX command via \ensuremath, so it renders
+% from the math font even when typed in normal text.
+\newunicodechar{⟦}{\ensuremath{\llbracket}}
+\newunicodechar{⟧}{\ensuremath{\rrbracket}}
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+\newunicodechar{⊣}{\ensuremath{\dashv}}
+\newunicodechar{⊨}{\ensuremath{\models}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{∉}{\ensuremath{\notin}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{⊂}{\ensuremath{\subset}}
+\newunicodechar{⊆}{\ensuremath{\subseteq}}
+\newunicodechar{⊃}{\ensuremath{\supset}}
+\newunicodechar{⊇}{\ensuremath{\supseteq}}
+\newunicodechar{∪}{\ensuremath{\cup}}
+\newunicodechar{∩}{\ensuremath{\cap}}
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{¬}{\ensuremath{\neg}}
+\newunicodechar{★}{\ensuremath{\bigstar}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{♥}{\ensuremath{\heartsuit}}
+\newunicodechar{♦}{\ensuremath{\diamondsuit}}
+\newunicodechar{♠}{\ensuremath{\spadesuit}}
+\newunicodechar{♣}{\ensuremath{\clubsuit}}
+\newunicodechar{⚠}{\textbf{[!]}}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+}
+
+% Theorem-like environments matching the ::: admonitions (§17 of
+% the markpage SPEC). The shared counter `theorem` keeps lemma /
+% proposition / corollary numbered in the same sequence as the
+% theorems themselves, which is the usual mathematical convention.
+\newtheorem{theorem}{Théorème}
+\newtheorem{lemma}[theorem]{Lemme}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollaire}
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}
+\newtheorem{example}{Exemple}
+\newtheorem{remark}{Remarque}
+
+\title{category — diagrammes commutatifs déclaratifs}
+\author{Test Author \\ Test Org}
+\date{2026-01-01}
+
+\begin{document}
+\maketitle
+
+Le fence \texttt{```category} accepte la syntaxe documentée dans CD-SPEC.md :
+chaque ligne déclare un morphisme \texttt{f : A -> B} ou une équation, dans
+la convention CS / mathématique habituelle.
+
+
+\section{Triangle commutatif}
+
+\begin{lstlisting}
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+\end{lstlisting}
+
+
+Voir \textbackslash{}ref\{fig:triangle\}.
+
+
+\section{Carré du produit}
+
+\begin{lstlisting}
+pi1 : P -> A
+pi2 : P -> B
+f   : X -> A
+g   : X -> B
+u   : X -> P by (f, g)
+
+pi1 . u = f
+pi2 . u = g
+\end{lstlisting}
+
+
+\section{Coproduit}
+
+\begin{lstlisting}
+i1 : A -> S
+i2 : B -> S
+f  : A -> X
+g  : B -> X
+v  : S -> X by (f, g)
+
+v . i1 = f
+v . i2 = g
+\end{lstlisting}
+
+
+\section{Carré de naturalité}
+
+\begin{lstlisting}
+Fh    : F(X) -> F(Y)
+Gh    : G(X) -> G(Y)
+eta_X : F(X) -> G(X)
+eta_Y : F(Y) -> G(Y)
+
+Gh . eta_X = eta_Y . Fh
+\end{lstlisting}
+
+
+\section{Pullback}
+
+\begin{lstlisting}
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+f . h  = g . k
+p1 . u = h
+p2 . u = k
+\end{lstlisting}
+
+
+\section{Égaliseur (paire parallèle)}
+
+\begin{lstlisting}
+f : A -> B
+g : A -> B
+e : E -> A
+h : Z -> A
+u : Z -> E by (h)
+
+f . e = g . e
+f . h = g . h
+e . u = h
+\end{lstlisting}
+
+
+\section{Fonctorialité}
+
+\begin{lstlisting}
+Ff   : F(A) -> F(B)
+Fg   : F(B) -> F(C)
+Fgof : F(A) -> F(C) = Fg . Ff
+\end{lstlisting}
+
+
+\section{Objet terminal}
+
+\begin{lstlisting}
+t : A -> T by ()
+\end{lstlisting}
+
+
+\section{Avec modificateurs (mono / epi / iso)}
+
+\begin{lstlisting}
+direction: LR
+i : A -> B (mono)
+p : B -> C (epi)
+q : A -> C (iso)
+\end{lstlisting}
+
+
+\section{Cas d'erreur — équation mal typée}
+
+L'équation \texttt{f = g} ci-dessous est mal typée (f va de A vers B, g va de
+B vers C). Le typechecker doit la rejeter avec un diagnostic positionnel.
+
+
+\begin{lstlisting}
+f : A -> B
+g : B -> C
+f = g
+\end{lstlisting}
+
+\end{document}

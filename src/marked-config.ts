@@ -10,9 +10,23 @@
 
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
+import { renderAlgorithmBlock } from './algorithm';
+import { parse as parseCategory, typecheck as typecheckCategory } from './category';
+import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
+import { emitSvg as emitCategorySvg } from './category-svg';
+import { parseFenceInfo, resetCaptions, withCaption } from './captions';
 import { renderChart } from './chart';
+import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
+import { renderTreeBlock } from './tree';
 import { highlightCode, isKnownLanguage } from './highlight';
+import {
+  anchorId,
+  prescanLabels,
+  resetRefs,
+  resolveRef,
+  stripLabels,
+} from './refs';
 
 interface MathBlockToken {
   type: 'mathBlock';
@@ -168,18 +182,40 @@ marked.use({
       // even on blocks whose output (table / SVG / math placeholder)
       // doesn't preserve the markdown form.
       const raw = token.raw ?? '';
-      if (lang === 'math') {
-        const escaped = escapeHtml(token.text);
+      // For every captionable block we extract a `"…"` quoted caption
+      // via parseFenceInfo, then wrap the rendered block in a `<figure>`
+      // with an auto-numbered `<figcaption>` (Algorithme N / Figure N /
+      // Tableau N / Listing N). Bare-words after the language tag stay
+      // available as positional `args` (e.g. `chart bar`, `tree svg`).
+      const info = parseFenceInfo(lang);
+      // ```math — display math (GitHub-style alias for $$…$$). Emits the
+      // same placeholder div that the mathBlock extension below uses;
+      // MathJax replaces it with an SVG later. Optionally captioned
+      // (`` ```math "Universal property" \label{fig:up} `` ` `) —
+      // typical use case is commutative diagrams (\begin{CD}…\end{CD})
+      // that benefit from a figure number.
+      if (lang === 'math' || lang.startsWith('math ')) {
+        // Body may carry a `\label{eq:…}` (numbered equation, same as
+        // `$$…$$`) and / or the fence info may carry a caption +
+        // `\label{fig:…}` (figure wrapper, typical for commutative
+        // diagrams). The two label kinds coexist independently.
+        const block = renderMathPlaceholder(token.text);
         return injectSource(
-          `<div class="math-block" data-math="${escaped}"></div>\n`,
+          withCaption('figure', info.caption, block, info.label),
           raw,
         );
       }
-      if (lang === 'csv') {
-        return injectSource(renderDataTable(token.text, ','), raw);
+      if (lang === 'csv' || lang.startsWith('csv ')) {
+        return injectSource(
+          withCaption('table', info.caption, renderDataTable(token.text, ','), info.label),
+          raw,
+        );
       }
-      if (lang === 'tsv') {
-        return injectSource(renderDataTable(token.text, '\t'), raw);
+      if (lang === 'tsv' || lang.startsWith('tsv ')) {
+        return injectSource(
+          withCaption('table', info.caption, renderDataTable(token.text, '\t'), info.label),
+          raw,
+        );
       }
       // ```inference (Label) — premises / dashes / conclusion. The
       // info string after `inference` is the optional rule label.
@@ -188,32 +224,113 @@ marked.use({
         const label = labelMatch ? (labelMatch[1] ?? '').trim() : '';
         return injectSource(renderInference(token.text, label), raw);
       }
-      // ```chart <type> [Title] — see chart.ts. Everything after the
-      // word "chart" (type + optional title) is forwarded as the info
-      // string; the helper does its own parsing.
+      // ```chart <type> "Caption" — `type` is a positional arg
+      // (bar / line / area / pie / scatter). Caption is uniform with
+      // the other figure-like blocks (Figure N: …).
       if (lang === 'chart' || lang.startsWith('chart ')) {
-        const m = /^chart\s*(.*)$/.exec(lang);
-        return injectSource(renderChart(token.text, m?.[1] ?? ''), raw);
+        const type = info.args[0] ?? '';
+        return injectSource(
+          withCaption('figure', info.caption, renderChart(token.text, type), info.label),
+          raw,
+        );
       }
       // ```ebnf — W3C EBNF parsed into a railroad / syntax diagram
       // per production. Pure SVG output, embedded as-is.
-      if (lang === 'ebnf') {
-        return injectSource(renderEbnfBlock(token.text), raw);
+      if (lang === 'ebnf' || lang.startsWith('ebnf ')) {
+        return injectSource(
+          withCaption('figure', info.caption, renderEbnfBlock(token.text), info.label),
+          raw,
+        );
+      }
+      // ```category — declarative commutative-diagram DSL (CD-SPEC).
+      // Parsed + typechecked by `category.ts`, then transpiled to a
+      // Mermaid `graph` source that piggybacks on the existing mermaid
+      // pipeline for SVG rendering. Parse / typecheck errors render in
+      // their own red error block, like math-error / mermaid-error.
+      if (lang === 'category' || lang.startsWith('category ')) {
+        const block = renderCategory(token.text);
+        return injectSource(
+          withCaption('figure', info.caption, block, info.label),
+          raw,
+        );
       }
       // ```adt — algebraic-data-type definitions in BNF-ish form
       // (LHS ::= Ctor(args) | …), typeset with aligned `|` and
       // constructor highlighting. Distinct from ebnf because the
       // intent is type definition rather than grammar.
-      if (lang === 'adt') {
-        return injectSource(renderAdtBlock(token.text), raw);
+      if (lang === 'adt' || lang.startsWith('adt ')) {
+        return injectSource(
+          withCaption('listing', info.caption, renderAdtBlock(token.text), info.label),
+          raw,
+        );
+      }
+      // ```diff — unified-diff text with per-line green / red /
+      // grey coloration for added / removed / context lines.
+      if (lang === 'diff' || lang.startsWith('diff ')) {
+        return injectSource(
+          withCaption('listing', info.caption, renderDiffBlock(token.text), info.label),
+          raw,
+        );
+      }
+      // ```tree [svg] — indent-based outline rendered as either a
+      // Unicode box-drawing tree (default — file structures, code
+      // hierarchies) or a top-down SVG diagram (`svg` keyword —
+      // syntax trees, parser derivations).
+      if (lang === 'tree' || lang.startsWith('tree ')) {
+        const mode = info.args.includes('svg') ? 'svg' : 'unicode';
+        return injectSource(
+          withCaption(
+            'figure',
+            info.caption,
+            renderTreeBlock(token.text, mode),
+            info.label,
+          ),
+          raw,
+        );
+      }
+      // ```algorithm "Caption" — pseudocode with auto-numbered caption,
+      // line numbers, and bolded keywords (for / while / if / return…).
+      if (lang === 'algorithm' || lang.startsWith('algorithm ')) {
+        return injectSource(
+          withCaption('algorithm', info.caption, renderAlgorithmBlock(token.text), info.label),
+          raw,
+        );
       }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown
       // languages fall through to marked's plain monospace block.
-      if (lang !== '' && isKnownLanguage(lang)) {
-        return injectSource(highlightCode(token.text, lang), raw);
+      // A `"caption"` may follow the language tag for a Listing N
+      // caption (e.g. ```python "Helpers" `).
+      const baseLang = lang.split(/\s+/)[0] ?? '';
+      if (baseLang !== '' && isKnownLanguage(baseLang)) {
+        return injectSource(
+          withCaption(
+            'listing',
+            info.caption,
+            highlightCode(token.text, baseLang),
+            info.label,
+          ),
+          raw,
+        );
       }
       return false;
+    },
+    // Heading renderer override: when the heading source contains
+    // `\label{sec:foo}`, emit `<hN id="sec-foo">` so `\ref{sec:foo}`
+    // can scroll/jump there. The label itself is hidden by the
+    // labelMark inline extension. Everything else falls through to
+    // marked's default heading rendering shape.
+    heading(token) {
+      const t = token as Tokens.Heading;
+      // The labelMark inline extension renders `\label{}` as empty, but
+      // the text token before it keeps its trailing space — trim so the
+      // heading doesn't end with a dangling space before `</hN>`.
+      const text = this.parser.parseInline(t.tokens).trimEnd();
+      const labelKey =
+        (/\\label\{([^}\n]+)\}/.exec(t.raw ?? '') ?? [, ''])[1] ?? '';
+      const idAttr =
+        labelKey !== '' ? ` id="${anchorId('section', labelKey)}"` : '';
+      return `<h${t.depth}${idAttr}>${text}</h${t.depth}>\n`;
     },
   },
   // Hooks for footnote + citation bookkeeping. preprocess wipes both
@@ -228,6 +345,12 @@ marked.use({
       footnoteSeen.length = 0;
       citationDefs.clear();
       citationSeen.length = 0;
+      resetCaptions();
+      // Pre-scan the whole source so `\ref{}` can resolve forward refs
+      // to labels that appear later in the doc. Populates the registry
+      // before any rendering happens.
+      resetRefs();
+      prescanLabels(src);
       return src;
     },
     postprocess(html) {
@@ -288,15 +411,11 @@ marked.use({
         };
         return token as unknown as Tokens.Generic;
       },
-      // Renderer emits a placeholder element. The preview pipeline finds
-      // these and swaps in the MathJax SVG once it's loaded.
+      // Renderer emits a placeholder element. Body labels + tag
+      // injection handled by the shared `renderMathPlaceholder` helper.
       renderer(token) {
         const t = token as unknown as MathBlockToken;
-        const escaped = escapeHtml(t.text);
-        return injectSource(
-          `<div class="math-block" data-math="${escaped}"></div>\n`,
-          t.raw,
-        );
+        return injectSource(renderMathPlaceholder(t.text), t.raw);
       },
     },
     {
@@ -551,6 +670,60 @@ marked.use({
         return `<span class="math-inline" data-math="${escaped}"></span>`;
       },
     },
+    {
+      // `\label{key}` — invisible label marker. The actual registration
+      // happens in the preprocess hook's pre-scan (so forward refs
+      // work); the inline extension just suppresses the visible text.
+      name: 'labelMark',
+      level: 'inline',
+      start(src: string) {
+        const m = /\\label\{/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\\label\{([^}\n]+)\}/.exec(src);
+        if (!match) return undefined;
+        return {
+          type: 'labelMark',
+          raw: match[0],
+          key: match[1] ?? '',
+        };
+      },
+      renderer() {
+        return '';
+      },
+    },
+    {
+      // `\ref{key}` — cross-reference to a labeled target. Resolves
+      // via the registry populated by the pre-scan; unknown keys
+      // render as a visible red `[?]` so typos are spotted at proof
+      // time, not at print time.
+      name: 'refMark',
+      level: 'inline',
+      start(src: string) {
+        const m = /\\ref\{/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        const match = /^\\ref\{([^}\n]+)\}/.exec(src);
+        if (!match) return undefined;
+        return {
+          type: 'refMark',
+          raw: match[0],
+          key: (match[1] ?? '').trim(),
+        };
+      },
+      renderer(token) {
+        const t = token as unknown as { key: string };
+        const entry = resolveRef(t.key);
+        if (!entry) {
+          const keyEsc = escapeHtml(t.key);
+          return `<span class="xref-broken" title="référence inconnue: ${keyEsc}">[?]</span>`;
+        }
+        const href = `#${anchorId(entry.kind, t.key)}`;
+        return `<a class="xref" href="${href}">${escapeHtml(entry.text)}</a>`;
+      },
+    },
   ],
 });
 
@@ -558,6 +731,70 @@ marked.use({
  * Purpose: Thread the original fenced-block markdown into the first tag of `html`.
  * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
  */
+/**
+ * Purpose: Render a `category` block — parse + typecheck, then emit a
+ *   Mermaid `<pre><code.language-mermaid>` placeholder that the existing
+ *   mermaid pipeline picks up at runtime. Parse / typecheck errors render
+ *   as a red error block listing every diagnostic with its line number.
+ * How: Delegates to `category.parse` + `category.typecheck` +
+ *   `category-mermaid.emitMermaid`. Errors are collected from both
+ *   phases so the user sees every problem at once.
+ */
+function renderCategory(source: string): string {
+  const { ast, errors: parseErrors } = parseCategory(source);
+  const tcErrors = parseErrors.length === 0 ? typecheckCategory(ast) : [];
+  const all = [...parseErrors, ...tcErrors];
+  if (all.length > 0) {
+    const items = all
+      .map((e) => {
+        const where = e.line > 0 ? `ligne ${e.line}: ` : '';
+        return `<li>${escapeHtml(where + e.message)}</li>`;
+      })
+      .join('');
+    return (
+      `<div class="category-error">` +
+      `<div class="category-error-msg">Erreur category</div>` +
+      `<ul>${items}</ul>` +
+      `<pre>${escapeHtml(source)}</pre>` +
+      `</div>\n`
+    );
+  }
+  // Native SVG renderer first — returns null when its grid-placement
+  // algorithm can't find an acceptable layout (rare topologies, large
+  // diagrams). In that case fall through to the Mermaid backend.
+  const svg = emitCategorySvg(ast);
+  if (svg !== null) {
+    return `<div class="category-wrap">${svg}</div>\n`;
+  }
+  const mermaidSrc = emitCategoryMermaid(ast);
+  return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
+}
+
+/**
+ * Purpose: Turn a display-math source into the `<div class="math-block">`
+ *   placeholder, handling equation labels uniformly across `$$…$$` and
+ *   ```math fences.
+ * How: If the source has a `\label{eq:foo}` and the cross-ref registry
+ *   resolved it (pre-scan populated the number), strip the label and
+ *   inject `\tag{N}` so MathJax renders the number on the right; also
+ *   emit `id="eq-foo"` on the wrapper so `\ref{eq:foo}` jumps here.
+ */
+function renderMathPlaceholder(source: string): string {
+  const labelKey = (/\\label\{([^}\n]+)\}/.exec(source) ?? [, ''])[1] ?? '';
+  let mathSrc = source;
+  let idAttr = '';
+  if (labelKey !== '') {
+    const entry = resolveRef(labelKey);
+    mathSrc = stripLabels(mathSrc);
+    if (entry !== null) {
+      mathSrc = `${mathSrc} \\tag{${entry.text}}`;
+      idAttr = ` id="${anchorId('equation', labelKey)}"`;
+    }
+  }
+  const escaped = escapeHtml(mathSrc);
+  return `<div class="math-block" data-math="${escaped}"${idAttr}></div>\n`;
+}
+
 function injectSource(html: string, raw: string): string {
   const escaped = escapeHtml(raw);
   return html.replace(/<(\w+)/, `<$1 data-source="${escaped}"`);

@@ -107,6 +107,7 @@ export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
  */
 export type ElementKey =
   | 'body'
+  | 'title'
   | 'h1'
   | 'h2'
   | 'h3'
@@ -120,10 +121,12 @@ export type ElementKey =
   | 'mermaid'
   | 'callout'
   | 'table'
+  | 'caption'
   | 'page-number';
 
 export const ELEMENT_KEYS: ElementKey[] = [
   'body',
+  'title',
   'h1',
   'h2',
   'h3',
@@ -137,6 +140,7 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'mermaid',
   'callout',
   'table',
+  'caption',
   'page-number',
 ];
 
@@ -174,6 +178,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   body: {
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'align', 'lineHeight', 'marginAbove', 'marginBelow'],
+  },
+  title: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
   },
   h1: {
     category: 'inline',
@@ -226,6 +234,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   table: {
     category: 'block',
     attrs: ['fontSize', 'color', 'borders', 'borderColor', 'borderWidth'],
+  },
+  caption: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
   },
   'page-number': {
     category: 'inline',
@@ -360,13 +372,23 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       marginAbove: 1,
       marginBelow: 1,
     },
-    h1: {
+    title: {
       fontSize: 24,
       color: '#09438b',
       weight: 500,
       italic: false,
       underline: true,
       align: 'center',
+      marginAbove: 0.4,
+      marginBelow: 1.2,
+    },
+    h1: {
+      fontSize: 22,
+      color: '#09438b',
+      weight: 500,
+      italic: false,
+      underline: false,
+      align: 'left',
       marginAbove: 1.6,
       marginBelow: 0.6,
     },
@@ -427,6 +449,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       borderRadius: 4,
     },
     table: {},
+    caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
     'page-number': { fontSize: 9, color: '#57606a', weight: 400, italic: false, underline: false },
   },
   pageNumber: {
@@ -550,6 +573,13 @@ function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
         borderColor: s.quote.barColor,
         borderWidth: out.quote.borderWidth ?? 3,
       };
+    }
+    // Pre-v0.8: `h1` doubled as the document title. The renderer now
+    // distinguishes the two — lift the user's old h1 styling onto the
+    // new `title` element so existing docs keep their look. Only fires
+    // when the profile pre-dates the split (no explicit `title`).
+    if (s.h1 && !s.title) {
+      out.title = { ...d.title, ...s.h1 };
     }
   }
   // Legacy: pageNumber.style { fontSize, italics, color } lived at the top
@@ -675,20 +705,37 @@ export interface MetadataLine {
  * Purpose: Collect the title-block metadata lines (author / org / date)
  *   in display order, dropping hidden or empty entries.
  * How: Append author and organization when `show && text.trim()`; append
- *   the formatted date when `formatDate` returns non-null.
+ *   the formatted date when `formatDate` returns non-null. Per-document
+ *   YAML frontmatter takes precedence over the profile fields when
+ *   provided.
  */
-export function metadataLines(s: PdfSettings): MetadataLine[] {
+export function metadataLines(
+  s: PdfSettings,
+  frontmatter?: {
+    author?: string;
+    organization?: string;
+    date?: string;
+  },
+): MetadataLine[] {
   const lines: MetadataLine[] = [];
-  if (s.author.show && s.author.text.trim() !== '') {
-    lines.push({ text: s.author.text.trim(), bold: s.author.bold });
+  const authorText = (frontmatter?.author ?? s.author.text).trim();
+  if (frontmatter?.author !== undefined || s.author.show) {
+    if (authorText !== '') {
+      lines.push({ text: authorText, bold: s.author.bold });
+    }
   }
-  if (s.organization.show && s.organization.text.trim() !== '') {
-    lines.push({
-      text: s.organization.text.trim(),
-      bold: s.organization.bold,
-    });
+  const orgText = (frontmatter?.organization ?? s.organization.text).trim();
+  if (frontmatter?.organization !== undefined || s.organization.show) {
+    if (orgText !== '') {
+      lines.push({ text: orgText, bold: s.organization.bold });
+    }
   }
-  const d = formatDate(s.date, s.language);
-  if (d) lines.push({ text: d, bold: false });
+  if (frontmatter?.date !== undefined) {
+    const t = frontmatter.date.trim();
+    if (t !== '') lines.push({ text: t, bold: false });
+  } else {
+    const d = formatDate(s.date, s.language);
+    if (d) lines.push({ text: d, bold: false });
+  }
   return lines;
 }

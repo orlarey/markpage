@@ -117,23 +117,27 @@ async function loadMathJax(fontSet: MathFontSet): Promise<Renderer> {
 
 /**
  * Purpose: Render a TeX source string to an SVG (or error) result for `fontSet`.
- * How: Per-(fontSet, display, source) cache; on miss, call MathJax and pull
- *   the bare `<svg>` from the `<mjx-container>` wrapper.
+ * How: Per-(fontSet, display, preamble, source) cache; on miss, call MathJax
+ *   on `preamble + source` and pull the bare `<svg>` from the wrapper.
+ *   The preamble lets a doc's YAML frontmatter inject `\newcommand` macros
+ *   visible to every formula without polluting the source of each one.
  */
 export async function renderMath(
   source: string,
   display: boolean,
   fontSet: MathFontSet = 'newcm',
+  preamble = '',
 ): Promise<MathResult> {
   const trimmed = source.trim();
-  const key = `${fontSet}|${display ? 'D' : 'I'}|${trimmed}`;
+  const key = `${fontSet}|${display ? 'D' : 'I'}|${preamble.length}|${preamble}|${trimmed}`;
   const cached = cache.get(key);
   if (cached) return cached;
 
   let result: MathResult;
   try {
     const mj = await loadMathJax(fontSet);
-    const wrapper = await mj.render(trimmed, display);
+    const full = preamble ? `${preamble}\n${trimmed}` : trimmed;
+    const wrapper = await mj.render(full, display);
     result = { ok: true, svg: extractSvg(wrapper) };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

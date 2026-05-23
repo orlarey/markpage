@@ -9,6 +9,7 @@
 
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
+import { parseFrontmatter, type Frontmatter } from './frontmatter';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { renderMermaid } from './mermaid';
 import { renderMath } from './math';
@@ -26,12 +27,18 @@ function underlineRule(s: Style): string {
 }
 
 /**
- * Purpose: Per-heading italic + weight + text-align, overriding static rules.
- * How: Emits explicit `font-style` / `font-weight` / `text-align` so the
- *   dynamic rule wins over the bold/strong + body-justify defaults.
+ * Purpose: Per-heading family + italic + weight + text-align, overriding the
+ *   static rules so the dynamic rule wins over the bold/strong + body-justify
+ *   defaults.
+ * How: Emits explicit `font-family` (when overridden), `font-style`,
+ *   `font-weight`, `text-align`.
  */
 function headingExtras(s: Style): string {
-  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
+  const fam =
+    s.family !== undefined && s.family.trim() !== ''
+      ? `font-family: ${quoteFontFamily(s.family)}; `
+      : '';
+  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
 }
 
 /**
@@ -44,24 +51,42 @@ function headingMargin(s: Style): string {
 }
 
 /**
- * Purpose: Render the markdown source into the target's `innerHTML`.
- * How: Synchronous `marked.parse` — the placeholders (math, mermaid) come later.
+ * Purpose: Render the markdown source into the target's `innerHTML`,
+ *   stripping any YAML frontmatter first and surfacing the doc title
+ *   (from `title:` in the frontmatter, or fallback to the first body
+ *   `<h1>`) tagged with `.doc-title` so it picks up `styles.title`.
+ * How: Frontmatter parse → marked.parse on the body; if the meta has
+ *   `title`, prepend a fresh `<h1.doc-title>`; otherwise promote the
+ *   first body h1 to `.doc-title`.
  */
 export function renderPreview(target: HTMLElement, source: string): void {
-  target.innerHTML = marked.parse(source, { async: false });
+  const { meta, body } = parseFrontmatter(source);
+  target.innerHTML = marked.parse(body, { async: false });
+  if (meta.title) {
+    const h1 = document.createElement('h1');
+    h1.classList.add('doc-title');
+    h1.textContent = meta.title;
+    target.prepend(h1);
+  } else {
+    const first = target.querySelector('h1');
+    if (first) first.classList.add('doc-title');
+  }
 }
 
 /**
  * Purpose: Insert/refresh the centered author/organization/date block after the first h1.
  * How: Removes any prior `.preview-metadata`, builds one div per line, places after h1.
+ *   `frontmatter` (optional) overrides the matching profile fields on a
+ *   per-document basis — same precedence rule as `title`.
  */
 export function applyPreviewMetadata(
   target: HTMLElement,
   settings: PdfSettings,
+  frontmatter?: Frontmatter,
 ): void {
   target.querySelector('.preview-metadata')?.remove();
 
-  const lines = metadataLines(settings);
+  const lines = metadataLines(settings, frontmatter);
   if (lines.length === 0) return;
 
   const block = document.createElement('div');
@@ -134,6 +159,7 @@ function countNewlines(s: string): number {
 export async function renderMathInlines(
   target: HTMLElement,
   fontSet: MathFontSet = 'newcm',
+  preamble = '',
 ): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('span.math-inline[data-math]'),
@@ -142,7 +168,7 @@ export async function renderMathInlines(
   await Promise.all(
     placeholders.map(async (el) => {
       const source = el.dataset['math'] ?? '';
-      const result = await renderMath(source, false, fontSet);
+      const result = await renderMath(source, false, fontSet, preamble);
       if (result.ok) {
         el.innerHTML = makeIdsUnique(result.svg);
       } else {
@@ -217,6 +243,7 @@ function makeIdsUnique(svg: string): string {
 export async function renderMathBlocks(
   target: HTMLElement,
   fontSet: MathFontSet = 'newcm',
+  preamble = '',
 ): Promise<void> {
   const placeholders = Array.from(
     target.querySelectorAll<HTMLElement>('.math-block[data-math]'),
@@ -225,7 +252,7 @@ export async function renderMathBlocks(
   await Promise.all(
     placeholders.map(async (el) => {
       const source = el.dataset['math'] ?? '';
-      const result = await renderMath(source, true, fontSet);
+      const result = await renderMath(source, true, fontSet, preamble);
       if (result.ok) {
         el.innerHTML = makeIdsUnique(result.svg);
       } else {
@@ -299,13 +326,18 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   const s = settings.styles;
   const align = s.body.align ?? 'left';
   const f = settings.fonts;
+  // Per-element family overrides the trio; the trio is the fallback
+  // when the matrix leaves `family` undefined.
+  const bodyName = (s.body.family ?? '').trim() || f.body;
+  const codeName = (s['code-inline'].family ?? '').trim() || f.code;
   const headFam = `${quoteFontFamily(f.headings)}, "Roboto Condensed", sans-serif`;
-  const bodyFam = `${quoteFontFamily(f.body)}, "Roboto Condensed", sans-serif`;
-  const codeFam = `${quoteFontFamily(f.code)}, "Roboto Mono", monospace`;
+  const bodyFam = `${quoteFontFamily(bodyName)}, "Roboto Condensed", sans-serif`;
+  const codeFam = `${quoteFontFamily(codeName)}, "Roboto Mono", monospace`;
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
     #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${headingMargin(s.h1)} }
+    #preview-pane h1.doc-title { font-size: ${s.title.fontSize}pt; color: ${s.title.color}; ${underlineRule(s.title)} ${headingExtras(s.title)} ${headingMargin(s.title)} }
     #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} ${headingMargin(s.h2)} }
     #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} ${headingMargin(s.h3)} }
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }
@@ -319,17 +351,25 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }
-    /* Block code: <pre> wrapper uses the code-block style box. */
-    #preview-pane pre { ${blockBoxCss(s['code-block'])} }
+    /* Block code: <pre> wrapper uses the code-block style box +
+       per-element typography (family/fontSize/color/margins) that
+       overrides the code-inline rule above for <pre> specifically.
+       Tree SVG diagrams and algorithm listings share the same frame. */
+    #preview-pane pre,
+    #preview-pane .tree-svg-wrap,
+    #preview-pane .algorithm { ${blockBoxCss(s['code-block'])} ${inlineCss(s['code-block'])} }
     #preview-pane blockquote { ${inlineCss(s.quote)} ${blockBoxCss(s.quote)} padding-left: ${s.quote.padding ?? 0.9}em; }
     /* Metadata block (author / organization / date) shown after h1. */
     #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
+    /* Auto-numbered figure / algorithm / table / listing caption. */
+    #preview-pane .caption { ${inlineCss(s.caption)} }
     /* Inline links — color and underline come from styles['inline-link']. */
     #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
-    /* Block math, mermaid, admonitions, tables — user-configurable box. */
-    #preview-pane .math-block { ${blockBoxCss(s['math-block'])} }
-    #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} }
-    #preview-pane .admonition { ${blockBoxCss(s.callout)} }
+    /* Block math, mermaid, admonitions, tables — user-configurable
+       box + inline (align / margins). */
+    #preview-pane .math-block { ${blockBoxCss(s['math-block'])} ${inlineCss(s['math-block'])} }
+    #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} ${inlineCss(s.mermaid)} }
+    #preview-pane .admonition { ${blockBoxCss(s.callout)} ${inlineCss(s.callout)} }
     #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
     #preview-pane p,
     #preview-pane li { text-align: ${align}; }

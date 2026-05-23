@@ -22,12 +22,17 @@ function pagedUnderline(s: Style): string {
 }
 
 /**
- * Purpose: Per-heading italic + weight + text-align for paged.js / print output.
- * How: Emits explicit `font-style` / `font-weight` / `text-align` declarations,
- *   keeping parity with the fluid preview's `headingExtras`.
+ * Purpose: Per-heading family + italic + weight + text-align for paged.js /
+ *   print output. Keeps parity with the fluid preview's `headingExtras`.
+ * How: Emits explicit `font-family` (when overridden), `font-style`,
+ *   `font-weight`, `text-align`.
  */
 function pagedHeadingExtras(s: Style): string {
-  return `font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
+  const fam =
+    s.family !== undefined && s.family.trim() !== ''
+      ? `font-family: ${quoteFontFamily(s.family)}; `
+      : '';
+  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
 }
 
 /**
@@ -231,9 +236,13 @@ export function pagedCss(s: PdfSettings): string {
   const pn = s.pageNumber;
   const styles = s.styles;
   const pageNumberRule = pageNumberCss(pn, styles['page-number']);
+  // Per-element family overrides the trio; the trio is the fallback
+  // when the matrix leaves `family` undefined.
+  const bodyName = (styles.body.family ?? '').trim() || s.fonts.body;
+  const codeName = (styles['code-inline'].family ?? '').trim() || s.fonts.code;
   const headingsFamily = fontFamilyChain(s.fonts.headings, 'sans');
-  const bodyFamily = fontFamilyChain(s.fonts.body, 'sans');
-  const codeFamily = fontFamilyChain(s.fonts.code, 'mono');
+  const bodyFamily = fontFamilyChain(bodyName, 'sans');
+  const codeFamily = fontFamilyChain(codeName, 'mono');
   // All typography rules below are scoped to the two containers that
   // host paginated content: `#preview-pane` for the on-screen aperçu
   // (paged.js writes its `.pagedjs_pages` tree there), and
@@ -261,6 +270,7 @@ export function pagedCss(s: PdfSettings): string {
 
     ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
     ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} ${pagedHeadingMargin(styles.h1)} }
+    ${SCOPE} h1.doc-title { font-size: ${styles.title.fontSize}pt; color: ${styles.title.color}; ${pagedUnderline(styles.title)} ${pagedHeadingExtras(styles.title)} ${pagedHeadingMargin(styles.title)} }
     ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} ${pagedHeadingMargin(styles.h2)} }
     ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} ${pagedHeadingMargin(styles.h3)} }
     ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} ${pagedHeadingMargin(styles.h4)} }
@@ -285,7 +295,12 @@ export function pagedCss(s: PdfSettings): string {
       font-size: ${styles['code-inline'].fontSize}pt;
       color: ${styles['code-inline'].color};
     }
-    ${SCOPE} pre { ${blockBoxCss(styles['code-block'])} }
+    /* Block code: <pre> wrapper + tree SVG + algorithm get the
+       code-block style box plus per-element typography (overrides
+       the code-inline rule above for <pre> specifically). */
+    ${SCOPE} pre,
+    ${SCOPE} .tree-svg-wrap,
+    ${SCOPE} .algorithm { ${blockBoxCss(styles['code-block'])} ${inlineCss(styles['code-block'])} }
 
     ${SCOPE} blockquote {
       ${inlineCss(styles.quote)}
@@ -297,12 +312,15 @@ export function pagedCss(s: PdfSettings): string {
 
     /* Metadata block (author / organization / date) shown after h1. */
     ${SCOPE} .preview-metadata { ${inlineCss(styles.metadata)} }
+    /* Auto-numbered figure / algorithm / table / listing caption. */
+    ${SCOPE} .caption { ${inlineCss(styles.caption)} }
     /* Inline links — color + underline from styles['inline-link']. */
     ${SCOPE} a { ${inlineCss(styles['inline-link'])} text-decoration: ${styles['inline-link'].underline ? 'underline' : 'none'}; }
-    /* Block math, mermaid, admonitions, tables — user-configurable box. */
-    ${SCOPE} .math-block { ${blockBoxCss(styles['math-block'])} }
-    ${SCOPE} .mermaid-block { ${blockBoxCss(styles.mermaid)} }
-    ${SCOPE} .admonition { ${blockBoxCss(styles.callout)} }
+    /* Block math, mermaid, admonitions, tables — user-configurable
+       box + inline (align / margins). */
+    ${SCOPE} .math-block { ${blockBoxCss(styles['math-block'])} ${inlineCss(styles['math-block'])} }
+    ${SCOPE} .mermaid-block { ${blockBoxCss(styles.mermaid)} ${inlineCss(styles.mermaid)} }
+    ${SCOPE} .admonition { ${blockBoxCss(styles.callout)} ${inlineCss(styles.callout)} }
     ${SCOPE} table { border-collapse: collapse; ${inlineCss(styles.table)} ${blockBoxCss(styles.table)} }
 
     /* Images: cap both width and height to the page's content area so
@@ -405,7 +423,7 @@ function pageNumberCss(
   return `
     ${at} {
       content: counter(page);
-      ${style.family !== undefined ? `font-family: ${style.family};` : ''}
+      ${style.family !== undefined && style.family.trim() !== '' ? `font-family: ${quoteFontFamily(style.family)};` : ''}
       ${style.fontSize !== undefined ? `font-size: ${style.fontSize}pt;` : ''}
       ${style.color !== undefined ? `color: ${style.color};` : ''}
       ${style.weight !== undefined ? `font-weight: ${style.weight};` : ''}

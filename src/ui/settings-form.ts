@@ -406,6 +406,7 @@ export function buildSettingsForm(
           ...(
             [
               'body',
+              'title',
               'h1',
               'h2',
               'h3',
@@ -416,6 +417,7 @@ export function buildSettingsForm(
               'code-block',
               'quote',
               'table',
+              'caption',
               'page-number',
             ] as const
           ).map((key) => ({
