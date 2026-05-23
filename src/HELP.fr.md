@@ -931,8 +931,8 @@ sont complètes :
 
 > Les **chevrons** `⟨` et `⟩` (angle brackets) s'obtiennent uniquement
 > via `\langle` et `\rangle` (cf. ci-dessous). Pas de ligature `<<` /
-> `>>` pour ne pas entrer en collision avec la syntaxe des flèches
-> AMS-CD (`@>>label>`) dans les diagrammes commutatifs.
+> `>>` — celles-ci restent disponibles littéralement (utile par
+> exemple pour les opérateurs de décalage de bits dans du code).
 
 Les **commandes LaTeX** (`\xxx`) attendent un **caractère terminateur**
 (espace, ponctuation, opérateur, retour à la ligne) avant de se
@@ -1153,63 +1153,13 @@ Pour les commandes LaTeX qui n'ont pas d'équivalent Unicode dans nos
 ligatures (par exemple `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), tapez-les directement.
 
-### Diagrammes commutatifs \label{sec:cd}
-
-Pour les **diagrammes commutatifs** (carrés, triangles, factorisations
-universelles), utilisez l'environnement **AMS-CD** à l'intérieur d'un
-bloc math :
-
-````
-$$
-\begin{CD}
-  A  @>f>>  B \\
-  @VgVV    @VVhV \\
-  C  @>>k>  D
-\end{CD}
-$$
-````
-
-Les **flèches** sont écrites entre les colonnes :
-
-- **Horizontales** : `@>label>>` (vers la droite, label au-dessus),
-  `@>>label<` (label en-dessous), `@<label<<` (vers la gauche),
-  `@=` (signe `=`).
-- **Verticales** : `@VlabelVV` (vers le bas, label à gauche),
-  `@VVlabelV` (label à droite), `@AlabelAA` (vers le haut), `@|`
-  (signe `=` vertical).
-- **Cellule vide** : laisser le contenu vide (`A @>>> B \\ @>>> C`
-  pour un triangle).
-
-Vous pouvez **nommer le diagramme** en l'enveloppant dans un bloc
-` ```math ` avec une légende et un label de cross-référence :
-
-````
-```math "Propriété universelle du produit fibré" \label{fig:pullback}
-\begin{CD}
-  P  @>p_1>>  A \\
-  @Vp_2VV    @VVfV \\
-  B  @>>g>    C
-\end{CD}
-```
-````
-
-Le diagramme est alors numéroté comme une figure, et `\ref{fig:pullback}`
-y renvoie depuis n'importe où dans le document.
-
-> **Limitations.** AMS-CD ne gère que les diagrammes **alignés sur
-> grille** — pas de flèches diagonales ni courbes. Pour des
-> diagrammes plus complexes (pullback, equalizer, propriétés
-> universelles avec flèche induite distincte), voir
-> \ref{sec:category} ci-dessous.
-
 ### Diagrammes catégoriques déclaratifs \label{sec:category}
 
-Pour les diagrammes commutatifs avec **flèches induites** (pullbacks,
-produits, equalizers…) ou des topologies qu'AMS-CD ne sait pas placer
-proprement, le fence ` ```category ` offre une syntaxe **déclarative**
-plus riche : chaque ligne décrit un morphisme dans la convention CS /
-mathématique standard `f : A -> B`, et le moteur calcule le layout
-automatiquement.
+Pour les **diagrammes commutatifs** (carrés, triangles, pullbacks,
+equalizers, propriétés universelles), le fence ` ```category ` offre
+une syntaxe **déclarative** simple : chaque ligne décrit un morphisme
+dans la convention CS / mathématique standard `f : A -> B`, et le
+moteur calcule le layout automatiquement.
 
 Triangle commutatif :
 
@@ -1283,12 +1233,11 @@ Les **ligatures de saisie** (\pi → π, indices chiffrés) sont actives
 dans le bloc — `\pi_1` tapé devient `π₁` et le parser accepte les
 identifiants Unicode (lettres grecques, indices, exposants).
 
-> **Quand utiliser quoi.** Pour un diagramme rectangulaire simple
-> (carré, triangle), AMS-CD via `$$\begin{CD}…\end{CD}$$` est concis.
-> Pour tout ce qui implique une flèche induite, un pullback, un
-> equalizer, ou une topologie où vous voulez que le moteur trouve le
-> bon placement, `category` est l'outil. La spec complète est dans
-> `CATEGORY-SPEC.md` à la racine du dépôt.
+> **Spec complète** dans `CATEGORY-SPEC.md` à la racine du dépôt —
+> grammaire EBNF, sémantique de typage, stratégie de rendu, corpus
+> canonique de dix diagrammes (triangle, produit, coproduit, carré
+> de naturalité, pullback, pushout, égaliseur, coégaliseur,
+> fonctorialité, objet terminal).
 
 ### Diagrammes Mermaid \label{sec:mermaid}
 

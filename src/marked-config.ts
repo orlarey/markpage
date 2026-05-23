@@ -191,14 +191,13 @@ marked.use({
       // ```math — display math (GitHub-style alias for $$…$$). Emits the
       // same placeholder div that the mathBlock extension below uses;
       // MathJax replaces it with an SVG later. Optionally captioned
-      // (`` ```math "Universal property" \label{fig:up} `` ` `) —
-      // typical use case is commutative diagrams (\begin{CD}…\end{CD})
-      // that benefit from a figure number.
+      // (`` ```math "Cauchy-Schwarz" \label{eq:cs} `` ` `) — the
+      // figure wrapper lets the equation be referenced by `\ref{}`.
       if (lang === 'math' || lang.startsWith('math ')) {
         // Body may carry a `\label{eq:…}` (numbered equation, same as
         // `$$…$$`) and / or the fence info may carry a caption +
-        // `\label{fig:…}` (figure wrapper, typical for commutative
-        // diagrams). The two label kinds coexist independently.
+        // `\label{fig:…}` (figure wrapper). The two label kinds
+        // coexist independently.
         const block = renderMathPlaceholder(token.text);
         return injectSource(
           withCaption('figure', info.caption, block, info.label),

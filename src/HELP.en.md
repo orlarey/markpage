@@ -893,8 +893,8 @@ with their mathematical equivalent. Two mechanics coexist:
 | `...` | … | | |
 
 > The **angle brackets** `⟨` and `⟩` are only available via `\langle`
-> and `\rangle` (see below). No `<<` / `>>` ligature, to avoid clashing
-> with the AMS-CD arrow syntax (`@>>label>`) in commutative diagrams.
+> and `\rangle` (see below). No `<<` / `>>` ligature — those stay
+> available literally (useful for bit-shift operators in code, etc.).
 
 **LaTeX commands** (`\xxx`) wait for a **terminator character**
 (space, punctuation, operator, newline) before firing. Type `\alpha`
@@ -1112,61 +1112,13 @@ For LaTeX commands that have no Unicode equivalent in our ligatures
 (for example `\Gamma`, `\forall`, `\exists`, `\Rightarrow`,
 `\leq`), type them directly.
 
-### Commutative diagrams \label{sec:cd}
-
-For **commutative diagrams** (squares, triangles, universal
-factorisations), use the **AMS-CD** environment inside any math
-block:
-
-````
-$$
-\begin{CD}
-  A  @>f>>  B \\
-  @VgVV    @VVhV \\
-  C  @>>k>  D
-\end{CD}
-$$
-````
-
-**Arrows** sit between the columns:
-
-- **Horizontal**: `@>label>>` (rightward, label above),
-  `@>>label<` (label below), `@<label<<` (leftward), `@=` (equals
-  sign).
-- **Vertical**: `@VlabelVV` (downward, label on the left),
-  `@VVlabelV` (label on the right), `@AlabelAA` (upward), `@|`
-  (vertical equals sign).
-- **Empty cell**: leave the content blank (`A @>>> B \\ @>>> C`
-  for a triangle).
-
-You can **name the diagram** by wrapping it in a ` ```math ` fence
-with a caption and a cross-reference label:
-
-````
-```math "Universal property of the pullback" \label{fig:pullback}
-\begin{CD}
-  P  @>p_1>>  A \\
-  @Vp_2VV    @VVfV \\
-  B  @>>g>    C
-\end{CD}
-```
-````
-
-The diagram is then numbered as a figure, and `\ref{fig:pullback}`
-references it from anywhere in the document.
-
-> **Limitations.** AMS-CD only handles **grid-aligned** diagrams —
-> no diagonal or curved arrows. For more complex diagrams (pullback,
-> equalizer, universal properties with a distinct induced arrow),
-> see \ref{sec:category} below.
-
 ### Declarative category diagrams \label{sec:category}
 
-For commutative diagrams with **induced arrows** (pullbacks, products,
-equalizers…) or topologies AMS-CD can't place cleanly, the
-` ```category ` fence offers a richer **declarative** syntax: each
-line declares a morphism in the standard CS / math convention
-`f : A -> B`, and the engine computes the layout automatically.
+For **commutative diagrams** (squares, triangles, pullbacks, equalizers,
+universal properties), the ` ```category ` fence offers a simple
+**declarative** syntax: each line declares a morphism in the standard
+CS / math convention `f : A -> B`, and the engine computes the layout
+automatically.
 
 Commutative triangle:
 
@@ -1238,12 +1190,11 @@ following equations express the cone's commutativity.
 inside the block — `\pi_1` typed becomes `π₁` and the parser accepts
 Unicode identifiers (Greek letters, subscripts, superscripts).
 
-> **When to use which.** For a simple rectangular diagram (square,
-> triangle), AMS-CD via `$$\begin{CD}…\end{CD}$$` is concise. For
-> anything involving an induced arrow, a pullback, an equalizer, or a
-> topology where you want the engine to find a good placement,
-> `category` is the tool. The full spec lives in `CATEGORY-SPEC.md`
-> at the root of the repository.
+> **Full spec** in `CATEGORY-SPEC.md` at the repository root — EBNF
+> grammar, typing semantics, rendering strategy, and a canonical
+> corpus of ten diagrams (triangle, product, coproduct, naturality
+> square, pullback, pushout, equalizer, coequalizer, functoriality,
+> terminal object).
 
 ### Mermaid diagrams \label{sec:mermaid}
 

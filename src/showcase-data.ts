@@ -211,6 +211,112 @@ process = + ~ (de.delay(48000, delay * ma.SR) * fb);
 `,
   },
   {
+    id: 'diff',
+    title: 'Unified diffs with per-line tinting',
+    description:
+      'A ```diff fenced block reads a standard unified-diff text and renders each line in its native colour — green for additions, red for removals, grey for context, blue for hunk headers. The typography (font, padding, background) inherits from your code-block style.',
+    sourceLang: 'markdown',
+    source: `## A patch worth reviewing
+
+\`\`\`diff
+--- a/quicksort.py
++++ b/quicksort.py
+@@ -1,5 +1,6 @@
+ def quicksort(xs):
+     if len(xs) <= 1:
+         return xs
+-    pivot = xs[0]
++    import random
++    pivot = random.choice(xs)
+     rest = [x for x in xs if x != pivot]
+\`\`\`
+`,
+  },
+  {
+    id: 'tree',
+    title: 'Trees from indent-only source',
+    description:
+      'A ```tree fenced block converts an indent-based outline into a Unicode box-drawing tree — perfect for filesystem layouts in READMEs, taxonomy diagrams, or dependency hierarchies. Adding the `svg` keyword switches to a top-down rendering for syntax trees.',
+    sourceLang: 'markdown',
+    source: `## Project layout
+
+\`\`\`tree
+markpage
+  src
+    category.ts
+    captions.ts
+    refs.ts
+  tests
+    corpus
+      21-category.md
+  package.json
+\`\`\`
+
+## A syntactic decomposition
+
+\`\`\`tree svg
+S
+  NP
+    Det
+    N
+  VP
+    V
+    NP
+      Det
+      N
+\`\`\`
+`,
+  },
+  {
+    id: 'algorithm',
+    title: 'Pseudocode with line numbers',
+    description:
+      'A ```algorithm fenced block typesets pseudocode in the LaTeX `algorithm2e` style — auto-numbered caption, line numbers in the gutter, bolded keywords, indentation preserved. The block participates in the unified caption system, so `\\ref{alg:foo}` can cross-reference it elsewhere.',
+    sourceLang: 'markdown',
+    source: `\`\`\`algorithm "Bubble sort"
+Input: array A of length n
+Output: A sorted in place
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+return A
+\`\`\`
+`,
+  },
+  {
+    id: 'captions-xrefs',
+    title: 'Auto-numbered captions and cross-references',
+    description:
+      'Any captionable fenced block (algorithm, chart, mermaid, csv, code listing, math) accepts a `"caption"` after the language tag and an optional `\\label{key}`. Captions are auto-numbered per kind (Algorithme 1, Figure 1, Tableau 1, Listing 1); `\\ref{key}` resolves to a clickable link to the target.',
+    sourceLang: 'markdown',
+    source: String.raw`## Three results, all labelled
+
+\`\`\`csv "Latency per buffer size" \label{tab:latency}
+buffer (samples), latency (ms)
+64,    1.3
+256,   5.3
+1024, 21.3
+\`\`\`
+
+\`\`\`algorithm "Bubble sort" \label{alg:bubble}
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+\`\`\`
+
+The data in \ref{tab:latency} drives the choice of buffer size; the
+sorting routine of \ref{alg:bubble} runs once at startup.
+`,
+  },
+  {
     id: 'charts',
     title: 'Charts from CSV data',
     description:
@@ -323,6 +429,33 @@ The application rule of the simply-typed lambda calculus reads:
 
 Premises separated by \`;\` go side by side, with a \`\\quad\` of breathing
 room. The rule label appears to the right of the bar.
+`,
+  },
+  {
+    id: 'category',
+    title: 'Commutative diagrams, type-checked',
+    description:
+      'A ```category fenced block declares a small category by its morphisms — one per line in the standard CS notation `f : A -> B`. The typechecker validates compositions and equations before rendering; a native SVG engine handles auto-layout, straight arrows, dashed universal factorisations, and modifier glyphs (↣ for mono, ↠ for epi, ≅ for iso). Objects are inferred from the morphism endpoints.',
+    sourceLang: 'markdown',
+    source: `## Pullback universal property
+
+\`\`\`category "Pullback"
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+p1 . u = h
+p2 . u = k
+\`\`\`
+
+The \`by (h, k)\` clause marks \`u\` as the unique factorisation —
+rendered dashed. The equations express the cone's commutativity;
+the typechecker rejects any composition mismatch before rendering.
 `,
   },
   {

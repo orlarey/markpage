@@ -10,7 +10,6 @@
 import '@mathjax/src/js/input/tex/base/BaseConfiguration.js';
 import '@mathjax/src/js/input/tex/action/ActionConfiguration.js';
 import '@mathjax/src/js/input/tex/ams/AmsConfiguration.js';
-import '@mathjax/src/js/input/tex/amscd/AmsCdConfiguration.js';
 import '@mathjax/src/js/input/tex/bbox/BboxConfiguration.js';
 import '@mathjax/src/js/input/tex/boldsymbol/BoldsymbolConfiguration.js';
 import '@mathjax/src/js/input/tex/braket/BraketConfiguration.js';
@@ -44,7 +43,6 @@ export const AllPackages: string[] = [
   'base',
   'action',
   'ams',
-  'amscd',
   'bbox',
   'boldsymbol',
   'braket',

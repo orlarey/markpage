@@ -188,11 +188,10 @@ const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
   ['Rightarrow', '⇒'],
   ['Leftrightarrow', '⇔'],
 
-  // ---- Angle brackets — replace the old `<<` / `>>` tail ligatures
-  // which conflicted with the AMS-CD `@>>label>` / `@<<label<` arrow
-  // syntax in commutative diagrams. Now the LaTeX command form is
-  // the only way to get them, mirroring how `\langle` / `\rangle`
-  // are written in proper math.
+  // ---- Angle brackets — the LaTeX command form is the only way to
+  // get them, mirroring how `\langle` / `\rangle` are written in
+  // proper math. Avoids ambiguities with `<<` / `>>` as e.g. bit-
+  // shift operators or arrow-stacking notations.
   ['langle', '⟨'],
   ['rangle', '⟩'],
 ]);
@@ -208,9 +207,9 @@ const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
 function buildTailLigatures(): ReadonlyMap<string, string> {
   const m = new Map<string, string>([
     // Brackets — Scott brackets only. Angle brackets `⟨` / `⟩`
-    // moved to the `\langle` / `\rangle` LaTeX commands so the
-    // tail forms `<<` / `>>` don't conflict with the AMS-CD
-    // `@>>label>` arrow syntax in `\begin{CD}…\end{CD}` blocks.
+    // moved to the `\langle` / `\rangle` LaTeX commands (above)
+    // so the tail forms `<<` / `>>` stay available for things
+    // like bit shifts in code.
     ['[[', '⟦'],
     [']]', '⟧'],
     // Arrows
