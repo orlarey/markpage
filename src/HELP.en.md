@@ -1156,9 +1156,94 @@ The diagram is then numbered as a figure, and `\ref{fig:pullback}`
 references it from anywhere in the document.
 
 > **Limitations.** AMS-CD only handles **grid-aligned** diagrams —
-> no diagonal or curved arrows. For these (cf. xy-pic / tikz-cd in
-> LaTeX), MathJax has no native support; a dedicated SVG renderer
-> remains under consideration.
+> no diagonal or curved arrows. For more complex diagrams (pullback,
+> equalizer, universal properties with a distinct induced arrow),
+> see \ref{sec:category} below.
+
+### Declarative category diagrams \label{sec:category}
+
+For commutative diagrams with **induced arrows** (pullbacks, products,
+equalizers…) or topologies AMS-CD can't place cleanly, the
+` ```category ` fence offers a richer **declarative** syntax: each
+line declares a morphism in the standard CS / math convention
+`f : A -> B`, and the engine computes the layout automatically.
+
+Commutative triangle:
+
+````
+```category
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+````
+
+The `= g . f` suffix declares `h` as a shortcut for the composition
+`g ∘ f` — the typechecker validates commutativity before rendering,
+and `h` is drawn as a secondary edge.
+
+**Pullback** (cone over a cospan):
+
+````
+```category "Pullback universal property"
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+p1 . u = h
+p2 . u = k
+```
+````
+
+The **`by (h, k)`** clause marks `u` as a **universal arrow**: it
+exists and is unique by the property of `h` and `k`. The engine draws
+it **dashed** (textbook convention for universal factorisations). The
+following equations express the cone's commutativity.
+
+**Keywords**:
+
+| Form | Meaning |
+| --- | --- |
+| `f : A -> B` | morphism |
+| `f : A -> B (mono)` | monomorphism (label suffixed `↣`) |
+| `f : A -> B (epi)` | epimorphism (label suffixed `↠`) |
+| `f : A -> B (iso)` | isomorphism (label suffixed `≅`) |
+| `h : A -> B = g . f` | morphism + shortcut equation |
+| `u : X -> P by (f, g)` | induced morphism (dashed render) |
+| `g . f = h . k` | standalone equation (commutativity) |
+| `direction: TB` | force layout direction (`TB`, `BT`, `LR`, `RL`) |
+| `objects: T, X` | optional declaration (isolated objects or strict typo detection) |
+
+**What the engine does for you**:
+
+- **Object inference** from morphism endpoints — no need to list them.
+- **Typechecking**: ill-typed compositions (`f . g` when
+  `cod(g) ≠ dom(f)`) and equations whose sides don't share
+  domain/codomain are rejected before rendering, with a positional
+  diagnostic.
+- **Automatic layout**: two-pass algorithm, optimising for horizontal
+  and vertical arrows first, then expanding to a rotated frame
+  (45° + scaling) if the topology requires it (pullback, pushout…).
+  Edge labels positioned on the outside of the figure.
+- **Captions and cross-refs** like any captionable block: `"Title"
+  \label{fig:xxx}` after `category` numbers as `Figure N` and enables
+  `\ref{fig:xxx}` elsewhere in the document.
+
+**Editor input ligatures** (\pi → π, digit subscripts) are active
+inside the block — `\pi_1` typed becomes `π₁` and the parser accepts
+Unicode identifiers (Greek letters, subscripts, superscripts).
+
+> **When to use which.** For a simple rectangular diagram (square,
+> triangle), AMS-CD via `$$\begin{CD}…\end{CD}$$` is concise. For
+> anything involving an induced arrow, a pullback, an equalizer, or a
+> topology where you want the engine to find a good placement,
+> `category` is the tool. The full spec lives in `CATEGORY-SPEC.md`
+> at the root of the repository.
 
 ### Mermaid diagrams \label{sec:mermaid}
 

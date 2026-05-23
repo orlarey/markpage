@@ -1197,9 +1197,98 @@ Le diagramme est alors numéroté comme une figure, et `\ref{fig:pullback}`
 y renvoie depuis n'importe où dans le document.
 
 > **Limitations.** AMS-CD ne gère que les diagrammes **alignés sur
-> grille** — pas de flèches diagonales ni courbes. Pour ces cas
-> avancés (cf. xy-pic / tikz-cd en LaTeX), MathJax n'a pas de
-> support natif ; un éventuel renderer SVG dédié reste à l'étude.
+> grille** — pas de flèches diagonales ni courbes. Pour des
+> diagrammes plus complexes (pullback, equalizer, propriétés
+> universelles avec flèche induite distincte), voir
+> \ref{sec:category} ci-dessous.
+
+### Diagrammes catégoriques déclaratifs \label{sec:category}
+
+Pour les diagrammes commutatifs avec **flèches induites** (pullbacks,
+produits, equalizers…) ou des topologies qu'AMS-CD ne sait pas placer
+proprement, le fence ` ```category ` offre une syntaxe **déclarative**
+plus riche : chaque ligne décrit un morphisme dans la convention CS /
+mathématique standard `f : A -> B`, et le moteur calcule le layout
+automatiquement.
+
+Triangle commutatif :
+
+````
+```category
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+````
+
+Le suffixe `= g . f` déclare `h` comme raccourci pour la composition
+`g ∘ f` — le typechecker valide la commutativité avant le rendu, et la
+flèche `h` est dessinée comme arête secondaire.
+
+**Pullback** (cône au-dessus d'un cospan) :
+
+````
+```category "Propriété universelle du pullback"
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+p1 . u = h
+p2 . u = k
+```
+````
+
+La clause **`by (h, k)`** marque `u` comme **flèche universelle** :
+elle existe et est unique grâce aux deux morphismes `h` et `k`. Le
+moteur la dessine **en pointillé** (convention textbook pour les
+factorisations universelles). Les équations qui suivent expriment la
+commutativité du cône.
+
+**Mots-clés** :
+
+| Forme | Sens |
+| --- | --- |
+| `f : A -> B` | morphisme |
+| `f : A -> B (mono)` | monomorphisme (label suffixé `↣`) |
+| `f : A -> B (epi)` | épimorphisme (label suffixé `↠`) |
+| `f : A -> B (iso)` | isomorphisme (label suffixé `≅`) |
+| `h : A -> B = g . f` | morphisme + équation de raccourci |
+| `u : X -> P by (f, g)` | morphisme induit (rendu pointillé) |
+| `g . f = h . k` | équation autonome (commutativité) |
+| `direction: TB` | force la direction du layout (`TB`, `BT`, `LR`, `RL`) |
+| `objects: T, X` | déclaration optionnelle (objets isolés ou détection stricte des typos) |
+
+**Ce que le moteur fait pour vous** :
+
+- **Inférence des objets** depuis les endpoints des morphismes — pas
+  besoin de les lister.
+- **Typechecking** : compositions mal typées (`f . g` quand
+  `cod(g) ≠ dom(f)`) et équations dont les deux côtés n'ont pas les
+  mêmes domaine/codomaine sont rejetées avant le rendu, avec un
+  diagnostic positionnel.
+- **Layout automatique** : algorithme à deux passes, optimise pour
+  flèches horizontales / verticales en premier, puis bascule sur un
+  repère élargi (45° + expansion) si la topologie l'exige (pullback,
+  pushout…). Étiquettes positionnées à l'extérieur de la figure.
+- **Captions et cross-refs** comme tout bloc captionnable : `"Titre"
+  \label{fig:xxx}` après `category` numérote en `Figure N` et permet
+  `\ref{fig:xxx}` ailleurs dans le document.
+
+Les **ligatures de saisie** (\pi → π, indices chiffrés) sont actives
+dans le bloc — `\pi_1` tapé devient `π₁` et le parser accepte les
+identifiants Unicode (lettres grecques, indices, exposants).
+
+> **Quand utiliser quoi.** Pour un diagramme rectangulaire simple
+> (carré, triangle), AMS-CD via `$$\begin{CD}…\end{CD}$$` est concis.
+> Pour tout ce qui implique une flèche induite, un pullback, un
+> equalizer, ou une topologie où vous voulez que le moteur trouve le
+> bon placement, `category` est l'outil. La spec complète est dans
+> `CATEGORY-SPEC.md` à la racine du dépôt.
 
 ### Diagrammes Mermaid \label{sec:mermaid}
 
