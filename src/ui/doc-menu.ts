@@ -23,6 +23,7 @@ export interface DocMenuOptions {
   onCreate(): void;
   onRenameCurrent(name: string): void;
   onRenameOther(uuid: string, name: string): void;
+  onReload(uuid: string): void;
   onDuplicate(uuid: string): void;
   onDelete(uuid: string): void;
 }
@@ -92,6 +93,19 @@ export function openDocMenu(
       if (input.value !== original) opts.onRenameCurrent(input.value);
     });
     row.append(input);
+    // Reload-from-disk button, anchored to the right of the rename
+    // input. Reloads the CURRENT doc — same handler as per-row reload
+    // on other docs, since onReload accepts any uuid.
+    const reloadBtn = document.createElement('button');
+    reloadBtn.type = 'button';
+    reloadBtn.className = 'doc-menu-current-reload';
+    reloadBtn.textContent = t('doc-menu.reload');
+    reloadBtn.title = t('doc-menu.reload-title');
+    reloadBtn.addEventListener('click', () => {
+      opts.onReload(current.uuid);
+      close();
+    });
+    row.append(reloadBtn);
     menu.append(row);
     // Focus + select the input when the menu opens so the user can
     // start typing immediately to rename.
@@ -180,6 +194,11 @@ function buildOtherRow(
   const renameBtn = actionBtn(t('doc-menu.rename'), () => {
     enterInlineRename(row, nameEl, doc, opts);
   });
+  const reloadBtn = actionBtn(t('doc-menu.reload'), () => {
+    opts.onReload(doc.uuid);
+    close();
+  });
+  reloadBtn.title = t('doc-menu.reload-title');
   const dupBtn = actionBtn(t('doc-menu.duplicate'), () => {
     opts.onDuplicate(doc.uuid);
     close();
@@ -190,7 +209,7 @@ function buildOtherRow(
       close();
     }
   });
-  actions.append(renameBtn, dupBtn, delBtn);
+  actions.append(renameBtn, reloadBtn, dupBtn, delBtn);
   row.append(actions);
 
   return row;
@@ -249,6 +268,14 @@ function enterInlineRename(
     }
     e.stopPropagation();
   });
+  // The input lives INSIDE the row's main `<button>`, so a raw click
+  // would bubble up to the button's "select this doc" handler — making
+  // any cursor-positioning click inside the input switch documents and
+  // close the menu. Stop both mousedown and click here so the input
+  // handles the click natively (cursor placement, selection) without
+  // ever reaching the parent button.
+  input.addEventListener('mousedown', (e) => e.stopPropagation());
+  input.addEventListener('click', (e) => e.stopPropagation());
   input.addEventListener('blur', () => commit(input.value));
   // Replace the name span with the input. The row's hover actions
   // remain in place so the user can still click another action.

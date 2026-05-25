@@ -312,10 +312,15 @@ du document que vous éditez actuellement.
 - **+ Nouveau document** : crée un document vide et bascule
   dessus. Le doc précédent reste en place, vous pouvez y revenir
   à tout moment.
+- **Recharger** : à droite du champ de nom, recharge le doc courant
+  depuis un fichier sur disque (utile quand le fichier a été modifié
+  par un éditeur externe). Le nom du doc dans markpage est conservé,
+  seul le contenu est remplacé.
 - **Liste des autres documents** : triés par date de modification.
-  Cliquez sur un nom pour l'ouvrir. Au survol, trois actions
+  Cliquez sur un nom pour l'ouvrir. Au survol, quatre actions
   apparaissent :
   - *Renommer* — édite le nom directement dans la liste.
+  - *Recharger* — remplace le contenu depuis un fichier sur disque.
   - *Dupliquer* — clone le document.
   - *Supprimer* — avec une demande de confirmation.
 

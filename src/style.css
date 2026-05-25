@@ -344,10 +344,14 @@ body,
 
 .doc-menu-current {
   padding: 0.2rem;
+  display: flex;
+  gap: 0.3rem;
+  align-items: stretch;
 }
 
 .doc-menu-current-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -355,6 +359,20 @@ body,
   font: inherit;
   font-weight: 500;
   box-sizing: border-box;
+}
+
+.doc-menu-current-reload {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+  white-space: nowrap;
+}
+.doc-menu-current-reload:hover {
+  background: var(--bg-alt);
 }
 
 .doc-menu-new {

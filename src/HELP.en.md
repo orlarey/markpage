@@ -299,9 +299,14 @@ document you're currently editing.
 - **+ New document**: creates an empty document and switches to it.
   The previous doc stays in place, you can come back to it at any
   time.
+- **Reload**: to the right of the name field, reloads the current
+  doc from a file on disk (handy when the file has been modified by
+  an external editor). The doc's name in markpage is preserved; only
+  the content is replaced.
 - **List of other documents**: sorted by modification date. Click
-  a name to open it. On hover, three actions appear:
+  a name to open it. On hover, four actions appear:
   - *Rename* — edits the name directly in the list.
+  - *Reload* — replaces the content from a file on disk.
   - *Duplicate* — clones the document.
   - *Delete* — with a confirmation prompt.
 

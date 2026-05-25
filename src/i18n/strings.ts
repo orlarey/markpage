@@ -39,6 +39,8 @@ const FR = {
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ Nouveau document',
   'doc-menu.rename': 'Renommer',
+  'doc-menu.reload': 'Recharger',
+  'doc-menu.reload-title': 'Remplacer le contenu par un fichier sur disque',
   'doc-menu.duplicate': 'Dupliquer',
   'doc-menu.delete': 'Supprimer',
   'doc-menu.delete-confirm': 'Supprimer « {name} » ?',
@@ -294,6 +296,8 @@ const EN: Record<keyof typeof FR, string> = {
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ New document',
   'doc-menu.rename': 'Rename',
+  'doc-menu.reload': 'Reload',
+  'doc-menu.reload-title': 'Replace the content with a file from disk',
   'doc-menu.duplicate': 'Duplicate',
   'doc-menu.delete': 'Delete',
   'doc-menu.delete-confirm': 'Delete “{name}”?',
