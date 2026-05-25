@@ -459,6 +459,34 @@ the typechecker rejects any composition mismatch before rendering.
 `,
   },
   {
+    id: 'bda',
+    title: 'Faust-style block diagrams',
+    description:
+      'A ```bda fenced block accepts the Faust Block-Diagram Algebra — five binary composition operators (`~ : , <: :>`) over primitives (identifiers, numbers, arithmetic, math functions, plus `_` identity and `!` cut) — and renders it as a left-to-right circuit. The right operand of `~` is drawn rotated 180° (Faust convention) so multi-wire feedback bundles nest concentrically without crossings; identity bundles collapse, the `cross` idiom `_,_ <: !,_,_,!` reads as a clean X, and the `delays` option marks the implicit z⁻¹ on each feedback fork.',
+    sourceLang: 'markdown',
+    source: `## Accumulator (Faust idiom)
+
+\`\`\`bda delays "Faust accumulator"
+1 : +~_
+\`\`\`
+
+A constant fed into a \`+\` recursing on itself through the identity
+wire \`_\` — the canonical sample-rate counter. With \`delays\` the
+implicit unit delay \`z⁻¹\` appears as a small white square at the
+A→B fork.
+
+## Cross-wiring — swap two signals
+
+\`\`\`bda
+_,_ <: !,_,_,!
+\`\`\`
+
+The split \`<:\` distributes by modulo; the two \`_\`s catch the
+swapped copies while the \`!\`s absorb the redundant ones (and are
+rendered invisible). The result reads as a clean X.
+`,
+  },
+  {
     id: 'ebnf',
     title: 'EBNF grammars as railroad diagrams',
     description:
