@@ -11,6 +11,8 @@
 import { marked, type Tokens } from 'marked';
 import { renderAdtBlock } from './adt';
 import { renderAlgorithmBlock } from './algorithm';
+import { parse as parseBda, typecheck as typecheckBda } from './bda';
+import { emitSvg as emitBdaSvg } from './bda-svg';
 import { parse as parseCategory, typecheck as typecheckCategory } from './category';
 import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
 import { emitSvg as emitCategorySvg } from './category-svg';
@@ -250,6 +252,17 @@ marked.use({
         const block = renderCategory(token.text);
         return injectSource(
           withCaption('figure', info.caption, block, info.label),
+          raw,
+        );
+      }
+      // ```bda — Block-Diagram Algebra (à la Faust). One expression per
+      // block, rendered as a left-to-right Faust-style circuit (boxes,
+      // wires, fan-outs / fan-ins, recursion loop with the right-hand
+      // block drawn mirrored). Parse / typecheck errors render in the
+      // standard red error block.
+      if (lang === 'bda' || lang.startsWith('bda ')) {
+        return injectSource(
+          withCaption('figure', info.caption, renderBda(token.text, info.args), info.label),
           raw,
         );
       }
@@ -767,6 +780,41 @@ function renderCategory(source: string): string {
   }
   const mermaidSrc = emitCategoryMermaid(ast);
   return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
+}
+
+/**
+ * Purpose: Render a `bda` block — parse + typecheck the BDA expression, then
+ *   emit a native SVG. Parse / typecheck errors render as a red error block
+ *   matching the style of `category-error` / `math-error`.
+ * How: Delegates to `bda.parse` + `bda.typecheck` + `bda-svg.emitSvg`.
+ *   Errors from both phases are concatenated so every diagnostic appears
+ *   at once.
+ */
+function renderBda(source: string, args: string[] = []): string {
+  const { ast, errors: parseErrors } = parseBda(source);
+  const tcErrors = ast !== null ? typecheckBda(ast).errors : [];
+  const all = [...parseErrors, ...tcErrors];
+  if (all.length > 0 || ast === null) {
+    const items = all
+      .map((e) => {
+        const where = e.line > 0 ? `ligne ${e.line}: ` : '';
+        return `<li>${escapeHtml(where + e.message)}</li>`;
+      })
+      .join('');
+    return (
+      `<div class="bda-error">` +
+      `<div class="bda-error-msg">Erreur bda</div>` +
+      `<ul>${items}</ul>` +
+      `<pre>${escapeHtml(source)}</pre>` +
+      `</div>\n`
+    );
+  }
+  // Positional args: `delays` (or alias `faust`) enables the z⁻¹
+  // markers on feedback wires. No-op for diagrams without `~`.
+  const opts = {
+    delays: args.includes('delays') || args.includes('faust'),
+  };
+  return `<div class="bda-wrap">${emitBdaSvg(ast, opts)}</div>\n`;
 }
 
 /**

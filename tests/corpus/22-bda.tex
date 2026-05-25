@@ -1,0 +1,314 @@
+% markpage — export LaTeX (cible : xelatex ou lualatex).
+% La compilation avec pdflatex échouera : fontspec + UTF-8 natif
+% dans les blocs de code requièrent xelatex / lualatex.
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{}
+\IfFontExistsTF{DejaVu Sans}{\setsansfont{DejaVu Sans}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+
+\IfFileExists{french.ldf}{\usepackage[french]{babel}}{}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[normalem]{ulem}
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{newunicodechar}
+
+% DejaVu Serif (our main text font) doesn't ship the Unicode
+% math-bracket / logic glyphs that show up in our prose (e.g.
+% explanations of the editor's ligatures). Redirect each known
+% glyph to its LaTeX command via \ensuremath, so it renders
+% from the math font even when typed in normal text.
+\newunicodechar{⟦}{\ensuremath{\llbracket}}
+\newunicodechar{⟧}{\ensuremath{\rrbracket}}
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+\newunicodechar{⊣}{\ensuremath{\dashv}}
+\newunicodechar{⊨}{\ensuremath{\models}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{∉}{\ensuremath{\notin}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{⊂}{\ensuremath{\subset}}
+\newunicodechar{⊆}{\ensuremath{\subseteq}}
+\newunicodechar{⊃}{\ensuremath{\supset}}
+\newunicodechar{⊇}{\ensuremath{\supseteq}}
+\newunicodechar{∪}{\ensuremath{\cup}}
+\newunicodechar{∩}{\ensuremath{\cap}}
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{¬}{\ensuremath{\neg}}
+\newunicodechar{★}{\ensuremath{\bigstar}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{♥}{\ensuremath{\heartsuit}}
+\newunicodechar{♦}{\ensuremath{\diamondsuit}}
+\newunicodechar{♠}{\ensuremath{\spadesuit}}
+\newunicodechar{♣}{\ensuremath{\clubsuit}}
+\newunicodechar{⚠}{\textbf{[!]}}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+}
+
+% Theorem-like environments matching the ::: admonitions (§17 of
+% the markpage SPEC). The shared counter `theorem` keeps lemma /
+% proposition / corollary numbered in the same sequence as the
+% theorems themselves, which is the usual mathematical convention.
+\newtheorem{theorem}{Théorème}
+\newtheorem{lemma}[theorem]{Lemme}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollaire}
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}
+\newtheorem{example}{Exemple}
+\newtheorem{remark}{Remarque}
+
+\title{bda — Block-Diagram Algebra (à la Faust)}
+\author{Test Author \\ Test Org}
+\date{2026-01-01}
+
+\begin{document}
+\maketitle
+
+Le fence \texttt{```bda} accepte une expression construite avec les cinq
+opérateurs de composition de l'algèbre de Faust : \texttt{,} parallèle, \texttt{:}
+séquentiel, \texttt{<:} split, \texttt{:>} merge, et \texttt{\textasciitilde{}} récursion. Les primitives
+sont des identifiants (avec arité par défaut \texttt{(1,1)}, ou annotée
+\texttt{Label[n,m]}), des nombres \texttt{(0,1)}, les opérateurs \texttt{+ - * /} \texttt{(2,1)},
+les fonctions \texttt{sin cos exp …} \texttt{(1,1)}, ainsi que \texttt{\_} (identité \texttt{(1,1)})
+et \texttt{!} (cut \texttt{(1,0)}).
+
+
+\section{Accumulateur (compteur)}
+
+L'exemple canonique de l'algèbre : un nombre constant ré-injecté dans
+un \texttt{+} rebouclé sur lui-même via \texttt{\textasciitilde{} \_}.
+
+
+\begin{lstlisting}
+1 : +~_
+\end{lstlisting}
+
+
+Voir \textbackslash{}ref\{fig:acc\}.
+
+
+\section{Accumulateur 2 — récursion avec B composé}
+
+Vérifie que les labels du bloc droit (mis en miroir au-dessus) restent
+lisibles malgré la réflexion horizontale.
+
+
+\begin{lstlisting}
+(_,1 : +)~(sin : cos : tan)
+\end{lstlisting}
+
+
+\section{Accumulateur — style Faust avec marqueurs \texttt{z⁻¹}}
+
+Mêmes circuits, mais l'option \texttt{delays} (alias \texttt{faust}) place un petit
+carré blanc au milieu de chaque fil de feedback B→A pour matérialiser le
+délai unitaire implicite du \texttt{\textasciitilde{}}.
+
+
+\begin{lstlisting}
+1 : +~_
+\end{lstlisting}
+
+
+\begin{lstlisting}
+A[3,3] ~ B[2,2]
+\end{lstlisting}
+
+
+\section{Passthrough — chaînes de \texttt{\_} en seq}
+
+Vérifie l'optimisation qui shunte un bloc \texttt{\_,\_,\_,…} quand il sert juste
+de bundle d'identité dans un seq. Sinon chaque \texttt{\_} génère un coude à
+gauche et un coude à droite, créant des escaliers visuels.
+
+
+\begin{lstlisting}
+A[2,3], B[2,3] : _,_,_,_,_,_ : C[6,1]
+\end{lstlisting}
+
+
+\section{Double récursion}
+
+Cas piégeux du wrap des labels : avec \texttt{\textasciitilde{}} à droite-assoc, ceci parse
+en \texttt{(\_,1:+) \textasciitilde{} (+ \textasciitilde{} (sin:cos:tan))}. Le sous-bloc \texttt{(sin:cos:tan)} est
+DEUX fois sous une rotation 180°, donc l'unrotation doit cascader.
+
+
+\begin{lstlisting}
+(_,1 : +) ~ + ~ (sin : cos : tan)
+\end{lstlisting}
+
+
+\section{Récursion multi-fils}
+
+Vérifie que les bundles de feedback s'imbriquent sans se croiser : l'entrée
+0 de B (visible en bas après rotation 180°) reçoit la sortie 0 de A (en
+haut), l'entrée 1 (au-dessus) reçoit la sortie 1, etc.
+
+
+\begin{lstlisting}
+A[3,3] ~ B[2,2]
+\end{lstlisting}
+
+
+\section{Séquentiel pur}
+
+\begin{lstlisting}
+sin : abs
+\end{lstlisting}
+
+
+\section{Parallèle pur}
+
+\begin{lstlisting}
+sin , cos , tan
+\end{lstlisting}
+
+
+\section{Split (fan-out)}
+
+Une seule sortie distribuée vers les deux entrées de \texttt{+} :
+
+
+\begin{lstlisting}
+1 <: +
+\end{lstlisting}
+
+
+\section{Merge (fan-in)}
+
+Quatre sorties sommées vers les deux entrées d'une boîte \texttt{(2,1)} :
+
+
+\begin{lstlisting}
+1, 2, 3, 4 :> +
+\end{lstlisting}
+
+
+\section{Primitives avec arité explicite}
+
+\begin{lstlisting}
+A[2,3] : B[3,1]
+\end{lstlisting}
+
+
+\section{Label entre guillemets}
+
+\begin{lstlisting}
+"my filter"[2,1]
+\end{lstlisting}
+
+
+\section{Tests étendus}
+
+\subsection{Deux compteurs indépendants en parallèle}
+
+\texttt{+\textasciitilde{}\_} est un compteur (équivalent Faust \texttt{+ \textasciitilde{} \_}). On en met deux en
+parallèle, chacun alimenté par sa propre constante.
+
+
+\begin{lstlisting}
+1, 2 : +~_ , -~_
+\end{lstlisting}
+
+
+\subsection{Cascade de trois compteurs}
+
+Compteur de compteur de compteur. Avec délais visibles.
+
+
+\begin{lstlisting}
+1 : +~_ : +~_ : +~_
+\end{lstlisting}
+
+
+\subsection{Cross-wiring : split / merge à grosse arité}
+
+\begin{lstlisting}
+(sin, cos) <: (+, *, +, *) :> (_, _)
+\end{lstlisting}
+
+
+\subsection{Boucle complexe : split/merge dans une rec multi-fils}
+
+\begin{lstlisting}
+((_,_) <: (_,_,_,_) :> (+,+)) ~ (mem, mem)
+\end{lstlisting}
+
+
+\subsection{Croisement de deux câbles}
+
+Un grand classique BDA : on permute deux signaux en exploitant le modulo
+du split. \texttt{out 0} part en position 2 (récupéré par le second \texttt{\_}), \texttt{out 1}
+part en position 1 (récupéré par le premier \texttt{\_}), et les copies en
+position 0 et 3 sont jetées dans les \texttt{!}.
+
+
+\begin{lstlisting}
+_,_ <: !,_,_,!
+\end{lstlisting}
+
+
+\subsection{Rec à grosses arités avec délais}
+
+\texttt{Foo[4,5] \textasciitilde{} Bar[3,4]} — 4 entrées de Foo dont 4 consommées par feedback
+(0 entrée exposée), 5 sorties dont 3 alimentent Bar, 5 exposées.
+
+
+\begin{lstlisting}
+Foo[4,5] ~ Bar[3,4]
+\end{lstlisting}
+
+
+\subsection{Passthrough plus long}
+
+Une chaîne de 8 identités au milieu de deux blocs. Doit rester plat à
+gauche (passthrough), avec des elbows propres à droite.
+
+
+\begin{lstlisting}
+A[3,8] : _,_,_,_,_,_,_,_ : B[8,2]
+\end{lstlisting}
+
+
+\subsection{Mix de tout}
+
+\begin{lstlisting}
+(1, _ : +) ~ (sin : cos) , (2, _ : *) ~ (tan : exp)
+\end{lstlisting}
+
+
+\section{Erreur de typage}
+
+Le \texttt{:} exige autant de sorties à gauche que d'entrées à droite. Ici
+\texttt{1} a 1 sortie mais \texttt{+} attend 2 entrées :
+
+
+\begin{lstlisting}
+1 : +
+\end{lstlisting}
+
+\end{document}

@@ -1255,6 +1255,78 @@ body,
   font-size: 0.9em;
 }
 
+/* ---- bda native SVG ----------------------------------------------
+   The Block-Diagram Algebra renderer (src/bda-svg.ts) emits an inline
+   `<svg>` inside `.bda-wrap`. Everything draws in `currentColor`; the
+   wrap centres horizontally and lets the SVG shrink on narrow pages. */
+.bda-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+.bda-wrap .bda-svg {
+  max-width: 100%;
+  height: auto;
+}
+.bda-svg .bda-box {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.bda-svg .bda-label {
+  fill: currentColor;
+}
+.bda-svg .bda-wire,
+.bda-svg .bda-wire-fb {
+  stroke: currentColor;
+  stroke-width: 1;
+  fill: none;
+}
+.bda-svg .bda-port-in,
+.bda-svg .bda-cut {
+  fill: currentColor;
+  stroke: none;
+}
+.bda-svg .bda-port-out {
+  fill: var(--bg, #fff);
+  stroke: currentColor;
+  stroke-width: 0.8;
+}
+.bda-svg .bda-delay {
+  fill: var(--bg, #fff);
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+/* ---- bda error block ---------------------------------------------
+   Parser / typechecker diagnostics for a `bda` fence. Same visual frame
+   as the category-error / math-error blocks. */
+.bda-error {
+  display: block;
+  border-left: 4px solid #d1242f;
+  background: #ffeef0;
+  padding: 0.6em 0.9em;
+  margin: 0.6em 0;
+  border-radius: 0 4px 4px 0;
+}
+.bda-error .bda-error-msg {
+  color: #d1242f;
+  font-weight: 500;
+  margin-bottom: 0.3em;
+}
+.bda-error ul {
+  margin: 0.3em 0 0.6em 1.2em;
+  padding: 0;
+  font-size: 0.95em;
+}
+.bda-error pre {
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 /* Inline math: MathJax sets `vertical-align: -…ex` on the SVG itself, so
    leaving the span as inline lets the browser line up the formula's
    baseline with the surrounding text automatically. */
