@@ -1196,6 +1196,79 @@ Unicode identifiers (Greek letters, subscripts, superscripts).
 > square, pullback, pushout, equalizer, coequalizer, functoriality,
 > terminal object).
 
+### Faust-style block diagrams (BDA) \label{sec:bda}
+
+For **interconnected block diagrams** in the Faust style, the
+` ```bda ` fence accepts an algebraic expression (the *Block-Diagram
+Algebra* at the foundation of the Faust language) and lays it out
+automatically, left to right.
+
+An expression combines **primitives** (boxes) via **five binary
+composition operators**:
+
+| Op | Composition | Precedence | Associativity | Constraint |
+| --- | --- | --- | --- | --- |
+| `~` | recursion (feedback loop) | 4 (highest) | right | `inputs(A) ≥ outputs(B)` and `outputs(A) ≥ inputs(B)` |
+| `,` | parallel | 3 | left | none |
+| `:` | sequential | 2 | left | `outputs(A) = inputs(B)` |
+| `<:` | split (fan-out) | 1 | left | `inputs(B)` is a positive multiple of `outputs(A)` |
+| `:>` | merge (fan-in) | 1 | left | `outputs(A)` is a positive multiple of `inputs(B)` |
+
+A **primitive** is characterised by its number of inputs and outputs
+`(n, m)`. The fence accepts:
+
+- **Identifiers** (`Foo`, `gain`, `Γ`…) — `(1, 1)` by default,
+  otherwise annotated `Foo[n, m]`.
+- **Quoted labels** for names with spaces or special characters:
+  `"my filter"[2, 1]`.
+- **Numbers** (`0`, `42`, `3.14`) — arity `(0, 1)`.
+- **Arithmetic and comparison operators** `+ - * / % ^ < > <= >= == != & |` — arity `(2, 1)`.
+- **1-arg math functions** `sin cos tan asin acos atan sinh cosh tanh exp log log10 sqrt abs floor ceil rint` — arity `(1, 1)`.
+- **2-arg math functions** `min max pow atan2` — arity `(2, 1)`.
+- **Structural primitives**: `_` (identity wire, `(1, 1)`) and `!`
+  (cut, drops a signal, `(1, 0)`).
+
+The **accumulator** is the canonical example — a counter that
+increments on every sample, the Faust idiom `1 : + ~ _`:
+
+````
+```bda
+1 : +~_
+```
+````
+
+`+ ~ _` feeds the output of `+` (through the wire `_`) back into its
+second input; the constant `1` feeds the first input each cycle.
+
+**Multi-wire recursion**: for `A ~ B`, the typechecker requires
+`inputs(A) ≥ outputs(B)` and `outputs(A) ≥ inputs(B)`; `B` is drawn
+**rotated 180°** above `A` (Faust convention), letting the feedback
+wires nest concentrically without crossings.
+
+**Cross — a classic BDA idiom**: swap two signals via the split's
+modulo, with redundant copies absorbed by `!` (rendered invisible):
+
+````
+```bda
+_,_ <: !,_,_,!
+```
+````
+
+**`z⁻¹` markers**: the `delays` option (alias `faust`) places a
+small white square at each A→B fork, materialising the unit delay
+implicit in `~`:
+
+````
+```bda delays "Faust accumulator"
+1 : +~_
+```
+````
+
+**Captions and cross-refs** work like any captionable block:
+`"Title" \label{fig:xxx}` after `bda` (and before or after options
+like `delays`) numbers the figure as `Figure N`, and `\ref{fig:xxx}`
+refers to it elsewhere in the document.
+
 ### Mermaid diagrams \label{sec:mermaid}
 
 [Mermaid](https://mermaid.js.org/) lets you describe a diagram with

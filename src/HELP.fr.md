@@ -1239,6 +1239,81 @@ identifiants Unicode (lettres grecques, indices, exposants).
 > de naturalité, pullback, pushout, égaliseur, coégaliseur,
 > fonctorialité, objet terminal).
 
+### Diagrammes en blocs à la Faust (BDA) \label{sec:bda}
+
+Pour les **schémas en blocs interconnectés** style Faust, le fence
+` ```bda ` accepte une expression algébrique (la *Block-Diagram
+Algebra* qui est à la base du langage Faust) et la dessine
+automatiquement, en lisant de gauche à droite.
+
+Une expression combine des **primitives** (boîtes) via **cinq
+opérateurs binaires** de composition :
+
+| Op | Composition | Priorité | Associativité | Contrainte |
+| --- | --- | --- | --- | --- |
+| `~` | récursion (boucle de feedback) | 4 (forte) | droite | `inputs(A) ≥ outputs(B)` et `outputs(A) ≥ inputs(B)` |
+| `,` | parallèle | 3 | gauche | aucune |
+| `:` | séquentiel | 2 | gauche | `outputs(A) = inputs(B)` |
+| `<:` | split (fan-out) | 1 | gauche | `inputs(B)` multiple positif de `outputs(A)` |
+| `:>` | merge (fan-in) | 1 | gauche | `outputs(A)` multiple positif de `inputs(B)` |
+
+Une **primitive** est caractérisée par son nombre d'entrées et de
+sorties `(n, m)`. Le fence accepte :
+
+- **Identifiants** (`Foo`, `gain`, `Γ`…) — par défaut `(1, 1)`, sinon
+  annotés avec `Foo[n, m]`.
+- **Labels entre guillemets** pour les noms avec espaces ou caractères
+  spéciaux : `"my filter"[2, 1]`.
+- **Nombres** (`0`, `42`, `3.14`) — arité `(0, 1)`.
+- **Opérateurs arithmétiques et de comparaison** `+ - * / % ^ < > <= >= == != & |` — arité `(2, 1)`.
+- **Fonctions math 1-arg** `sin cos tan asin acos atan sinh cosh tanh exp log log10 sqrt abs floor ceil rint` — arité `(1, 1)`.
+- **Fonctions math 2-arg** `min max pow atan2` — arité `(2, 1)`.
+- **Primitives structurelles** : `_` (identité, fil qui passe `(1, 1)`)
+  et `!` (cut, absorbe le signal `(1, 0)`).
+
+L'**accumulateur** est l'exemple canonique — un compteur qui
+s'incrémente à chaque échantillon, équivalent Faust `1 : + ~ _` :
+
+````
+```bda
+1 : +~_
+```
+````
+
+Le `+ ~ _` ré-injecte la sortie de `+` (via le fil `_`) dans sa
+deuxième entrée ; le `1` constant alimente la première à chaque tour.
+
+**Récursion multi-fils** : pour `A ~ B`, le typechecker exige
+`inputs(A) ≥ outputs(B)` et `outputs(A) ≥ inputs(B)` ; le bloc `B`
+est dessiné **rotation 180°** au-dessus de `A` (convention Faust), ce
+qui permet aux fils de feedback de s'imbriquer concentriquement sans
+se croiser.
+
+**Cross — un grand classique** : on permute deux signaux en
+exploitant le modulo du split, les copies redondantes finissent dans
+les `!` (qui sont rendus invisibles) :
+
+````
+```bda
+_,_ <: !,_,_,!
+```
+````
+
+**Marqueurs `z⁻¹`** : l'option `delays` (alias `faust`) place un
+petit carré blanc à la bifurcation de chaque fil A→B, matérialisant
+le délai unitaire implicite du `~` :
+
+````
+```bda delays "Accumulateur Faust"
+1 : +~_
+```
+````
+
+**Captions et cross-refs** comme tout bloc captionnable : `"Titre"
+\label{fig:xxx}` après `bda` (et avant ou après les options comme
+`delays`) numérote en `Figure N`, et `\ref{fig:xxx}` y renvoie
+ailleurs dans le document.
+
 ### Diagrammes Mermaid \label{sec:mermaid}
 
 [Mermaid](https://mermaid.js.org/) permet de décrire un diagramme avec
