@@ -100,6 +100,51 @@ heuristic is idempotent: existing wraps are preserved.)
 
 ---
 
+## Commutative diagrams (category)
+
+Use the `category` fence to describe a small category by its
+morphisms and equations. The parser builds a typed graph (objects
+inferred from morphism signatures), the type-checker verifies
+compositions and equations, then a native SVG renderer lays the
+diagram out on a grid (Mermaid `dagre` fallback for topologies the
+native renderer can't place).
+
+````
+```category "Pullback"
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+p1 . u = h
+p2 . u = k
+```
+````
+
+Syntax:
+
+- `name : Source -> Target` — declares a morphism. Objects are
+  the identifiers used as source/target; no separate declaration.
+- `f . g` — composition (read right-to-left, like functions).
+- `f = g` — equation (commutativity constraint).
+- `u : X -> P by (h, k)` — declares a morphism whose existence
+  is conventionally guaranteed by a universal property (pullback,
+  product, equaliser, …). Rendered dashed. *Note*: markpage does
+  not prove the universal property — the `by (…)` clause is a
+  typographic / documentation assertion. The arguments `(h, k)`
+  appear as the tuple's components.
+
+A type error (composition with mismatched domain/codomain, or
+equation whose sides have different source/target) is reported in
+a red error block instead of rendering. Full grammar and
+type-checking rules in `CATEGORY-SPEC.md`.
+
+---
+
 ## EBNF railroad diagrams
 
 Use the `ebnf` fence for grammars. Each production renders as a
@@ -190,6 +235,50 @@ sequenceDiagram
 > as **ASCII** — `-->`, `<--`, `->>`, `-.->`. The Mermaid parser
 > does NOT accept Unicode `→` / `←`. Do not generate `-→`, `→`, or
 > `⇒` inside a Mermaid fence.
+
+---
+
+## Faust block-diagram algebra (bda)
+
+Use the `bda` fence for left-to-right signal-flow circuits, in
+the spirit of the Faust audio DSP language. The body is a single
+algebraic expression over five binary operators applied to
+primitive boxes; markpage parses, type-checks (input/output
+arities must match the operator's rule) and renders a circuit
+SVG.
+
+````
+```bda "Accumulator"
+1 : +~_
+```
+
+```bda delays "Accumulator with z⁻¹"
+1 : +~_
+```
+````
+
+Operators (in decreasing precedence):
+
+| Op   | Name       | Meaning                                       |
+| :--- | :--------- | :-------------------------------------------- |
+| `~`  | recursion  | `A ~ B` — feedback loop, `B` mirrored         |
+| `,`  | parallel   | side-by-side, arities add                     |
+| `:`  | sequential | outputs of left feed inputs of right          |
+| `<:` | split      | one output fans out to many inputs (modulo)   |
+| `:>` | merge      | many outputs sum into fewer inputs (modulo)   |
+
+Primitives: numbers (`0`, `1.5`), identity `_`, cut `!`,
+arithmetic (`+`, `-`, `*`, `/`), comparisons (`<`, `>`, `==`,
+`!=`, `<=`, `>=`), common math functions (`sin`, `cos`, `tan`,
+`exp`, `log`, `sqrt`, `abs`, …), and any quoted label
+`"my filter"` or `X[in,out]` with explicit arity.
+
+The optional `delays` arg (or alias `faust`) draws a `z⁻¹` box
+on each recursion feedback wire (the implicit one-sample delay
+that makes the recursion well-defined).
+
+A parse or arity error renders as a red error block listing each
+diagnostic with its line number.
 
 ---
 
@@ -391,6 +480,160 @@ process = + ~ (de.delay(48000, delay * ma.SR) * fb);
 
 ---
 
+## Unified diffs
+
+The `diff` fence colours each line of a unified diff: green for
+additions (`+`), red for removals (`-`), neutral for context. The
+`@@` hunk header gets its own tint.
+
+````
+```diff "Patch to review"
+--- a/quicksort.py
++++ b/quicksort.py
+@@ -1,5 +1,6 @@
+ def quicksort(xs):
+     if len(xs) <= 1:
+         return xs
+-    pivot = xs[0]
++    import random
++    pivot = random.choice(xs)
+     rest = [x for x in xs if x != pivot]
+```
+````
+
+A quoted caption is optional. Body is treated as text — no
+language-specific highlighting.
+
+---
+
+## Indented trees
+
+The `tree` fence turns an indented outline (2-space or tab
+indentation) into a Unicode box-drawing tree (default) or a
+top-down SVG diagram (`svg` keyword).
+
+````
+```tree "Project layout"
+markpage
+  src
+    category.ts
+    bda.ts
+    chart.ts
+  tests
+    corpus
+      22-bda.md
+```
+
+```tree svg "AST"
+Expr
+  Op
+    Add
+    Sub
+```
+````
+
+Use the Unicode mode for filesystem / project structure; use
+`svg` mode for syntax trees, parser derivations, etc.
+
+---
+
+## Algorithmic pseudocode
+
+The `algorithm` fence typesets pseudocode in the style of LaTeX
+`algorithm2e`: auto-numbered caption, numbered lines on the left
+gutter, keywords (`for`, `while`, `if`, `then`, `else`,
+`return`, `do`, `end`, `repeat`, `until`, `break`, `continue`)
+rendered in bold.
+
+````
+```algorithm "Bubble sort"
+Input: array A of length n
+Output: A sorted in place
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+return A
+```
+````
+
+The quoted caption produces "Algorithm N: …" beneath the block,
+counter shared with figure / table / listing captions.
+
+---
+
+## Captions and cross-references
+
+Most rich blocks accept a quoted caption immediately after the
+language hint. The caption is auto-numbered per kind:
+
+- **Figure N** — for diagrams (`mermaid`, `category`, `bda`,
+  `chart`, `tree`, math display `$$ … $$`)
+- **Table N** — for `csv` / `tsv` blocks and pipe tables wrapped
+  in a fenced div
+- **Listing N** — for source-code fences with a caption
+- **Algorithm N** — for `algorithm` blocks
+
+````
+```python "Quicksort"
+def quicksort(xs): …
+```
+
+```category "Pullback" \label{fig:pb}
+…
+```
+````
+
+Append `\label{key}` to give the block a cross-reference target.
+Reference it inline anywhere in the document with `\ref{key}`,
+which expands to the formatted label (`Figure 3`, `Listing 1`,
+…) and links to the target.
+
+`\label{sec:foo}` on a heading lets `\ref{sec:foo}` jump to it
+too. Math equations use `\label{eq:foo}` inside the `$$ … $$`
+body. Labels are case-sensitive identifiers; unknown references
+render as a visible `[?]` so typos surface at proof time.
+
+---
+
+## Demo (source + rendered side-by-side)
+
+The `demo` fence shows the markdown source and its rendered
+output side-by-side — a teaching device for showcasing a feature
+alongside its visible syntax without writing the source twice.
+
+````
+```demo
+```category "Triangle"
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+```
+````
+
+Default behaviour:
+
+- In **slides mode**: auto-zoom resizes both panes so they fit
+  the slide (see [Slides mode](#slides-mode)).
+- Outside slides mode: a fixed 0.85 zoom keeps the demo block
+  visually distinct from the surrounding "real" content.
+
+A positional argument overrides the zoom: ` ```demo 0.7 ` or
+` ```demo zoom=0.7 ` for a fixed numeric zoom, or
+` ```demo auto ` to keep auto-zoom explicit.
+
+> **Caveat:** avoid opening a `demo` with a prose sentence
+> followed by a rigid block (code, diagram, displayed equation).
+> The layout has to balance a wrappable element against a rigid
+> one and the result is less clean. Put the showcased block
+> first.
+
+---
+
 ## Mathematical Unicode in prose
 
 Outside `$…$` and code blocks, you can write Unicode math
@@ -405,18 +648,83 @@ programmatically just write the Unicode directly.
 
 ---
 
+## YAML frontmatter
+
+An optional `---` block at the very top of the document, Pandoc
+style, overrides per-document the metadata that would otherwise
+come from the markpage Settings profile. Useful when one document
+needs a different title / author / etc. than its profile, or for
+defining doc-local TeX macros.
+
+```yaml
+---
+title: My Talk
+author: Alice Dupont
+organization: Université de Lyon
+date: 2026-05-21
+slides: true
+mathjax-preamble: |
+  \newcommand{\R}{\mathbb{R}}
+  \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+---
+```
+
+Recognised keys:
+
+- `title` — rendered as `<h1 class="doc-title">`, styled via
+  `styles.title`. `#` headings in the body remain regular h1
+  sections.
+- `author`, `organization`, `date` — fill the metadata block
+  shown beneath the title.
+- `slides` — `true` to force the document into 16:9 slides mode
+  (see [Slides mode](#slides-mode)) regardless of the profile's
+  page size.
+- `mathjax-preamble` — TeX source prepended to every math
+  invocation in this document. Define your `\newcommand`s once
+  here and use them in every formula. Cached per (preamble,
+  source) pair.
+
+Any other key is preserved in `meta.extra` for inspection but
+isn't wired to a renderer. Subset of YAML: scalar key-value pairs
+only, plus the `|` block-scalar for multi-line values like
+`mathjax-preamble`. No lists, no nested dicts.
+
+---
+
+## Slides mode
+
+Set the page format to **Slides 16:9** in markpage Settings, or
+add `slides: true` to the frontmatter, to produce a Beamer-style
+presentation PDF. Each `## h2 heading` starts a new slide; `# h1`
+remains the title slide (auto, once).
+
+The slide is 16:9 landscape sized to A4 width (210 × 118.125 mm)
+so a body font tuned for an A4 portrait page fills the slide
+comfortably without retuning. Margins are auto-clamped (top /
+bottom ≤ 10 mm, left / right ≤ 15 mm) and SVG figures are capped
+at 55 % of the slide content height so a title, a short
+paragraph, and a figure can fit together.
+
+Everything else — captions, cross-refs, all the rich fences —
+works identically in slides mode. The `demo` fence in particular
+gains its auto-zoom layout here (see *Demo*).
+
+`markpage-slides.md` at the repo root is an official walkthrough
+of every rich block in slides mode — a useful template / smoke
+test.
+
+---
+
 ## What is NOT supported
 
 - **Raw HTML beyond what marked passes through** — no `<style>`,
   `<script>`, no custom elements. Use the constructs above.
-- **YAML frontmatter** for document metadata (title, author, date).
-  These are configured in the markpage Settings panel per profile,
-  not in the source.
 - **Manual page breaks** — pagination is handled by paged.js
   automatically. The `keep-with-next` style rules try to keep
   headings attached to the paragraph below.
 - **Inline styles / classes on Markdown elements** — there is no
-  `{.classname}` or `{#id}` annotation syntax.
+  `{.classname}` or `{#id}` annotation syntax. (Captions take a
+  quoted string + `\label{key}`; sections take `\label{key}`.)
 
 ---
 

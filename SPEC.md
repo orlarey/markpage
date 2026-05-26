@@ -58,14 +58,21 @@ overrides du renderer `code`, voir §5 et §8) :
 
 - **Diagrammes Mermaid** — bloc ```` ```mermaid ````. Voir §7.
 - **Formules mathématiques** — `$$…$$` (display) et `$…$` (inline) via
-  MathJax. Le bloc ```` ```math ```` est un alias *display* équivalent à
-  `$$…$$` (convention GitHub depuis 2023). Voir §8.
+  MathJax 4. Le bloc ```` ```math ```` est un alias *display* équivalent
+  à `$$…$$` (convention GitHub depuis 2023). Voir §8.
 - **Règles d'inférence** — bloc ```` ```inference [Label] ```` avec
   prémisses / barre de tirets / conclusion. Rendu en LaTeX
   `\dfrac{prem}{conc}` via MathJax, après pré-traitement
   typographique style Gunter (`\mathcal{}` sur fonction sémantique,
   `\mathbf{}` sur constructeur dans `⟦…⟧`, `\mathsf{}` sur fonction
   hors brackets, subscripts numériques). Voir §8.4.
+- **Diagrammes commutatifs** — bloc ```` ```category ````. Syntaxe
+  déclarative ligne-à-ligne (`f : A -> B`, équations `f . g = h`,
+  morphisme universel `u : X -> P by (h, k)`). Parser →
+  typechecker (compositions et égalités bien typées) → renderer
+  SVG natif sur grille avec fallback Mermaid `dagre` pour les
+  topologies non plongeables. Spec complète :
+  `CATEGORY-SPEC.md`.
 - **Diagrammes EBNF** — bloc ```` ```ebnf ````. Parsing W3C-EBNF
   via `ebnf2railroad`, une production = un diagramme railroad SVG
   inline, les `=` alignés verticalement (style LaTeX
@@ -80,6 +87,14 @@ overrides du renderer `code`, voir §5 et §8) :
   constructeur. Lignes non reconnues (typo `:=` au lieu de `::=`,
   prose égarée) surfacées dans un panneau d'avertissement
   ambré, jamais silencieusement omises.
+- **Schémas blocs Faust (BDA)** — bloc ```` ```bda ````. Cinq
+  opérateurs binaires (`~` récursion, `,` parallèle, `:` séquentiel,
+  `<:` split, `:>` merge) sur des primitives (`_`, `!`, nombres,
+  arithmétique, fonctions math, labels arités `X[in,out]`). Pipeline
+  parser → typechecker (cohérence des arités) → renderer SVG natif.
+  Option `delays` (alias `faust`) pour matérialiser le `z⁻¹`
+  implicite sur les boucles de récursion. Spec complète :
+  `src/bda.ts`.
 - **Tableaux de données** — blocs ```` ```csv ```` et ```` ```tsv ````.
   Première ligne = en-têtes, suivantes = données. Séparateur
   auto-détecté pour `csv`. Guillemets RFC-4180 supportés.
@@ -87,6 +102,33 @@ overrides du renderer `code`, voir §5 et §8) :
   CSV-like (`<type>` ∈ `line` / `bar`). Auto-détection séparateur,
   smart-comma pour les nombres FR (`3,14`), abscisses numériques /
   catégorielles / dates ISO 8601. Rendu inline SVG. Voir §16.
+- **Diffs unifiés** — bloc ```` ```diff ````. Coloration par ligne
+  (vert ajouts `+`, rouge suppressions `-`, neutre contexte, hunk
+  header `@@…@@` teinté). Pas de coloration syntaxique du contenu —
+  juste les marqueurs unifiés.
+- **Arbres indentés** — bloc ```` ```tree ````. Hiérarchie indentée
+  (2 espaces ou tab) → arbre Unicode box-drawing par défaut, ou
+  diagramme SVG top-down avec le mot-clé `svg`. Pratique pour les
+  arborescences de fichiers, ASTs, dérivations.
+- **Pseudocode** — bloc ```` ```algorithm "Caption" ````. Mise en
+  page façon LaTeX `algorithm2e` : numéros de ligne en gouttière,
+  mots-clés (`for`, `while`, `if`, `then`, `else`, `do`, `end`,
+  `return`, `repeat`, `until`, `break`, `continue`) en gras,
+  caption auto-numérotée « Algorithme N ».
+- **Démos pédagogiques** — bloc ```` ```demo ````. Affiche
+  côte-à-côte la source markdown (mise en surbrillance comme
+  markdown) et le rendu de cette même source — un outil de
+  showcase qui évite d'écrire le code deux fois. Auto-zoom en mode
+  slides pour faire tenir les deux panneaux dans la slide.
+  Voir §13.5.
+- **Captions et cross-références** — la plupart des fences riches
+  acceptent une caption entre guillemets après l'info-string
+  (compteurs partagés par genre : « Figure N » pour diagrammes /
+  charts / arbres / math display, « Table N » pour csv/tsv,
+  « Listing N » pour code source, « Algorithme N » pour algorithm).
+  `\label{key}` à la suite (sur fence ou heading) crée une cible ;
+  `\ref{key}` n'importe où dans le doc affiche un lien formaté
+  (`Figure 3`, …). Clés inconnues → `[?]` rouge visible.
 - **Encadrés (admonitions)** — syntaxe Pandoc fenced div
   `::: classname [titre] … :::`. Classes génériques (`note`, `tip`,
   `warning`, `caution`, `important`) en cadres colorés ; classes
@@ -108,6 +150,12 @@ overrides du renderer `code`, voir §5 et §8) :
 - **Listes de définitions** — syntaxe Pandoc `Terme\n:   Définition`.
   Plusieurs définitions par terme et plusieurs termes consécutifs dans
   la même `<dl>` supportés.
+- **Mode slides 16:9** — page paysage à largeur A4 (210 × 118.125 mm),
+  chaque `## h2` démarre une nouvelle slide. Activable via
+  `pageSize: SLIDES_16_9` (réglages profil) ou `slides: true` dans
+  le frontmatter par document. Marges auto-clampées,
+  figures cappées à 55 % de la hauteur utile, demos avec auto-zoom
+  et bleed conditionnel. Voir §13.5.
 
 ### 3.2. Hors périmètre actuel
 
@@ -570,23 +618,32 @@ HTML-échappé pour pouvoir loger dans l'attribut `data-math`.
 
 ### 8.2. MathJax
 
-`src/math.ts` configure MathJax 3 (paquet `mathjax-full`) en sortie
-SVG :
+`src/math.ts` configure MathJax 4 (paquet `@mathjax/src` + paquets
+de fontes `@mathjax/mathjax-{newcm,tex,asana,fira,stix2}-font`) en
+sortie SVG :
 
 ```ts
 const adaptor = browserAdaptor();
 RegisterHTMLHandler(adaptor);
 const tex = new TeX({ packages: AllPackages });
-const svg = new SVG({ fontCache: 'local' });
+const svg = new SVG({
+  fontCache: 'local',
+  fontData: chosenFontClass,
+});
 const doc = mathjax.document(document, { InputJax: tex, OutputJax: svg });
 ```
 
-- `AllPackages` charge tous les paquets TeX (ams, amssymb, etc.) ;
-  sans ça, `\begin{pmatrix}` ou `align*` lèveraient une erreur de
-  parsing.
+- `AllPackages` charge tous les paquets TeX (ams, amssymb,
+  textmacros, …) ; sans ça, `\begin{pmatrix}` ou `align*`
+  lèveraient une erreur de parsing.
 - `fontCache: 'local'` met les glyphes utilisés dans un `<defs>`
-  interne à chaque SVG et y fait référence via `<use>` ; le SVG reste
-  autonome sans dupliquer chaque glyph en path inline.
+  interne à chaque SVG et y fait référence via `<use>` ; le SVG
+  reste autonome sans dupliquer chaque glyph en path inline.
+- `fontData` reçoit la classe `MathJax*Font` correspondant à la
+  fonte choisie via le réglage `mathFontSet` (newcm par défaut,
+  voir §8.5). MathJax 4 charge les variants de glyphes via
+  `asyncLoad`, que `src/math.ts` route vers `mathjax-fontsets.ts`
+  pour servir le bon paquet npm.
 
 `mj.render(latex, display)` renvoie un `<mjx-container>` qui enveloppe
 le SVG. On extrait le SVG racine via une regex *greedy*
@@ -2576,12 +2633,9 @@ de préambule renvoie un SVG périmé.
   à la Pandoc).
 - Numérotation automatique des admonitions académiques (« Théorème
   1.2 », « Lemme 3 ») avec compteurs CSS ou DOM.
-- Préambule MathJax par document via un champ `mathjax-preamble:` en
-  frontmatter YAML. Son contenu (typiquement `\newcommand` + ligatures
-  `\mathlig`) serait préfixé à chaque source TeX avant `doc.convert()`
-  dans `src/math.ts`. Les `\mathlig{X}{Y}` n'étant pas connus de
-  MathJax, il faudrait les détecter au parsing du préambule et les
-  convertir en pré-substitutions textuelles. Permet à un auteur d'avoir
-  ses macros perso (notations sémantique dénotationnelle, théorie des
-  catégories, etc.) sans polluer le code de l'app et garde les `.md`
-  autonomes.
+- Préambule MathJax par document avec **ligatures `\mathlig{X}{Y}`**
+  pré-substituées (les `\newcommand` classiques sont déjà supportés
+  via la clé `mathjax-preamble:` du frontmatter, voir §24.2 ; ce
+  qui reste à faire c'est la détection des `\mathlig` au parsing du
+  préambule pour les convertir en pré-substitutions textuelles
+  avant `doc.convert()`).

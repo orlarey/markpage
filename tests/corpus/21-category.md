@@ -1,6 +1,6 @@
 # category — diagrammes commutatifs déclaratifs
 
-Le fence ` ```category ` accepte la syntaxe documentée dans CD-SPEC.md :
+Le fence ` ```category ` accepte la syntaxe documentée dans CATEGORY-SPEC.md :
 chaque ligne déclare un morphisme `f : A -> B` ou une équation, dans
 la convention CS / mathématique habituelle.
 

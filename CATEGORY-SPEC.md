@@ -22,7 +22,7 @@ Les langages existants couvrent mal le besoin d'une intégration Markdown :
 Le parser-typechecker de markpage produit un AST de catégorie présentée (objets / morphismes / équations / flèches induites). Deux backends de rendu coexistent :
 
 - **SVG natif** (par défaut, §7.A) — moteur sur mesure pour la fourchette typique des diagrammes commutatifs (3-10 objets). Tire parti de la séparation arêtes squelettiques / raccourcis / induites pour placer les objets sur une grille où les morphismes générateurs deviennent strictement horizontaux ou verticaux, et garantit lignes droites + esthétique textbook (objets sans encadrement, têtes de flèche classiques, labels au milieu des arêtes).
-- **Mermaid** (fallback, §7.B) — utilisé quand le renderer natif ne trouve pas de placement valide (topologie non plongeable en grille, ou `n > 15`). Hérite du moteur `dagre` au prix d'une esthétique moins canonique.
+- **Mermaid** (fallback, §7.B) — utilisé quand le renderer natif ne trouve pas de placement valide (topologie non plongeable sur grille). Hérite du moteur `dagre` au prix d'une esthétique moins canonique.
 
 Notre travail à nous, dans tous les cas, se concentre là où ces deux moteurs sont aveugles — le typage des morphismes, la composition, le statut $\exists!$ des flèches universelles, la vérification de commutativité.
 
@@ -227,7 +227,7 @@ Un vérificateur rejette toute équation mal typée **avant** le rendu.
 
 ### 4.4 Morphismes induits — les flèches universelles
 
-C'est la construction qui distingue `category` d'une syntaxe de graphe. Un morphisme dont la déclaration porte la clause **`by (…)`** n'est pas postulé : son existence et son unicité sont garanties par une propriété universelle. Visuellement il est rendu **en pointillés**.
+C'est la construction qui distingue `category` d'une syntaxe de graphe. Un morphisme dont la déclaration porte la clause **`by (…)`** est typographiquement marqué comme **induit par une propriété universelle** (pullback, produit, équaliseur, …). La clause est une **assertion de l'auteur**, pas une preuve : markpage ne vérifie pas que les hypothèses d'une propriété universelle sont effectivement réunies. Visuellement, le morphisme induit est rendu **en pointillés** ; les arguments `(h, k)` sont enregistrés mais pas représentés graphiquement.
 
 ```category
 pi1 : P -> A
@@ -422,7 +422,7 @@ L'objet initial est le dual exact : `i : I -> A by ()`.
 
 ## 7. Stratégie de rendu
 
-Deux moteurs cohabitent. Le **renderer SVG natif** (§7.A) est appliqué par défaut : il est optimisé pour les petits diagrammes typiques (3-6 objets, jusqu'à ~10) et garantit l'esthétique attendue par les mathématiciens — lignes droites, objets sans encadrement, placement canonique. Le **backend Mermaid** (§7.B) sert de filet de sauvetage quand le renderer natif échoue (topologie qu'il ne sait pas plonger sur grille) ou quand l'utilisateur le force via la directive `renderer: mermaid` en tête de bloc.
+Deux moteurs cohabitent. Le **renderer SVG natif** (§7.A) est appliqué par défaut : il est optimisé pour les petits diagrammes typiques (3-6 objets, jusqu'à une dizaine) et garantit l'esthétique attendue par les mathématiciens — lignes droites, objets sans encadrement, placement canonique. Le **backend Mermaid** (§7.B) sert de filet de sauvetage quand le renderer natif échoue (topologie qu'il ne sait pas plonger sur grille).
 
 ---
 
@@ -516,11 +516,14 @@ Pour chacun le BFS retiendra cette grille parce que c'est elle qui maximise le s
 
 ### 7.B.1 Quand l'utiliser
 
-Trois cas :
-
-1. **Échec du renderer natif** : score final inférieur à un seuil (par exemple `n / 2`), indiquant qu'aucun placement satisfaisant n'a été trouvé. Le moteur logue un avertissement et bascule sur Mermaid.
-2. **Forçage par directive** : `renderer: mermaid` en tête de bloc (à ajouter à la grammaire si besoin).
-3. **Diagrammes très grands** : `n > 15`, où le BFS devient coûteux et l'esthétique « grille » perd de son sens.
+Le fallback est activé automatiquement quand le renderer SVG natif
+ne trouve pas de placement satisfaisant : score final inférieur à
+un seuil (typiquement lié à `n`), indiquant qu'aucun plongement sur
+grille acceptable n'existe pour cette topologie. Le moteur logue un
+avertissement et bascule sur Mermaid sans intervention de
+l'utilisateur. (Une directive `renderer: mermaid` explicite en tête
+de bloc pourrait être ajoutée à la grammaire si le besoin de
+forçage manuel se présente — pas implémentée pour l'instant.)
 
 ### 7.B.2 Justification historique
 

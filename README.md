@@ -25,37 +25,61 @@ you save as `.pdf`, `.md`, or `.tex`.
 
 A Markdown extended for technical and scientific writing:
 
-- **Math** via MathJax (`$x^2$` inline, `$$ … $$` displayed, or
-  fenced `math` blocks)
-- **Inference rules** with a dedicated fenced `inference` block —
-  premises / dashes / conclusion, with automatic Gunter / Scott
-  typography (calligraphic semantic functions, **bold**
-  constructors inside `⟦…⟧`, sans-serif functions outside,
-  numeric subscripts)
-- **EBNF grammars** as railroad / syntax diagrams via the `ebnf`
-  fence, one diagram per production with aligned `=` signs
-- **Algebraic data types** via the `adt` fence — `LHS ::= Ctor |
-  Ctor(args)` definitions typeset with aligned `|` separators and
-  two-tier highlighting (defined types vs pure constructors)
-- **Mermaid diagrams** (flowcharts, sequence, class, state, …) and
-  inline **`chart`** blocks (line, bar) — all rendered as SVG
+- **Math** via MathJax 4 (`$x^2$` inline, `$$ … $$` displayed, or
+  fenced `math` blocks), with selectable math font set
+- **Inference rules** (` ```inference `) — premises / dashes /
+  conclusion, with automatic Gunter / Scott typography
+  (calligraphic semantic functions, **bold** constructors inside
+  `⟦…⟧`, sans-serif functions outside, numeric subscripts)
+- **Commutative diagrams** (` ```category `) — declarative
+  syntax (`f : A -> B`, equations, `by (…)` for universal
+  morphisms), type-checked compositions, native SVG renderer
+  with Mermaid `dagre` fallback for tricky topologies
+- **EBNF grammars** (` ```ebnf `) as railroad / syntax diagrams,
+  one diagram per production with aligned `=` signs
+- **Algebraic data types** (` ```adt `) — `LHS ::= Ctor |
+  Ctor(args)` definitions typeset with aligned `|` separators
+  and two-tier highlighting (defined types vs constructors)
+- **Faust block-diagram algebra** (` ```bda `) — left-to-right
+  audio-DSP signal-flow circuits, five binary operators (`~ : ,
+  <: :>`), native SVG renderer with optional `z⁻¹` markers
+- **Mermaid diagrams** (flowcharts, sequence, class, state, …)
+  and inline **`chart`** blocks (line, bar) — all rendered as SVG
+- **Unified diffs** (` ```diff `) with per-line green/red/grey
+  colouring
+- **Indented trees** (` ```tree `) → Unicode box-drawing tree or
+  top-down SVG (`tree svg`)
+- **Algorithmic pseudocode** (` ```algorithm `) with line
+  numbers and bolded keywords, à la LaTeX `algorithm2e`
 - **Syntax-highlighted code blocks** — ~20 common languages
-  bundled (Python, Rust, JS/TS, Go, C/C++, Haskell, OCaml, SQL, …)
-  plus a custom Faust grammar for audio DSP specs
+  bundled (Python, Rust, JS/TS, Go, C/C++, Haskell, OCaml, SQL,
+  …) plus a custom Faust grammar for audio DSP specs
+- **Captions and cross-references** — any rich fence can carry a
+  quoted caption (auto-numbered "Figure N", "Listing N",
+  "Algorithm N", "Table N") and a `\label{key}`; reference
+  anywhere with `\ref{key}`
+- **Side-by-side demos** (` ```demo `) — source markdown and its
+  rendered output displayed in two columns, with auto-zoom in
+  slides mode
+- **Slides mode** — 16:9 PDF presentations à la Beamer, every
+  `## h2` starts a new slide; activate via Settings → Page →
+  Format = Slides 16:9, or per-document via the `slides: true`
+  frontmatter key
 - **Callouts** (`::: theorem`, `::: note`, `::: warning`, …) with
   optional titles
 - **Footnotes** (`[^id]`) and **Pandoc-lite citations**
-  (`[@key]` + `[@key]: …`), each with auto-numbered end-of-document
-  sections and back-links
+  (`[@key]` + `[@key]: …`), each with auto-numbered
+  end-of-document sections and back-links
 - **Definition lists** and **CSV/TSV tables**
-- On-the-fly **input ligatures**: `->` becomes `→`, `\alpha` becomes
-  `α`, `\|N` becomes `ℕ`; double-backslash escapes (`\\alpha` keeps
-  the source literal)
-- **Section auto-numbering** — write the first heading the way you
-  want, the rest follows the same style
-- **YAML frontmatter** — optional `---` block at the top of a doc
-  with `title:` / `author:` / `organization:` / `date:` overrides
-  per-document, plus `mathjax-preamble:` for defining `\newcommand`
+- On-the-fly **input ligatures**: `->` becomes `→`, `\alpha`
+  becomes `α`, `\|N` becomes `ℕ`; double-backslash escapes
+  (`\\alpha` keeps the source literal)
+- **Section auto-numbering** — write the first heading the way
+  you want, the rest follows the same style
+- **YAML frontmatter** — optional `---` block at the top of a
+  doc with `title:` / `author:` / `organization:` / `date:`
+  overrides per-document, `slides: true` to switch to slides
+  mode, plus `mathjax-preamble:` for defining `\newcommand`
   macros once and using them in every formula
 
 ## Export formats and sharing
