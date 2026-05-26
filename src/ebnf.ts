@@ -48,7 +48,7 @@ export function renderEbnfBlock(source: string): string {
         `<dd>${svg}</dd>`
       );
     });
-    return `<dl class="ebnf-block">${parts.join('')}</dl>`;
+    return `<dl class="ebnf-block block-rigid">${parts.join('')}</dl>`;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return `<pre class="ebnf-error">EBNF parse error: ${escapeHtml(msg)}</pre>`;

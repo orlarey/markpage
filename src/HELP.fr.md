@@ -412,7 +412,9 @@ Ce que vous pouvez régler :
   recherche signé d'une autre équipe — utilisez plutôt le
   *frontmatter YAML* en tête de doc (cf. *Pour aller encore plus
   loin → Frontmatter YAML*).
-- **Format de page** (A4, A5, Letter…)
+- **Format de page** (A4, A5, Letter…, plus **Slides 16:9** pour
+  produire un PDF de présentation à la Beamer — voir *Mode slides*
+  plus bas)
 - **Marges** en millimètres
 - **Justification** du texte
 - **Interligne**
@@ -506,6 +508,89 @@ de `▾`.
   profil de votre collègue, par exemple). **Exporter…** télécharge
   le profil courant comme `<nom-du-profil>.json`. Format auto-suffisant
   et lisible à la main si besoin.
+
+### Mode slides (présentation 16:9) \label{sec:slides}
+
+markpage sait produire un **PDF de présentation à la Beamer** : page
+au format paysage 16:9 (largeur d'une A4, soit 210 × 118.1 mm), et
+**chaque `## titre de section` démarre une nouvelle slide**. Le
+`# titre du document` reste pour la slide de titre.
+
+Deux façons de l'activer :
+
+- **Réglages → Page → Format = Slides 16:9** — affecte tous les
+  documents du profil courant. Conseillé pour un profil dédié
+  « Diaporamas ».
+- **Frontmatter YAML par document** — pratique quand un seul doc
+  doit basculer en slides sans toucher au profil :
+
+```yaml
+---
+title: Mon talk
+slides: true
+---
+```
+
+Le `slides: true` du frontmatter prend le pas sur le format choisi
+dans les réglages.
+
+Exemple minimal :
+
+```markdown
+---
+title: Algèbres de blocs-diagrammes
+slides: true
+---
+
+## Motivation
+
+Le langage Faust repose sur 5 opérateurs binaires…
+
+## Les opérateurs
+
+- `~` récursion
+- `,` parallèle
+- `:` séquentiel
+- `<:` split
+- `:>` merge
+
+## Démo
+\`\`\`bda
+1 : +~_
+\`\`\`
+```
+
+Trois slides : titre (auto), Motivation, Les opérateurs, Démo.
+
+**Tout le reste fonctionne** comme dans un document classique :
+captions, références croisées, formules MathJax, blocs `mermaid`,
+`category`, `bda`, `chart`, etc. — vous bénéficiez du même rendu
+typographique sur slides.
+
+**Astuce pratique** : créez un profil de réglages dédié au format
+slides (taille de corps plus grosse, polices sans-serif pour la
+projection, marges plus généreuses). Vous gardez vos profils
+« document » et « slides » et basculez selon le contexte.
+
+**Bloc `demo`** : pour des slides pédagogiques, le fence
+` ```demo` affiche côte à côte la source markdown et son rendu.
+Le zoom automatique adapte les deux panneaux pour qu'ils tiennent
+dans la slide.
+
+```markdown
+\`\`\`demo
+\`\`\`bda "Accumulateur"
+1 : +~_
+\`\`\`
+\`\`\`
+```
+
+*Caveat* : évitez qu'un bloc `demo` commence par une phrase de
+prose suivie d'un bloc rigide (code, diagramme, équation
+displayed). Le layout doit alors composer entre un élément qui
+peut wrapper et un élément qui ne le peut pas, et le résultat est
+moins propre. Mettez directement le bloc à présenter en première
+position.
 
 ### Caractères spéciaux et symboles
 
@@ -910,6 +995,10 @@ Les clés reconnues :
   collé avant **chaque** formule MathJax du document. Idéal pour
   définir une fois `\newcommand{\R}{\mathbb{R}}` et l'utiliser dans
   toutes les formules sans repéter la définition.
+- **`slides`** — `true` pour produire un PDF de présentation 16:9
+  où chaque `## titre` démarre une nouvelle slide (voir
+  *\ref{sec:slides}*). Force `pageSize` à `SLIDES_16_9` quel que
+  soit le réglage du profil courant.
 
 Le bloc est entièrement optionnel — un document sans frontmatter
 continue à fonctionner exactement comme avant, le premier `#` du

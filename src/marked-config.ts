@@ -308,6 +308,21 @@ marked.use({
           raw,
         );
       }
+      // ```demo "Caption" — side-by-side teaching block. The body is
+      // arbitrary Markdown; markpage emits TWO panes: the literal source
+      // (syntax-highlighted as Markdown) on the left, and the same source
+      // parsed as Markdown on the right. Lets a slide present a feature
+      // alongside its visible syntax without writing the source twice.
+      // Default zoom is `auto` (binary-search the largest zoom that fits
+      // in slides mode; CSS default outside slides mode). A positional
+      // arg overrides: ```demo 0.7 or ```demo zoom=0.7 for an explicit
+      // numeric zoom.
+      if (lang === 'demo' || lang.startsWith('demo ')) {
+        return injectSource(
+          withCaption('figure', info.caption, renderDemoBlock(token.text, info.args), info.label),
+          raw,
+        );
+      }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown
       // languages fall through to marked's plain monospace block.
@@ -776,7 +791,7 @@ function renderCategory(source: string): string {
   // diagrams). In that case fall through to the Mermaid backend.
   const svg = emitCategorySvg(ast);
   if (svg !== null) {
-    return `<div class="category-wrap">${svg}</div>\n`;
+    return `<div class="category-wrap block-rigid">${svg}</div>\n`;
   }
   const mermaidSrc = emitCategoryMermaid(ast);
   return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
@@ -814,7 +829,69 @@ function renderBda(source: string, args: string[] = []): string {
   const opts = {
     delays: args.includes('delays') || args.includes('faust'),
   };
-  return `<div class="bda-wrap">${emitBdaSvg(ast, opts)}</div>\n`;
+  return `<div class="bda-wrap block-rigid">${emitBdaSvg(ast, opts)}</div>\n`;
+}
+
+/**
+ * Purpose: Render a `demo` block — show the source markdown on one side
+ *   and its rendered output on the other, side-by-side. Saves the user
+ *   from writing the same snippet twice (once as a `markdown` code
+ *   fence for display, once as the actual fence for rendering).
+ * How: Highlight the body as Markdown for the source pane; re-enter
+ *   `marked.parse` on the body for the rendered pane. The re-entrant
+ *   parse runs with `inEndnotesRender = true` so the preprocess/
+ *   postprocess hooks no-op — that keeps the outer doc's footnote and
+ *   citation registries (and label pre-scan) intact while the inner
+ *   content is processed. Compteurs de captions partagés volontairement
+ *   avec le doc parent (les blocs captionnés intérieurs se numérotent
+ *   dans la suite logique du doc).
+ */
+function renderDemoBlock(source: string, args: string[] = []): string {
+  const sourceHtml = highlightCode(source, 'markdown');
+  const wasInEndnotes = inEndnotesRender;
+  inEndnotesRender = true;
+  let renderedHtml: string;
+  try {
+    renderedHtml = marked.parse(source, { async: false }) as string;
+  } finally {
+    inEndnotesRender = wasInEndnotes;
+  }
+  const zoom = parseDemoZoom(args);
+  let attrs = '';
+  if (typeof zoom === 'number') {
+    attrs = ` style="zoom: ${zoom}"`;
+  } else {
+    // `auto` is the default: an explicit `auto` keyword, or no zoom
+    // arg at all. The marker triggers the slides-mode pre-pagination
+    // measurement pass in preview-paginated.ts. Outside slides mode
+    // it's inert and the CSS default zoom applies.
+    attrs = ` data-auto-zoom="1"`;
+  }
+  return (
+    `<div class="demo-block"${attrs}>` +
+    `<div class="demo-pane demo-pane-source"><pre><code class="language-markdown">${sourceHtml}</code></pre></div>` +
+    `<div class="demo-pane demo-pane-rendered">${renderedHtml}</div>` +
+    `</div>\n`
+  );
+}
+
+/**
+ * Purpose: Extract a zoom factor from the demo fence's positional args.
+ * How: Accept a bare number (`demo 0.7`), a `zoom=X` key-value
+ *   (`demo zoom=0.7`), or the keyword `auto` (positional or `zoom=auto`).
+ *   Validate 0.1 ≤ zoom ≤ 2.0 for numeric forms. Returns null when no
+ *   valid zoom is present — the caller treats that as the default
+ *   (`auto`).
+ */
+function parseDemoZoom(args: string[]): number | 'auto' | null {
+  for (const arg of args) {
+    const kvMatch = /^zoom\s*=\s*(.+)$/i.exec(arg);
+    const raw = kvMatch ? (kvMatch[1] ?? '') : arg;
+    if (raw.toLowerCase() === 'auto') return 'auto';
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 0.1 && n <= 2.0) return n;
+  }
+  return null;
 }
 
 /**
@@ -839,7 +916,7 @@ function renderMathPlaceholder(source: string): string {
     }
   }
   const escaped = escapeHtml(mathSrc);
-  return `<div class="math-block" data-math="${escaped}"${idAttr}></div>\n`;
+  return `<div class="math-block block-rigid" data-math="${escaped}"${idAttr}></div>\n`;
 }
 
 function injectSource(html: string, raw: string): string {
@@ -999,7 +1076,7 @@ function renderInference(src: string, label: string): string {
     // No bar: treat the whole thing as a fallback display math block
     // so the user sees *something* instead of nothing.
     const fallback = escapeHtml(applyInferenceTypography(src.trim()));
-    return `<div class="math-block" data-math="${fallback}"></div>\n`;
+    return `<div class="math-block block-rigid" data-math="${fallback}"></div>\n`;
   }
   const premiseLines = lines
     .slice(0, barIndex)
@@ -1026,7 +1103,7 @@ function renderInference(src: string, label: string): string {
       latex += String.raw` \quad \textsf{(${stripped})}`;
     }
   }
-  return `<div class="math-block" data-math="${escapeHtml(latex)}"></div>\n`;
+  return `<div class="math-block block-rigid" data-math="${escapeHtml(latex)}"></div>\n`;
 }
 
 /**

@@ -5,16 +5,16 @@
 \Gamma \vdash e_2 : \text{int}
 ---
 \Gamma \vdash e_1 + e_2 : \text{int}
-```" class="math-block" data-math="\dfrac{\Gamma \vdash e_1 : \text{int} \quad \Gamma \vdash e_2 : \text{int}}{\Gamma \vdash e_1 + e_2 : \text{int}}"></div>
+```" class="math-block block-rigid" data-math="\dfrac{\Gamma \vdash e_1 : \text{int} \quad \Gamma \vdash e_2 : \text{int}}{\Gamma \vdash e_1 + e_2 : \text{int}}"></div>
 <p>A rule with two premises on the same line (separated by <code>;</code>) and a label:</p>
 <div data-source="```inference (T-App)
 \Gamma \vdash f : A \to B ; \Gamma \vdash x : A
 ---
 \Gamma \vdash f\,x : B
-```" class="math-block" data-math="\dfrac{\Gamma \vdash f : A \to B \quad \Gamma \vdash x : A}{\Gamma \vdash f\,x : B} \quad \textsf{(T-App)}"></div>
+```" class="math-block block-rigid" data-math="\dfrac{\Gamma \vdash f : A \to B \quad \Gamma \vdash x : A}{\Gamma \vdash f\,x : B} \quad \textsf{(T-App)}"></div>
 <p>A rule using Unicode operators (the inference body goes to LaTeX as-is and relies on <code>newunicodechar</code>/the math mode for rendering):</p>
 <div data-source="```inference (Ax)
 ---
 \Gamma, x : \tau \vdash x : \tau
 ```
-" class="math-block" data-math="\dfrac{}{\Gamma, x : \tau \vdash x : \tau} \quad \textsf{(Ax)}"></div>
+" class="math-block block-rigid" data-math="\dfrac{}{\Gamma, x : \tau \vdash x : \tau} \quad \textsf{(Ax)}"></div>

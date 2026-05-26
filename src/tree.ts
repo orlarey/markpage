@@ -193,7 +193,7 @@ function renderSvg(roots: TreeNode[]): string {
     );
   }
   parts.push('</svg>');
-  return `<div class="tree-svg-wrap">${parts.join('')}</div>\n`;
+  return `<div class="tree-svg-wrap block-rigid">${parts.join('')}</div>\n`;
 }
 
 /**

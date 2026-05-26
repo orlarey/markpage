@@ -49,7 +49,7 @@ import {
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
 import { paginate } from './preview-paginated';
-import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   findShowcaseEntry,
   HERO_DEMO_ENTRY,
@@ -114,16 +114,17 @@ async function run(): Promise<void> {
   // hand it to paged.js.
   const built = document.createElement('div');
   const { meta } = parseFrontmatter(entry.source);
+  const effectiveSettings = applyFrontmatterToSettings(settings, meta);
   renderPreview(built, entry.source);
-  applyPreviewMetadata(built, settings, meta);
+  applyPreviewMetadata(built, effectiveSettings, meta);
   annotateSourceLines(built, entry.source);
   const preamble = meta['mathjax-preamble'] ?? '';
   await Promise.all([
     renderMermaidBlocks(built),
-    renderMathBlocks(built, settings.mathFontSet, preamble),
-    renderMathInlines(built, settings.mathFontSet, preamble),
+    renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
+    renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
   ]);
-  await paginate(built, settings, previewEl);
+  await paginate(built, effectiveSettings, previewEl);
 }
 
 void run().catch((err: unknown) => {

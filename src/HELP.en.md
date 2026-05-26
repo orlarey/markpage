@@ -396,7 +396,8 @@ What you can adjust:
   *To override on a per-document basis* — say a paper signed by a
   different team — use a *YAML frontmatter* at the top of the doc
   instead (cf. *Going further → YAML frontmatter*).
-- **Page format** (A4, A5, Letter…)
+- **Page format** (A4, A5, Letter…, plus **Slides 16:9** to produce
+  a Beamer-style presentation PDF — see *Slides mode* below)
 - **Margins** in millimetres
 - **Justification** of text
 - **Line spacing**
@@ -488,6 +489,85 @@ Inside the menu:
   export, for example). **Export…** downloads the current profile
   as `<profile-name>.json`. The format is self-contained and human-
   readable if needed.
+
+### Slides mode (16:9 presentation) \label{sec:slides}
+
+markpage can produce a **Beamer-style presentation PDF**: landscape
+16:9 page format (A4 width, so 210 × 118.1 mm), and **every
+`## section heading` starts a new slide**. The `# document title`
+remains the title slide.
+
+Two ways to opt in:
+
+- **Settings → Page → Format = Slides 16:9** — applies to every doc
+  in the current profile. Best suited to a dedicated "Slides"
+  profile.
+- **Per-document YAML frontmatter** — handy when a single doc
+  should be slides without rebinding your profile:
+
+```yaml
+---
+title: My talk
+slides: true
+---
+```
+
+The frontmatter `slides: true` overrides whatever format was picked
+in the settings.
+
+Minimal example:
+
+```markdown
+---
+title: Block-diagram algebras
+slides: true
+---
+
+## Motivation
+
+The Faust language rests on five binary operators…
+
+## The operators
+
+- `~` recursion
+- `,` parallel
+- `:` sequential
+- `<:` split
+- `:>` merge
+
+## Demo
+\`\`\`bda
+1 : +~_
+\`\`\`
+```
+
+Three slides: title (auto), Motivation, The operators, Demo.
+
+**Everything else works** as in a regular document: captions,
+cross-refs, MathJax formulas, `mermaid` / `category` / `bda` /
+`chart` blocks — you get the same typography on slides.
+
+**Practical tip**: create a dedicated settings profile for slides
+(larger body size, sans-serif fonts tuned for projection, more
+generous margins). You then keep your "document" and "slides"
+profiles separate and switch as needed.
+
+**`demo` fence**: for teaching slides, the ` ```demo` fence shows
+the markdown source side-by-side with its rendered output.
+Auto-zoom resizes both panes so they fit the slide.
+
+```markdown
+\`\`\`demo
+\`\`\`bda "Accumulator"
+1 : +~_
+\`\`\`
+\`\`\`
+```
+
+*Caveat*: avoid opening a `demo` with a prose sentence followed
+by a rigid block (code, diagram, displayed equation). The layout
+then has to balance a wrappable element against a rigid one and
+the result is less clean. Put the showcased block first.
 
 ### Special characters and symbols
 
@@ -874,6 +954,10 @@ Recognised keys:
   before **every** MathJax formula in the document. Ideal for
   defining once `\newcommand{\R}{\mathbb{R}}` and using it in every
   formula without repeating the definition.
+- **`slides`** — `true` to produce a 16:9 presentation PDF where
+  every `## heading` starts a new slide (see *\ref{sec:slides}*).
+  Forces `pageSize` to `SLIDES_16_9` regardless of the active
+  profile's setting.
 
 The block is fully optional — a document without frontmatter keeps
 working as before, with the first `#` in the body promoted to the

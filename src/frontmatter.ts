@@ -21,6 +21,10 @@ export interface Frontmatter {
   // TeX source prepended to every MathJax invocation — define macros once
   // at the top of the doc and use them in every formula thereafter.
   'mathjax-preamble'?: string;
+  // Per-doc override of the page format: when truthy the renderer
+  // forces `pageSize: 'SLIDES_16_9'` so `## h2` starts a new slide
+  // regardless of the active settings profile.
+  slides?: boolean;
   extra: Record<string, string>;
 }
 
@@ -159,7 +163,19 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'mathjax-preamble':
       meta[key] = value;
       break;
+    case 'slides':
+      meta.slides = parseBool(value);
+      break;
     default:
       meta.extra[key] = value;
   }
+}
+
+/**
+ * Purpose: YAML-lite boolean coercion — accepts `true`/`yes`/`on`/`1`
+ *   (any case) as truthy, anything else as falsy.
+ */
+function parseBool(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return v === 'true' || v === 'yes' || v === 'on' || v === '1';
 }

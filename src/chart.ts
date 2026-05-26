@@ -561,5 +561,5 @@ export function renderChart(src: string, typeArg: string): string {
   buildLegend(parts, data);
 
   const svg = `<svg class="chart-svg" viewBox="0 0 ${VIEW_W} ${VIEW_H}" xmlns="http://www.w3.org/2000/svg" role="img">${parts.join('')}</svg>`;
-  return `<div class="chart-block">${svg}</div>\n`;
+  return `<div class="chart-block block-rigid">${svg}</div>\n`;
 }

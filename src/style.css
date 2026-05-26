@@ -1316,6 +1316,98 @@ body,
   stroke-width: 1;
 }
 
+/* ---- demo block (side-by-side source + rendered) -----------------
+   A `` ```demo `` fence renders its body twice: as a syntax-highlighted
+   Markdown listing on the left, and as the parsed Markdown on the
+   right. Layout is a 2-column grid so the source and the rendered
+   output sit at exactly the same vertical extent. */
+.demo-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.2em;
+  align-items: center;
+  break-inside: avoid;
+  margin: 0.6em 0;
+  /* Slight scale-down on the whole demo block so both panes (source +
+     rendered) read as visibly smaller than "real" content — a visual
+     cue that says "this is a demonstration of a feature", not the
+     feature in earnest. `zoom` is non-standard but every browser
+     markpage targets supports it AND paged.js respects it for layout
+     (unlike `transform: scale` which would leave the layout space at
+     the original size). It scales text, SVG, and `<img>` uniformly. */
+  zoom: 0.85;
+}
+.demo-pane {
+  min-width: 0;
+}
+/* Source pane = META content (it shows what was typed, not what's
+   being demonstrated). Strip the user's code-block frame entirely —
+   no background, no border, no padding — so the markdown source
+   reads as plain monospace text, distinct from the framed rendered
+   pane on the right. `!important` is necessary: the pagedCss rule
+   `:where(#preview-pane,…) pre { … }` is injected AFTER static
+   style.css, so source-order with equal-or-higher specificity would
+   otherwise let it win. */
+.demo-block .demo-pane-source pre,
+.demo-block .demo-pane-source pre.hljs {
+  margin: 0 !important;
+  white-space: pre !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+/* When the rendered side is prose (no <pre>, no block <svg>, no
+   <img>), the source markdown is also prose — auto-zoom adds
+   `demo-source-wrap` so the source `<pre>` wraps inside each
+   logical line. Newlines from the markdown source are still
+   preserved (pre-wrap, not just normal). */
+.demo-block.demo-source-wrap .demo-pane-source pre,
+.demo-block.demo-source-wrap .demo-pane-source pre.hljs {
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word;
+  /* Same right-edge breathing room as the rendered side. */
+  padding-right: 0.6em !important;
+}
+/* Defensive wrap on the rendered side too: prose elements (paragraphs,
+   list items, definition lists, blockquotes) must wrap inside the pane
+   regardless of any inherited `white-space`. Otherwise a line like
+   "Les équations de Maxwell sous forme différentielle :" runs off the
+   slide edge when its natural width grazes the auto-zoom pane width. */
+.demo-block .demo-pane-rendered p,
+.demo-block .demo-pane-rendered li,
+.demo-block .demo-pane-rendered dt,
+.demo-block .demo-pane-rendered dd,
+.demo-block .demo-pane-rendered blockquote {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+  width: auto !important;
+  /* Visual breathing room so wrapped text doesn't run flush against
+     the pane's right edge (and, in compact + bleed mode, against the
+     slide edge). The padding is part of the element's total width
+     so the natural-width measurement already accounts for it. */
+  padding-right: 0.6em;
+}
+/* Cap the rendered pane itself so nothing inside can spill beyond
+   the grid track the auto-zoom pass sized it for. */
+.demo-block .demo-pane-rendered {
+  max-width: 100%;
+  overflow: hidden;
+}
+.demo-block .demo-pane-source code,
+.demo-block .demo-pane-source pre.hljs code {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+}
+.demo-pane-rendered > :first-child {
+  margin-top: 0;
+}
+.demo-pane-rendered > :last-child {
+  margin-bottom: 0;
+}
+
 /* ---- bda error block ---------------------------------------------
    Parser / typechecker diagnostics for a `bda` fence. Same visual frame
    as the category-error / math-error blocks. */

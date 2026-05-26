@@ -24,7 +24,7 @@ import {
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
 import { paginateOnce } from './preview-paginated';
-import type { PdfSettings } from './settings';
+import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
 const PRINT_STYLE_ID = 'markpage-print-style';
@@ -38,7 +38,7 @@ export async function exportViaPrint(
   settings: PdfSettings,
   filename: string,
 ): Promise<void> {
-  const content = await buildPrintContent(expandedSource, settings);
+  const { el: content, effectiveSettings } = await buildPrintContent(expandedSource, settings);
 
   // Mount the target with measurable dimensions so paged.js can lay
   // out pages even though we don't want it visible on screen.
@@ -64,7 +64,7 @@ export async function exportViaPrint(
   // would need a non-zero @page margin). `paginateOnce` does not touch
   // the global currentPreviewer state so the preview pane keeps its
   // pages alive for when the user returns to it after printing.
-  const teardownPrintPreviewer = await paginateOnce(content, settings, target);
+  const teardownPrintPreviewer = await paginateOnce(content, effectiveSettings, target);
 
   // Clear the inline staging styles so @media print can take over.
   target.style.cssText = '';
@@ -107,18 +107,21 @@ export async function exportViaPrint(
 async function buildPrintContent(
   source: string,
   settings: PdfSettings,
-): Promise<HTMLElement> {
+): Promise<{ el: HTMLElement; effectiveSettings: PdfSettings }> {
   const el = document.createElement('div');
   const { meta } = parseFrontmatter(source);
+  // Same per-doc override hook as the preview path: a frontmatter
+  // `slides: true` forces the SLIDES_16_9 page format.
+  const effectiveSettings = applyFrontmatterToSettings(settings, meta);
   renderPreview(el, source);
-  applyPreviewMetadata(el, settings, meta);
+  applyPreviewMetadata(el, effectiveSettings, meta);
   const preamble = meta['mathjax-preamble'] ?? '';
   await Promise.all([
     renderMermaidBlocks(el),
-    renderMathBlocks(el, settings.mathFontSet, preamble),
-    renderMathInlines(el, settings.mathFontSet, preamble),
+    renderMathBlocks(el, effectiveSettings.mathFontSet, preamble),
+    renderMathInlines(el, effectiveSettings.mathFontSet, preamble),
   ]);
-  return el;
+  return { el, effectiveSettings };
 }
 
 /**

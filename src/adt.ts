@@ -233,7 +233,7 @@ function renderDefs(defs: AdtDef[]): string {
       );
     });
   });
-  return `<div class="adt-block">${rows.join('')}</div>`;
+  return `<div class="adt-block block-rigid">${rows.join('')}</div>`;
 }
 
 /**

@@ -11,7 +11,17 @@
 import type { MathFontSet } from './mathjax-fontsets';
 export type { MathFontSet };
 
-export type PageSize = 'A3' | 'A4' | 'A5' | 'B5' | 'LETTER' | 'LEGAL';
+export type PageSize =
+  | 'A3'
+  | 'A4'
+  | 'A5'
+  | 'B5'
+  | 'LETTER'
+  | 'LEGAL'
+  // Beamer-style 16:9 presentation slides (PowerPoint widescreen).
+  // When this size is picked, `pagedCss` adds `break-before: page` on
+  // every `h2` so each second-level heading starts its own slide.
+  | 'SLIDES_16_9';
 
 export const PAGE_SIZES: PageSize[] = [
   'A4',
@@ -20,6 +30,7 @@ export const PAGE_SIZES: PageSize[] = [
   'B5',
   'LETTER',
   'LEGAL',
+  'SLIDES_16_9',
 ];
 
 export const PAGE_SIZE_LABELS: Record<PageSize, string> = {
@@ -29,6 +40,7 @@ export const PAGE_SIZE_LABELS: Record<PageSize, string> = {
   B5: 'B5',
   LETTER: 'Letter',
   LEGAL: 'Legal',
+  SLIDES_16_9: 'Slides 16:9',
 };
 
 export type PageNumberPosition =
@@ -709,6 +721,44 @@ export interface MetadataLine {
  *   YAML frontmatter takes precedence over the profile fields when
  *   provided.
  */
+/**
+ * Purpose: Return a settings copy with the frontmatter's per-doc
+ *   overrides folded in. Currently: `slides: true` forces
+ *   `pageSize: 'SLIDES_16_9'` so a single doc can opt into the
+ *   slides format without rebinding its settings profile.
+ * How: Shallow clone + targeted override. Returns the original when
+ *   no override is in effect, so call sites stay cheap.
+ */
+export function applyFrontmatterToSettings(
+  settings: PdfSettings,
+  frontmatter?: { slides?: boolean },
+): PdfSettings {
+  if (frontmatter?.slides) {
+    return slidesSettings({ ...settings, pageSize: 'SLIDES_16_9' });
+  }
+  if (settings.pageSize === 'SLIDES_16_9') {
+    return slidesSettings(settings);
+  }
+  return settings;
+}
+
+/**
+ * Purpose: Apply the slide-specific defaults that only make sense for
+ *   the 16:9 format — primarily tighter vertical margins so a title +
+ *   description + figure can all fit on one slide.
+ * How: Clamp top/bottom margins to a slide-friendly ceiling (10 mm).
+ *   Horizontal margins stay as the user picked them. Idempotent: applied
+ *   only when needed.
+ */
+function slidesSettings(settings: PdfSettings): PdfSettings {
+  const SLIDE_MARGIN_CAP_MM = 10;
+  const m = settings.margins;
+  const top = Math.min(m.top, SLIDE_MARGIN_CAP_MM);
+  const bottom = Math.min(m.bottom, SLIDE_MARGIN_CAP_MM);
+  if (top === m.top && bottom === m.bottom) return settings;
+  return { ...settings, margins: { ...m, top, bottom } };
+}
+
 export function metadataLines(
   s: PdfSettings,
   frontmatter?: {

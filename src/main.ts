@@ -97,7 +97,7 @@ import {
   setCurrentDocId,
   type DocEntry,
 } from './docs';
-import { type PdfSettings } from './settings';
+import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 import {
   createProfile,
   deleteProfile,
@@ -381,18 +381,22 @@ async function bootstrap(): Promise<void> {
     const myReq = ++previewReqId;
     const resolved = await expandRefsToBlobUrls(source);
     const { meta } = parseFrontmatter(resolved);
+    // Frontmatter can override page-format-level settings (e.g.
+    // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
+    // effective settings once and use them for pagination.
+    const effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
     const built = document.createElement('div');
     renderPreview(built, resolved);
-    applyPreviewMetadata(built, state.settings, meta);
+    applyPreviewMetadata(built, effectiveSettings, meta);
     annotateSourceLines(built, source);
     const preamble = meta['mathjax-preamble'] ?? '';
     await Promise.all([
       renderMermaidBlocks(built),
-      renderMathBlocks(built, state.settings.mathFontSet, preamble),
-      renderMathInlines(built, state.settings.mathFontSet, preamble),
+      renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
+      renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
     ]);
     if (myReq !== previewReqId) return;
-    await paginate(built, state.settings, previewEl);
+    await paginate(built, effectiveSettings, previewEl);
     if (myReq !== previewReqId) return;
     dirty = false;
   };

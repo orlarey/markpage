@@ -294,7 +294,7 @@ export async function renderMermaidBlocks(target: HTMLElement): Promise<void> {
       // replace the <pre><code> with the SVG below).
       wrapper.dataset.source = `\`\`\`mermaid\n${source.replace(/\n$/, '')}\n\`\`\``;
       if (result.ok) {
-        wrapper.className = 'mermaid-block';
+        wrapper.className = 'mermaid-block block-rigid';
         wrapper.innerHTML = makeIdsUnique(result.svg);
       } else {
         wrapper.className = 'mermaid-error';
