@@ -567,7 +567,6 @@ export async function applyAutoZoomForDemos(
       const spread = wMax <= halfVisual; // both panes fit their half naturally
       const zH = naturalH > maxHeightPx ? maxHeightPx / naturalH : 1;
       let zW = 1;
-      let bled = false;
       let effectiveW = widthPx;
       if (!spread) {
         // Compact mode: shrink so the natural sum + gap fits the
@@ -575,7 +574,6 @@ export async function applyAutoZoomForDemos(
         // is the binding constraint.
         zW = (widthPx - G_MIN_VISUAL) / (w1 + w2);
         if (zW < BLEED_THRESHOLD && zW <= zH) {
-          bled = true;
           bleedTarget.classList.add('demo-bleed');
           effectiveW = widthPx * bleedRatio;
           zW = (effectiveW - G_MIN_VISUAL) / (w1 + w2);
@@ -609,18 +607,6 @@ export async function applyAutoZoomForDemos(
       // Row height = H/z so that visual row height = H. align-items:
       // center (from .demo-block) then vertically centres each pane.
       const rowLayout = maxHeightPx / z;
-
-      // Debug attribute (temporary): exposes the dimensions driving
-      // the layout + the final zoom. Inspect via DevTools.
-      el.dataset.debug =
-        `${spread ? 'spread' : 'compact'} ` +
-        `w1=${Math.round(w1)}${w1 < w1Raw ? `(capped from ${Math.round(w1Raw)})` : ''} ` +
-        `w2=${Math.round(w2)}${w2 < w2Raw ? `(capped from ${Math.round(w2Raw)})` : ''} ` +
-        `h1=${Math.round(h1)} h2=${Math.round(h2)} ` +
-        `W=${Math.round(widthPx)} H=${Math.round(maxHeightPx)} ` +
-        `padL=${Math.round(padLeft)} gap=${Math.round(gapLayout)} padR=${Math.round(padRight)} ` +
-        `zW=${zW.toFixed(3)} zH=${zH.toFixed(3)} z=${z.toFixed(3)}` +
-        (bled ? ' bleed' : '');
 
       // ----- Apply.
       el.style.columnGap = '0';
