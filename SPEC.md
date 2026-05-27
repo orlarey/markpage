@@ -1239,6 +1239,46 @@ L'enveloppement est fait en **ordre inverse** du document, pour que
 les chaînes (h2 → h3 → paragraphe) finissent dans des wrappers
 nestés et restent groupées.
 
+**Pré-découpe des `<pre>` trop hauts (`src/pre-split.ts`).** paged.js
+ne sait pas fragmenter un `<pre>` plus haut qu'une page : avec un
+wrapper `keep-with-next` autour, il produit une page quasi-vide
+suivie d'une duplication partielle ; sans wrapper, il abandonne tout
+le contenu qui suit. La parade est de fragmenter ces blocs **avant**
+de les passer à paged.js. `splitLongPreBlocks(root, target=35,
+slack=8)` parcourt les `<pre>`, et pour chacun dont le corps dépasse
+`target + slack` lignes, le découpe en plusieurs `<pre>` contigus
+qui partagent la même classe `language-X`.
+
+Les points de découpe sont choisis par un scoring sur fenêtre de
+recherche `[pivot - slack, pivot + slack]` autour de la position
+cible. Un état de lex est calculé ligne par ligne (profondeur
+brackets, commentaires `/* */`, `(* *)` OCaml nested, strings
+multi-lignes `"""` / `'''`, template literals `` ` ``, line comments
+`//` `#` `--`, single-line strings avec gestion des `\` escapes).
+Une ligne est *éligible* si l'état de fin de ligne n'est plus dans
+un construct multi-ligne. Parmi les éligibles, on préfère (score
+décroissant) : ligne vide → ligne se terminant par `}` → `;` / `,`
+→ ligne d'indentation minimale → autre, avec bonus si la profondeur
+brackets revient à zéro ou au minimum du bloc, et pénalité de
+distance au pivot. Hard cut au pivot si aucun candidat éligible
+(situation pathologique — string ou commentaire de >40 lignes sans
+respiration).
+
+Chaque chunk est re-passé dans highlight.js (`highlightCode`) avec
+le même langage. La coloration peut diverger légèrement d'un chunk
+à l'autre quand un construct multi-ligne traverse une frontière de
+chunk — accepté comme trade-off, le contenu textuel reste correct.
+
+Continuité visuelle : les nouveaux `<pre>` portent les classes
+`pre-chunk-first` / `pre-chunk-middle` / `pre-chunk-last` que
+`pagedCss` utilise pour annuler `margin`, `border-radius` et
+`padding` aux jonctions. À l'œil, on lit le bloc comme s'il n'avait
+pas été coupé.
+
+Sync éditeur ↔ preview : seul le premier chunk reçoit l'attribut
+`data-line` du `<pre>` d'origine — les autres se résolvent au
+premier via le walk d'ancêtre `[data-line]` de §14.2.
+
 ### 13.4. Aspect visuel
 
 - Fond `#e9eaee` (gris clair) derrière les pages.

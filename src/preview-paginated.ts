@@ -10,6 +10,14 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
+import { splitLongPreBlocks } from './pre-split';
+
+// Threshold for the pre-split pass (cf. `splitLongPreBlocks`). A code block
+// taller than this gets fragmented so paged.js has natural break points
+// (otherwise paged.js drops everything after a >1-page <pre>, or — with the
+// keep-with-next wrapper — duplicates pages, cf. SPEC §13.3).
+const PRE_SPLIT_TARGET_LINES = 35;
+const PRE_SPLIT_SLACK_LINES = 8;
 
 /**
  * Purpose: Heading underline CSS fragment for paged.js / print output.
@@ -145,6 +153,11 @@ export async function paginate(
   // In slides mode, compute the right zoom for every `demo zoom=auto`
   // block by measuring its natural height against the slide figure area.
   await applyAutoZoomForDemos(source, settings, renderTo);
+  // Fragment any `<pre>` block taller than a page into contiguous chunks
+  // so paged.js has natural break points. Without this, a single tall
+  // <pre> either drops downstream content or triggers paged.js's
+  // "blank page + duplicate" bug under keep-with-next (SPEC §13.3).
+  splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   // Wrap each "label" (heading, or paragraph that introduces a block)
   // with its immediate next sibling so the pair gets a real
   // `break-inside: avoid` boundary. CSS `break-after: avoid` alone is
@@ -175,6 +188,7 @@ export async function paginateOnce(
   const previewer = new Previewer();
   groupAdjacentFiguresForSlides(source, settings);
   await applyAutoZoomForDemos(source, settings, renderTo);
+  splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   keepLabelsWithNext(source);
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -777,6 +791,13 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} pre,
     ${SCOPE} .tree-svg-wrap,
     ${SCOPE} .algorithm { ${blockBoxCss(styles['code-block'])} ${inlineCss(styles['code-block'])} }
+
+    /* Long-<pre> fragments emitted by splitLongPreBlocks (cf. pre-split.ts).
+       Suppress the box seam between adjacent chunks so the multi-page
+       render reads as a single continuous block. */
+    ${SCOPE} pre.pre-chunk-first { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 0; }
+    ${SCOPE} pre.pre-chunk-middle { margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0; padding-bottom: 0; }
+    ${SCOPE} pre.pre-chunk-last { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; padding-top: 0; }
 
     ${SCOPE} blockquote {
       ${inlineCss(styles.quote)}
