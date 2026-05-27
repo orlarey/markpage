@@ -414,6 +414,13 @@ Use `csv` or `tsv` as the info string. Separator is auto-detected
 (tab > `;` > `,`). Decimal commas (`3,14`) are recognised when the
 field separator is `,` and there's no space around the digits.
 
+**Cells are plain text — no inline Markdown is parsed.** Backticks,
+`**bold**`, links, math `$…$`, all render as literal characters.
+If any cell needs inline code (e.g. `` `Cmd+S` ``), a hyperlink, or
+emphasis, **use a pipe table instead**, regardless of how many rows
+or columns it has. The "≥3 cols / ≥5 rows → csv" heuristic only
+applies to plain-text data tables.
+
 ---
 
 ## Pipe tables (GFM)
@@ -460,6 +467,27 @@ Any other class name (e.g. `::: aside`) renders with a neutral
 frame — fine for ad-hoc conventions. The body of a callout accepts
 the full Markdown vocabulary including math, code, and nested
 constructs.
+
+**Callouts are side-channel remarks, not section content.** Each
+one is a coloured, framed visual interrupt — use them sparingly so
+they stay attention-grabbing. Concretely:
+
+**Use** for:
+
+- A genuine warning the reader must act on (browser setting,
+  irreversible op, common foot-gun).
+- A side rationale ("why this choice") or implementation note that
+  would otherwise interrupt the main flow.
+- A theorem / definition / example in academic prose.
+
+**Do NOT use** for:
+
+- A regular subsection. If it has a heading like `### Limitations`
+  or `### Hors v1`, the content under it is structural — leave it
+  as plain prose. The heading already signals what kind of content
+  follows; wrapping it in `::: caution` is double-marking.
+- Every paragraph that mentions a caveat — only the strongest one
+  or two per document deserve the visual weight.
 
 ---
 
@@ -626,6 +654,14 @@ Expr
 Use the Unicode mode for filesystem / project structure; use
 `svg` mode for syntax trees, parser derivations, etc.
 
+**One node per line — indentation IS the hierarchy.** A wrapped
+description on a more-indented continuation line becomes a spurious
+child node. If your entries need annotations that don't fit on one
+line, keep the block as a plain fenced code block instead: the
+`tree` fence has no continuation syntax. Comments / descriptions
+that fit on the same line are fine (`tree` preserves trailing text
+after the node name).
+
 ---
 
 ## Algorithmic pseudocode
@@ -702,6 +738,16 @@ which expands to the formatted label (`Figure 3`, `Listing 1`,
 too. Math equations use `\label{eq:foo}` inside the `$$ … $$`
 body. Labels are case-sensitive identifiers; unknown references
 render as a visible `[?]` so typos surface at proof time.
+
+**Don't over-caption.** A caption is only worth adding when the
+block is a *figure / listing / table* a reader will refer to by
+name (or `\ref`) elsewhere — typical in academic writing or when a
+section contains multiple peer blocks of the same kind. If the
+surrounding heading already names the block (e.g. `### 9.1. Schéma`
+above a single TypeScript interface), an extra `"Schéma"` caption
+just duplicates the heading and pollutes the figure counter. Spec /
+reference docs with explicit § numbering usually need very few
+captions.
 
 ---
 

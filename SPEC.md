@@ -1,4 +1,7 @@
-# markpage — Spécifications
+---
+title: markpage — Spécifications
+author: Yann Orlarey
+---
 
 ## 1. Objectif
 
@@ -203,13 +206,15 @@ via CSS la visibilité de chaque section (`display: none` sur l'autre).
 Le `<section id="preview-pane">` est `tabindex="0"` pour que les
 touches PgUp/PgDn et flèches scrollent l'aperçu après basculement.
 
-**Pourquoi ce choix.** Le split bidirectionnel précédent générait des
-boucles de feedback ingérables : taper un caractère déclenchait
-re-pagination + re-sync, qui scrollait l'aperçu, qui re-syncait
-l'éditeur, etc. Le single-pane découple complètement édition et
-pagination — la frappe ne déclenche plus rien dans la vue paginée
-(qui n'est pas visible), et la pagination ne tourne qu'au moment
-d'un toggle vers la preview, sur un doc *dirty* (voir §13.5).
+::: note [Pourquoi ce choix]
+Le split bidirectionnel précédent générait des boucles de feedback
+ingérables : taper un caractère déclenchait re-pagination + re-sync,
+qui scrollait l'aperçu, qui re-syncait l'éditeur, etc. Le single-pane
+découple complètement édition et pagination — la frappe ne déclenche
+plus rien dans la vue paginée (qui n'est pas visible), et la
+pagination ne tourne qu'au moment d'un toggle vers la preview, sur
+un doc *dirty* (voir §13.5).
+:::
 
 ### 4.2. Bascule éditeur ↔ aperçu
 
@@ -569,11 +574,12 @@ Trois champs sur `PdfSettings`, ajustables dans le panneau Réglages :
 | `mermaidMaxWidthPct` | 1.0 | Fraction de la largeur de la zone de texte que le diagramme peut occuper. |
 | `mermaidMaxHeightPct` | 0.7 | Fraction de la hauteur de la zone de texte qu'il peut occuper. |
 
-> *Note d'implémentation* : ces réglages étaient câblés au pipeline
-> pdfmake. Avec la voie impression ils ne sont plus appliqués
-> automatiquement. À reconnecter via du CSS dans `pagedCss()`
-> (`max-width`, `max-height` sur `.mermaid-block svg`) — ticket de
-> rattrapage à prévoir.
+::: note [Note d'implémentation]
+Ces réglages étaient câblés au pipeline pdfmake. Avec la voie
+impression ils ne sont plus appliqués automatiquement. À reconnecter
+via du CSS dans `pagedCss()` (`max-width`, `max-height` sur
+`.mermaid-block svg`) — ticket de rattrapage à prévoir.
+:::
 
 ## 8. Formules mathématiques
 
@@ -668,7 +674,7 @@ d'aperçu :
 Erreurs de parsing : on ajoute la classe `math-error`, stylée en
 bordure rouge avec ré-affichage de la source.
 
-### 8.4. Bloc ```inference
+### 8.4. Bloc `inference`
 
 Override du renderer `code` quand `lang === 'inference'` (avec étiquette
 optionnelle entre parenthèses : ```` ```inference (MP) ````). Le
@@ -1286,6 +1292,8 @@ dans les `.pagedjs_page` divs**, donc Chrome ne peut pas les écraser
 
 ### 13.7. Notes pratiques sur l'impression
 
+::: warning
+
 - L'utilisateur doit choisir « Enregistrer au format PDF » (ou
   équivalent) comme destination dans le dialogue d'impression.
 - L'utilisateur doit **également** choisir **« Marges : Aucune »** dans
@@ -1299,6 +1307,8 @@ dans les `.pagedjs_page` divs**, donc Chrome ne peut pas les écraser
 - Le nom de fichier suggéré reprend le `document.title` que
   `exportViaPrint()` met temporairement à la valeur de la zone
   « Nom » de la toolbar.
+
+:::
 
 ### 13.8. paged.js patché (null-derefs)
 
@@ -1433,7 +1443,7 @@ chaque heading :
 Hiérarchique au niveau k : les `k` compteurs des ancêtres (effectifs)
 sont joints par `.`, optionnellement suivis d'un point final.
 
-## 16. Graphiques (```chart)
+## 16. Graphiques (`chart`)
 
 Module `src/chart.ts`. Self-contained : pas de dépendance externe, le
 SVG est émis inline dans le DOM rendu, donc imprime crispe et stay
@@ -1572,11 +1582,13 @@ indexable.
   sur ce que MathJax rend par défaut pour la commande LaTeX (e.g.
   `\epsilon` → ϵ lunate, `\varepsilon` → ε normal).
 
-**Contrainte de design** : aucune clé ne peut être préfixe d'une autre.
-Sinon la clé courte tirerait avant que la longue ait pu se former à
-la frappe (`<=` matcherait avant qu'on tape la fin de `<=>`). C'est
-pourquoi des paires comme `<->` / `<==>` / `==>` / `<=>` ne sont pas
-proposées en ligatures dans cette table.
+::: important [Contrainte de design]
+Aucune clé ne peut être préfixe d'une autre. Sinon la clé courte
+tirerait avant que la longue ait pu se former à la frappe (`<=`
+matcherait avant qu'on tape la fin de `<=>`). C'est pourquoi des
+paires comme `<->` / `<==>` / `==>` / `<=>` ne sont pas proposées en
+ligatures dans cette table.
+:::
 
 ### 18.2. Déclenchement
 
