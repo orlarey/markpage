@@ -46,7 +46,7 @@ The specification is written in Markdown, meant to be rendered by
 [markpage](https://markpage.org) (paginated PDF via MathJax + paged.js).
 The **precise dialect** — special fences (`math`, `inference`, `chart`,
 `csv`, `mermaid`), Pandoc callouts, input ligatures — is documented in
-[AGENTS.md](AGENTS.md); this document focuses on **method**.
+[AI-AUTHORING.md](AI-AUTHORING.md); this document focuses on **method**.
 
 The source must remain readable in a plain text editor, independently of
 the rendering engine. We therefore prefer **UTF-8** characters for common
@@ -79,13 +79,13 @@ language indication. Two categories:
     Preferred for **type definitions** rather than wrapping them
     in `math` or a plain code block.
   - ` ```mermaid `, ` ```chart `, ` ```csv `, ` ```tsv ` — see
-    AGENTS.md.
+    AI-AUTHORING.md.
 - **Syntax-highlighted code** — info strings recognised by
   highlight.js (a curated subset: `python`, `rust`, `c`, `cpp`,
   `haskell`, `ocaml`, `scala`, `scheme`, `lua`, `bash`, `sql`,
   `json`, `yaml`, `xml`/`html`, `css`, `js`/`ts`, `markdown`, plus
-  custom `faust`/`dsp`) render with proper colouring. See AGENTS.md
-  for the full list.
+  custom `faust`/`dsp`) render with proper colouring. See
+  AI-AUTHORING.md for the full list.
 - **Label-only** — any other language hint (`text`, an unknown
   language, …) falls through to a generic monospace block. The
   info string is preserved as a class on the `<code>` element for
