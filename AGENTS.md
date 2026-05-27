@@ -13,6 +13,80 @@ they render cleanly into the PDF and survive copy-paste anywhere
 
 ---
 
+## Picking the right block
+
+Quick map from intent to construct. Detailed syntax for each is
+further down.
+
+| Need                                  | Construct                          |
+| :------------------------------------ | :--------------------------------- |
+| Prose, lists, links, basic emphasis   | standard Markdown                  |
+| Equation, formula                     | `$ … $`, `$$ … $$`, or ` ```math ` |
+| Typing / reduction / inference rule   | ` ```inference `                   |
+| Commutative diagram                   | ` ```category `                    |
+| Formal grammar (railroad)             | ` ```ebnf `                        |
+| Algebraic data type / abstract syntax | ` ```adt `                         |
+| Flowchart, sequence, state machine    | ` ```mermaid `                     |
+| Signal-flow circuit (Faust-style)     | ` ```bda `                         |
+| Data plot (line, bar)                 | ` ```chart `                       |
+| Dense table (>3 cols or >5 rows)      | ` ```csv ` / ` ```tsv `            |
+| Compact 2-3 column table              | pipe table                         |
+| Note, warning, theorem, definition, … | `::: class` callout                |
+| Term + gloss pairs                    | Pandoc definition list             |
+| Bibliographic citation                | `[@key]`                           |
+| Footnote / parenthetical aside        | `[^id]`                            |
+| Source code with highlighting         | fenced code + language hint        |
+| Unified diff                          | ` ```diff `                        |
+| Filesystem layout or AST              | ` ```tree ` (`svg` for AST)        |
+| Numbered pseudocode                   | ` ```algorithm `                   |
+| Source + rendered side-by-side        | ` ```demo `                        |
+
+When two blocks fit (e.g. a tiny `csv` vs. a pipe table), prefer
+the simpler one. When in doubt between `adt` and `ebnf`, ask:
+*am I defining the shape of values* (→ `adt`) *or the strings a
+parser accepts* (→ `ebnf`)?
+
+---
+
+## Prefer Unicode over LaTeX where possible
+
+Markpage's source is meant to be human-editable. Whenever a symbol
+has an obvious Unicode counterpart, **write the Unicode** rather
+than the LaTeX command. Both render identically, but Unicode keeps
+the source readable, greppable, and copy-pasteable.
+
+| Prefer | Over | Prefer | Over |
+| :----- | :--- | :----- | :--- |
+| `α β γ` | `\alpha \beta \gamma` | `→ ←` | `\to \leftarrow` |
+| `Γ Δ Σ` | `\Gamma \Delta \Sigma` | `↦ ⇒ ⇔` | `\mapsto \Rightarrow \Leftrightarrow` |
+| `∀ ∃` | `\forall \exists` | `⊢ ⊨` | `\vdash \models` |
+| `∈ ∉` | `\in \notin` | `⟦ ⟧` | `\llbracket \rrbracket` |
+| `⊆ ⊕ ⊗` | `\subseteq \oplus \otimes` | `≤ ≥ ≠` | `\le \ge \neq` |
+| `ℕ ℝ ℤ ℚ ℂ` | `\mathbb{N}` etc. | `x₁ y₂ aₙ` | `x_1 y_2 a_n` |
+| `∞ ∂ ∇` | `\infty \partial \nabla` | `√ ∑ ∏ ∫` | `\sqrt \sum \prod \int` standalone |
+
+This rule applies **inside `$ … $` / `$$ … $$` and inside every
+rich fence** (`inference`, `category`, `adt`, `math`). MathJax
+accepts these glyphs natively in math mode. Inside `category`,
+identifiers are Unicode-aware, so `p₁ : P → A` is the idiomatic
+form, not `p_1 : P -> A`.
+
+**Exceptions** — keep LaTeX when:
+
+- The construct has no clean Unicode form: `\frac{a}{b}`,
+  `\sqrt{x+1}`, `\begin{cases}`, `\begin{matrix}`, accents
+  (`\hat{x}`, `\bar{y}`), big operators with limits.
+- You need a font command (`\mathcal{F}`, `\mathbf{v}`,
+  `\mathsf{op}`) that Unicode can't express on a regular letter.
+- Inside **Mermaid fences**, arrows MUST stay ASCII (`-->`,
+  `->>`, `-.->`); Mermaid's parser does not accept `→` / `⇒`.
+
+When the editor is open interactively, ligatures (`\alpha` → α,
+`<=` → ≤, `|N` → ℕ) handle the conversion for you. When
+generating Markdown programmatically, type the Unicode directly.
+
+---
+
 ## Standard Markdown
 
 GFM-flavoured Markdown is supported as-is:
@@ -76,8 +150,9 @@ LaTeX commands (`\Gamma`, `\vdash`, `\to`) and the corresponding
 Unicode (Γ, ⊢, →) are interchangeable inside the block.
 
 **Typography heuristic** (Gunter / Scott convention, applied
-automatically before MathJax sees the source) — write the source
-naturally, the renderer does the right thing:
+automatically **inside `inference` blocks only**, before MathJax
+sees the source) — write the source naturally, the renderer does
+the right thing:
 
 - A single capital letter immediately followed by `⟦` or `[[` is a
   **semantic function** → rendered in calligraphic.  `E⟦e⟧` ⇒ 𝓔⟦e⟧.
@@ -97,6 +172,10 @@ You can therefore write `E⟦Op(o, e1, e2)⟧ = apply(o, E⟦e1⟧, E⟦e2⟧)`
 verbatim and get the right rendering — no need to wrap names in
 `\mathcal{}` / `\mathbf{}` / `\mathsf{}` by hand. (If you do, the
 heuristic is idempotent: existing wraps are preserved.)
+
+The heuristic does **not** fire inside regular `$ … $` / `$$ … $$`
+math or inside `category` / `math` / `adt` blocks. If you want the
+same effect there, write the wrappers explicitly.
 
 ---
 
@@ -142,6 +221,12 @@ A type error (composition with mismatched domain/codomain, or
 equation whose sides have different source/target) is reported in
 a red error block instead of rendering. Full grammar and
 type-checking rules in `CATEGORY-SPEC.md`.
+
+**Identifiers are Unicode-aware** — write subscripts as Unicode
+glyphs (`p₁`, `p₂`, `f̃`, `π₁`) rather than LaTeX (`p_1`, `p_2`).
+The same applies to Greek, blackboard-bold, and primes. The
+typography heuristic of `inference` blocks does **not** run here,
+so what you type is what gets rendered.
 
 ---
 
@@ -257,7 +342,13 @@ SVG.
 ```
 ````
 
-Operators (in decreasing precedence):
+Read `1 : +~_` as: feed the constant `1` into a `+` block whose
+second input is fed back from its own output through the identity
+wire `_` (the `~` operator inserts a one-sample delay on the
+feedback path). Result: `y[n] = 1 + y[n−1]`, a counter.
+
+Operators (highest precedence first — `~` binds tightest, `:>`
+loosest):
 
 | Op   | Name       | Meaning                                       |
 | :--- | :--------- | :-------------------------------------------- |
@@ -541,9 +632,24 @@ Use the Unicode mode for filesystem / project structure; use
 
 The `algorithm` fence typesets pseudocode in the style of LaTeX
 `algorithm2e`: auto-numbered caption, numbered lines on the left
-gutter, keywords (`for`, `while`, `if`, `then`, `else`,
-`return`, `do`, `end`, `repeat`, `until`, `break`, `continue`)
-rendered in bold.
+gutter, and case-sensitive keyword bolding.
+
+Bolded keywords (the full list, fixed): `for`, `while`, `do`,
+`if`, `then`, `else`, `elif`, `end`, `repeat`, `until`, `return`,
+`break`, `continue`, `function`, `procedure`, `begin`, `to`,
+`in`, `and`, `or`, `not`, plus the capitalised contract markers
+`Input`, `Output`, `Require`, `Ensure`.
+
+Conventions:
+
+- **Indentation is purely visual** — preserved as leading
+  whitespace, no semantic block parsing. Close every nested block
+  with an explicit `end` (the keyword gets bolded).
+- **No fixed assignment / comment syntax** — pick one and stay
+  consistent (`x ← expr` or `x := expr`; `// …` or `▷ …`). The
+  glyphs render verbatim.
+- **Inline math works** — `$x_i$` or Unicode `xᵢ` inside a line
+  is picked up by MathJax like anywhere else in the document.
 
 ````
 ```algorithm "Bubble sort"
@@ -712,6 +818,68 @@ gains its auto-zoom layout here (see *Demo*).
 `markpage-slides.md` at the repo root is an official walkthrough
 of every rich block in slides mode — a useful template / smoke
 test.
+
+---
+
+## Putting it together — a small example
+
+The fragment below combines the recurring idioms — frontmatter
+with TeX macros, a labelled rich block, a cross-reference, a
+callout, inline math, citations — in roughly the shape of a short
+article opening. Use it as a mental template before writing.
+
+````markdown
+---
+title: Quicksort revisited
+author: Alice Dupont
+date: 2026-05-21
+mathjax-preamble: |
+  \newcommand{\Oh}{\mathcal{O}}
+---
+
+# Quicksort revisited
+
+## Average complexity
+
+::: theorem [Average-case bound]
+Randomised quicksort on $n$ distinct keys performs
+$\Oh(n \log n)$ comparisons in expectation.
+:::
+
+The recurrence \ref{eq:quick} follows from picking the pivot
+uniformly at random.
+
+```math "Quicksort recurrence" \label{eq:quick}
+T(n) = (n - 1) + \frac{2}{n} \sum_{k=0}^{n-1} T(k)
+```
+
+See \ref{fig:partition} for the partition step.
+
+```mermaid "Partition step" \label{fig:partition}
+flowchart LR
+  In[unsorted] --> P{pivot?}
+  P -->|< pivot| L[lows]
+  P -->|>= pivot| H[highs]
+```
+
+Hoare's original analysis[@hoare1962] used a different recurrence;
+Sedgewick later[@sedgewick1978] showed the randomised variant
+matches the average bound.
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1).
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10).
+````
+
+Things to notice:
+
+- Caption + label on the same info-string line: `"Title" \label{key}`.
+- `\ref{key}` expands to the formatted label (`Equation 1`,
+  `Figure 1`, …) and links to the target.
+- The `\Oh` macro is defined once in `mathjax-preamble` and reused
+  in the body — no need to repeat `\mathcal{O}`.
+- Mermaid arrows are ASCII (`-->`, `|< pivot|`) — never Unicode.
+- Citations are inline `[@key]`; their definitions live at the
+  bottom and a "References" section is generated automatically.
 
 ---
 
