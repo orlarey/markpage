@@ -677,6 +677,13 @@ function figureNaturalWidthPx(el: Element): number {
 /**
  * Purpose: Wrap each "label" element with its next sibling so they can't be split.
  * How: Reverse-iterate elements; for each label, wrap (`<div class="keep-with-next">`).
+ *   Skip when the next sibling is a letterhead-group: it already reserves
+ *   its own vertical space via `min-height` and contains a
+ *   `position: absolute` recipient whose containing block is the pagedjs
+ *   pagebox. Wrapping in a `break-inside: avoid` div would turn the
+ *   wrapper into a fragmentation context that becomes the new containing
+ *   block for the absolute recipient, breaking the envelope-window
+ *   coordinates (cf. SPEC §25.4).
  */
 export function keepLabelsWithNext(root: HTMLElement): void {
   const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
@@ -685,6 +692,7 @@ export function keepLabelsWithNext(root: HTMLElement): void {
     const next = el.nextElementSibling;
     if (!next) continue;
     if (!el.parentElement) continue;
+    if (next.classList.contains('letterhead-group')) continue;
     const wrapper = root.ownerDocument.createElement('div');
     wrapper.className = 'keep-with-next';
     el.before(wrapper);
@@ -865,9 +873,24 @@ export function pagedCss(s: PdfSettings): string {
     /* The window recipient is out of flow, so the group height is
        only driven by the sender. Following content would flow over
        the recipient — we reserve 70 mm, enough for ~6 address lines
-       plus the 15 mm top offset of the window position. */
+       plus the 15 mm top offset of the window position.
+       Also: switch display to block. Per CSS Flex L1, a flex container
+       is the containing block of its absolutely-positioned children
+       even when it is itself static-positioned — so the recipient's
+       top/left would resolve against the group, not against
+       .pagedjs_pagebox, and the envelope coordinates would drift when
+       anything pushes the group down (e.g. a title above). With
+       display:block the group is no longer a flex container and the
+       absolute resolves to the next positioned ancestor up the tree. */
     ${SCOPE} .letterhead-group--window {
+      display: block;
       min-height: 70mm;
+    }
+    /* Without flex, the sender would default to 100 % width and could
+       extend past the recipient's left edge (110 mm). Constrain it
+       explicitly so the two never overlap visually. */
+    ${SCOPE} .letterhead-group--window > .letterhead-sender {
+      width: calc(50% - 2mm);
     }
 
     /* Images: cap both width and height to the page's content area so

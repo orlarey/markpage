@@ -2773,6 +2773,28 @@ contenu qui suit le groupe flue depuis le bas du sender (5 lignes ≈
 35 mm) et passe **par-dessus** le recipient (qui descend jusqu'à ~65
 mm). 70 mm couvre 6 lignes d'adresse + l'offset top de 15 mm.
 
+**Piège CSS Flex L1 — containing-block des absolus.** Per la spec
+flex L1, un conteneur `display: flex` est le containing-block de ses
+enfants `position: absolute` **même quand il est lui-même
+static-positioned**. Conséquence : si on laisse le group en flex, le
+recipient absolu s'ancre dessus, et `top: 15mm` devient « 15 mm sous
+le haut du group » au lieu de « 15 mm sous le haut de la pagebox ».
+Sans titre au-dessus, ces deux origines coïncident et tout marche.
+**Avec** un `<h1>` au-dessus, le group descend de la hauteur du
+titre et le recipient suit, ratant la fenêtre de l'enveloppe.
+
+Fix : quand le group porte `letterhead-group--window`, on bascule en
+`display: block` — plus de conteneur flex, plus de containing-block
+intermédiaire. Le sender garde sa moitié via une largeur explicite,
+le recipient absolu remonte la chaîne jusqu'à `.pagedjs_pagebox` et
+ses coordonnées window restent calibrées par rapport au bord page,
+indépendamment de ce qui précède.
+
+`keepLabelsWithNext` saute également l'enveloppement d'un `<h1>` qui
+précède un `.letterhead-group` — défense en profondeur, parce qu'un
+wrapper `break-inside: avoid` pourrait aussi devenir un
+containing-block selon les implémentations.
+
 CSS clés dans `pagedCss(settings)` :
 
 ```css
@@ -2787,7 +2809,13 @@ CSS clés dans `pagedCss(settings)` :
   margin: 0;
   flex: none;
 }
-.letterhead-group--window { min-height: 70mm; }
+.letterhead-group--window {
+  display: block;        /* override flex — sinon group = CB des absolus */
+  min-height: 70mm;
+}
+.letterhead-group--window > .letterhead-sender {
+  width: calc(50% - 2mm); /* compensation : plus de flex, donc largeur explicite */
+}
 ```
 
 ### 25.5. Configurations possibles

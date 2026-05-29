@@ -4,6 +4,7 @@ import {
   groupLetterheads,
   renderLetterhead,
 } from '../src/letterhead';
+import { keepLabelsWithNext } from '../src/preview-paginated';
 
 describe('renderLetterhead', () => {
   it('emits a sender block with no label and no positioning class', () => {
@@ -149,6 +150,30 @@ describe('groupLetterheads — DOM grouping', () => {
     groupLetterheads(root);
     const group = root.querySelector('.letterhead-group');
     expect(group?.classList.contains('letterhead-group--window')).toBe(false);
+  });
+
+  it('keepLabelsWithNext does NOT wrap an h1 + letterhead-group pair', () => {
+    // The wrapper would become a fragmentation context that captures the
+    // absolutely-positioned recipient, breaking the envelope-window
+    // coordinates. The letterhead-group already reserves its own
+    // vertical space via min-height, so skipping the wrap is safe.
+    const doc = makeDoc(
+      '<div>' +
+        '<h1>Facture N° 2026-042</h1>' +
+        '<div class="letterhead-group letterhead-group--window">' +
+          '<div class="letterhead letterhead-sender">A</div>' +
+          '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
+        '</div>' +
+        '<p>Date d\'émission: …</p>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    keepLabelsWithNext(root);
+    // The h1 and the letterhead-group remain as direct siblings, NOT
+    // wrapped in a keep-with-next div.
+    expect(root.querySelector('.keep-with-next')).toBeNull();
+    expect(root.children[0]?.tagName.toLowerCase()).toBe('h1');
+    expect(root.children[1]?.classList.contains('letterhead-group')).toBe(true);
   });
 
   it('handles a triplet (sender + recipient + recipient) in one group', () => {
