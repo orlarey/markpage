@@ -1,78 +1,75 @@
 /********************************* letterhead.ts *******************************
  *
  * Purpose: Render the ` ```sender ` and ` ```recipient ` fences — paired
- *   address blocks (émetteur / destinataire) for invoices, devis,
- *   courriers, propositions commerciales. Each block emits a labelled
- *   div; a downstream DOM pass (`groupLetterheads`) wraps consecutive
- *   `.letterhead` siblings in a flex container so they sit side-by-side.
- * How: One line of body text per address line, separated by `<br>`.
- *   Minimal inline markdown is supported (`**bold**`, `*italic*`,
- *   `[text](url)`) without dragging in `marked.parseInline` — which
- *   would re-trigger preprocess / postprocess hooks (footnote
- *   registries get clobbered, cf. SPEC §17.3).
+ *   address blocks for invoices, devis, courriers, propositions
+ *   commerciales. No automatic labels — the user types whatever heading
+ *   they want as content (markdown bold, italic, …). `sender` stays in
+ *   flex flow (left column); `recipient` defaults to *window-positioned*
+ *   absolute layout at standard French DL envelope coordinates. An
+ *   explicit `flow` flag on `recipient` opts back into flex (right
+ *   column).
+ * How: Each block emits a `<div class="letterhead letterhead-<kind>">`
+ *   wrapping the rendered body. Inline markdown is rendered via a tiny
+ *   local formatter — bypassing `marked.parseInline` which would re-fire
+ *   the preprocess / postprocess hooks and clobber the footnote registry
+ *   (cf. SPEC §17.3).
  *
  *******************************************************************************/
-
-/** Default labels keyed by fence kind. Hardcoded FR (markpage convention —
- *  see ADMONITION_LABELS in marked-config.ts). Override per-block via the
- *  info-string caption: ` ```sender "Sender" `. */
-const DEFAULT_LABELS: Record<LetterheadKind, string> = {
-  sender: 'Émetteur',
-  recipient: 'Destinataire',
-};
 
 export type LetterheadKind = 'sender' | 'recipient';
 
 /**
  * Purpose: Render a `<div class="letterhead letterhead-<kind>">` containing
- *   an optional label and a `<br>`-joined body.
+ *   only the body lines joined by `<br>`. No label is generated.
  * How: Trim blank head / tail lines, escape HTML, then apply a tiny inline
  *   formatter for `**bold**`, `*italic*`, `[text](url)`. Lines are joined
  *   with `<br>` — addresses are dense, not paragraphs.
  *
- *   `args` carries positional flags from the info-string. `window` on a
- *   `recipient` block adds the `letterhead-window` class — CSS in
- *   `pagedCss` then positions it absolutely at the standard
- *   French-DL-envelope window coordinates (cf. SPEC §25.3). The flag is
- *   silently ignored on `sender` blocks (the émetteur never targets the
- *   envelope window).
+ *   For `recipient`, the default positioning class is `letterhead-window`
+ *   (absolute, calibrated for the FR DL envelope window, see
+ *   `pagedCss` in `preview-paginated.ts`). Passing `flow` in `args` swaps
+ *   it for `letterhead-flow` (in-flow, flex right column — for the
+ *   Anglo-Saxon-style letter or any layout where the recipient should
+ *   sit beside the sender). `args` is ignored on `sender`.
  */
 export function renderLetterhead(
   kind: LetterheadKind,
   body: string,
-  customLabel: string | null,
   args: string[] = [],
 ): string {
-  const label = customLabel ?? DEFAULT_LABELS[kind];
   const lines = body
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l !== '');
   const bodyHtml = lines.map(formatInline).join('<br>');
-  const labelHtml =
-    label !== ''
-      ? `<div class="letterhead-label">${escapeHtml(label)}</div>`
+  const positionClass =
+    kind === 'recipient'
+      ? args.includes('flow')
+        ? ' letterhead-flow'
+        : ' letterhead-window'
       : '';
-  const isWindow = kind === 'recipient' && args.includes('window');
-  const classes = `letterhead letterhead-${kind}${isWindow ? ' letterhead-window' : ''}`;
   return (
-    `<div class="${classes}">` +
-    labelHtml +
-    `<div class="letterhead-body">${bodyHtml}</div>` +
+    `<div class="letterhead letterhead-${kind}${positionClass}">` +
+    bodyHtml +
     `</div>\n`
   );
 }
 
 /**
  * Purpose: Wrap runs of consecutive `.letterhead` siblings under `root` in
- *   a `<div class="letterhead-group">` flex container so they lay out
- *   side-by-side (and a lone `recipient` floats to the right via CSS).
+ *   a `<div class="letterhead-group">` flex container so the sender and an
+ *   in-flow recipient lay out side-by-side. If a window-positioned
+ *   recipient (the default) is in the run, the group also gets
+ *   `letterhead-group--window` so CSS can reserve enough vertical space —
+ *   absolute positioning takes the recipient out of flow, so without
+ *   reservation the content following the group flows over the recipient
+ *   block (cf. SPEC §25.4).
  * How: Walk top-level children once. When we hit a `.letterhead`, scan
- *   forward to the end of the run, wrap them all in a fresh group div.
- *   The wrap happens *after* `annotateSourceLines` has stamped each
- *   letterhead, so `data-line` attributes are preserved on the children
- *   (the group has none) and scroll-sync still resolves correctly via
- *   its ancestor walk (cf. SPEC §14.2).
+ *   forward to the end of the run, wrap them in a fresh group div. The
+ *   wrap happens *after* `annotateSourceLines` has stamped each letterhead,
+ *   so `data-line` attributes are preserved on the children (the group
+ *   has none) and scroll-sync still resolves correctly via its ancestor
+ *   walk (cf. SPEC §14.2).
  */
 export function groupLetterheads(root: HTMLElement): void {
   const doc = root.ownerDocument;
@@ -82,19 +79,19 @@ export function groupLetterheads(root: HTMLElement): void {
       cursor = cursor.nextElementSibling;
       continue;
     }
-    // Collect the run of consecutive letterhead siblings.
     const run: Element[] = [cursor];
     let next: Element | null = cursor.nextElementSibling;
     while (next !== null && next.classList?.contains('letterhead')) {
       run.push(next);
       next = next.nextElementSibling;
     }
-    // Wrap them in a new group div inserted in place of the first.
     const group = doc.createElement('div');
     group.className = 'letterhead-group';
+    if (run.some((el) => el.classList.contains('letterhead-window'))) {
+      group.classList.add('letterhead-group--window');
+    }
     cursor.parentNode!.insertBefore(group, cursor);
     for (const el of run) group.appendChild(el);
-    // Continue after the group.
     cursor = next;
   }
 }

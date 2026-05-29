@@ -2679,9 +2679,9 @@ de préambule renvoie un SVG périmé.
 ## 25. Letterhead — blocs `sender` / `recipient` (`src/letterhead.ts`)
 
 Deux fences spécialisés pour les documents à en-tête type facture,
-devis, courrier formel, proposition commerciale : un bloc « émetteur »
-et un bloc « destinataire » qui se rendent côte-à-côte en haut de la
-page.
+devis, courrier formel, proposition commerciale. Un bloc « émetteur »
+en flux à gauche, et un bloc « destinataire » positionné par défaut
+à l'emplacement standard d'une enveloppe à fenêtre DL française.
 
 ### 25.1. Surface utilisateur
 
@@ -2696,7 +2696,7 @@ TVA intra. FR12 345678901
 
 ```recipient
 ACME SAS
-À l'attention de Mme Dupont
+*À l'attention de Mme Dupont*
 34 avenue du Client
 75002 Paris
 ```
@@ -2706,103 +2706,79 @@ Chaque ligne non vide du corps devient une ligne d'adresse, jointes
 par `<br>` (les adresses sont denses, pas paragraphées). Le formatage
 inline `**gras**`, `*italique*`, `[texte](url)` est supporté via un
 mini-formateur regex local — pas d'appel à `marked.parseInline` qui
-reclencherait les hooks `preprocess` / `postprocess` (cf. §17.3 sur le
+relancerait les hooks `preprocess` / `postprocess` (cf. §17.3 sur le
 gardien `inFootnoteRender`).
 
-### 25.2. Labels
+**Aucun label automatique** n'est rendu. L'utilisateur qui veut un
+en-tête « Émetteur » / « Destinataire » (ou « From » / « To », …) le
+tape comme première ligne du corps en `**gras**`. Ça simplifie l'API
+(plus d'override à documenter) et laisse l'utilisateur en contrôle.
 
-Labels par défaut **hardcodés en FR** comme les autres labels de rendu
-HTML (cf. `ADMONITION_LABELS` dans `marked-config.ts`) :
+### 25.2. Layout par défaut
 
-- ` ```sender ` → `Émetteur`
-- ` ```recipient ` → `Destinataire`
-
-Override via la convention info-string standard ` "Custom" ` (idem
-captions de figures) :
-
-````
-```sender "Sender"
-…
-```
-
-```recipient "À l'attention de"
-…
-```
-````
-
-L'i18n vers EN selon `settings.language` est différé tant que le besoin
-ne remonte pas : l'utilisateur FR a son rendu FR natif, l'utilisateur EN
-peut imposer ses labels via l'info-string.
-
-### 25.3. Layout — `groupLetterheads` + flex
-
-Émission HTML par bloc : `<div class="letterhead letterhead-{kind}">`
-contenant `<div class="letterhead-label">` + `<div class="letterhead-body">`.
-
-Une passe DOM `groupLetterheads(root)` parcourt les enfants du root,
-détecte les runs de `.letterhead` siblings consécutifs, et les
-enveloppe chacun dans un `<div class="letterhead-group">`. Appelée
-dans `paginate()` / `paginateOnce()` **après** `annotateSourceLines`
-pour que les `data-line` des `<pre>` d'origine soient conservés sur
-les `.letterhead` (le scroll-sync §14.2 remonte aux ancêtres
-`[data-line]`, donc le wrap dans un group transparent ne casse rien).
-
-CSS dans `pagedCss` :
-
-```css
-.letterhead-group {
-  display: flex;
-  gap: 4mm;
-  align-items: flex-start;
-  margin: 0 0 1.4em;
-  break-inside: avoid;
-}
-.letterhead {
-  flex: 0 1 calc(50% - 2mm);
-  line-height: 1.4;
-}
-.letterhead-recipient {
-  margin-left: auto;
-}
-```
-
-Comportements résultants :
-
-| Configuration | Rendu |
+| Bloc | Position |
 | :--- | :--- |
-| `sender` + `recipient` consécutifs | côte-à-côte, chacun 50 % |
-| `sender` seul | colonne gauche, droite vide |
-| `recipient` seul | colonne droite (poussé par `margin-left: auto`) — convention courrier FR |
-| 3+ siblings (architecte, sous-traitant) | flex à N enfants, équirépartis |
+| `sender` | flex, colonne gauche (50 %) du groupe |
+| `recipient` | **`position: absolute`**, calibré pour la fenêtre d'enveloppe DL FR (110 mm × 40 mm depuis le bord du A4) |
 
-### 25.4. Modifier `window` — alignement enveloppe à fenêtre DL
+La position du recipient est calculée depuis les marges du profil
+actif : CSS `left: ${110 - m.left}mm; top: ${40 - m.top}mm; width: 85mm`.
+L'ancre `position: absolute` est `.pagedjs_pagebox` (que paged.js
+positionne en relative nativement). Quelle que soit la configuration
+des marges, le coin haut-gauche du recipient atterrit à exactement
+110 mm × 40 mm du bord du A4 — tolérance constructeur d'enveloppe
+±5 mm, on est dans le clou.
 
-Pour un courrier A4 destiné à une enveloppe à fenêtre DL standard
-(110×220 mm, fenêtre droite, pliage en Z), le destinataire doit
-apparaître à une position **précise** sur la feuille — la norme
-française veut bord gauche de l'adresse à 110 mm du bord du A4 et
-bord haut à 40 mm (tolérance constructeur ±5 mm).
+### 25.3. Opt-out — `recipient flow`
 
-Le layout flex par défaut place le `recipient` autour de 107 mm × 25
-mm (depuis le bord page), ce qui marche pour une facture (le `title:`
-H1 au-dessus pousse à ~45 mm) mais **pas pour un courrier seul** (le
-recipient sort de la fenêtre par le haut, à ~25 mm).
-
-Solution : flag positionnel `window` sur le bloc recipient.
+Quand on ne veut pas l'alignement enveloppe (courrier style
+anglo-saxon, maquette interne, page A5 où les coordonnées DL n'ont
+plus de sens), le flag `flow` remet le recipient en flux flex :
 
 ````
-```recipient window
+```recipient flow
 ACME SAS
-À l'attention de Mme Dupont
 34 avenue du Client
 75002 Paris
 ```
 ````
 
-Émet `<div class="letterhead letterhead-recipient letterhead-window">`.
-CSS dans `pagedCss(settings)` :
+Émet `<div class="letterhead letterhead-recipient letterhead-flow">`.
+CSS pose `margin-left: auto` sur ce sélecteur, ce qui donne au
+recipient seul (sans sender) une position colonne droite, et au
+recipient avec sender la colonne droite du couple.
+
+Le flag est **silencieusement ignoré sur `sender`** — l'émetteur
+n'est jamais positionné en absolute.
+
+### 25.4. Pipeline DOM — `groupLetterheads`
+
+Émission HTML par bloc : `<div class="letterhead letterhead-{kind}
+letterhead-{window|flow}">body lignes jointes par <br></div>`.
+
+Une passe DOM `groupLetterheads(root)` parcourt les enfants top-level
+du root, détecte les runs de `.letterhead` siblings consécutifs, et
+les enveloppe chacun dans un `<div class="letterhead-group">`.
+Appelée dans `paginate()` / `paginateOnce()` **après**
+`annotateSourceLines` pour que les `data-line` des `<pre>` d'origine
+soient préservés sur les `.letterhead` (le scroll-sync §14.2 remonte
+aux ancêtres `[data-line]`, donc le wrap dans un group transparent
+ne casse rien).
+
+Quand au moins un enfant du run porte la classe `letterhead-window`,
+le group reçoit aussi la classe `letterhead-group--window`. CSS pose
+alors `min-height: 70mm` sur le groupe — réservation verticale
+indispensable parce que le recipient absolu sort du flux, sinon le
+contenu qui suit le groupe flue depuis le bas du sender (5 lignes ≈
+35 mm) et passe **par-dessus** le recipient (qui descend jusqu'à ~65
+mm). 70 mm couvre 6 lignes d'adresse + l'offset top de 15 mm.
+
+CSS clés dans `pagedCss(settings)` :
 
 ```css
+.letterhead-group { display: flex; gap: 4mm; align-items: flex-start; margin: 0 0 1.4em; break-inside: avoid; }
+.letterhead { flex: 0 1 calc(50% - 2mm); line-height: 1.4; }
+.letterhead-recipient.letterhead-flow { margin-left: auto; }
 .letterhead-recipient.letterhead-window {
   position: absolute;
   left: <110 - m.left>mm;
@@ -2811,16 +2787,18 @@ CSS dans `pagedCss(settings)` :
   margin: 0;
   flex: none;
 }
+.letterhead-group--window { min-height: 70mm; }
 ```
 
-Les offsets sont calculés depuis les marges du profil actif, donc
-quelle que soit la configuration de marges, le coin haut-gauche du
-recipient atterrit à exactement 110 mm × 40 mm depuis le bord du A4.
-L'ancre `position: absolute` est `.pagedjs_pagebox` (que paged.js
-positionne en relative nativement).
+### 25.5. Configurations possibles
 
-Le flag est **silencieusement ignoré sur `sender`** — l'émetteur ne
-cible jamais la fenêtre de l'enveloppe.
+| Source | Rendu |
+| :--- | :--- |
+| `sender` + `recipient` (défaut) | sender à gauche en flux, recipient à 110×40 mm absolu ; group réserve 70 mm |
+| `sender` seul | sender colonne gauche ; pas de réservation verticale |
+| `recipient` seul (défaut window) | recipient à 110×40 mm absolu ; group réserve 70 mm |
+| `recipient flow` seul | recipient colonne droite en flux (poussé par `margin-left: auto`) — équivalent du comportement pré-v0.10 |
+| `sender` + `recipient flow` | côte-à-côte 50/50 en flux, comme deux blocs symétriques |
 
 ### 25.5. Hors v1
 

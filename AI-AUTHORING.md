@@ -494,8 +494,8 @@ they stay attention-grabbing. Concretely:
 
 ## Letterhead (sender / recipient)
 
-For invoices, devis, courriers, propositions commerciales — a paired
-pair of address blocks rendered side-by-side at the top of the page.
+For invoices, devis, courriers, propositions commerciales — paired
+address blocks for the émetteur and destinataire of a document.
 
 ````
 ```sender
@@ -508,7 +508,7 @@ TVA intra. FR12 345678901
 
 ```recipient
 ACME SAS
-À l'attention de Mme Dupont
+*À l'attention de Mme Dupont*
 34 avenue du Client
 75002 Paris
 ```
@@ -516,59 +516,39 @@ ACME SAS
 
 Each line of the body is rendered as one address line, joined by
 `<br>`. Inline `**bold**`, `*italic*`, and `[text](url)` work; raw
-HTML is escaped.
+HTML is escaped. **No automatic heading** is added — if you want
+*Émetteur* / *Destinataire* (or *Sender* / *Recipient*, *From* /
+*To*, anything), type it as the first line of the body.
 
-**Layout**:
+### Default layout
 
-- Two consecutive `sender` + `recipient` blocks (any order) → wrapped
-  in a flex group, sit side-by-side, each takes ~50 % of the content
-  width.
-- A lone `recipient` block → floats to the right column (matches the
-  formal FR letter convention where the destinataire is top-right).
-- A lone `sender` block → stays in the left column.
-- Three or more adjacent blocks (e.g. an additional architect or
-  sub-contractor party) → all fit in the same flex group, sized
-  equally.
+- **`sender`** — sits in the left column, in normal flex flow.
+- **`recipient`** — **absolutely positioned** by default at the
+  standard French DL envelope window coordinates (left edge 110 mm,
+  top edge 40 mm from the A4 edge — auto-adjusted to whatever margins
+  the active profile uses). Folded in Z, an A4 lands the destinataire
+  inside the window of a standard DL window envelope.
+- The pair is wrapped in a flex group with `min-height: 70 mm` to
+  reserve vertical space — without it, the prose following the group
+  would flow over the absolutely-positioned recipient.
 
-**Default labels** are hardcoded in French — `Émetteur` /
-`Destinataire` — matching the rest of markpage's HTML rendering. To
-use a different label (English doc, role-specific naming, …), pass it
-as a quoted info-string:
+### Opt out of window positioning — `flow`
 
-````
-```sender "Sender"
-…
-```
-
-```recipient "À l'attention de"
-…
-```
-````
-
-The captioning convention is the same as for figures (`"Title"`
-quoted), but here the string replaces the label rather than adding a
-caption.
-
-**Window envelope alignment** — for a French formal letter destined
-for a DL window envelope (110×220 mm, standard *fenêtre droite*), the
-recipient must land at a precise coordinate so it shows through the
-window after the A4 is folded in Z. Add the `window` positional flag:
+When you don't want the envelope alignment (Anglo-Saxon-style letter,
+internal mockup, A5 page where the DL coordinates don't apply, …),
+add `flow` to the recipient info-string:
 
 ````
-```recipient window
+```recipient flow
 ACME SAS
-À l'attention de Mme Dupont
 34 avenue du Client
 75002 Paris
 ```
 ````
 
-This breaks the recipient out of the flex group and absolutely
-positions it at the standard French DL window coordinates (left edge
-110 mm, top edge 40 mm from the A4 edge — coordinates auto-adjusted
-to whatever margins the active profile uses). The sender, if present,
-keeps its normal left column. The flag is silently ignored on
-`sender` (the émetteur never targets the window).
+The recipient stays in flex flow as the right column, sized like the
+sender, with `margin-left: auto` for the lone-recipient case. The
+flag is silently ignored on `sender` (the émetteur is always in flow).
 
 **What stays in plain Markdown** around the letterhead pair:
 

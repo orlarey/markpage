@@ -827,9 +827,10 @@ export function pagedCss(s: PdfSettings): string {
 
     /* Letterhead — sender / recipient blocks for invoices, devis,
        courriers. Adjacent siblings are wrapped in a .letterhead-group
-       by groupLetterheads() so flex layout puts them side-by-side; a
-       lone recipient slides to the right via margin-left: auto, which
-       matches the FR formal-letter convention. */
+       by groupLetterheads() so the sender + an in-flow ('flow')
+       recipient lay out side-by-side. The default recipient is
+       window-positioned (absolute, calibrated for FR DL envelope
+       window) and lives outside the flex flow. */
     ${SCOPE} .letterhead-group {
       display: flex;
       gap: 4mm;
@@ -841,17 +842,18 @@ export function pagedCss(s: PdfSettings): string {
       flex: 0 1 calc(50% - 2mm);
       line-height: 1.4;
     }
-    ${SCOPE} .letterhead-recipient {
+    /* 'recipient flow' opt-out — keeps the recipient in normal flex
+       flow as the right column, matching the pre-window default. */
+    ${SCOPE} .letterhead-recipient.letterhead-flow {
       margin-left: auto;
     }
-    /* 'recipient window' — position absolue calibree pour la fenetre
-       d'une enveloppe DL francaise (110x220 mm) apres pliage en Z.
-       Norme : bord gauche de l'adresse a 110 mm du bord du A4, bord
-       haut a 40 mm. Les coordonnees sont calculees par rapport au
-       conteneur de contenu paged.js (zone apres marges utilisateur),
-       donc on soustrait les marges du profil pour atterrir au bon
-       endroit absolu. paged.js positionne .pagedjs_pagebox en relative,
-       ce qui sert d'ancre. */
+    /* Default for recipient: absolute position calibrated for the FR
+       DL envelope window (110x220 mm, fold in Z). The norm: left edge
+       of the address at 110 mm from the A4 edge, top edge at 40 mm.
+       Coordinates relative to the paged.js content container (zone
+       after the profile margins), so we subtract them to land at the
+       right absolute spot. paged.js positions .pagedjs_pagebox as
+       relative natively, which serves as the anchor. */
     ${SCOPE} .letterhead-recipient.letterhead-window {
       position: absolute;
       left: ${Math.max(0, 110 - m.left)}mm;
@@ -860,12 +862,12 @@ export function pagedCss(s: PdfSettings): string {
       margin: 0;
       flex: none;
     }
-    ${SCOPE} .letterhead-label {
-      font-weight: 600;
-      margin-bottom: 0.3em;
-    }
-    ${SCOPE} .letterhead-body {
-      /* Address lines join with <br> — let the line-height define spacing. */
+    /* The window recipient is out of flow, so the group height is
+       only driven by the sender. Following content would flow over
+       the recipient — we reserve 70 mm, enough for ~6 address lines
+       plus the 15 mm top offset of the window position. */
+    ${SCOPE} .letterhead-group--window {
+      min-height: 70mm;
     }
 
     /* Images: cap both width and height to the page's content area so

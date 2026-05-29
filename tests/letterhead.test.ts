@@ -6,30 +6,34 @@ import {
 } from '../src/letterhead';
 
 describe('renderLetterhead', () => {
-  it('emits the default FR label when no caption is given', () => {
-    const html = renderLetterhead('sender', 'Yann Orlarey\n12 rue Exemple', null);
+  it('emits a sender block with no label and no positioning class', () => {
+    const html = renderLetterhead('sender', 'Yann Orlarey\n12 rue Exemple');
     expect(html).toContain('letterhead-sender');
-    expect(html).toContain('>Émetteur<');
+    expect(html).not.toContain('letterhead-label');
+    expect(html).not.toContain('letterhead-window');
+    expect(html).not.toContain('letterhead-flow');
   });
 
-  it('uses the recipient default label too', () => {
-    const html = renderLetterhead('recipient', 'ACME SAS', null);
+  it('emits a recipient with the window class by default', () => {
+    const html = renderLetterhead('recipient', 'ACME SAS');
     expect(html).toContain('letterhead-recipient');
-    expect(html).toContain('>Destinataire<');
+    expect(html).toContain('letterhead-window');
   });
 
-  it('overrides the label when a custom caption is supplied', () => {
-    const html = renderLetterhead('sender', 'X', 'Sender');
-    expect(html).toContain('>Sender<');
-    expect(html).not.toContain('>Émetteur<');
+  it('emits a recipient with the flow class when args includes flow', () => {
+    const html = renderLetterhead('recipient', 'ACME SAS', ['flow']);
+    expect(html).toContain('letterhead-flow');
+    expect(html).not.toContain('letterhead-window');
+  });
+
+  it('ignores the flow arg on sender (no positioning class on sender)', () => {
+    const html = renderLetterhead('sender', 'X', ['flow']);
+    expect(html).not.toContain('letterhead-flow');
+    expect(html).not.toContain('letterhead-window');
   });
 
   it('joins lines with <br>', () => {
-    const html = renderLetterhead(
-      'sender',
-      'Line 1\nLine 2\nLine 3',
-      null,
-    );
+    const html = renderLetterhead('sender', 'Line 1\nLine 2\nLine 3');
     expect(html).toContain('Line 1<br>Line 2<br>Line 3');
   });
 
@@ -37,19 +41,18 @@ describe('renderLetterhead', () => {
     const html = renderLetterhead(
       'sender',
       '\n  Line 1  \n\n  Line 2  \n\n',
-      null,
     );
     expect(html).toContain('Line 1<br>Line 2');
     expect(html).not.toContain('<br><br>');
   });
 
   it('renders **bold** inline', () => {
-    const html = renderLetterhead('sender', '**Yann Orlarey**', null);
+    const html = renderLetterhead('sender', '**Yann Orlarey**');
     expect(html).toContain('<strong>Yann Orlarey</strong>');
   });
 
   it('renders *italic* inline', () => {
-    const html = renderLetterhead('sender', '*Consultant DSP*', null);
+    const html = renderLetterhead('sender', '*Consultant DSP*');
     expect(html).toContain('<em>Consultant DSP</em>');
   });
 
@@ -57,47 +60,14 @@ describe('renderLetterhead', () => {
     const html = renderLetterhead(
       'sender',
       '[yann@example.com](mailto:yann@example.com)',
-      null,
     );
     expect(html).toContain('<a href="mailto:yann@example.com">yann@example.com</a>');
   });
 
   it('escapes raw HTML in the body', () => {
-    const html = renderLetterhead('sender', '<script>alert(1)</script>', null);
+    const html = renderLetterhead('sender', '<script>alert(1)</script>');
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
-  });
-
-  it('escapes the custom label too', () => {
-    const html = renderLetterhead('sender', 'X', '<b>Boom</b>');
-    expect(html).toContain('&lt;b&gt;Boom&lt;/b&gt;');
-    expect(html).not.toContain('<b>Boom</b>');
-  });
-
-  it('adds letterhead-window class on recipient with `window` arg', () => {
-    const html = renderLetterhead('recipient', 'ACME', null, ['window']);
-    expect(html).toContain('letterhead-window');
-  });
-
-  it('ignores `window` arg on sender (only recipient targets the envelope window)', () => {
-    const html = renderLetterhead('sender', 'X', null, ['window']);
-    expect(html).not.toContain('letterhead-window');
-  });
-
-  it('does not add letterhead-window when args has no `window`', () => {
-    const html = renderLetterhead('recipient', 'ACME', null, ['other']);
-    expect(html).not.toContain('letterhead-window');
-  });
-
-  it('window + custom label coexist', () => {
-    const html = renderLetterhead(
-      'recipient',
-      'ACME',
-      "À l'attention de",
-      ['window'],
-    );
-    expect(html).toContain('letterhead-window');
-    expect(html).toContain(">À l'attention de<");
   });
 });
 
@@ -106,7 +76,7 @@ describe('groupLetterheads — DOM grouping', () => {
     const doc = makeDoc(
       '<div>' +
         '<div class="letterhead letterhead-sender">A</div>' +
-        '<div class="letterhead letterhead-recipient">B</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
         '<h2>After</h2>' +
         '</div>',
     );
@@ -115,7 +85,6 @@ describe('groupLetterheads — DOM grouping', () => {
     const groups = root.querySelectorAll('.letterhead-group');
     expect(groups).toHaveLength(1);
     expect(groups[0].children).toHaveLength(2);
-    // The h2 sits *after* the group, untouched.
     expect(root.children).toHaveLength(2);
     expect(root.lastElementChild?.tagName.toLowerCase()).toBe('h2');
   });
@@ -123,7 +92,7 @@ describe('groupLetterheads — DOM grouping', () => {
   it('wraps a lone letterhead in its own group', () => {
     const doc = makeDoc(
       '<div>' +
-        '<div class="letterhead letterhead-recipient">B</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
         '<p>Body</p>' +
         '</div>',
     );
@@ -139,7 +108,7 @@ describe('groupLetterheads — DOM grouping', () => {
       '<div>' +
         '<div class="letterhead letterhead-sender">A</div>' +
         '<p>Between</p>' +
-        '<div class="letterhead letterhead-recipient">B</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
         '</div>',
     );
     const root = doc.body.firstElementChild as HTMLElement;
@@ -156,14 +125,38 @@ describe('groupLetterheads — DOM grouping', () => {
     expect(root.innerHTML).toBe(before);
   });
 
-  it('handles a triplet (sender + recipient + recipient) in one group', () => {
-    // Edge case: 3 adjacent siblings (e.g., an additional "Architecte" block).
-    // The flex container can hold N children — we just need them grouped.
+  it('tags the group with letterhead-group--window when a child is window-positioned', () => {
     const doc = makeDoc(
       '<div>' +
         '<div class="letterhead letterhead-sender">A</div>' +
-        '<div class="letterhead letterhead-recipient">B</div>' +
-        '<div class="letterhead letterhead-recipient">C</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    groupLetterheads(root);
+    const group = root.querySelector('.letterhead-group');
+    expect(group?.classList.contains('letterhead-group--window')).toBe(true);
+  });
+
+  it('does NOT tag the group when the recipient opted into flow', () => {
+    const doc = makeDoc(
+      '<div>' +
+        '<div class="letterhead letterhead-sender">A</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-flow">B</div>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    groupLetterheads(root);
+    const group = root.querySelector('.letterhead-group');
+    expect(group?.classList.contains('letterhead-group--window')).toBe(false);
+  });
+
+  it('handles a triplet (sender + recipient + recipient) in one group', () => {
+    const doc = makeDoc(
+      '<div>' +
+        '<div class="letterhead letterhead-sender">A</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">C</div>' +
         '</div>',
     );
     const root = doc.body.firstElementChild as HTMLElement;
