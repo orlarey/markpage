@@ -40,6 +40,7 @@ further down.
 | Filesystem layout or AST              | ` ```tree ` (`svg` for AST)        |
 | Numbered pseudocode                   | ` ```algorithm `                   |
 | Source + rendered side-by-side        | ` ```demo `                        |
+| Letterhead (invoices, courriers, …)   | ` ```sender ` / ` ```recipient `   |
 
 When two blocks fit (e.g. a tiny `csv` vs. a pipe table), prefer
 the simpler one. When in doubt between `adt` and `ebnf`, ask:
@@ -488,6 +489,75 @@ they stay attention-grabbing. Concretely:
   follows; wrapping it in `::: caution` is double-marking.
 - Every paragraph that mentions a caveat — only the strongest one
   or two per document deserve the visual weight.
+
+---
+
+## Letterhead (sender / recipient)
+
+For invoices, devis, courriers, propositions commerciales — a paired
+pair of address blocks rendered side-by-side at the top of the page.
+
+````
+```sender
+Yann Orlarey
+12 rue Exemple
+69000 Lyon
+SIRET 123 456 789 00012
+TVA intra. FR12 345678901
+```
+
+```recipient
+ACME SAS
+À l'attention de Mme Dupont
+34 avenue du Client
+75002 Paris
+```
+````
+
+Each line of the body is rendered as one address line, joined by
+`<br>`. Inline `**bold**`, `*italic*`, and `[text](url)` work; raw
+HTML is escaped.
+
+**Layout**:
+
+- Two consecutive `sender` + `recipient` blocks (any order) → wrapped
+  in a flex group, sit side-by-side, each takes ~50 % of the content
+  width.
+- A lone `recipient` block → floats to the right column (matches the
+  formal FR letter convention where the destinataire is top-right).
+- A lone `sender` block → stays in the left column.
+- Three or more adjacent blocks (e.g. an additional architect or
+  sub-contractor party) → all fit in the same flex group, sized
+  equally.
+
+**Default labels** are hardcoded in French — `Émetteur` /
+`Destinataire` — matching the rest of markpage's HTML rendering. To
+use a different label (English doc, role-specific naming, …), pass it
+as a quoted info-string:
+
+````
+```sender "Sender"
+…
+```
+
+```recipient "À l'attention de"
+…
+```
+````
+
+The captioning convention is the same as for figures (`"Title"`
+quoted), but here the string replaces the label rather than adding a
+caption.
+
+**What stays in plain Markdown** around the letterhead pair:
+
+- Document title — frontmatter `title:`
+- Date, invoice number, reference — bold-prefixed paragraphs or a
+  definition list
+- IBAN / BIC — bold-prefixed lines
+- Legal mentions — `::: caution [Mentions légales]` callout
+- Items table / totals — pipe tables (for now; an `items` block with
+  auto-computed totals is planned)
 
 ---
 

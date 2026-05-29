@@ -2676,7 +2676,119 @@ de préambule renvoie un SVG périmé.
 - Pas d'override `language` (la langue doc reste settings-only — à
   ajouter si le besoin remonte).
 
-## 25. À décider plus tard
+## 25. Letterhead — blocs `sender` / `recipient` (`src/letterhead.ts`)
+
+Deux fences spécialisés pour les documents à en-tête type facture,
+devis, courrier formel, proposition commerciale : un bloc « émetteur »
+et un bloc « destinataire » qui se rendent côte-à-côte en haut de la
+page.
+
+### 25.1. Surface utilisateur
+
+````
+```sender
+Yann Orlarey
+12 rue Exemple
+69000 Lyon
+SIRET 123 456 789 00012
+TVA intra. FR12 345678901
+```
+
+```recipient
+ACME SAS
+À l'attention de Mme Dupont
+34 avenue du Client
+75002 Paris
+```
+````
+
+Chaque ligne non vide du corps devient une ligne d'adresse, jointes
+par `<br>` (les adresses sont denses, pas paragraphées). Le formatage
+inline `**gras**`, `*italique*`, `[texte](url)` est supporté via un
+mini-formateur regex local — pas d'appel à `marked.parseInline` qui
+reclencherait les hooks `preprocess` / `postprocess` (cf. §17.3 sur le
+gardien `inFootnoteRender`).
+
+### 25.2. Labels
+
+Labels par défaut **hardcodés en FR** comme les autres labels de rendu
+HTML (cf. `ADMONITION_LABELS` dans `marked-config.ts`) :
+
+- ` ```sender ` → `Émetteur`
+- ` ```recipient ` → `Destinataire`
+
+Override via la convention info-string standard ` "Custom" ` (idem
+captions de figures) :
+
+````
+```sender "Sender"
+…
+```
+
+```recipient "À l'attention de"
+…
+```
+````
+
+L'i18n vers EN selon `settings.language` est différé tant que le besoin
+ne remonte pas : l'utilisateur FR a son rendu FR natif, l'utilisateur EN
+peut imposer ses labels via l'info-string.
+
+### 25.3. Layout — `groupLetterheads` + flex
+
+Émission HTML par bloc : `<div class="letterhead letterhead-{kind}">`
+contenant `<div class="letterhead-label">` + `<div class="letterhead-body">`.
+
+Une passe DOM `groupLetterheads(root)` parcourt les enfants du root,
+détecte les runs de `.letterhead` siblings consécutifs, et les
+enveloppe chacun dans un `<div class="letterhead-group">`. Appelée
+dans `paginate()` / `paginateOnce()` **après** `annotateSourceLines`
+pour que les `data-line` des `<pre>` d'origine soient conservés sur
+les `.letterhead` (le scroll-sync §14.2 remonte aux ancêtres
+`[data-line]`, donc le wrap dans un group transparent ne casse rien).
+
+CSS dans `pagedCss` :
+
+```css
+.letterhead-group {
+  display: flex;
+  gap: 4mm;
+  align-items: flex-start;
+  margin: 0 0 1.4em;
+  break-inside: avoid;
+}
+.letterhead {
+  flex: 0 1 calc(50% - 2mm);
+  line-height: 1.4;
+}
+.letterhead-recipient {
+  margin-left: auto;
+}
+```
+
+Comportements résultants :
+
+| Configuration | Rendu |
+| :--- | :--- |
+| `sender` + `recipient` consécutifs | côte-à-côte, chacun 50 % |
+| `sender` seul | colonne gauche, droite vide |
+| `recipient` seul | colonne droite (poussé par `margin-left: auto`) — convention courrier FR |
+| 3+ siblings (architecte, sous-traitant) | flex à N enfants, équirépartis |
+
+### 25.4. Hors v1
+
+- **Localisation des labels par `settings.language`** — ajout d'un
+  paramètre `language` au renderer + mapping FR/EN. Différé tant que
+  le besoin EN ne remonte pas.
+- **Bloc `items` avec calculs automatiques** (qté × PU HT, sommes, TVA,
+  TTC, formatage `Intl.NumberFormat('fr-FR', …)`) — sortirait les
+  factures du « table pipe + saisie manuelle des totaux » actuel.
+  Pertinent quand le volume de devis/factures dépasse l'épisodique.
+- **Export LaTeX** des deux blocs (`minipage` + `\hfill`) — la facture
+  reste donc rendue PDF via paged.js uniquement. Ajout simple le jour
+  où on en a besoin pour compiler hors navigateur.
+
+## 26. À décider plus tard
 
 - Recto/verso (marges alternées).
 - Mode sombre de l'éditeur.

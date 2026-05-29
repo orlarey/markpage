@@ -136,6 +136,22 @@ GitHub Actions**.
   (storage model, render pipelines, i18n, LaTeX export, regression
   test harness).
 
+## Templates
+
+Ready-to-customise documents under [`templates/`](templates/):
+
+- **Facture (FR)** — [`templates/facture.md`](templates/facture.md)
+  is a French invoice scaffold using the dedicated ` ```sender ` /
+  ` ```recipient ` letterhead blocks (side-by-side flex layout),
+  followed by a pipe-table of items, a totals block, and a
+  `::: caution` callout for the mandatory mentions légales. Pair it
+  with the matching profile
+  [`templates/profil-facture.json`](templates/profil-facture.json):
+  serif body (Source Serif 4), sober colours, hidden auteur /
+  organisation / date metadata block (the invoice carries its own
+  header). Import the profile from **Réglages → ▾ → Importer…**,
+  switch to it, then *Importer* the `.md` to start a new invoice.
+
 ## Stack and credits
 
 markpage is glue around a lot of open-source work. Each piece below

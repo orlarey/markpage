@@ -10,6 +10,7 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
+import { groupLetterheads } from './letterhead';
 import { splitLongPreBlocks } from './pre-split';
 
 // Threshold for the pre-split pass (cf. `splitLongPreBlocks`). A code block
@@ -150,6 +151,9 @@ export async function paginate(
   // In slides mode, group runs of adjacent figures into a flex row so
   // they sit side-by-side on a slide instead of forcing one per slide.
   groupAdjacentFiguresForSlides(source, settings);
+  // Wrap consecutive sender / recipient blocks in a flex group so they
+  // sit side-by-side (or a lone recipient floats right for FR letters).
+  groupLetterheads(source);
   // In slides mode, compute the right zoom for every `demo zoom=auto`
   // block by measuring its natural height against the slide figure area.
   await applyAutoZoomForDemos(source, settings, renderTo);
@@ -187,6 +191,7 @@ export async function paginateOnce(
   const { Previewer } = await loadPagedJs();
   const previewer = new Previewer();
   groupAdjacentFiguresForSlides(source, settings);
+  groupLetterheads(source);
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   keepLabelsWithNext(source);
@@ -819,6 +824,33 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .mermaid-block { ${blockBoxCss(styles.mermaid)} ${inlineCss(styles.mermaid)} }
     ${SCOPE} .admonition { ${blockBoxCss(styles.callout)} ${inlineCss(styles.callout)} }
     ${SCOPE} table { border-collapse: collapse; ${inlineCss(styles.table)} ${blockBoxCss(styles.table)} }
+
+    /* Letterhead — sender / recipient blocks for invoices, devis,
+       courriers. Adjacent siblings are wrapped in a .letterhead-group
+       by groupLetterheads() so flex layout puts them side-by-side; a
+       lone recipient slides to the right via margin-left: auto, which
+       matches the FR formal-letter convention. */
+    ${SCOPE} .letterhead-group {
+      display: flex;
+      gap: 4mm;
+      align-items: flex-start;
+      margin: 0 0 1.4em;
+      break-inside: avoid;
+    }
+    ${SCOPE} .letterhead {
+      flex: 0 1 calc(50% - 2mm);
+      line-height: 1.4;
+    }
+    ${SCOPE} .letterhead-recipient {
+      margin-left: auto;
+    }
+    ${SCOPE} .letterhead-label {
+      font-weight: 600;
+      margin-bottom: 0.3em;
+    }
+    ${SCOPE} .letterhead-body {
+      /* Address lines join with <br> — let the line-height define spacing. */
+    }
 
     /* Images: cap both width and height to the page's content area so
        paged.js can always fit them on a page. Without max-height,

@@ -22,6 +22,7 @@ import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
 import { renderTreeBlock } from './tree';
 import { highlightCode, isKnownLanguage } from './highlight';
+import { renderLetterhead } from './letterhead';
 import {
   anchorId,
   prescanLabels,
@@ -320,6 +321,25 @@ marked.use({
       if (lang === 'demo' || lang.startsWith('demo ')) {
         return injectSource(
           withCaption('figure', info.caption, renderDemoBlock(token.text, info.args), info.label),
+          raw,
+        );
+      }
+      // ```sender / ```recipient — paired letterhead blocks for invoices,
+      // devis, courriers, propositions commerciales. Each emits a
+      // standalone `<div class="letterhead letterhead-{kind}">`; a
+      // downstream DOM pass (`groupLetterheads`) wraps consecutive
+      // siblings in a flex container so they sit side-by-side. The
+      // info-string caption (`"Custom"`) overrides the default label
+      // ("Émetteur" / "Destinataire").
+      if (lang === 'sender' || lang.startsWith('sender ')) {
+        return injectSource(
+          renderLetterhead('sender', token.text, info.caption),
+          raw,
+        );
+      }
+      if (lang === 'recipient' || lang.startsWith('recipient ')) {
+        return injectSource(
+          renderLetterhead('recipient', token.text, info.caption),
           raw,
         );
       }
