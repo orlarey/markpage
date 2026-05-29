@@ -549,6 +549,27 @@ The captioning convention is the same as for figures (`"Title"`
 quoted), but here the string replaces the label rather than adding a
 caption.
 
+**Window envelope alignment** — for a French formal letter destined
+for a DL window envelope (110×220 mm, standard *fenêtre droite*), the
+recipient must land at a precise coordinate so it shows through the
+window after the A4 is folded in Z. Add the `window` positional flag:
+
+````
+```recipient window
+ACME SAS
+À l'attention de Mme Dupont
+34 avenue du Client
+75002 Paris
+```
+````
+
+This breaks the recipient out of the flex group and absolutely
+positions it at the standard French DL window coordinates (left edge
+110 mm, top edge 40 mm from the A4 edge — coordinates auto-adjusted
+to whatever margins the active profile uses). The sender, if present,
+keeps its normal left column. The flag is silently ignored on
+`sender` (the émetteur never targets the window).
+
 **What stays in plain Markdown** around the letterhead pair:
 
 - Document title — frontmatter `title:`

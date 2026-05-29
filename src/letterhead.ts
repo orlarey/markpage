@@ -29,11 +29,19 @@ export type LetterheadKind = 'sender' | 'recipient';
  * How: Trim blank head / tail lines, escape HTML, then apply a tiny inline
  *   formatter for `**bold**`, `*italic*`, `[text](url)`. Lines are joined
  *   with `<br>` — addresses are dense, not paragraphs.
+ *
+ *   `args` carries positional flags from the info-string. `window` on a
+ *   `recipient` block adds the `letterhead-window` class — CSS in
+ *   `pagedCss` then positions it absolutely at the standard
+ *   French-DL-envelope window coordinates (cf. SPEC §25.3). The flag is
+ *   silently ignored on `sender` blocks (the émetteur never targets the
+ *   envelope window).
  */
 export function renderLetterhead(
   kind: LetterheadKind,
   body: string,
   customLabel: string | null,
+  args: string[] = [],
 ): string {
   const label = customLabel ?? DEFAULT_LABELS[kind];
   const lines = body
@@ -45,8 +53,10 @@ export function renderLetterhead(
     label !== ''
       ? `<div class="letterhead-label">${escapeHtml(label)}</div>`
       : '';
+  const isWindow = kind === 'recipient' && args.includes('window');
+  const classes = `letterhead letterhead-${kind}${isWindow ? ' letterhead-window' : ''}`;
   return (
-    `<div class="letterhead letterhead-${kind}">` +
+    `<div class="${classes}">` +
     labelHtml +
     `<div class="letterhead-body">${bodyHtml}</div>` +
     `</div>\n`

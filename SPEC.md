@@ -2775,7 +2775,54 @@ Comportements résultants :
 | `recipient` seul | colonne droite (poussé par `margin-left: auto`) — convention courrier FR |
 | 3+ siblings (architecte, sous-traitant) | flex à N enfants, équirépartis |
 
-### 25.4. Hors v1
+### 25.4. Modifier `window` — alignement enveloppe à fenêtre DL
+
+Pour un courrier A4 destiné à une enveloppe à fenêtre DL standard
+(110×220 mm, fenêtre droite, pliage en Z), le destinataire doit
+apparaître à une position **précise** sur la feuille — la norme
+française veut bord gauche de l'adresse à 110 mm du bord du A4 et
+bord haut à 40 mm (tolérance constructeur ±5 mm).
+
+Le layout flex par défaut place le `recipient` autour de 107 mm × 25
+mm (depuis le bord page), ce qui marche pour une facture (le `title:`
+H1 au-dessus pousse à ~45 mm) mais **pas pour un courrier seul** (le
+recipient sort de la fenêtre par le haut, à ~25 mm).
+
+Solution : flag positionnel `window` sur le bloc recipient.
+
+````
+```recipient window
+ACME SAS
+À l'attention de Mme Dupont
+34 avenue du Client
+75002 Paris
+```
+````
+
+Émet `<div class="letterhead letterhead-recipient letterhead-window">`.
+CSS dans `pagedCss(settings)` :
+
+```css
+.letterhead-recipient.letterhead-window {
+  position: absolute;
+  left: <110 - m.left>mm;
+  top:  <40  - m.top >mm;
+  width: 85mm;
+  margin: 0;
+  flex: none;
+}
+```
+
+Les offsets sont calculés depuis les marges du profil actif, donc
+quelle que soit la configuration de marges, le coin haut-gauche du
+recipient atterrit à exactement 110 mm × 40 mm depuis le bord du A4.
+L'ancre `position: absolute` est `.pagedjs_pagebox` (que paged.js
+positionne en relative nativement).
+
+Le flag est **silencieusement ignoré sur `sender`** — l'émetteur ne
+cible jamais la fenêtre de l'enveloppe.
+
+### 25.5. Hors v1
 
 - **Localisation des labels par `settings.language`** — ajout d'un
   paramètre `language` au renderer + mapping FR/EN. Différé tant que

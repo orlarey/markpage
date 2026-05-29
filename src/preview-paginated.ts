@@ -844,6 +844,22 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-recipient {
       margin-left: auto;
     }
+    /* 'recipient window' — position absolue calibree pour la fenetre
+       d'une enveloppe DL francaise (110x220 mm) apres pliage en Z.
+       Norme : bord gauche de l'adresse a 110 mm du bord du A4, bord
+       haut a 40 mm. Les coordonnees sont calculees par rapport au
+       conteneur de contenu paged.js (zone apres marges utilisateur),
+       donc on soustrait les marges du profil pour atterrir au bon
+       endroit absolu. paged.js positionne .pagedjs_pagebox en relative,
+       ce qui sert d'ancre. */
+    ${SCOPE} .letterhead-recipient.letterhead-window {
+      position: absolute;
+      left: ${Math.max(0, 110 - m.left)}mm;
+      top: ${Math.max(0, 40 - m.top)}mm;
+      width: 85mm;
+      margin: 0;
+      flex: none;
+    }
     ${SCOPE} .letterhead-label {
       font-weight: 600;
       margin-bottom: 0.3em;

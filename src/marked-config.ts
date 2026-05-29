@@ -333,13 +333,13 @@ marked.use({
       // ("Émetteur" / "Destinataire").
       if (lang === 'sender' || lang.startsWith('sender ')) {
         return injectSource(
-          renderLetterhead('sender', token.text, info.caption),
+          renderLetterhead('sender', token.text, info.caption, info.args),
           raw,
         );
       }
       if (lang === 'recipient' || lang.startsWith('recipient ')) {
         return injectSource(
-          renderLetterhead('recipient', token.text, info.caption),
+          renderLetterhead('recipient', token.text, info.caption, info.args),
           raw,
         );
       }

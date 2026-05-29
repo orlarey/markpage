@@ -73,6 +73,32 @@ describe('renderLetterhead', () => {
     expect(html).toContain('&lt;b&gt;Boom&lt;/b&gt;');
     expect(html).not.toContain('<b>Boom</b>');
   });
+
+  it('adds letterhead-window class on recipient with `window` arg', () => {
+    const html = renderLetterhead('recipient', 'ACME', null, ['window']);
+    expect(html).toContain('letterhead-window');
+  });
+
+  it('ignores `window` arg on sender (only recipient targets the envelope window)', () => {
+    const html = renderLetterhead('sender', 'X', null, ['window']);
+    expect(html).not.toContain('letterhead-window');
+  });
+
+  it('does not add letterhead-window when args has no `window`', () => {
+    const html = renderLetterhead('recipient', 'ACME', null, ['other']);
+    expect(html).not.toContain('letterhead-window');
+  });
+
+  it('window + custom label coexist', () => {
+    const html = renderLetterhead(
+      'recipient',
+      'ACME',
+      "À l'attention de",
+      ['window'],
+    );
+    expect(html).toContain('letterhead-window');
+    expect(html).toContain(">À l'attention de<");
+  });
 });
 
 describe('groupLetterheads — DOM grouping', () => {
