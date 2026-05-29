@@ -522,15 +522,31 @@ HTML is escaped. **No automatic heading** is added — if you want
 
 ### Default layout
 
-- **`sender`** — sits in the left column, in normal flex flow.
+- **`sender`** — sits in the left column, in normal flow.
 - **`recipient`** — **absolutely positioned** by default at the
   standard French DL envelope window coordinates (left edge 110 mm,
   top edge 40 mm from the A4 edge — auto-adjusted to whatever margins
   the active profile uses). Folded in Z, an A4 lands the destinataire
   inside the window of a standard DL window envelope.
-- The pair is wrapped in a flex group with `min-height: 70 mm` to
-  reserve vertical space — without it, the prose following the group
-  would flow over the absolutely-positioned recipient.
+- The pair is wrapped in a group with `min-height: 70 mm` to reserve
+  vertical space — without it, the prose following the group would
+  flow over the absolutely-positioned recipient.
+
+### Source-order convention
+
+**Put `sender` / `recipient` at the very beginning of your markdown**,
+before any heading or paragraph. The recipient is pinned to fixed
+envelope coordinates (top of page); anything you write *before* the
+letterhead flows above it in source order and, when that "anything" is
+too short to fill the page-top region, overlaps visually with the
+recipient block. The frontmatter `title:` is fine (it renders with the
+metadata block below it, which together take enough vertical space).
+Body headings (`# …`, `## …`) right before the letterhead don't.
+
+If you really need a heading before the letterhead, use
+`` ```recipient flow `` to keep the recipient in normal flow as a
+right column — no fixed positioning, no overlap, but no envelope-window
+alignment either.
 
 ### Opt out of window positioning — `flow`
 

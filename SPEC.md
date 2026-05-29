@@ -2729,6 +2729,20 @@ des marges, le coin haut-gauche du recipient atterrit à exactement
 110 mm × 40 mm du bord du A4 — tolérance constructeur d'enveloppe
 ±5 mm, on est dans le clou.
 
+**Convention d'ordre source.** Le recipient étant à position fixe en
+haut de page, il **ne peut pas être poussé** par du contenu qui le
+précède dans la source markdown. Le sender, lui, est en flux normal et
+descend en fonction de ce qui est au-dessus. Conclusion : si tu mets
+un heading court (`## facture`) immédiatement *avant* le letterhead,
+le sender démarre quelques mm sous le heading et tombe vis-à-vis du
+recipient — chevauchement visuel. Il n'existe pas de fix CSS pur qui
+couvre ce cas sans casser les autres (sender absolu casserait l'usage
+courant avec titre frontmatter + métadonnées). La convention pratique
+est de placer le letterhead **en premier** dans la source ; si on veut
+un titre au-dessus, soit on utilise le `title:` frontmatter (qui
+amène le bloc métadonnées et pousse assez), soit on bascule en
+`recipient flow` (plus de window, mais plus de chevauchement non plus).
+
 ### 25.3. Opt-out — `recipient flow`
 
 Quand on ne veut pas l'alignement enveloppe (courrier style
@@ -2828,7 +2842,7 @@ CSS clés dans `pagedCss(settings)` :
 | `recipient flow` seul | recipient colonne droite en flux (poussé par `margin-left: auto`) — équivalent du comportement pré-v0.10 |
 | `sender` + `recipient flow` | côte-à-côte 50/50 en flux, comme deux blocs symétriques |
 
-### 25.5. Hors v1
+### 25.6. Hors v1
 
 - **Localisation des labels par `settings.language`** — ajout d'un
   paramètre `language` au renderer + mapping FR/EN. Différé tant que

@@ -855,13 +855,12 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-recipient.letterhead-flow {
       margin-left: auto;
     }
-    /* Default for recipient: absolute position calibrated for the FR
-       DL envelope window (110x220 mm, fold in Z). The norm: left edge
-       of the address at 110 mm from the A4 edge, top edge at 40 mm.
-       Coordinates relative to the paged.js content container (zone
-       after the profile margins), so we subtract them to land at the
-       right absolute spot. paged.js positions .pagedjs_pagebox as
-       relative natively, which serves as the anchor. */
+    /* Default for recipient in window mode: absolute position calibrated
+       for the FR DL envelope window (110x220 mm, fold in Z). The norm:
+       left edge of the address at 110 mm from the A4 edge, top edge at
+       40 mm. Coordinates resolve against .pagedjs_page_content (paged.js
+       positions it as relative natively), so we subtract the profile
+       margins to land at the right absolute spot. */
     ${SCOPE} .letterhead-recipient.letterhead-window {
       position: absolute;
       left: ${Math.max(0, 110 - m.left)}mm;
@@ -871,24 +870,22 @@ export function pagedCss(s: PdfSettings): string {
       flex: none;
     }
     /* The window recipient is out of flow, so the group height is
-       only driven by the sender. Following content would flow over
+       driven by the sender alone. Following content would flow over
        the recipient — we reserve 70 mm, enough for ~6 address lines
        plus the 15 mm top offset of the window position.
-       Also: switch display to block. Per CSS Flex L1, a flex container
-       is the containing block of its absolutely-positioned children
-       even when it is itself static-positioned — so the recipient's
-       top/left would resolve against the group, not against
-       .pagedjs_pagebox, and the envelope coordinates would drift when
-       anything pushes the group down (e.g. a title above). With
-       display:block the group is no longer a flex container and the
-       absolute resolves to the next positioned ancestor up the tree. */
+       display: block (instead of flex inherited from .letterhead-
+       group): per CSS Flex L1, a flex container is the containing
+       block of its absolutely-positioned children even when it is
+       itself static-positioned. With flex we'd see the recipient
+       anchor on the group (whose top depends on whatever precedes it
+       in the source), not on the page. block side-steps that. */
     ${SCOPE} .letterhead-group--window {
       display: block;
       min-height: 70mm;
     }
-    /* Without flex, the sender would default to 100 % width and could
-       extend past the recipient's left edge (110 mm). Constrain it
-       explicitly so the two never overlap visually. */
+    /* Without flex, the sender would default to 100 % width. Constrain
+       it explicitly so it can never extend past the recipient's left
+       edge (110 mm). */
     ${SCOPE} .letterhead-group--window > .letterhead-sender {
       width: calc(50% - 2mm);
     }
