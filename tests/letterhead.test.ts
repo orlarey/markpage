@@ -152,6 +152,38 @@ describe('groupLetterheads — DOM grouping', () => {
     expect(group?.classList.contains('letterhead-group--window')).toBe(false);
   });
 
+  it('keepLabelsWithNext does NOT wrap h2 + next sibling when in slides mode', () => {
+    // In slides mode, h2 carries `break-before: page` (slidesBreakCss);
+    // a `break-inside: avoid` wrapper would conflict and make paged.js
+    // fragment the wrapper into stub + h2-alone + sibling-alone fragments
+    // across three slides. The print-export bug from the bugpdfexport.md
+    // repro: a slide title + mermaid pair got split into 3 slides instead
+    // of staying together on slide 2.
+    const doc = makeDoc(
+      '<div>' +
+        '<h2>MCP in One Picture</h2>' +
+        '<div class="mermaid-block"><svg/></div>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    keepLabelsWithNext(root, /*inSlidesMode=*/ true);
+    expect(root.querySelector('.keep-with-next')).toBeNull();
+    expect(root.children[0]?.tagName.toLowerCase()).toBe('h2');
+    expect(root.children[1]?.classList.contains('mermaid-block')).toBe(true);
+  });
+
+  it('keepLabelsWithNext DOES wrap h2 + next outside slides mode (default)', () => {
+    const doc = makeDoc(
+      '<div>' +
+        '<h2>Section</h2>' +
+        '<div class="mermaid-block"><svg/></div>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    keepLabelsWithNext(root);
+    expect(root.querySelector('.keep-with-next')).not.toBeNull();
+  });
+
   it('keepLabelsWithNext does NOT wrap an h1 + letterhead-group pair', () => {
     // The wrapper would become a fragmentation context that captures the
     // absolutely-positioned recipient, breaking the envelope-window

@@ -1279,6 +1279,19 @@ Sync éditeur ↔ preview : seul le premier chunk reçoit l'attribut
 `data-line` du `<pre>` d'origine — les autres se résolvent au
 premier via le walk d'ancêtre `[data-line]` de §14.2.
 
+**Exclusion mode slides.** Quand `settings.pageSize === SLIDES_16_9`,
+`keepLabelsWithNext(source, inSlidesMode=true)` saute le wrap des h2.
+La règle `slidesBreakCss` (§13.5) leur applique `break-before: page`,
+ce qui entre en conflit avec le `break-inside: avoid` du wrapper :
+paged.js résout la collision en **fragmentant le wrapper en trois
+morceaux** (un stub vide sur la slide courante, le h2 seul sur la
+suivante, le sibling seul sur la troisième). Sans wrap, le
+`break-before` du h2 fait simplement démarrer une nouvelle slide et
+ce qui suit la remplit naturellement tant que ça rentre. Le bug a
+été observé dans le pipeline print (`paginateOnce`) ; la preview
+(`paginate`) y échappait par coïncidence selon les ordres de mesure
+paged.js.
+
 ### 13.4. Aspect visuel
 
 - Fond `#e9eaee` (gris clair) derrière les pages.

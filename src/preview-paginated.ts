@@ -168,7 +168,7 @@ export async function paginate(
   // honoured inconsistently by paged.js when the next block is tall
   // (fenced code, math, mermaid, image, table); the wrapper is the
   // reliable fix.
-  keepLabelsWithNext(source);
+  keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
   // paged.js fills `renderTo` itself; clear any previous render first.
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -194,7 +194,7 @@ export async function paginateOnce(
   groupLetterheads(source);
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
-  keepLabelsWithNext(source);
+  keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
   renderTo.innerHTML = '';
   await previewer.preview(
     source,
@@ -684,11 +684,22 @@ function figureNaturalWidthPx(el: Element): number {
  *   wrapper into a fragmentation context that becomes the new containing
  *   block for the absolute recipient, breaking the envelope-window
  *   coordinates (cf. SPEC §25.4).
+ *
+ *   In slides mode, skip h2 too. h2 carries `break-before: page` (per
+ *   slidesBreakCss — each h2 starts a new slide). Wrapping it in a
+ *   `break-inside: avoid` div produces conflicting break rules: the
+ *   wrapper says "stay together" but the inner h2 says "split here".
+ *   paged.js resolves this by splitting the wrapper into fragments —
+ *   an empty stub on the current slide, the h2 alone on the next, and
+ *   the trailing sibling on a third slide. Without the wrapper, the
+ *   h2 simply starts a new slide and what follows fills the rest as
+ *   long as it fits.
  */
-export function keepLabelsWithNext(root: HTMLElement): void {
+export function keepLabelsWithNext(root: HTMLElement, inSlidesMode = false): void {
   const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
   for (const el of all) {
     if (!isLabel(el)) continue;
+    if (inSlidesMode && el.tagName.toLowerCase() === 'h2') continue;
     const next = el.nextElementSibling;
     if (!next) continue;
     if (!el.parentElement) continue;
