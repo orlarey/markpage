@@ -1,7 +1,7 @@
 {
   "name": "markpage",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "description": "Client-side Markdown to PDF converter",
   "license": "MIT",
