@@ -16,6 +16,11 @@ import {
   getImage,
   putBlobBySha,
 } from './image-store';
+import {
+  extractExternalRefs,
+  loadMapping,
+  rewriteExternalRefs,
+} from './resource-mapping';
 
 const MAX_DIMENSION = 2000;
 const JPEG_QUALITY = 0.85;
@@ -311,19 +316,41 @@ export function collectImageRefs(text: string): Set<string> {
  *   then `replaceAll` URL refs with their cached blob URL.
  */
 export async function expandRefsToBlobUrls(text: string): Promise<string> {
+  // 1. Internal refs: img://<sha> → blob URL (existing behaviour).
   const ids = collectRefIds(text);
-  if (ids.size === 0) return text;
+  // 2. External refs: relative paths resolved via the resource mapping —
+  //    SPEC §6.5. The source markdown keeps the original path; only the
+  //    rendered output substitutes the blob URL in.
+  const externalPaths = extractExternalRefs(text);
+  const mapping = loadMapping();
+  // Collect every SHA we need a blob URL for in this render.
+  const neededShas = new Set<string>(ids);
+  for (const p of externalPaths) {
+    const sha = mapping[p]?.sha;
+    if (sha) neededShas.add(sha);
+  }
+  if (neededShas.size === 0) return text;
   await Promise.all(
-    [...ids].map(async (id) => {
-      if (blobUrlCache.has(id)) return;
-      const blob = await getImage(id);
-      if (blob) blobUrlCache.set(id, URL.createObjectURL(blob));
+    [...neededShas].map(async (sha) => {
+      if (blobUrlCache.has(sha)) return;
+      const blob = await getImage(sha);
+      if (blob) blobUrlCache.set(sha, URL.createObjectURL(blob));
     }),
   );
-  return text.replaceAll(
+  // Step A: img://<sha> substitution.
+  let out = text.replaceAll(
     new RegExp(URL_RE_PATTERN, 'g'),
     (full, id: string) => blobUrlCache.get(id) ?? full,
   );
+  // Step B: external path substitution via the mapping.
+  if (externalPaths.length > 0) {
+    out = rewriteExternalRefs(out, (path) => {
+      const sha = mapping[path]?.sha;
+      if (!sha) return null;
+      return blobUrlCache.get(sha) ?? null;
+    });
+  }
+  return out;
 }
 
 /**
@@ -332,6 +359,12 @@ export async function expandRefsToBlobUrls(text: string): Promise<string> {
  *   `replaceAll` URL refs; reference definitions stay in place.
  */
 export async function expandRefsToDataUrls(text: string): Promise<string> {
+  // Internal `img://<sha>` refs only — external (relative) paths are
+  // intentionally left as-is. Save (`triggerSave` in main.ts) calls this
+  // expander; preserving external refs keeps the round-trip identity an
+  // imported `.md` author expects (SPEC §6.5). The PDF / print pipeline
+  // goes through `expandRefsToInlineDataUrls` below, which adds a second
+  // pass to inline external resources too.
   const ids = collectRefIds(text);
   if (ids.size === 0) return text;
   const map = new Map<string, string>();
@@ -348,10 +381,39 @@ export async function expandRefsToDataUrls(text: string): Promise<string> {
 }
 
 /**
+ * Purpose: Resolve every external (relative-path) image reference into a
+ *   base64 data URL using the resource mapping.
+ * How: For each external path returned by `extractExternalRefs`, look up the
+ *   mapping → SHA → IDB blob, materialise as data URL, then `rewriteExternalRefs`
+ *   to substitute the URL in the source. Unmapped paths pass through.
+ *   Used by `expandRefsToInlineDataUrls` so the PDF / print pipeline gets a
+ *   fully-self-contained markdown; the save path does not call it.
+ */
+async function inlineExternalRefs(text: string): Promise<string> {
+  const externalPaths = extractExternalRefs(text);
+  if (externalPaths.length === 0) return text;
+  const mapping = loadMapping();
+  const shaToDataUrl = new Map<string, string>();
+  await Promise.all(
+    externalPaths.map(async (path) => {
+      const sha = mapping[path]?.sha;
+      if (!sha || shaToDataUrl.has(sha)) return;
+      const blob = await getImage(sha);
+      if (blob) shaToDataUrl.set(sha, await blobToDataUrl(blob));
+    }),
+  );
+  return rewriteExternalRefs(text, (path) => {
+    const sha = mapping[path]?.sha;
+    return sha ? shaToDataUrl.get(sha) ?? null : null;
+  });
+}
+
+/**
  * Purpose: Fully-inline form of the doc with every image as a data URL —
  *   the input to PDF generation.
- * How: `expandRefsToDataUrls` first; then expand reference-style image
- *   uses (`![alt][label]`) to inline form using the doc's link definitions;
+ * How: `expandRefsToDataUrls` first; then resolve external (relative)
+ *   resources via the mapping; then expand reference-style image uses
+ *   (`![alt][label]`) to inline form using the doc's link definitions;
  *   warn on any unresolved `img://` left.
  */
 export async function expandRefsToInlineDataUrls(text: string): Promise<string> {
@@ -359,6 +421,11 @@ export async function expandRefsToInlineDataUrls(text: string): Promise<string> 
   // the matching data URL. Handles both new-style ref docs *and* old-style
   // inline-image docs that came in via extractDataUrlsToStore.
   let out = await expandRefsToDataUrls(text);
+  // 1b. Inline externally-mapped resources too — the PDF / print pipeline
+  // needs a self-contained markdown (SPEC §6.5). Unmapped externals pass
+  // through and would render as broken images in the PDF; that's the same
+  // signal a reader would get on the screen preview.
+  out = await inlineExternalRefs(out);
 
   // 2. Inline reference-style uses so the PDF token walker sees `![alt](url)`
   // directly. We don't strip the definitions afterwards: marked treats

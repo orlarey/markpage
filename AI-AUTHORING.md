@@ -101,7 +101,11 @@ GFM-flavoured Markdown is supported as-is:
 - Blockquotes: `> …`.
 - Task lists: `- [ ]` / `- [x]` (real checkbox glyphs in the PDF).
 - Links: `[text](url)`, autolinks `<url>`.
-- Images: `![alt](path-or-url)` — scaled to fit the column.
+- Images: `![alt](path-or-url)` — scaled to fit the column. Relative
+  paths (`images/foo.png`) and HTTP URLs both work; on import, markpage
+  prompts the human user once for any relative-path file it doesn't
+  already know, then caches the binding so future imports of the same
+  document skip the prompt.
 - Fenced code blocks: triple backticks with an optional language
   hint for syntax-highlighting (`js`, `python`, `rust`, …).
 

@@ -662,6 +662,136 @@ body,
   margin: 0.25rem 0;
 }
 
+/* ---- Missing-resources modal (import flow, SPEC §6.5) --------------- */
+
+.missing-resources-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.missing-resources-panel {
+  background: var(--bg);
+  border-radius: 8px;
+  width: min(640px, 92vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.missing-resources-panel header {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.missing-resources-panel h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.missing-resources-panel .intro {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #57606a;
+  line-height: 1.4;
+}
+
+.missing-resources-panel > button.btn-primary {
+  margin: 0.8rem 1rem 0.4rem;
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  background: #0969da;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.missing-resources-panel > button.btn-primary:hover {
+  background: #0a58c4;
+}
+
+.missing-resources-panel .missing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 1rem;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 4rem;
+  max-height: 50vh;
+}
+
+.missing-resources-panel .missing-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.85rem;
+}
+
+.missing-resources-panel .missing-list li:last-child {
+  border-bottom: none;
+}
+
+.missing-resources-panel .status {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.missing-resources-panel .status-ok {
+  color: #1a7f37;
+}
+
+.missing-resources-panel .status-missing {
+  color: #57606a;
+}
+
+.missing-resources-panel .file-label {
+  color: #57606a;
+  font-style: italic;
+}
+
+.missing-resources-panel .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.missing-resources-panel .btn-secondary,
+.missing-resources-panel .actions .btn-primary {
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.missing-resources-panel .actions .btn-primary {
+  background: #0969da;
+  color: #fff;
+  border-color: #0969da;
+}
+
+.missing-resources-panel .actions .btn-primary:disabled {
+  background: #a6c4ed;
+  border-color: #a6c4ed;
+  cursor: wait;
+}
+
 /* ---- Help modal ------------------------------------------------------- */
 
 .help-overlay {

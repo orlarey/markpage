@@ -517,6 +517,112 @@ local des Réglages.
 - Le `Blob` produit est stocké en IDB sous la clé UUID, et l'éditeur reçoit
   `![](img://uuid)`.
 
+### 6.5. Références externes — round-trip d'imports
+
+Un `.md` édité hors markpage (Obsidian, repo git, static-site generator,
+…) référence typiquement ses images via des chemins relatifs :
+`![alt](images/foo.png)`, `[logo]: assets/logo.svg`, etc. Le format
+interne `img://<sha>` est pratique pour markpage mais détruirait
+l'identité du fichier au round-trip — donc on garde **les deux formes
+en parallèle**.
+
+**Deux représentations :**
+
+| Forme | Où elle vit | Quand |
+|---|---|---|
+| Externe : `![](images/foo.png)` | dans le `.md` (source) | tel qu'importé / sauvegardé |
+| Interne : blob keyed-by-SHA | IndexedDB (store `images`, partagé avec les `img://`) | au rendu, après lookup mapping |
+
+**Table de correspondance (`src/resource-mapping.ts`) :**
+
+```text
+markpage:resources:mapping = {
+  "images/foo.png":  { sha: "abc…", firstSeen: 1717… },
+  "assets/logo.svg": { sha: "def…", firstSeen: 1717… },
+  …
+}
+```
+
+Stockée en `localStorage`, **globale à l'instance markpage**. Toute
+ressource résolue une fois reste connue, donc :
+
+- Ré-importer le même `.md` → aucun prompt, le mapping s'auto-applique.
+- Plusieurs `.md` qui partagent une image → l'image n'est demandée
+  qu'une seule fois ; tous les docs profitent du même blob.
+
+**Pipeline import :**
+
+1. `importFile(file)` → contenu markdown.
+2. `extractDataUrlsToStore(content)` hoiste les éventuelles `data:` URLs
+   inline en IDB sous leur SHA (comportement pré-existant).
+3. `extractExternalRefs(cleaned)` → liste des chemins externes
+   (filtrée pour ignorer `img://`, `data:`, `http(s)://`, etc.).
+4. Pour chaque chemin **inconnu** dans le mapping, modal
+   `promptForMissingResources` : un file picker multi-sélection, matching
+   par basename ; les fichiers fournis sont écrits en IDB via
+   `addResource(path, blob)` qui calcule la SHA, partage le blob avec les
+   `img://<sha>` du même contenu, et ajoute l'entrée mapping.
+5. La source markdown **reste inchangée** — `![](images/foo.png)` n'est
+   pas réécrit. Le doc créé en localStorage contient la forme externe
+   telle quelle.
+
+**Pipeline rendu / preview :**
+
+`expandRefsToBlobUrls(text)` fait deux passes :
+
+- `img://<sha>` → `blob:` URL (existant).
+- Chemins externes → lookup mapping → SHA → `blob:` URL via
+  `rewriteExternalRefs`.
+
+Un chemin sans entrée dans le mapping reste tel quel et rend
+visuellement une image cassée — signal cohérent avec « le fichier
+manquait, le doc n'a pas trouvé sa résolution ».
+
+**Pipeline sauvegarde `.md` :**
+
+`expandRefsToDataUrls(text)` n'inline **que** les `img://<sha>`. Les
+chemins externes sont conservés tels quels dans la sortie. Conséquence
+voulue : le `.md` exporté est byte-identique à celui importé (modulo
+les images ajoutées en édition markpage, qui restent en `img://<sha>` et
+sortent en data-URL inline-ref-style).
+
+**Pipeline export PDF :**
+
+`expandRefsToInlineDataUrls(text)` ajoute une passe
+`inlineExternalRefs` après le passage standard : les chemins externes
+sont aussi inlinés en data-URL pour produire un markdown auto-suffisant
+que le moteur PDF rend sans dépendance externe.
+
+**Politique de conflit :**
+
+`addResource(path, blob, onConflict?)` détecte le cas « le path existe
+déjà dans le mapping mais pointe vers un SHA différent du blob fourni »
+et délègue à `onConflict`. Par défaut → `overwrite`. Le modal d'import
+ne pose pas la question pour v1 — l'utilisateur fournit un fichier et
+markpage écrit. Une UI de confirmation par diff de SHA est différée.
+
+**Garbage collection :**
+
+L'orchestrator `runGC` dans `main.ts` calcule l'union de :
+
+- `collectImageRefs(content)` pour chaque doc (SHAs des `img://`),
+- `mappedShas()` (SHAs référencés par toute entrée du mapping).
+
+`gcUnusedImages(union)` puis `gcContentBlobs()`. Un blob disparaît
+quand il n'est référencé **ni** par un `img://` **ni** par une entrée
+mapping. Supprimer un doc qui était le seul à utiliser un chemin
+externe libère la blob ssi le mapping est explicitement nettoyé via
+`removeResource(path)` (pas d'auto-clean v1 — différé).
+
+**Hors v1 :**
+
+- UI dédiée pour voir / éditer / supprimer des entrées du mapping
+  (« mapping orphelin », « remplacer par autre fichier »).
+- Auto-clean : retirer du mapping les paths qu'aucun doc actif ne
+  référence plus.
+- Frontmatter `references:` pour partager le mapping avec un autre
+  utilisateur sans devoir re-fournir les images.
+
 ### 6.4. Polices
 
 L'aperçu HTML utilise une cascade unique pour le texte courant comme pour

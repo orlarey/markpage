@@ -63,6 +63,15 @@ import {
 } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
 import {
+  ImportCancelled,
+  promptForMissingResources,
+} from './ui/missing-resources-modal';
+import {
+  extractExternalRefs,
+  loadMapping,
+  mappedShas,
+} from './resource-mapping';
+import {
   collectImageRefs,
   expandRefsToBlobUrls,
   expandRefsToDataUrls,
@@ -179,11 +188,17 @@ function downloadTextFile(
 async function runGC(): Promise<void> {
   try {
     const referenced = new Set<string>();
+    // Internal `img://<sha>` refs from every doc.
     for (const e of listDocs()) {
       const c = loadDocContent(e);
       if (c == null) continue;
       for (const id of collectImageRefs(c)) referenced.add(id);
     }
+    // External resource mappings — every SHA the mapping points at is live
+    // for as long as any path-entry references it (SPEC §6.5). This keeps
+    // imported images alive across docs even when the only thing holding
+    // them is the mapping table, not an inline `img://`.
+    for (const sha of mappedShas()) referenced.add(sha);
     await gcUnusedImages(referenced);
     gcContentBlobs();
   } catch (err) {
@@ -683,6 +698,24 @@ async function bootstrap(): Promise<void> {
         // Hoist any inline data URLs into IndexedDB and replace them
         // with short `img://<sha>` refs. Keeps the new doc readable.
         const cleaned = await extractDataUrlsToStore(content);
+        // SPEC §6.5 — resolve external (relative-path) image references.
+        // For each path the doc points at, look up the global mapping;
+        // anything unknown is collected and we prompt the user to provide
+        // the binaries in one modal. Resolved files are persisted in the
+        // mapping (and the IDB images store, shared with img:// refs) so
+        // future imports of the same .md (or any other doc that shares a
+        // path) skip the prompt entirely.
+        const externalPaths = extractExternalRefs(cleaned);
+        const mapping = loadMapping();
+        const missing = externalPaths.filter((p) => !mapping[p]);
+        if (missing.length > 0) {
+          try {
+            await promptForMissingResources(missing);
+          } catch (cancelErr) {
+            if (cancelErr instanceof ImportCancelled) return;
+            throw cancelErr;
+          }
+        }
         const desired = baseName.trim() === '' ? 'Document importé' : baseName;
         const entry = await createDoc(desired, cleaned);
         currentDoc = entry;
