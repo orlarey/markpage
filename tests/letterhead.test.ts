@@ -70,6 +70,33 @@ describe('renderLetterhead', () => {
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
   });
+
+  it('renders ![alt](url) as <img> for a logo line', () => {
+    const html = renderLetterhead(
+      'sender',
+      '![Logo Acme](https://example.com/logo.png)\nYann Orlarey',
+    );
+    expect(html).toContain(
+      '<img alt="Logo Acme" src="https://example.com/logo.png">',
+    );
+    expect(html).toContain('Yann Orlarey');
+  });
+
+  it('renders ![](url) with empty alt (drag-dropped img:// case)', () => {
+    // markpage stamps drag-dropped images as ![](img://sha); after the
+    // expandRefs pass at preview time, the URL becomes a blob: link.
+    const html = renderLetterhead(
+      'sender',
+      '![](blob:https://markpage.org/abc-123)\nYann Orlarey',
+    );
+    expect(html).toContain('<img alt="" src="blob:https://markpage.org/abc-123">');
+  });
+
+  it('image regex wins over link regex for ![text](url)', () => {
+    const html = renderLetterhead('sender', '![alt](u.png)');
+    expect(html).toContain('<img');
+    expect(html).not.toContain('<a href="u.png">alt</a>');
+  });
 });
 
 describe('groupLetterheads — DOM grouping', () => {

@@ -98,15 +98,26 @@ export function groupLetterheads(root: HTMLElement): void {
 
 /**
  * Purpose: Tiny inline formatter — applies `**bold**`, `*italic*`,
- *   `[text](url)` after HTML-escaping the raw text.
+ *   `![alt](url)`, `[text](url)` after HTML-escaping the raw text.
  * How: HTML-escape first (so `<` and `&` in addresses are safe), then run
- *   three replace passes. Order matters: bold before italic so `**…**`
- *   isn't eaten by the single-star italic rule.
+ *   replace passes. Order matters:
+ *     - bold before italic so `**…**` isn't eaten by the single-star
+ *       italic rule;
+ *     - images BEFORE links so `![alt](url)` is consumed as an image
+ *       rather than `!` + `[alt](url)` link.
+ *   Empty alt is allowed in images (common for drag-dropped pictures
+ *   that markpage stamps with `![](img://sha)`); empty text is NOT
+ *   allowed in links (would match too eagerly).
  */
 function formatInline(line: string): string {
   let s = escapeHtml(line);
   s = s.replaceAll(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
   s = s.replaceAll(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  s = s.replaceAll(
+    /!\[([^\]\n]*)\]\(([^)\n]+)\)/g,
+    (_match, alt: string, url: string) =>
+      `<img alt="${escapeAttr(alt)}" src="${escapeAttr(url)}">`,
+  );
   s = s.replaceAll(
     /\[([^\]\n]+)\]\(([^)\n]+)\)/g,
     (_match, text: string, url: string) =>
