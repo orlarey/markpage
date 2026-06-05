@@ -64,15 +64,21 @@ const formatKeymap = Prec.high(
 );
 
 /**
- * Purpose: Select whole-line ranges from gutter click/drag without crossing newlines.
- * How: Convert anchor/head line numbers to line `from`/`to` offsets and dispatch.
+ * Purpose: Select whole-line ranges from gutter click/drag, including the
+ *   trailing newline so delete / cut leave no empty line behind.
+ * How: Convert anchor/head line numbers to `from` / past-EOL offsets,
+ *   clamped to doc length (the file's last line has no trailing \n).
  */
-// Selecting whole lines from the gutter: clicking a line number selects that
-// line's content; dragging extends the selection over the range. We
-// deliberately stop at the end of the line content (NOT including the
-// trailing newline) so wrap commands like italic don't sandwich the line
-// break, and so line-level commands don't accidentally also touch the next
-// line via lineAt(range.to).
+// Selecting whole lines from the gutter: clicking a line number selects
+// that line; dragging extends the selection. The end of the selection
+// (i.e. the higher position in the document) lands at `line.to + 1` —
+// just past the trailing newline of the last selected line — so:
+//   - Delete / cut remove the line completely; the line below shifts up
+//     to fill the gap, no empty line is left behind.
+//   - Toggle bold / italic still wrap only the line's text content,
+//     because `lineSegment` in editor-commands.ts clamps each per-line
+//     wrap segment to `Math.min(line.to, rangeTo)` — the trailing \n is
+//     intersected away.
 function selectLineRange(
   view: EditorView,
   anchorLine: number,
@@ -81,8 +87,10 @@ function selectLineRange(
   const doc = view.state.doc;
   const aLine = doc.line(anchorLine);
   const hLine = doc.line(headLine);
-  const anchor = anchorLine <= headLine ? aLine.from : aLine.to;
-  const head = anchorLine <= headLine ? hLine.to : hLine.from;
+  const pastEol = (line: { to: number }): number =>
+    Math.min(line.to + 1, doc.length);
+  const anchor = anchorLine <= headLine ? aLine.from : pastEol(aLine);
+  const head = anchorLine <= headLine ? pastEol(hLine) : hLine.from;
   view.dispatch({ selection: { anchor, head } });
 }
 

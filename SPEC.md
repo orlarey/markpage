@@ -282,7 +282,14 @@ Voir §14 pour les détails de la sync par ancre.
   de poser cette fenêtre à côté de l'aperçu et voir l'effet en temps
   réel.
 - **Sélection ligne entière** : clic sur un numéro de ligne dans la
-  gouttière sélectionne la ligne ; glisser-en sélectionne plusieurs.
+  gouttière sélectionne la ligne **avec son `\n` final** (jusqu'au
+  début de la ligne suivante, ou jusqu'à la fin du doc pour la
+  dernière ligne) ; glisser-en sélectionne plusieurs. Inclure le `\n`
+  permet à Suppr / Cmd+X de retirer entièrement la ligne (pas de ligne
+  vide qui reste). Les commandes wrap (gras, italique, …) restent
+  correctes parce que `lineSegment` clampe chaque segment à
+  `Math.min(line.to, rangeTo)`, donc le `\n` est exclu du wrapping
+  même quand il est dans la sélection.
 - **Insertion d'image** : trois entrées (drag-drop sur l'éditeur, paste
   d'une image du presse-papier, item « Insérer une image… » du menu Style).
   Les images sont automatiquement redimensionnées (max 2000 px) et
