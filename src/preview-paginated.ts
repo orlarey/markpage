@@ -879,7 +879,7 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-signature {
       position: relative;
       flex: 0 0 auto;
-      margin-left: auto;
+      margin-left: 25%;
       margin-top: 2em;
       break-inside: avoid;
     }
@@ -892,18 +892,19 @@ export function pagedCss(s: PdfSettings): string {
       max-width: ${(sizeMm.w - m.left - m.right) / 4}mm;
       max-height: 30mm;
     }
-    /* Caption overlaid inside the image rectangle, anchored bottom +
-       indented to 25 % of the image width (so the text doesn't kiss the
-       left edge of the scanned signature). white-space: nowrap stops
-       narrow signatures from word-wrapping each line — explicit <br>
-       between caption lines is preserved. The renderer only emits
-       .letterhead-signature-caption when there is at least one image
-       line in the fence — so the absolute element always has the image
-       as its sibling defining the wrapper's box. */
+    /* Caption overlaid at the bottom-left of the image rectangle (the
+       whole signature block sits at 25 % from the left margin via the
+       .letterhead-signature rule above, so the caption inherits that
+       horizontal offset and only needs left: 0 inside the wrapper).
+       white-space: nowrap stops narrow signatures from word-wrapping
+       each line — explicit <br> between caption lines is preserved.
+       The renderer only emits .letterhead-signature-caption when there
+       is at least one image line in the fence — so the absolute element
+       always has the image as its sibling defining the wrapper's box. */
     ${SCOPE} .letterhead-signature-caption {
       position: absolute;
       bottom: 0;
-      left: 25%;
+      left: 0;
       white-space: nowrap;
       line-height: 1.2;
     }
