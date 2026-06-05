@@ -1768,12 +1768,29 @@ standard d'une input method.
 
 ### 18.3. Contexte
 
-Skip les substitutions à l'intérieur de `FencedCode`, `CodeBlock`,
-`InlineCode` (détectés via `syntaxTree(state).resolveInner(pos, -1)`).
-Exception : un `FencedCode` dont l'`info` est `inference`
-(`LIGATURE_FRIENDLY_FENCES`) **garde les ligatures actives** — le
-contenu sera de toute façon rendu par MathJax qui accepte l'Unicode
-math directement.
+Pour la **frappe** : skip les substitutions à l'intérieur de
+`FencedCode`, `CodeBlock`, `InlineCode` (détectés via
+`syntaxTree(state).resolveInner(pos, -1)`).
+
+Pour le **paste / drop** : la détection par syntax-tree à la position
+d'insertion ne suffit pas. Quand l'utilisateur colle un bloc complet
+` ```mermaid … ``` `, la position `fromB` reportée par CodeMirror est
+celle où la fence OUVRE — vue par le syntax tree comme étant
+*juste avant* le code, donc encore en prose. Sans précaution, les
+ligatures s'appliquaient sur le corps du fence et les étiquettes
+Mermaid de la forme `-->|JSON-RPC|` voyaient leur `|J` réécrit en
+`𝕁` (blackboard bold). `applyLigaturesToString` parse donc
+**lui-même les fences présents dans le texte collé** : machine d'état
+ligne par ligne, détection des ouvertures `` ``` `` / `~~~`
+(indentables jusqu'à 3 espaces, longueur libre ≥ 3), fermeture sur
+ligne contenant uniquement le marqueur d'ouverture (même caractère,
+longueur ≥). Le contenu entre fences est passé verbatim.
+
+Exception identique à la frappe : un `FencedCode` dont l'`info` est
+dans `LIGATURE_FRIENDLY_FENCES` (`inference`, `category`) **garde les
+ligatures actives** — le contenu sera de toute façon rendu par
+MathJax qui accepte l'Unicode math directement, ou parsé par un
+typechecker Unicode-aware (CD-SPEC §3.1).
 
 ## 19. Documents multiples
 

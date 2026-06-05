@@ -345,13 +345,10 @@ function guardedByRunOn(prevChar: string, key: string): boolean {
 }
 
 /**
- * Purpose: Rewrite a pasted/dropped chunk: backslash commands then tail ligatures.
+ * Purpose: Rewrite a non-code chunk: backslash commands then tail ligatures.
  * How: First a regex pass for `\name`+terminator; then a longest-first tail scan.
  */
-// Rewrite a chunk of pasted text. Two passes:
-//   1. `\xxx<non-letter>` → glyph, applied via a single regex pass.
-//   2. Tail-match ligatures via longest-first scan on the result.
-function applyLigaturesToString(text: string): string {
+function rewriteNonCode(text: string): string {
   const afterBs = text.replace(BS_PASTE_RE, (m, name: string) => {
     return BS_COMMANDS.get(name) ?? m;
   });
@@ -370,6 +367,94 @@ function applyLigaturesToString(text: string): string {
     i += 1;
   }
   return out;
+}
+
+// Match an opening fenced-code line: up to 3 spaces of indent, then 3+
+// backticks or 3+ tildes, optional info string after. Capture the fence
+// marker run so the closing line can match its length.
+const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})/;
+
+// `inference` and `category` opt back into ligatures even inside the
+// fenced block — same rule as `inCodeContext`. Lower-cased first token of
+// the info string is the language identifier.
+const LIGATURE_FENCE_INFO_RE = /^ {0,3}(?:`{3,}|~{3,})\s*(\S+)?/;
+
+/**
+ * Purpose: Rewrite a pasted/dropped chunk, skipping fenced code regions.
+ * How: Line-by-line state machine. Outside fences run `rewriteNonCode` on
+ *   the accumulated buffer; inside fences pass lines through verbatim
+ *   (except for the `inference` / `category` whitelist where ligatures
+ *   stay active). The handler is the paste-time twin of `inCodeContext`,
+ *   but it parses the *pasted text itself* instead of the surrounding
+ *   doc — necessary because when the user pastes a complete `` ```mermaid
+ *   ... ``` `` block, the `fromB` of the insertion is the very position
+ *   the fence opens at, so the surrounding-doc check sees prose context
+ *   and lets ligatures rewrite the mermaid body (cf. the `|J` → 𝕁 bug).
+ */
+export function applyLigaturesToString(text: string): string {
+  let result = '';
+  let buf = '';
+  let inFence = false;
+  let fenceMarker = '';
+  let fenceFriendly = false;
+
+  const flushNonCode = (): void => {
+    if (buf === '') return;
+    result += rewriteNonCode(buf);
+    buf = '';
+  };
+
+  let pos = 0;
+  while (pos <= text.length) {
+    const nl = text.indexOf('\n', pos);
+    const lineEnd = nl === -1 ? text.length : nl;
+    const line = text.slice(pos, lineEnd);
+    const sep = nl === -1 ? '' : '\n';
+
+    if (!inFence) {
+      const open = FENCE_OPEN_RE.exec(line);
+      if (open) {
+        flushNonCode();
+        fenceMarker = open[1] ?? '';
+        const info = LIGATURE_FENCE_INFO_RE.exec(line);
+        const lang = info?.[1]?.toLowerCase() ?? '';
+        fenceFriendly = LIGATURE_FRIENDLY_FENCES.has(lang);
+        if (fenceFriendly) {
+          // Friendly fence — accumulate body into the non-code buffer so
+          // ligatures still fire on its contents. The fence markers
+          // themselves are flushed via the buffer too.
+          buf += line + sep;
+        } else {
+          result += line + sep;
+        }
+        inFence = true;
+      } else {
+        buf += line + sep;
+      }
+    } else {
+      // Inside fence: pass through (or accumulate for friendly fences),
+      // watching for the closing marker. The close line must be the same
+      // fence char, at least as long, indented up to 3 spaces, nothing
+      // else after.
+      const closeRe = new RegExp(`^ {0,3}${fenceMarker[0] === '`' ? '`' : '~'}{${fenceMarker.length},}\\s*$`);
+      if (fenceFriendly) {
+        buf += line + sep;
+      } else {
+        result += line + sep;
+      }
+      if (closeRe.test(line)) {
+        inFence = false;
+        fenceMarker = '';
+        fenceFriendly = false;
+      }
+    }
+
+    if (nl === -1) break;
+    pos = nl + 1;
+  }
+
+  flushNonCode();
+  return result;
 }
 
 /**
