@@ -343,6 +343,18 @@ marked.use({
           raw,
         );
       }
+      // ```signature — right-aligned closing block for letters, typically
+      // image + name + title at the end of the doc. Same body syntax as
+      // sender / recipient (inline **bold**, *italic*, [text](url),
+      // ![alt](url) rendered via the local formatter). CSS pushes the
+      // block to the right column via margin-left: auto and protects it
+      // from page splits with break-inside: avoid.
+      if (lang === 'signature' || lang.startsWith('signature ')) {
+        return injectSource(
+          renderLetterhead('signature', token.text, info.args),
+          raw,
+        );
+      }
       // Programming-language fences — highlight via highlight.js
       // (curated subset registered in src/highlight.ts). Unknown
       // languages fall through to marked's plain monospace block.

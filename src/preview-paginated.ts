@@ -866,6 +866,16 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-recipient.letterhead-flow {
       margin-left: auto;
     }
+    /* Signature block — same mechanism as 'recipient flow' (right-aligned
+       via margin-left: auto inside its flex group), but with extra top
+       margin to separate it from the closing salutation, and a defensive
+       break-inside: avoid in case the group's own protection is bypassed
+       (single-child groups still get the rule via .letterhead-group). */
+    ${SCOPE} .letterhead-signature {
+      margin-left: auto;
+      margin-top: 2em;
+      break-inside: avoid;
+    }
     /* Default for recipient in window mode: absolute position calibrated
        for the FR DL envelope window (110x220 mm, fold in Z). The norm:
        left edge of the address at 110 mm from the A4 edge, top edge at

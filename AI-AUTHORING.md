@@ -40,7 +40,7 @@ further down.
 | Filesystem layout or AST              | ` ```tree ` (`svg` for AST)        |
 | Numbered pseudocode                   | ` ```algorithm `                   |
 | Source + rendered side-by-side        | ` ```demo `                        |
-| Letterhead (invoices, courriers, …)   | ` ```sender ` / ` ```recipient `   |
+| Letterhead (invoices, courriers, …)   | sender / recipient / signature     |
 
 When two blocks fit (e.g. a tiny `csv` vs. a pipe table), prefer
 the simpler one. When in doubt between `adt` and `ebnf`, ask:
@@ -496,10 +496,11 @@ they stay attention-grabbing. Concretely:
 
 ---
 
-## Letterhead (sender / recipient)
+## Letterhead (sender / recipient / signature)
 
 For invoices, devis, courriers, propositions commerciales — paired
-address blocks for the émetteur and destinataire of a document.
+address blocks for the émetteur and destinataire of a document, plus
+an optional `signature` block for the sign-off.
 
 ````
 ```sender
@@ -569,6 +570,29 @@ ACME SAS
 The recipient stays in flex flow as the right column, sized like the
 sender, with `margin-left: auto` for the lone-recipient case. The
 flag is silently ignored on `sender` (the émetteur is always in flow).
+
+### Sign-off — `signature`
+
+For the closing block of a letter (image of a hand-written signature,
+name, title), use ` ```signature ` at the end of the doc:
+
+````
+Cordialement,
+
+```signature
+![](signature.png)
+**Yann Orlarey**
+*Consultant DSP audio*
+```
+````
+
+The signature block sits in the right column (`margin-left: auto`)
+with a generous top margin to separate it from the salutation above,
+and `break-inside: avoid` so it doesn't get split across pages. The
+body uses the same inline formatter as `sender` / `recipient` —
+`**bold**`, `*italic*`, `![alt](url)`, `[text](url)`. `window` /
+`flow` flags are silently ignored on `signature` (those are
+recipient-only).
 
 **What stays in plain Markdown** around the letterhead pair:
 

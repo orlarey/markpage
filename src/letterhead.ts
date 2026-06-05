@@ -16,7 +16,7 @@
  *
  *******************************************************************************/
 
-export type LetterheadKind = 'sender' | 'recipient';
+export type LetterheadKind = 'sender' | 'recipient' | 'signature';
 
 /**
  * Purpose: Render a `<div class="letterhead letterhead-<kind>">` containing
@@ -30,7 +30,10 @@ export type LetterheadKind = 'sender' | 'recipient';
  *   `pagedCss` in `preview-paginated.ts`). Passing `flow` in `args` swaps
  *   it for `letterhead-flow` (in-flow, flex right column — for the
  *   Anglo-Saxon-style letter or any layout where the recipient should
- *   sit beside the sender). `args` is ignored on `sender`.
+ *   sit beside the sender). `args` is ignored on `sender` and
+ *   `signature` — the latter is always rendered as a right-aligned
+ *   flex column (via the CSS `.letterhead-signature` rule), typically
+ *   at the end of a letter for an image + name + title sign-off.
  */
 export function renderLetterhead(
   kind: LetterheadKind,

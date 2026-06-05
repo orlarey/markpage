@@ -97,6 +97,29 @@ describe('renderLetterhead', () => {
     expect(html).toContain('<img');
     expect(html).not.toContain('<a href="u.png">alt</a>');
   });
+
+  it('emits a signature block with no positioning class on the element', () => {
+    // .letterhead-signature carries the right-alignment via the CSS rule
+    // (margin-left: auto). No window/flow class — those are recipient-only.
+    const html = renderLetterhead(
+      'signature',
+      '![](sig.png)\n**Yann Orlarey**\n*Consultant DSP audio*',
+    );
+    expect(html).toContain('letterhead-signature');
+    expect(html).not.toContain('letterhead-window');
+    expect(html).not.toContain('letterhead-flow');
+    // Body content rendered with the same inline formatter
+    expect(html).toContain('<img alt="" src="sig.png">');
+    expect(html).toContain('<strong>Yann Orlarey</strong>');
+    expect(html).toContain('<em>Consultant DSP audio</em>');
+  });
+
+  it('signature ignores window / flow args (those are recipient-only)', () => {
+    const html = renderLetterhead('signature', 'X', ['window']);
+    expect(html).not.toContain('letterhead-window');
+    const html2 = renderLetterhead('signature', 'X', ['flow']);
+    expect(html2).not.toContain('letterhead-flow');
+  });
 });
 
 describe('groupLetterheads — DOM grouping', () => {

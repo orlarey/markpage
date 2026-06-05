@@ -2819,7 +2819,7 @@ de préambule renvoie un SVG périmé.
 - Pas d'override `language` (la langue doc reste settings-only — à
   ajouter si le besoin remonte).
 
-## 25. Letterhead — blocs `sender` / `recipient` (`src/letterhead.ts`)
+## 25. Letterhead — blocs `sender` / `recipient` / `signature` (`src/letterhead.ts`)
 
 Deux fences spécialisés pour les documents à en-tête type facture,
 devis, courrier formel, proposition commerciale. Un bloc « émetteur »
@@ -2984,6 +2984,15 @@ CSS clés dans `pagedCss(settings)` :
 | `recipient` seul (défaut window) | recipient à 110×40 mm absolu ; group réserve 70 mm |
 | `recipient flow` seul | recipient colonne droite en flux (poussé par `margin-left: auto`) — équivalent du comportement pré-v0.10 |
 | `sender` + `recipient flow` | côte-à-côte 50/50 en flux, comme deux blocs symétriques |
+| `signature` | colonne droite en flux (`margin-left: auto`), `margin-top: 2em` pour séparer du « Cordialement » au-dessus, `break-inside: avoid` |
+
+`signature` ignore `window` et `flow` — ces flags sont spécifiques au
+recipient. Le bloc partage l'infrastructure `letterhead` (corps inline
+formaté pareil — `**gras**`, `*italique*`, `![alt](url)`,
+`[texte](url)`) et passe par `groupLetterheads` ; un signature seul se
+retrouve dans un group d'un enfant, le `margin-left: auto` le pousse à
+droite de la zone flex. Cas typique : image de signature + nom +
+fonction en fin de lettre.
 
 ### 25.6. Hors v1
 
