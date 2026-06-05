@@ -114,6 +114,42 @@ describe('renderLetterhead', () => {
     expect(html).toContain('<em>Consultant DSP audio</em>');
   });
 
+  it('signature with image+text wraps text in a caption div (for overlay)', () => {
+    // When the fence contains an image AND text lines, the renderer emits
+    // image(s) as direct child + a `.letterhead-signature-caption` div
+    // wrapping the text. CSS overlays the caption at bottom-left of the
+    // image rectangle.
+    const html = renderLetterhead(
+      'signature',
+      '![](sig.png)\n**Yann Orlarey**\n*Consultant DSP audio*',
+    );
+    expect(html).toContain('letterhead-signature-caption');
+    // Image is OUTSIDE the caption (sibling, not child) so it defines
+    // the wrapper's box for the absolutely-positioned caption.
+    expect(html).toMatch(
+      /<img[^>]*>\s*<div class="letterhead-signature-caption">/,
+    );
+    // No <br> between image and the caption — they're separate elements
+    expect(html).not.toMatch(/<img[^>]*><br>/);
+  });
+
+  it('signature with only an image emits no caption div', () => {
+    const html = renderLetterhead('signature', '![](sig.png)');
+    expect(html).toContain('<img alt="" src="sig.png">');
+    expect(html).not.toContain('letterhead-signature-caption');
+  });
+
+  it('signature with no image falls back to br-joined text (no caption div)', () => {
+    const html = renderLetterhead(
+      'signature',
+      '**Yann Orlarey**\n*Consultant DSP audio*',
+    );
+    expect(html).not.toContain('letterhead-signature-caption');
+    expect(html).toContain(
+      '<strong>Yann Orlarey</strong><br><em>Consultant DSP audio</em>',
+    );
+  });
+
   it('signature ignores window / flow args (those are recipient-only)', () => {
     const html = renderLetterhead('signature', 'X', ['window']);
     expect(html).not.toContain('letterhead-window');

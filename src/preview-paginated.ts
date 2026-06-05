@@ -866,15 +866,41 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-recipient.letterhead-flow {
       margin-left: auto;
     }
-    /* Signature block — same mechanism as 'recipient flow' (right-aligned
-       via margin-left: auto inside its flex group), but with extra top
-       margin to separate it from the closing salutation, and a defensive
-       break-inside: avoid in case the group's own protection is bypassed
-       (single-child groups still get the rule via .letterhead-group). */
+    /* Signature block — right-aligned (margin-left: auto inside its flex
+       group), with extra top margin to separate it from the closing
+       salutation, and a defensive break-inside: avoid in case the group's
+       own protection is bypassed (single-child groups still get the rule
+       via .letterhead-group).
+       position: relative + flex: 0 0 auto so the block sizes itself to
+       the image (when there is one) — the caption is positioned absolute
+       inside this rectangle (bottom-left), see .letterhead-signature-
+       caption below. Without an image, the renderer falls back to plain
+       br-joined text and the position rules are inert. */
     ${SCOPE} .letterhead-signature {
+      position: relative;
+      flex: 0 0 auto;
       margin-left: auto;
       margin-top: 2em;
       break-inside: avoid;
+    }
+    /* Signature image: cap at 25 % of the page's usable width and 30 mm
+       tall. Without this an A4-scanned signature (typically 100+ mm
+       across at native size) would dwarf the rest of the letter. The
+       existing img rule keeps display:block + object-fit:contain, so
+       width/height auto-scale together to preserve aspect ratio. */
+    ${SCOPE} .letterhead-signature img {
+      max-width: ${(sizeMm.w - m.left - m.right) / 4}mm;
+      max-height: 30mm;
+    }
+    /* Caption overlaid inside the image rectangle, anchored bottom-left.
+       The renderer only emits .letterhead-signature-caption when there
+       is at least one image line in the fence — so the absolute element
+       always has the image as its sibling defining the wrapper's box. */
+    ${SCOPE} .letterhead-signature-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      line-height: 1.2;
     }
     /* Default for recipient in window mode: absolute position calibrated
        for the FR DL envelope window (110x220 mm, fold in Z). The norm:

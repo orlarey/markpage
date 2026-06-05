@@ -44,6 +44,24 @@ export function renderLetterhead(
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l !== '');
+
+  // Signature with at least one image line: emit image(s) + caption as
+  // siblings so CSS can overlay the caption inside the image's rectangle
+  // (bottom-left). Without an image, fall through to the standard br-joined
+  // rendering — there's nothing to overlay onto.
+  if (kind === 'signature') {
+    const imageLines = lines.filter((l) => IMAGE_LINE_RE.test(l));
+    if (imageLines.length > 0) {
+      const textLines = lines.filter((l) => !IMAGE_LINE_RE.test(l));
+      const imgHtml = imageLines.map(formatInline).join('');
+      const captionHtml =
+        textLines.length > 0
+          ? `<div class="letterhead-signature-caption">${textLines.map(formatInline).join('<br>')}</div>`
+          : '';
+      return `<div class="letterhead letterhead-signature">${imgHtml}${captionHtml}</div>\n`;
+    }
+  }
+
   const bodyHtml = lines.map(formatInline).join('<br>');
   const positionClass =
     kind === 'recipient'
@@ -57,6 +75,9 @@ export function renderLetterhead(
     `</div>\n`
   );
 }
+
+/** A line that is exactly an image markdown atom, after trim. */
+const IMAGE_LINE_RE = /^!\[[^\]\n]*\]\([^)\n]+\)$/;
 
 /**
  * Purpose: Wrap runs of consecutive `.letterhead` siblings under `root` in
