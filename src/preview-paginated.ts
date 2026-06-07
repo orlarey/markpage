@@ -203,7 +203,7 @@ export async function paginate(
   // Inject the debug-guides SVG overlay on every page (cheap, hidden
   // by default via CSS). Toggling the `.debug-layout` class on the
   // render container flips visibility without re-running paginate().
-  injectGuidesSvg(renderTo);
+  injectGuidesSvg(renderTo, settings.duplex);
   currentPreviewer = previewer;
 }
 
@@ -1318,31 +1318,74 @@ function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
 /**
  * Purpose: Inject a small SVG overlay into every `.pagedjs_pagebox` so
  *   the debug-guides view (toggled via `.debug-layout` on the render
- *   container) can show the two page diagonals (TL→BR + TR→BL) — the
- *   Van de Graaf construction lines that explain where the canonical
- *   text block lands.
- * How: One SVG per page with `viewBox="0 0 100 100"` so the two
- *   diagonals scale to whatever the page's CSS size is. `pointer-
- *   events: none` and `position: absolute` (with `inset: 0`) take it
- *   out of the layout flow. Visibility is gated by the parent's CSS
- *   (`display: none` until `.debug-layout` is set on the container).
+ *   container) shows the Van de Graaf construction diagonals.
+ * How: One SVG per page with `viewBox="0 0 100 100"` (page-relative).
+ *   The diagonal set depends on the page's role:
  *
+ *     - Simplex (no duplex) OR the cover page (first page, recto
+ *       alone with no facing verso): the full page X — both page
+ *       diagonals TL↔BR and TR↔BL.
+ *     - Duplex verso (left page in a real spread, NOT the cover):
+ *       three lines that, joined to the recto facing it, draw the
+ *       four canonical spread diagonals:
+ *         · internal page diagonal: TR (100,0) → BL (0,100)
+ *         · half of the ↘ spread diagonal: TL (0,0) → spine bottom
+ *           middle (100,50) — continues into the recto's left half
+ *         · half of the ↙ spread diagonal: spine top middle (100,50)
+ *           → BL (0,100) — continues from the recto's right half
+ *     - Duplex recto (right page in a real spread): mirror of the
+ *       verso. Lines:
+ *         · internal page diagonal: TL (0,0) → BR (100,100)
+ *         · half ↘: spine top middle (0,50) → BR (100,100)
+ *         · half ↙: TR (100,0) → spine bottom middle (0,50)
+ *
+ *   When the verso and recto of a spread sit edge-to-edge (the CSS
+ *   grid does this via `justify-self: end/start`), the four half-
+ *   lines join at the spine to form the two full spread diagonals
+ *   plus the two page-internal ones — visually identical to the
+ *   SVG diagrams in docs/img/recto-verso-layout.svg.
+ *
+ *   `pointer-events: none` and `position: absolute` (with `inset: 0`)
+ *   keep the SVG out of the layout flow. Visibility is gated by CSS
+ *   (`display: none` until `.debug-layout` is set on the container).
  *   Idempotent: re-injects safely if a previous overlay already
  *   exists on the page (no duplicates).
  */
-function injectGuidesSvg(renderTo: HTMLElement): void {
+function injectGuidesSvg(renderTo: HTMLElement, duplex: boolean): void {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   for (const pagebox of renderTo.querySelectorAll<HTMLElement>('.pagedjs_pagebox')) {
     if (pagebox.querySelector(':scope > svg.mp-guides-overlay')) continue;
+    const page = pagebox.closest('.pagedjs_page') as HTMLElement | null;
+    const isCover = page?.classList.contains('pagedjs_first_page') ?? false;
+    const isVerso = page?.classList.contains('pagedjs_left_page') ?? false;
+    const isRecto = page?.classList.contains('pagedjs_right_page') ?? false;
+    // pick the diagonal segment set for this page's role
+    let lines: ReadonlyArray<readonly [number, number, number, number]>;
+    if (!duplex || isCover || (!isVerso && !isRecto)) {
+      // Cover / simplex / unknown parity → full page X.
+      lines = [
+        [0, 0, 100, 100],
+        [100, 0, 0, 100],
+      ];
+    } else if (isVerso) {
+      lines = [
+        [100, 0, 0, 100], // internal diagonal TR → BL
+        [0, 0, 100, 50],  // half ↘: TL → spine bottom middle
+        [100, 50, 0, 100],// half ↙: spine top middle → BL
+      ];
+    } else {
+      // recto in a real spread
+      lines = [
+        [0, 0, 100, 100], // internal diagonal TL → BR
+        [0, 50, 100, 100],// half ↘: spine top middle → BR
+        [100, 0, 0, 50],  // half ↙: TR → spine bottom middle
+      ];
+    }
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'mp-guides-overlay');
     svg.setAttribute('viewBox', '0 0 100 100');
     svg.setAttribute('preserveAspectRatio', 'none');
-    // Two diagonals forming the page X.
-    for (const [x1, y1, x2, y2] of [
-      [0, 0, 100, 100],
-      [100, 0, 0, 100],
-    ] as const) {
+    for (const [x1, y1, x2, y2] of lines) {
       const line = document.createElementNS(SVG_NS, 'line');
       line.setAttribute('x1', String(x1));
       line.setAttribute('y1', String(y1));

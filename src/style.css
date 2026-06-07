@@ -262,8 +262,19 @@ body,
   align-items: start;
   column-gap: 0;
 }
-#preview-pane.duplex .pagedjs_right_page { grid-column: 2; }
-#preview-pane.duplex .pagedjs_left_page  { grid-column: 1; }
+/* Push pages so they touch at the spine (= column boundary). Verso
+   right-aligns in column 1, recto left-aligns in column 2. The cover
+   (first page = recto alone in column 2) inherits the recto rule and
+   sits flush at the spine line — aligned vertically with subsequent
+   rectos. */
+#preview-pane.duplex .pagedjs_right_page {
+  grid-column: 2;
+  justify-self: start;
+}
+#preview-pane.duplex .pagedjs_left_page {
+  grid-column: 1;
+  justify-self: end;
+}
 #preview-pane.duplex .pagedjs_page {
   /* Drop the auto horizontal centring; the grid handles placement.
      Keep the inter-row vertical spacing (margin-bottom) and the
