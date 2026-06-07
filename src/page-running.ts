@@ -128,6 +128,13 @@ export function applyPageRunningRuns(root: HTMLElement): string {
 
   // Emit one @page rule per section × arg key combination.
   const cssRules: string[] = [];
+  // Prepend the string-set rule so {title} ↦ string(mp-title) can
+  // resolve to the most recent h1 the renderer has crossed (SPEC §26.3).
+  // Harmless when no fence references {title}. Only emitted when there
+  // is at least one section — without fences there is nothing to back.
+  if (stateBySection.size > 0) {
+    cssRules.push('h1 { string-set: mp-title content() }');
+  }
   for (const [idx, decls] of stateBySection) {
     const pageName = `mp-section-${idx}`;
     // Group declarations by arg key.
@@ -249,9 +256,10 @@ function slotContentToCss(slot: string): string {
  * Purpose: Map a `{name}` variable to its CSS content equivalent.
  * How: `page` / `pages` become `counter(...)` calls (resolved per-page
  *   by paged.js). `date` is substituted statically at render time
- *   (paged.js has no native date counter). `title` is Phase 4 — emits
- *   an empty string for now. Unknown names emit the literal `{name}`
- *   text so the user notices the typo.
+ *   (paged.js has no native date counter). `title` becomes
+ *   `string(mp-title)`, fed by the string-set rule on h1 that
+ *   `applyPageRunningRuns` prepends to its CSS output. Unknown names
+ *   emit the literal `{name}` text so the user notices the typo.
  */
 function varToCss(name: string): string {
   switch (name) {
@@ -262,7 +270,7 @@ function varToCss(name: string): string {
     case 'date':
       return cssString(formatDate());
     case 'title':
-      return '""';
+      return 'string(mp-title)';
     default:
       return cssString(`{${name}}`);
   }

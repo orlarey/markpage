@@ -81,9 +81,9 @@ describe('renderPageRunning — sentinel emission', () => {
     expect(html).not.toContain('counter(date)');
   });
 
-  it('substitutes {title} as empty string in Phase 2 (deferred to Phase 4)', () => {
+  it('substitutes {title} as string(mp-title) (fed by string-set on h1)', () => {
     const html = renderPageRunning('header', '{title}');
-    expect(html).toContain('@top-left { content: ""; }');
+    expect(html).toContain('@top-left { content: string(mp-title); }');
   });
 
   it('emits unknown variables as literal {name} text (so typos are visible)', () => {
@@ -240,6 +240,23 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
     );
     const css = applyPageRunningRuns(root);
     expect(css).toMatch(/@page mp-section-\d+:blank/);
+  });
+
+  it('prepends a string-set rule on h1 when any fence is present (for {title})', () => {
+    const root = makeRoot(
+      renderPageRunning('header', '{title} | |') + '<p>X</p>',
+    );
+    const css = applyPageRunningRuns(root);
+    expect(css).toContain('h1 { string-set: mp-title content() }');
+    // The {title} ↦ string(mp-title) substitution stays intact.
+    expect(css).toContain('@top-left { content: string(mp-title); }');
+  });
+
+  it('does NOT emit the string-set rule when there is no fence', () => {
+    const root = makeRoot('<p>No fence here.</p>');
+    const css = applyPageRunningRuns(root);
+    expect(css).toBe('');
+    expect(css).not.toContain('string-set');
   });
 
   it('groups multiple bands of the same arg into one @page rule', () => {

@@ -3841,7 +3841,8 @@ dessous indique ce qui est effectivement livré à chaque phase.
 | **1. Foundation** | **oui** | Fences `header` / `footer`, syntaxe `l \| c \| r`, variables `{page}` `{pages}` `{date}`, fence vide = bande effacée, escape `\\\|`. Pas d'args : la dernière fence du document gagne pour toute sa bande. |
 | **2. Runs + args `first` / `blank`** | **oui** | Partition en runs, named pages (`mp-section-N`), sélecteurs `first` et `blank` activés, accumulation d'état (un fence ne touche qu'à son slot `(kind, arg)`, le reste est hérité). |
 | **3. Duplex** | non | Active `even` / `odd` (cf. §9.5.4) et l'auto-swap `inner-left` / `outer-right` (§9.6.6). Dépend de l'implémentation §9.5. |
-| **4. `{title}` + inline markdown** | non | `string-set` sur les headings, `**gras**` / `*italique*` / `[lien]()` dans les slots via `running()` + element. |
+| **4a. Variable `{title}`** | **oui** | `string-set: mp-title content()` posé sur `h1` ; `{title}` se résout en `string(mp-title)`. Avant le premier `h1` du document, la valeur est vide. |
+| **4b. Inline markdown dans les slots** | non | `**gras**` / `*italique*` / `[lien]()` / `![img]()` dans les slots. paged.js 0.4 ne fournit pas un `running()` + element utilisable directement ; nécessite une refonte du pipeline (passer du texte CSS à un fragment DOM ré-injecté par hook paged.js). Hors v1 pratique. |
 
 **Phase 1** suffit pour la majorité des cas réels (courrier, facture,
 rapport unifié) — un seul couple header/footer fixe par document. **Les

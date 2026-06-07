@@ -633,6 +633,7 @@ cleared). Literal pipe in slot text: `\|`.
 | `{page}`    | current page number                              |
 | `{pages}`   | total page count                                 |
 | `{date}`    | render date (long French form)                   |
+| `{title}`   | text of the most recent `# heading` (top-level)  |
 
 The fence emits **no visible content** in the document body — only
 the running content of every page's margin box. Place it anywhere in
@@ -667,13 +668,21 @@ Chapter 3 | | Page {page}
 ```
 ````
 
+**About `{title}`**: resolves to the text of the most recent top-level
+heading (`# Title`) the renderer has crossed. Pages BEFORE the first
+`# heading` show an empty `{title}`. Place a `# Document title` at the
+very top of your source if you want every page to carry the title;
+write `# Chapter N` at chapter boundaries to swap the running title
+per chapter. Sub-headings (`## section`) do not update `{title}`.
+
 **What's NOT supported yet** (planned, see SPEC §26.10):
 
 - `header even` / `header odd` — recto/verso selectors. Need duplex
   mode (Phase 3).
-- The `{title}` variable (current chapter title) — renders empty for now.
 - Inline markdown (`**bold**`, `*italic*`, `[link]()`, images) inside
-  slots — CSS `content` only accepts strings and counters in v1.
+  slots — CSS `content` only accepts strings and counters, and the
+  CSS GCPM `running()` mechanism isn't usable in paged.js 0.4. Hors v1
+  pratique.
 
 **Typical use**: a fixed page header showing the document title at top-
 left and a page counter at top-right; a footer with the date or a
