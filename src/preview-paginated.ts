@@ -13,6 +13,10 @@ import { quoteFontFamily } from './font-loader';
 import { groupLetterheads } from './letterhead';
 import { applyPageRunningRuns } from './page-running';
 import { splitLongPreBlocks } from './pre-split';
+import {
+  computeCanonicalMargins,
+  measureAverageCharWidth,
+} from './typography';
 
 // Threshold for the pre-split pass (cf. `splitLongPreBlocks`). A code block
 // taller than this gets fragmented so paged.js has natural break points
@@ -781,18 +785,40 @@ export function pagedCss(s: PdfSettings): string {
   // modal, the toolbar, etc. `:where(...)` keeps specificity at zero
   // so the rules can still be overridden by component CSS.
   const SCOPE = ':where(#preview-pane, #markpage-print-target)';
-  // §9.5.2 — when duplex is on, `margins.left` and `margins.right`
-  // semantically become inner / outer. On recto (`@page :right`, the
-  // odd page in the spread that paged.js treats as default) we keep
-  // the nominal values; on verso (`@page :left`) we swap them so the
-  // inner margin (binding) stays physically on the spine side of the
-  // open book. In simplex the single `@page` rule carries the recto
-  // values and there is no `:left` override — all pages render the
-  // same way.
-  const rectoMargin =
-    `margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`;
-  const versoMargin =
-    `margin: ${m.top}mm ${m.left}mm ${m.bottom}mm ${m.right}mm;`;
+  // §9.6 — when `marginMode === 'derived'`, the four margins come from
+  // the Van de Graaf canon: text block similar to the page, corners on
+  // the construction diagonals, ratios inner:outer = 1:2 and top:bottom
+  // = 1:2. Otherwise (manual mode) the user's `margins.*` sliders are
+  // authoritative.
+  //
+  // The canonical model expresses margins in {top, bottom, inner, outer}
+  // (spine-aware) rather than CSS-absolute {top, right, bottom, left}.
+  // In manual mode we re-label `margins.left` as inner and
+  // `margins.right` as outer — same convention as §9.5.2 for duplex.
+  // This is purely cosmetic in simplex (no spine, no swap), and it lets
+  // the rest of the code branch on a single shape regardless of mode.
+  const bodyFontSizePt = styles.body.fontSize ?? 11;
+  const derivedCanon =
+    s.marginMode === 'derived'
+      ? computeCanonicalMargins(
+          sizeMm.w,
+          sizeMm.h,
+          s.measureChars,
+          measureAverageCharWidth(bodyName, bodyFontSizePt),
+        )
+      : null;
+  const effMargins = derivedCanon ?? {
+    top: m.top,
+    bottom: m.bottom,
+    inner: m.left,
+    outer: m.right,
+  };
+  // §9.5.2 — when duplex is on, the inner margin (binding) stays
+  // physically on the spine side of the open book. On recto (@page
+  // :right), inner = LEFT and outer = RIGHT; on verso (@page :left)
+  // they swap. CSS margin shorthand is `top right bottom left`.
+  const rectoMargin = `margin: ${effMargins.top}mm ${effMargins.outer}mm ${effMargins.bottom}mm ${effMargins.inner}mm;`;
+  const versoMargin = `margin: ${effMargins.top}mm ${effMargins.inner}mm ${effMargins.bottom}mm ${effMargins.outer}mm;`;
   const pageRule = s.duplex
     ? `
     @page {

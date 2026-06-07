@@ -64,6 +64,43 @@ describe('pagedCss — duplex (mirror margins on @page :left)', () => {
   });
 });
 
+describe('pagedCss — derived margins (marginMode: derived)', () => {
+  // happy-dom has no canvas, so measureAverageCharWidth falls back to
+  // the 0.5 em heuristic. With body fontSize=11pt this gives:
+  //   charWidth = 0.5 × 11 × 0.3528 ≈ 1.9404 mm
+  //   textWidth = 66 × 1.9404 ≈ 128.07 mm
+  //   textHeight = 128.07 × 297/210 ≈ 181.16 mm
+  //   inner = (210 − 128.07) / 3 ≈ 27.31
+  //   outer = (210 − 128.07) × 2/3 ≈ 54.62
+  //   top   = (297 − 181.16) / 3 ≈ 38.61
+  //   bottom = (297 − 181.16) × 2/3 ≈ 77.23
+  const derivedSimplex: PdfSettings = { ...A4, marginMode: 'derived' };
+  const derivedDuplex: PdfSettings = { ...derivedSimplex, duplex: true };
+
+  it('replaces the user margins with canonical values in simplex', () => {
+    const css = pagedCss(derivedSimplex);
+    // Single @page rule whose margin is `top outer bottom inner` ≈ 38.6 54.6 77.2 27.3.
+    expect(css).toMatch(/margin:\s+38\.6\d+mm\s+54\.6\d+mm\s+77\.2\d+mm\s+27\.3\d+mm;/);
+    // Manual margins MUST NOT leak through.
+    expect(css).not.toContain(`${m.left}mm ${m.right}mm`);
+  });
+
+  it('uses canonical values for both @page :right and :left in duplex', () => {
+    const css = pagedCss(derivedDuplex);
+    // Recto: top outer bottom inner.
+    expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 54\.\d+mm 77\.\d+mm 27\.\d+mm; \}/);
+    // Verso: mirror.
+    expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 27\.\d+mm 77\.\d+mm 54\.\d+mm; \}/);
+  });
+
+  it('falls back to the manual margins when marginMode === "manual" (unchanged)', () => {
+    const css = pagedCss({ ...A4, marginMode: 'manual' });
+    expect(css).toContain(
+      `margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`,
+    );
+  });
+});
+
 describe('pagedCss — chapterBreak', () => {
   it("emits `h1 { break-before: page }` for 'next-page'", () => {
     const css = pagedCss({ ...A4, chapterBreak: 'next-page' });
