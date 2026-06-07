@@ -215,6 +215,41 @@ body,
   margin: 0 auto 24px;
 }
 
+/* Debug-guides overlay (toolbar button + Cmd/Ctrl+Shift+G). Toggled
+   by the `.debug-layout` class on #preview-pane. Shows:
+   - the page-area outline (dashed grey on .pagedjs_pagebox)
+   - the live-area outline (dashed green on .pagedjs_page_content,
+     since that IS the live area in derived margin mode)
+   - the two page diagonals (TL→BR + TR→BL) drawn by the SVG overlay
+     `paginate()` injects on every .pagedjs_pagebox; the SVG is
+     `display: none` by default and `block` under .debug-layout.
+   pointer-events:none keeps the overlay from intercepting clicks. */
+#preview-pane svg.mp-guides-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: none;
+}
+#preview-pane svg.mp-guides-overlay line {
+  stroke: #b8762a;
+  stroke-width: 0.4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.55;
+}
+#preview-pane.debug-layout .pagedjs_pagebox {
+  outline: 1px dashed #999;
+  outline-offset: -1px;
+}
+#preview-pane.debug-layout .pagedjs_page_content {
+  outline: 1px dashed #4a8a44;
+  outline-offset: -1px;
+}
+#preview-pane.debug-layout svg.mp-guides-overlay {
+  display: block;
+}
+
 /* Duplex spread layout (§9.5). When `paginate()` toggles the .duplex
    class on #preview-pane, lay out pages as facing pairs (verso on the
    left, recto on the right). The first page (cover, always recto)

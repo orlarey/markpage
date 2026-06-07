@@ -1039,6 +1039,18 @@ async function bootstrap(): Promise<void> {
     refreshSettingsForm = handle?.refresh ?? null;
   };
 
+  // Debug-guides overlay (toolbar [Guides] button + Cmd/Ctrl+Shift+G).
+  // Non-persistent across reloads — toggles the .debug-layout class on
+  // #preview-pane, which the static CSS in style.css wires to the
+  // overlays (page-area outline, live-area outline, diagonals SVG).
+  const triggerGuides = (): void => {
+    const pane = document.getElementById('preview-pane');
+    if (!pane) return;
+    const next = !pane.classList.contains('debug-layout');
+    pane.classList.toggle('debug-layout', next);
+    toolbarCtrl?.setGuidesPressed(next);
+  };
+
   // Inserts a markdown snippet (sent from the help window) at the
   // editor's current cursor / selection. We wrap the source in blank
   // lines so a fenced code block / heading / list always sits as its
@@ -1144,6 +1156,7 @@ async function bootstrap(): Promise<void> {
       },
       onSettings: triggerSettings,
       onTogglePreview: toggleView,
+      onToggleGuides: triggerGuides,
     });
   };
 
@@ -1155,7 +1168,16 @@ async function bootstrap(): Promise<void> {
   const onAppKeydown = (e: KeyboardEvent): void => {
     if (e.defaultPrevented) return;
     const mod = e.ctrlKey || e.metaKey;
-    if (!mod || e.shiftKey || e.altKey) return;
+    if (!mod || e.altKey) return;
+    // Cmd/Ctrl+Shift+G: toggle the typographic-guides debug overlay.
+    // Caught BEFORE the "no shift" early-return below.
+    if (e.shiftKey) {
+      if (e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        triggerGuides();
+      }
+      return;
+    }
     // Cmd/Ctrl+Enter: toggle between editor and preview. We compare on
     // `e.key === 'Enter'` rather than going through the lowercase
     // switch because Enter has no lowercase form.

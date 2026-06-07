@@ -200,6 +200,10 @@ export async function paginate(
     ],
     renderTo,
   );
+  // Inject the debug-guides SVG overlay on every page (cheap, hidden
+  // by default via CSS). Toggling the `.debug-layout` class on the
+  // render container flips visibility without re-running paginate().
+  injectGuidesSvg(renderTo);
   currentPreviewer = previewer;
 }
 
@@ -1311,6 +1315,45 @@ function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
  *   the verso. Center-of-page positioning is automatic because the
  *   live area is itself centred on the page.
  */
+/**
+ * Purpose: Inject a small SVG overlay into every `.pagedjs_pagebox` so
+ *   the debug-guides view (toggled via `.debug-layout` on the render
+ *   container) can show the two page diagonals (TL→BR + TR→BL) — the
+ *   Van de Graaf construction lines that explain where the canonical
+ *   text block lands.
+ * How: One SVG per page with `viewBox="0 0 100 100"` so the two
+ *   diagonals scale to whatever the page's CSS size is. `pointer-
+ *   events: none` and `position: absolute` (with `inset: 0`) take it
+ *   out of the layout flow. Visibility is gated by the parent's CSS
+ *   (`display: none` until `.debug-layout` is set on the container).
+ *
+ *   Idempotent: re-injects safely if a previous overlay already
+ *   exists on the page (no duplicates).
+ */
+function injectGuidesSvg(renderTo: HTMLElement): void {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  for (const pagebox of renderTo.querySelectorAll<HTMLElement>('.pagedjs_pagebox')) {
+    if (pagebox.querySelector(':scope > svg.mp-guides-overlay')) continue;
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'mp-guides-overlay');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    // Two diagonals forming the page X.
+    for (const [x1, y1, x2, y2] of [
+      [0, 0, 100, 100],
+      [100, 0, 0, 100],
+    ] as const) {
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', String(x1));
+      line.setAttribute('y1', String(y1));
+      line.setAttribute('x2', String(x2));
+      line.setAttribute('y2', String(y2));
+      svg.appendChild(line);
+    }
+    pagebox.insertBefore(svg, pagebox.firstChild);
+  }
+}
+
 function buildBodyPaddingCss(
   scope: string,
   textBlock: CanonicalMargins,

@@ -27,6 +27,9 @@ const FR = {
   'toolbar.preview': 'Aperçu',
   'toolbar.preview-title':
     'Basculer entre éditeur et aperçu (Ctrl+Enter / Cmd+Enter)',
+  'toolbar.guides': 'Guides',
+  'toolbar.guides-title':
+    'Afficher les guides typographiques sur l’aperçu : zone imprimable, live area, diagonales du canon (Cmd/Ctrl+Maj+G)',
   'toolbar.style': 'Style',
   'toolbar.style-title': 'Mise en forme (titres, gras, listes…)',
   'toolbar.help': 'Aide',
@@ -310,6 +313,9 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.preview': 'Preview',
   'toolbar.preview-title':
     'Toggle between editor and preview (Ctrl+Enter / Cmd+Enter)',
+  'toolbar.guides': 'Guides',
+  'toolbar.guides-title':
+    'Toggle typographic guides on the preview: page area, live area, Van de Graaf diagonals (Cmd/Ctrl+Shift+G)',
   'toolbar.style': 'Style',
   'toolbar.style-title': 'Formatting (headings, bold, lists…)',
   'toolbar.help': 'Help',
