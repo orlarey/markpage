@@ -4,171 +4,262 @@
      width="900"
      font-family="-apple-system, system-ui, sans-serif"
      role="img"
-     aria-label="Recto-verso page layout following the Van de Graaf canon on A4 with a 66-character measure, showing inner / outer / top / bottom margins, text block, and the running header / footer offsets.">
-  <title>Mise en page recto-verso — canon Van de Graaf</title>
+     aria-label="Recto-verso Van de Graaf layout with two nested similar rectangles on the diagonals — text block and enclosing live area. The header and footer bands fit between them; the pure-white canonical margins sit between the live area and the page edges.">
+  <title>Mise en page Van de Graaf — deux rectangles imbriqués sur les diagonales</title>
   <desc>
-    A spread of two A4 pages (verso on the left, recto on the right) annotated with
-    the Van de Graaf canon proportions derived from a 66-character measure at 11 pt
-    Source Serif. Inner = 27 mm, outer = 55 mm, top = 39 mm, bottom = 77 mm; text
-    block = 128 × 181 mm; running header / footer baselines at 12 mm from the page
-    edge. The diagram is also used in SPEC §9.6 to illustrate the three margin axes
-    (measure, canon, running offset).
+    A4 spread, Van de Graaf canon. Two similar rectangles, both with their four
+    corners on the four construction diagonals: the text block (inner, blue) at
+    66-char measure, and the live area (outer, green-dashed) that encloses the
+    running header and footer. The space between the two rectangles holds the
+    header band (top), footer band (bottom), and gutter whitespace (sides). The
+    space between the live area and the page edges is the true canonical margin
+    — pure white, never inked. Used in SPEC §9.6.
   </desc>
 
   <style>
     .page          { fill: #fafafa; stroke: #1f1f1f; stroke-width: 0.5; }
-    .text-block    { fill: #eaf1ff; stroke: #2c5cd6; stroke-width: 0.5; }
-    .running-band  { fill: #fff4e0; opacity: 0.55; }
+    .live-area     { fill: #f0f7ee; stroke: #4a8a44; stroke-width: 0.55; stroke-dasharray: 2.2 1.6; }
+    .text-block    { fill: #eaf1ff; stroke: #2c5cd6; stroke-width: 0.6; }
+    .header-band   { fill: #fff4e0; opacity: 0.7; }
+    .footer-band   { fill: #fff4e0; opacity: 0.7; }
+    .gutter        { fill: #f3f6f3; opacity: 0.6; }
     .running-line  { stroke: #b06700; stroke-width: 0.6; }
     .spine         { stroke: #888; stroke-width: 0.45; stroke-dasharray: 2.2 1.6; }
-    .dim           { stroke: #888; stroke-width: 0.3; }
-    .dim-arrow     { fill: #888; }
+    .blank-mark    { stroke: #aaa; stroke-width: 0.3; stroke-dasharray: 0.8 1.0; }
+    .diagonal      { stroke: #b8762a; stroke-width: 0.35; stroke-dasharray: 1.4 1.4; fill: none; opacity: 0.8; }
+    .corner-dot    { fill: #b8762a; }
 
     .t-title       { font-size: 11px; fill: #111; font-weight: 600; text-anchor: middle; }
     .t-sub         { font-size: 6.4px; fill: #555; text-anchor: middle; }
     .t-page        { font-size: 7.5px; fill: #222; font-weight: 600; text-anchor: middle; }
-    .t-margin      { font-size: 5.4px; fill: #333; font-style: italic; }
     .t-margin-c    { font-size: 5.4px; fill: #333; font-style: italic; text-anchor: middle; }
+    .t-margin      { font-size: 5.4px; fill: #333; font-style: italic; }
+    .t-live        { font-size: 5.4px; fill: #2b6f25; font-weight: 600; text-anchor: middle; }
     .t-tb          { font-size: 5.6px; fill: #2c5cd6; font-weight: 600; text-anchor: middle; }
     .t-tb-sub      { font-size: 5px;   fill: #2c5cd6; text-anchor: middle; }
-    .t-run         { font-size: 5px; fill: #8a4f00; font-style: italic; }
+    .t-run         { font-size: 5px; fill: #8a4f00; font-style: italic; text-anchor: middle; }
     .t-spine       { font-size: 5.4px; fill: #777; text-anchor: middle; }
+    .t-blank       { font-size: 4.6px; fill: #888; font-style: italic; text-anchor: middle; }
     .t-legend      { font-size: 5.6px; fill: #333; }
     .t-legend-h    { font-size: 6px; fill: #111; font-weight: 600; }
   </style>
 
   <!-- Title block -->
-  <text x="280" y="20" class="t-title">Mise en page recto-verso — canon Van de Graaf</text>
-  <text x="280" y="32" class="t-sub">A4 (210 × 297 mm) · mesure 66 caractères · Source Serif 11 pt</text>
+  <text x="280" y="20" class="t-title">Mise en page Van de Graaf — deux rectangles canoniques imbriqués</text>
+  <text x="280" y="32" class="t-sub">A4 · texte à 66 chars (x₂=228) ⊂ live area (x₂=240) · les 8 coins sur les diagonales</text>
 
   <!--
-       Coordinate convention: 1 SVG unit ≈ 1 mm.
-       Spread: left page (verso) at (45, 50) size 210×297; right page (recto)
-       at (255, 50) size 210×297; pages touch at x = 255 (the spine).
-       Derived metrics (measure-driven Van de Graaf):
-         inner = 27 mm   outer = 55 mm   top = 39 mm   bottom = 77 mm
-         text block = 128 × 181 mm
-         headerOffset = footerOffset = 12 mm
+       Geometric setup (verso, x=45..255):
+         Family of canonical rectangles: x2 = top-inner-x parameter.
+           top-outer x = 555 − 2·x2
+           width       = 3·x2 − 555
+           top y       = 50 + (top-outer − 45) · 0.707
+           height      = width · 1.414
+
+         Text block at x2_T = 228 (66 chars at 11 pt Source Serif):
+           top-outer = (99, 88), bottom-inner = (228, 270), width 129, height 182
+
+         Live area at x2_L = 240 (chosen to leave a comfortable header / footer band):
+           top-outer = (75, 71), bottom-inner = (240, 304), width 165, height 233
+
+         Derived bands:
+           outer gutter   = 2·(x2_L − x2_T) = 24 mm
+           inner gutter   = (x2_L − x2_T)   = 12 mm
+           header band    = (top_y_T − top_y_L)         = 17 mm
+           footer band    = (bot_y_L − bot_y_T)         = 34 mm
+           outer trim     = top-outer_L − page edge      = 30 mm  (pure white)
+           binding trim   = page-inner − inner_L         = 15 mm  (pure white)
+           top blank      = top_y_L − page-top           = 21 mm  (pure white)
+           bottom blank   = page-bottom − bot_y_L        = 43 mm  (pure white)
+
+       Recto mirrors around the spine at x=255.
   -->
 
   <!-- ====================  Verso (left page, paire)  ==================== -->
   <g id="verso">
-    <!-- Page rectangle -->
+    <!-- Page -->
     <rect class="page" x="45" y="50" width="210" height="297"/>
 
-    <!-- Running header band (top 24 mm) for visual hint -->
-    <rect class="running-band" x="45" y="50" width="210" height="24"/>
-    <!-- Running footer band (bottom 24 mm) -->
-    <rect class="running-band" x="45" y="323" width="210" height="24"/>
+    <!-- Live area (encloses text + header + footer + gutters) -->
+    <rect class="live-area" x="75" y="71" width="165" height="233"/>
 
-    <!-- Text block — outer (55) on the left, inner (27) on the right -->
-    <rect class="text-block" x="100" y="89" width="128" height="181"/>
+    <!-- Header band (inside live area, above text block) -->
+    <rect class="header-band" x="75" y="71" width="165" height="17"/>
+    <!-- Footer band (inside live area, below text block) -->
+    <rect class="footer-band" x="75" y="270" width="165" height="34"/>
+    <!-- Outer gutter (inside live area, white between live-edge and text-edge) -->
+    <rect class="gutter" x="75" y="88" width="24" height="182"/>
+    <!-- Inner gutter -->
+    <rect class="gutter" x="228" y="88" width="12" height="182"/>
 
-    <!-- Running header baseline (12 mm from page top, y = 62) -->
-    <line class="running-line" x1="100" y1="62" x2="228" y2="62"/>
-    <text x="178" y="60" class="t-run" text-anchor="middle">Header (offset 12 mm)</text>
+    <!-- Text block -->
+    <rect class="text-block" x="99" y="88" width="129" height="182"/>
 
-    <!-- Running footer baseline (12 mm from page bottom, y = 335) -->
-    <line class="running-line" x1="100" y1="335" x2="228" y2="335"/>
-    <text x="178" y="343" class="t-run" text-anchor="middle">Footer (offset 12 mm)</text>
+    <!-- Running header / footer baselines (full width of the live area —
+         left | center | right slots align on live-area edges, NOT on text-block) -->
+    <line class="running-line" x1="75" y1="77" x2="240" y2="77"/>
+    <text x="157.5" y="75" class="t-run">header (full width live area)</text>
+    <line class="running-line" x1="75" y1="295" x2="240" y2="295"/>
+    <text x="157.5" y="293" class="t-run">footer (full width live area)</text>
 
-    <!-- Margin labels: top, bottom, outer, inner -->
-    <text x="164" y="83" class="t-margin-c">top 39 mm</text>
-    <text x="164" y="280" class="t-margin-c">bottom 77 mm</text>
-    <!-- outer (left side of verso) -->
-    <text x="48" y="180" class="t-margin" transform="rotate(-90 48 180)">outer 55 mm</text>
-    <!-- inner (right side of verso, toward spine) -->
-    <text x="234" y="180" class="t-margin" transform="rotate(-90 234 180)">inner 27 mm</text>
+    <!-- Margin labels: in/around the bands -->
+    <text x="163.5" y="84" class="t-margin-c">header band 17 mm</text>
+    <text x="163.5" y="289" class="t-margin-c">footer band 34 mm</text>
+    <text x="87"  y="180" class="t-margin"  transform="rotate(-90 87 180)">gutter 24 mm</text>
+    <text x="234" y="180" class="t-margin"  transform="rotate(-90 234 180)">gutter 12 mm</text>
+
+    <!-- Live area label -->
+    <text x="163.5" y="68" class="t-live">live area canonique  (165 × 233 mm)</text>
+
+    <!-- Pure-white margin labels (true canonical white) -->
+    <text x="60"  y="200" class="t-blank" transform="rotate(-90 60 200)">trim ext. 30 mm</text>
+    <text x="247" y="200" class="t-blank" transform="rotate(-90 247 200)">reliure 15 mm</text>
+    <text x="150" y="62"  class="t-blank">blanc canonique 21 mm</text>
+    <text x="150" y="325" class="t-blank">blanc canonique 43 mm</text>
 
     <!-- Text block annotations -->
-    <text x="164" y="178" class="t-tb">bloc-texte</text>
-    <text x="164" y="188" class="t-tb-sub">128 × 181 mm</text>
-    <text x="164" y="200" class="t-tb-sub">≈ 33 lignes (11 pt × 1.4)</text>
+    <text x="163.5" y="172" class="t-tb">bloc-texte</text>
+    <text x="163.5" y="182" class="t-tb-sub">129 × 182 mm</text>
+    <text x="163.5" y="192" class="t-tb-sub">mesure 66 chars</text>
 
     <!-- Page label -->
-    <text x="150" y="362" class="t-page">verso  ·  page paire</text>
+    <text x="150" y="375" class="t-page">verso  ·  page paire</text>
   </g>
 
-  <!-- ====================  Spine (binding fold)  ==================== -->
+  <!-- ====================  Spine  ==================== -->
   <line class="spine" x1="255" y1="48" x2="255" y2="349"/>
   <text x="255" y="368" class="t-spine">reliure</text>
 
   <!-- ====================  Recto (right page, impaire)  ==================== -->
   <g id="recto">
-    <!-- Page rectangle -->
+    <!-- Page -->
     <rect class="page" x="255" y="50" width="210" height="297"/>
 
-    <!-- Running bands -->
-    <rect class="running-band" x="255" y="50" width="210" height="24"/>
-    <rect class="running-band" x="255" y="323" width="210" height="24"/>
+    <!-- Live area (mirror: inner at x=270, outer at x=435) -->
+    <rect class="live-area" x="270" y="71" width="165" height="233"/>
 
-    <!-- Text block — inner (27) on the left, outer (55) on the right -->
-    <rect class="text-block" x="282" y="89" width="128" height="181"/>
+    <!-- Header band -->
+    <rect class="header-band" x="270" y="71" width="165" height="17"/>
+    <!-- Footer band -->
+    <rect class="footer-band" x="270" y="270" width="165" height="34"/>
+    <!-- Inner gutter (white between live-inner and text-inner) -->
+    <rect class="gutter" x="270" y="88" width="12" height="182"/>
+    <!-- Outer gutter -->
+    <rect class="gutter" x="411" y="88" width="24" height="182"/>
 
-    <!-- Running header baseline -->
-    <line class="running-line" x1="282" y1="62" x2="410" y2="62"/>
-    <text x="346" y="60" class="t-run" text-anchor="middle">Header (offset 12 mm)</text>
+    <!-- Text block (inner at 282, outer at 411) -->
+    <rect class="text-block" x="282" y="88" width="129" height="182"/>
 
-    <!-- Running footer baseline -->
-    <line class="running-line" x1="282" y1="335" x2="410" y2="335"/>
-    <text x="346" y="343" class="t-run" text-anchor="middle">Footer (offset 12 mm)</text>
+    <!-- Running baselines (full width live area) -->
+    <line class="running-line" x1="270" y1="77" x2="435" y2="77"/>
+    <text x="352.5" y="75" class="t-run">header (full width live area)</text>
+    <line class="running-line" x1="270" y1="295" x2="435" y2="295"/>
+    <text x="352.5" y="293" class="t-run">footer (full width live area)</text>
 
     <!-- Margin labels -->
-    <text x="346" y="83" class="t-margin-c">top 39 mm</text>
-    <text x="346" y="280" class="t-margin-c">bottom 77 mm</text>
-    <!-- inner (left side of recto, toward spine) -->
-    <text x="270" y="180" class="t-margin" transform="rotate(-90 270 180)">inner 27 mm</text>
-    <!-- outer (right side of recto) -->
-    <text x="461" y="180" class="t-margin" transform="rotate(-90 461 180)">outer 55 mm</text>
+    <text x="346.5" y="84" class="t-margin-c">header band 17 mm</text>
+    <text x="346.5" y="289" class="t-margin-c">footer band 34 mm</text>
+    <text x="276" y="180" class="t-margin" transform="rotate(-90 276 180)">gutter 12 mm</text>
+    <text x="423" y="180" class="t-margin" transform="rotate(-90 423 180)">gutter 24 mm</text>
+
+    <!-- Live area label -->
+    <text x="346.5" y="68" class="t-live">live area canonique  (165 × 233 mm)</text>
+
+    <!-- Pure-white labels -->
+    <text x="263" y="200" class="t-blank" transform="rotate(-90 263 200)">reliure 15 mm</text>
+    <text x="450" y="200" class="t-blank" transform="rotate(-90 450 200)">trim ext. 30 mm</text>
+    <text x="360" y="62"  class="t-blank">blanc canonique 21 mm</text>
+    <text x="360" y="325" class="t-blank">blanc canonique 43 mm</text>
 
     <!-- Text block annotations -->
-    <text x="346" y="178" class="t-tb">bloc-texte</text>
-    <text x="346" y="188" class="t-tb-sub">128 × 181 mm</text>
-    <text x="346" y="200" class="t-tb-sub">≈ 33 lignes (11 pt × 1.4)</text>
+    <text x="346.5" y="172" class="t-tb">bloc-texte</text>
+    <text x="346.5" y="182" class="t-tb-sub">129 × 182 mm</text>
+    <text x="346.5" y="192" class="t-tb-sub">mesure 66 chars</text>
 
     <!-- Page label -->
-    <text x="360" y="362" class="t-page">recto  ·  page impaire</text>
+    <text x="360" y="375" class="t-page">recto  ·  page impaire</text>
   </g>
 
-  <!-- ====================  Legend / formula  ==================== -->
-  <g id="legend" transform="translate(475, 70)">
-    <text x="0" y="0"  class="t-legend-h">Ratios canon</text>
-    <text x="0" y="11" class="t-legend">inner : top : outer : bottom</text>
-    <text x="0" y="19" class="t-legend">= 1 : 1.5 : 2 : 3</text>
-
-    <text x="0" y="34" class="t-legend-h">Mesure</text>
-    <text x="0" y="44" class="t-legend">66 chars × 0.5 em</text>
-    <text x="0" y="52" class="t-legend">× 11 pt = 128 mm</text>
-
-    <text x="0" y="67" class="t-legend-h">Marges horiz.</text>
-    <text x="0" y="77" class="t-legend">210 − 128 = 82 mm</text>
-    <text x="0" y="85" class="t-legend">→ inner 27, outer 55</text>
-
-    <text x="0" y="100" class="t-legend-h">Marges vert.</text>
-    <text x="0" y="110" class="t-legend">bloc 128 × (297/210)</text>
-    <text x="0" y="118" class="t-legend">= 181 mm</text>
-    <text x="0" y="126" class="t-legend">297 − 181 = 116 mm</text>
-    <text x="0" y="134" class="t-legend">→ top 39, bottom 77</text>
-
-    <text x="0" y="149" class="t-legend-h">Running content</text>
-    <text x="0" y="159" class="t-legend">offset 12 mm depuis</text>
-    <text x="0" y="167" class="t-legend">le bord de page</text>
-    <text x="0" y="175" class="t-legend">(dans la marge,</text>
-    <text x="0" y="183" class="t-legend">pas en plus)</text>
+  <!-- ====================  Van de Graaf diagonals  ==================== -->
+  <!--
+       Four diagonals. ALL EIGHT corners of the two rectangles (text and live
+       area, on each page) sit on one of these four lines:
+         1. spread ↘  (45,50)  → (465,347)    — text top-outer + live top-outer (verso)
+         2. spread ↙  (465,50) → (45,347)     — same, mirrored on recto
+         3. verso int (255,50) → (45,347)     — text top-inner + bottom-outer (verso)
+                                                live top-inner + bottom-outer (verso)
+         4. recto int (255,50) → (465,347)    — symmetric on recto
+  -->
+  <g id="diagonals">
+    <line class="diagonal" x1="45"  y1="50" x2="465" y2="347"/>
+    <line class="diagonal" x1="465" y1="50" x2="45"  y2="347"/>
+    <line class="diagonal" x1="255" y1="50" x2="45"  y2="347"/>
+    <line class="diagonal" x1="255" y1="50" x2="465" y2="347"/>
   </g>
 
-  <!-- ====================  Visual legend swatches  ==================== -->
-  <g id="swatches" transform="translate(20, 380)">
+  <!-- Corner dots — make the 8 canonical corners explicit -->
+  <g id="corner-dots">
+    <!-- Verso text block corners -->
+    <circle class="corner-dot" cx="99"  cy="88"  r="1.0"/>
+    <circle class="corner-dot" cx="228" cy="88"  r="1.0"/>
+    <circle class="corner-dot" cx="99"  cy="270" r="1.0"/>
+    <circle class="corner-dot" cx="228" cy="270" r="1.0"/>
+    <!-- Verso live area corners -->
+    <circle class="corner-dot" cx="75"  cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="240" cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="75"  cy="304" r="1.2"/>
+    <circle class="corner-dot" cx="240" cy="304" r="1.2"/>
+    <!-- Recto text block corners -->
+    <circle class="corner-dot" cx="282" cy="88"  r="1.0"/>
+    <circle class="corner-dot" cx="411" cy="88"  r="1.0"/>
+    <circle class="corner-dot" cx="282" cy="270" r="1.0"/>
+    <circle class="corner-dot" cx="411" cy="270" r="1.0"/>
+    <!-- Recto live area corners -->
+    <circle class="corner-dot" cx="270" cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="435" cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="270" cy="304" r="1.2"/>
+    <circle class="corner-dot" cx="435" cy="304" r="1.2"/>
+  </g>
+
+  <!-- ====================  Legend  ==================== -->
+  <g id="legend" transform="translate(478, 70)">
+    <text x="0" y="0"  class="t-legend-h">Famille canonique</text>
+    <text x="0" y="11" class="t-legend">Tous les rectangles</text>
+    <text x="0" y="19" class="t-legend">similaires à la page</text>
+    <text x="0" y="27" class="t-legend">dont les 4 coins sont</text>
+    <text x="0" y="35" class="t-legend">sur les diagonales.</text>
+
+    <text x="0" y="52" class="t-legend-h">Choix utilisateur</text>
+    <text x="0" y="63" class="t-legend">2 membres :</text>
+    <text x="0" y="71" class="t-legend">· texte (mesure)</text>
+    <text x="0" y="79" class="t-legend">· live area</text>
+
+    <text x="0" y="96" class="t-legend-h">Bandes dérivées</text>
+    <text x="0" y="107" class="t-legend">header  17 mm</text>
+    <text x="0" y="115" class="t-legend">footer  34 mm</text>
+    <text x="0" y="123" class="t-legend">gutter 24 / 12 mm</text>
+
+    <text x="0" y="140" class="t-legend-h">Vrais blancs</text>
+    <text x="0" y="151" class="t-legend">entre live area</text>
+    <text x="0" y="159" class="t-legend">et bord de page</text>
+    <text x="0" y="167" class="t-legend">— jamais d'encre.</text>
+  </g>
+
+  <!-- ====================  Swatch legend  ==================== -->
+  <g id="swatches" transform="translate(20, 387)">
     <rect width="8" height="6" class="text-block"/>
     <text x="11" y="5" class="t-legend">bloc-texte</text>
 
-    <rect x="56" width="8" height="6" class="running-band"/>
-    <text x="67" y="5" class="t-legend">zone running</text>
+    <rect x="62" width="8" height="6" class="live-area"/>
+    <text x="73" y="5" class="t-legend">live area canonique</text>
 
-    <line x1="124" y1="3" x2="132" y2="3" class="running-line"/>
-    <text x="135" y="5" class="t-legend">baseline header / footer</text>
+    <rect x="180" width="8" height="6" class="header-band"/>
+    <text x="191" y="5" class="t-legend">header / footer band</text>
 
-    <line x1="230" y1="0" x2="230" y2="6" class="spine"/>
-    <text x="234" y="5" class="t-legend">reliure</text>
+    <rect x="287" width="8" height="6" class="gutter"/>
+    <text x="298" y="5" class="t-legend">gutter blanc int. live</text>
+
+    <line x1="395" y1="0" x2="403" y2="6" class="diagonal"/>
+    <text x="406" y="5" class="t-legend">diagonales Van de Graaf</text>
   </g>
 </svg>

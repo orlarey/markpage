@@ -4,150 +4,141 @@
      width="900"
      font-family="-apple-system, system-ui, sans-serif"
      role="img"
-     aria-label="Scholar's margin (Tufte) layout: a recto-verso spread where the outer margin holds sidenotes and margin figures, with the five-zone horizontal decomposition annotated.">
-  <title>Marges érudites — layout Tufte / scholar's margin</title>
+     aria-label="Scholar's margin layout as two nested canonical rectangles on the Van de Graaf diagonals. The text block (narrow, 52-char measure) sits inside an enclosing live area that also contains header, footer, sidenote zone and inner gutter.">
+  <title>Marges érudites — texte et live area imbriqués sur les diagonales</title>
   <desc>
-    A book spread (verso left, recto right) showing the scholar's margin layout
-    on A4. The outer margin of each page is split into three sub-zones: a small
-    gutter to the text block, a sidenote-area carrying notes and small figures,
-    and a final outer-trim white. Verso and recto mirror around the spine. Used
-    in SPEC §9.7 to illustrate the five-zone horizontal decomposition (binding,
-    text block, gap, sidenote area, outer trim).
+    A4 spread, Van de Graaf canon, scholar's margin layout. Same nested-rectangle
+    construction as docs/img/recto-verso-layout.svg, but here the live area's
+    outer gutter is wide enough (44 mm) to host a sidenote area (39 mm) plus a
+    5 mm gap to the text block. Header / footer bands are taller because the
+    text block is narrower (52 chars instead of 66). All eight corners of the
+    two rectangles lie on the four construction diagonals.
   </desc>
 
   <style>
     .page          { fill: #fafafa; stroke: #1f1f1f; stroke-width: 0.5; }
-    .text-block    { fill: #eaf1ff; stroke: #2c5cd6; stroke-width: 0.5; }
+    .live-area     { fill: #f0f7ee; stroke: #4a8a44; stroke-width: 0.55; stroke-dasharray: 2.2 1.6; }
+    .text-block    { fill: #eaf1ff; stroke: #2c5cd6; stroke-width: 0.6; }
+    .header-band   { fill: #fff4e0; opacity: 0.7; }
+    .footer-band   { fill: #fff4e0; opacity: 0.7; }
+    .gutter        { fill: #f3f6f3; opacity: 0.6; }
     .sidenote-area { fill: #f4f0e6; stroke: #8a6f33; stroke-width: 0.4; stroke-dasharray: 1.4 1.0; }
     .sidenote-fig  { fill: #fff7e6; stroke: #8a6f33; stroke-width: 0.4; }
-    .sidenote-text { fill: #8a6f33; }
-    .running-band  { fill: #fff4e0; opacity: 0.55; }
     .running-line  { stroke: #b06700; stroke-width: 0.55; }
     .spine         { stroke: #888; stroke-width: 0.45; stroke-dasharray: 2.2 1.6; }
     .anchor        { stroke: #b06700; stroke-width: 0.5; stroke-dasharray: 0.8 1.0; }
+    .diagonal      { stroke: #b8762a; stroke-width: 0.35; stroke-dasharray: 1.4 1.4; fill: none; opacity: 0.8; }
+    .corner-dot    { fill: #b8762a; }
 
     .t-title       { font-size: 11px; fill: #111; font-weight: 600; text-anchor: middle; }
     .t-sub         { font-size: 6.4px; fill: #555; text-anchor: middle; }
     .t-page        { font-size: 7.5px; fill: #222; font-weight: 600; text-anchor: middle; }
     .t-margin      { font-size: 5.4px; fill: #333; font-style: italic; }
     .t-margin-c    { font-size: 5.4px; fill: #333; font-style: italic; text-anchor: middle; }
+    .t-live        { font-size: 5.4px; fill: #2b6f25; font-weight: 600; text-anchor: middle; }
     .t-tb          { font-size: 5.6px; fill: #2c5cd6; font-weight: 600; text-anchor: middle; }
     .t-tb-sub      { font-size: 5px;   fill: #2c5cd6; text-anchor: middle; }
-    .t-run         { font-size: 5px; fill: #8a4f00; font-style: italic; }
+    .t-run         { font-size: 5px; fill: #8a4f00; font-style: italic; text-anchor: middle; }
     .t-spine       { font-size: 5.4px; fill: #777; text-anchor: middle; }
+    .t-blank       { font-size: 4.6px; fill: #888; font-style: italic; text-anchor: middle; }
     .t-legend      { font-size: 5.6px; fill: #333; }
     .t-legend-h    { font-size: 6px; fill: #111; font-weight: 600; }
     .t-side        { font-size: 4.6px; fill: #8a6f33; font-style: italic; }
     .t-side-mark   { font-size: 5px; fill: #b06700; font-weight: 600; text-anchor: middle; }
+    .t-formula     { font-size: 5.4px; fill: #b06700; font-weight: 600; }
   </style>
 
   <!-- Title block -->
-  <text x="280" y="20" class="t-title">Marges érudites — layout Tufte / scholar's margin</text>
-  <text x="280" y="32" class="t-sub">A4 · binding 18 · text 100 · gap 5 · sidenote 40 · trim 27 mm</text>
+  <text x="280" y="20" class="t-title">Marges érudites — texte et live area imbriqués sur les diagonales</text>
+  <text x="280" y="32" class="t-sub">A4 · texte à 52 chars (x₂=218) ⊂ live area (x₂=240) · sidenote dans le gutter extérieur</text>
 
   <!--
-       Coordinate convention: 1 SVG unit ≈ 1 mm.
-       Spread: left page (verso) at (45, 50) size 210×297; right page (recto)
-       at (255, 50) size 210×297; pages touch at x = 255 (spine).
+       Geometric setup (verso, x=45..255):
+         Text block at x2_T = 218 (52 chars):
+           top-outer = (119, 102), bottom-inner = (218, 242), width 99, height 140
+         Live area at x2_L = 240 (same as recto-verso-layout.svg):
+           top-outer = (75, 71), bottom-inner = (240, 304), width 165, height 233
 
-       Verso horizontal decomposition (left → right):
-         outer-trim  27 | sidenote 40 | gap 5 | text-block 100 | binding 18
-                 = 190 mm covered + binding 18 mm = full 210
-       Sub-x coordinates from page-left (45):
-         outer-trim   45 .. 72
-         sidenote     72 .. 112
-         gap         112 .. 117
-         text-block  117 .. 217   →  width 100
-         binding     217 .. 235 (and 235..255 is the inner trim within the page)
-       Wait — let me redo using a cleaner partition:
-         binding 18 + text 100 + gap 5 + sidenote 40 + outer 27 = 190 mm
-         That sums to 190, NOT 210. There's an extra 20 mm budget free.
+         Outer gutter width = 2·(x2_L − x2_T) = 44 mm
+           → split into sidenote (39 mm) + gap (5 mm)
+         Inner gutter        = (x2_L − x2_T)   = 22 mm
 
-       Cleaner derivation (matches §9.7.1 typical column):
-         bindingMargin 18, textBlock 100, gap 5, sidenote 40, outerTrim 27 = 190
-         Pad to 210 by widening sidenote? Let's set sidenote = 60 instead (§9.7.1 table)
-
-       Re-read §9.7.1: sidenote = 60 mm in the typical column. Sum = 18 + 100 + 5
-       + 60 + 27 = 210 ✓
+         Bands (smaller text → wider bands than recto-verso-layout):
+           header  31 mm
+           footer  62 mm
   -->
 
   <!-- ====================  Verso (left page, paire)  ==================== -->
   <g id="verso">
-    <!-- Page rectangle -->
+    <!-- Page -->
     <rect class="page" x="45" y="50" width="210" height="297"/>
 
-    <!-- Running header / footer bands (visual hint) -->
-    <rect class="running-band" x="45" y="50" width="210" height="20"/>
-    <rect class="running-band" x="45" y="327" width="210" height="20"/>
+    <!-- Live area -->
+    <rect class="live-area" x="75" y="71" width="165" height="233"/>
+
+    <!-- Header band -->
+    <rect class="header-band" x="75" y="71" width="165" height="31"/>
+    <!-- Footer band -->
+    <rect class="footer-band" x="75" y="242" width="165" height="62"/>
+    <!-- Inner gutter (white) -->
+    <rect class="gutter" x="218" y="102" width="22" height="140"/>
 
     <!--
-         Verso left-to-right (page-left = 45):
-           outer-trim  45..72     (width 27)
-           sidenote    72..132    (width 60)
-           gap        132..137    (width 5)
-           text-block 137..237    (width 100)
-           binding    237..255    (width 18, touches spine)
+         Outer gutter (44 mm wide on verso = sidenote 39 + gap 5):
+         Sidenote area: x = 75..114, gap = 114..119 (gap stays plain page).
     -->
+    <rect class="sidenote-area" x="75" y="102" width="39" height="140"/>
 
-    <!-- Sidenote-area (left side of verso, the OUTER side) -->
-    <rect class="sidenote-area" x="72" y="80" width="60" height="237"/>
+    <!-- Sample sidenote text blocks -->
+    <text x="78" y="115" class="t-side"><tspan>1. La première note, en</tspan></text>
+    <text x="78" y="121" class="t-side"><tspan>corps réduit (0.85 em),</tspan></text>
+    <text x="78" y="127" class="t-side"><tspan>alignée à hauteur</tspan></text>
+    <text x="78" y="133" class="t-side"><tspan>de son ancre.</tspan></text>
 
-    <!-- Two sample sidenote text blocks (placeholders) -->
-    <text x="75" y="105" class="t-side"><tspan>1. La première sidenote, en</tspan></text>
-    <text x="75" y="111" class="t-side"><tspan>corps réduit (0.85 em), justifiée</tspan></text>
-    <text x="75" y="117" class="t-side"><tspan>côté texte principal.</tspan></text>
+    <text x="78" y="165" class="t-side"><tspan>2. Le commentaire</tspan></text>
+    <text x="78" y="171" class="t-side"><tspan>latéral n'interrompt</tspan></text>
+    <text x="78" y="177" class="t-side"><tspan>pas la lecture.</tspan></text>
 
-    <text x="75" y="170" class="t-side"><tspan>2. Une seconde note, alignée</tspan></text>
-    <text x="75" y="176" class="t-side"><tspan>à hauteur de l'ancre `[^2]`</tspan></text>
-    <text x="75" y="182" class="t-side"><tspan>dans le texte principal.</tspan></text>
+    <!-- Sample margin figure -->
+    <rect class="sidenote-fig" x="79" y="200" width="33" height="22"/>
+    <text x="95.5" y="213" class="t-side" text-anchor="middle">[figure]</text>
+    <text x="79" y="234" class="t-side"><tspan>Fig. 1 — caption</tspan></text>
 
-    <!-- Sample margin figure: small rectangle representing an illustration -->
-    <rect class="sidenote-fig" x="78" y="220" width="48" height="30"/>
-    <text x="102" y="237" class="t-side" text-anchor="middle">[figure]</text>
-    <text x="78" y="262" class="t-side"><tspan>Fig. 1 — caption de la</tspan></text>
-    <text x="78" y="268" class="t-side"><tspan>margin figure, mêmes règles.</tspan></text>
+    <!-- Text block -->
+    <rect class="text-block" x="119" y="102" width="99" height="140"/>
 
-    <!-- Text block — text-block starts at x=137, width 100 -->
-    <rect class="text-block" x="137" y="80" width="100" height="237"/>
+    <!-- Anchor markers inside text block -->
+    <line class="anchor" x1="114" y1="125" x2="121" y2="125"/>
+    <text x="123" y="127" class="t-side-mark">¹</text>
+    <line class="anchor" x1="114" y1="170" x2="121" y2="170"/>
+    <text x="123" y="172" class="t-side-mark">²</text>
+    <line class="anchor" x1="114" y1="215" x2="121" y2="215"/>
+    <text x="123" y="217" class="t-side-mark">³</text>
 
-    <!-- Sample anchor markers in text block (showing where sidenote anchors fall) -->
-    <line class="anchor" x1="132" y1="108" x2="140" y2="108"/>
-    <text x="142" y="110" class="t-side-mark">¹</text>
+    <!-- Running header / footer baselines (inside live area) -->
+    <line class="running-line" x1="75" y1="83" x2="240" y2="83"/>
+    <text x="157.5" y="81" class="t-run">header (full width live area)</text>
+    <line class="running-line" x1="75" y1="293" x2="240" y2="293"/>
+    <text x="157.5" y="291" class="t-run">footer (full width live area)</text>
 
-    <line class="anchor" x1="132" y1="173" x2="140" y2="173"/>
-    <text x="142" y="175" class="t-side-mark">²</text>
+    <!-- Band labels -->
+    <text x="167" y="95" class="t-margin-c">header band 31 mm</text>
+    <text x="167" y="287" class="t-margin-c">footer band 62 mm</text>
+    <text x="229" y="172" class="t-margin" transform="rotate(-90 229 172)">gutter 22</text>
 
-    <line class="anchor" x1="132" y1="235" x2="140" y2="235"/>
-    <text x="142" y="237" class="t-side-mark">³</text>
+    <!-- Live area label -->
+    <text x="157.5" y="68" class="t-live">live area canonique  (165 × 233 mm)</text>
 
-    <!-- Running header / footer baselines -->
-    <line class="running-line" x1="72" y1="62" x2="237" y2="62"/>
-    <text x="154" y="60" class="t-run" text-anchor="middle">header (full width hors binding)</text>
-
-    <line class="running-line" x1="72" y1="335" x2="237" y2="335"/>
-    <text x="154" y="343" class="t-run" text-anchor="middle">footer (full width hors binding)</text>
-
-    <!-- Margin labels -->
-    <text x="154" y="78" class="t-margin-c">top 30 mm</text>
-    <text x="154" y="324" class="t-margin-c">bottom 30 mm</text>
-
-    <!-- Horizontal zone labels (under the page) -->
-    <line class="dim" x1="45"  y1="352" x2="72"  y2="352"/>
-    <line class="dim" x1="72"  y1="352" x2="132" y2="352"/>
-    <line class="dim" x1="132" y1="352" x2="137" y2="352"/>
-    <line class="dim" x1="137" y1="352" x2="237" y2="352"/>
-    <line class="dim" x1="237" y1="352" x2="255" y2="352"/>
-
-    <text x="58.5"  y="361" class="t-margin-c" font-size="4.5px">trim 27</text>
-    <text x="102"   y="361" class="t-margin-c">sidenote 60</text>
-    <text x="134.5" y="361" class="t-margin-c" font-size="4.5px">gap 5</text>
-    <text x="187"   y="361" class="t-margin-c">text 100</text>
-    <text x="246"   y="361" class="t-margin-c" font-size="4.5px">bind 18</text>
+    <!-- Pure-white labels -->
+    <text x="60"  y="200" class="t-blank" transform="rotate(-90 60 200)">trim ext. 30 mm</text>
+    <text x="247" y="200" class="t-blank" transform="rotate(-90 247 200)">reliure 15 mm</text>
+    <text x="150" y="62"  class="t-blank">blanc canonique 21 mm</text>
+    <text x="150" y="325" class="t-blank">blanc canonique 43 mm</text>
 
     <!-- Text block annotations -->
-    <text x="187" y="195" class="t-tb">bloc-texte</text>
-    <text x="187" y="205" class="t-tb-sub">100 × 237 mm</text>
-    <text x="187" y="216" class="t-tb-sub">mesure ≈ 52 chars</text>
+    <text x="168.5" y="170" class="t-tb">bloc-texte</text>
+    <text x="168.5" y="180" class="t-tb-sub">99 × 140 mm</text>
+    <text x="168.5" y="190" class="t-tb-sub">mesure 52 chars</text>
 
     <!-- Page label -->
     <text x="150" y="378" class="t-page">verso  ·  page paire</text>
@@ -157,105 +148,138 @@
   <line class="spine" x1="255" y1="48" x2="255" y2="349"/>
   <text x="255" y="368" class="t-spine">reliure</text>
 
-  <!-- ====================  Recto (right page, impaire, MIRRORED)  ==================== -->
+  <!-- ====================  Recto (right page, impaire)  ==================== -->
   <g id="recto">
-    <!-- Page rectangle (x = 255 .. 465) -->
+    <!-- Page -->
     <rect class="page" x="255" y="50" width="210" height="297"/>
 
-    <!-- Running bands -->
-    <rect class="running-band" x="255" y="50" width="210" height="20"/>
-    <rect class="running-band" x="255" y="327" width="210" height="20"/>
+    <!-- Live area (inner at 270, outer at 435) -->
+    <rect class="live-area" x="270" y="71" width="165" height="233"/>
 
-    <!--
-         Recto left-to-right (page-left = 255), mirrored:
-           binding    255..273    (width 18)
-           text-block 273..373    (width 100)
-           gap        373..378    (width 5)
-           sidenote   378..438    (width 60)
-           outer-trim 438..465    (width 27)
-    -->
+    <!-- Header / footer bands -->
+    <rect class="header-band" x="270" y="71" width="165" height="31"/>
+    <rect class="footer-band" x="270" y="242" width="165" height="62"/>
+    <!-- Inner gutter (white, near spine, between live-inner and text-inner) -->
+    <rect class="gutter" x="270" y="102" width="22" height="140"/>
 
-    <!-- Text block -->
-    <rect class="text-block" x="273" y="80" width="100" height="237"/>
+    <!-- Sidenote area on the outer side of recto (right):
+         text outer at 391, then 5 mm gap, then sidenote 39 mm to live-outer 435 -->
+    <rect class="sidenote-area" x="396" y="102" width="39" height="140"/>
 
-    <!-- Sidenote-area on the right side of recto -->
-    <rect class="sidenote-area" x="378" y="80" width="60" height="237"/>
+    <!-- Sample sidenote text -->
+    <text x="399" y="120" class="t-side"><tspan>1. Note attachée au</tspan></text>
+    <text x="399" y="126" class="t-side"><tspan>texte de la page recto,</tspan></text>
+    <text x="399" y="132" class="t-side"><tspan>alignée à hauteur</tspan></text>
+    <text x="399" y="138" class="t-side"><tspan>de son ancre.</tspan></text>
 
-    <!-- Sample sidenote texts -->
-    <text x="381" y="115" class="t-side"><tspan>1. Note attachée au texte</tspan></text>
-    <text x="381" y="121" class="t-side"><tspan>de la page recto, alignée à</tspan></text>
-    <text x="381" y="127" class="t-side"><tspan>hauteur de son ancre.</tspan></text>
-
-    <text x="381" y="195" class="t-side"><tspan>2. Le commentaire latéral</tspan></text>
-    <text x="381" y="201" class="t-side"><tspan>n'interrompt pas la lecture</tspan></text>
-    <text x="381" y="207" class="t-side"><tspan>du flux principal.</tspan></text>
+    <text x="399" y="170" class="t-side"><tspan>2. Le flux principal</tspan></text>
+    <text x="399" y="176" class="t-side"><tspan>n'est pas interrompu.</tspan></text>
 
     <!-- Sample margin figure -->
-    <rect class="sidenote-fig" x="384" y="245" width="48" height="30"/>
-    <text x="408" y="262" class="t-side" text-anchor="middle">[figure]</text>
-    <text x="384" y="287" class="t-side"><tspan>Fig. 2 — caption,</tspan></text>
-    <text x="384" y="293" class="t-side"><tspan>même corps réduit.</tspan></text>
+    <rect class="sidenote-fig" x="400" y="200" width="33" height="22"/>
+    <text x="416.5" y="213" class="t-side" text-anchor="middle">[figure]</text>
+    <text x="400" y="234" class="t-side"><tspan>Fig. 2 — caption</tspan></text>
+
+    <!-- Text block (inner at 292, outer at 391) -->
+    <rect class="text-block" x="292" y="102" width="99" height="140"/>
 
     <!-- Anchor markers -->
-    <line class="anchor" x1="370" y1="117" x2="378" y2="117"/>
-    <text x="368" y="119" class="t-side-mark">¹</text>
+    <line class="anchor" x1="389" y1="125" x2="396" y2="125"/>
+    <text x="387" y="127" class="t-side-mark">¹</text>
+    <line class="anchor" x1="389" y1="170" x2="396" y2="170"/>
+    <text x="387" y="172" class="t-side-mark">²</text>
+    <line class="anchor" x1="389" y1="215" x2="396" y2="215"/>
+    <text x="387" y="217" class="t-side-mark">³</text>
 
-    <line class="anchor" x1="370" y1="197" x2="378" y2="197"/>
-    <text x="368" y="199" class="t-side-mark">²</text>
+    <!-- Running baselines -->
+    <line class="running-line" x1="270" y1="83" x2="435" y2="83"/>
+    <text x="352.5" y="81" class="t-run">header (full width live area)</text>
+    <line class="running-line" x1="270" y1="293" x2="435" y2="293"/>
+    <text x="352.5" y="291" class="t-run">footer (full width live area)</text>
 
-    <line class="anchor" x1="370" y1="260" x2="378" y2="260"/>
-    <text x="368" y="262" class="t-side-mark">³</text>
+    <!-- Band labels -->
+    <text x="341.5" y="95" class="t-margin-c">header band 31 mm</text>
+    <text x="341.5" y="287" class="t-margin-c">footer band 62 mm</text>
+    <text x="281" y="172" class="t-margin" transform="rotate(-90 281 172)">gutter 22</text>
 
-    <!-- Running header / footer baselines -->
-    <line class="running-line" x1="273" y1="62" x2="438" y2="62"/>
-    <text x="355" y="60" class="t-run" text-anchor="middle">header (full width hors binding)</text>
+    <!-- Live area label -->
+    <text x="352.5" y="68" class="t-live">live area canonique  (165 × 233 mm)</text>
 
-    <line class="running-line" x1="273" y1="335" x2="438" y2="335"/>
-    <text x="355" y="343" class="t-run" text-anchor="middle">footer (full width hors binding)</text>
-
-    <!-- Margin labels -->
-    <text x="355" y="78" class="t-margin-c">top 30 mm</text>
-    <text x="355" y="324" class="t-margin-c">bottom 30 mm</text>
-
-    <!-- Horizontal zone labels (under the page) -->
-    <line class="dim" x1="255" y1="352" x2="273" y2="352"/>
-    <line class="dim" x1="273" y1="352" x2="373" y2="352"/>
-    <line class="dim" x1="373" y1="352" x2="378" y2="352"/>
-    <line class="dim" x1="378" y1="352" x2="438" y2="352"/>
-    <line class="dim" x1="438" y1="352" x2="465" y2="352"/>
-
-    <text x="264"   y="361" class="t-margin-c" font-size="4.5px">bind 18</text>
-    <text x="323"   y="361" class="t-margin-c">text 100</text>
-    <text x="375.5" y="361" class="t-margin-c" font-size="4.5px">gap 5</text>
-    <text x="408"   y="361" class="t-margin-c">sidenote 60</text>
-    <text x="451.5" y="361" class="t-margin-c" font-size="4.5px">trim 27</text>
+    <!-- Pure-white labels -->
+    <text x="263" y="200" class="t-blank" transform="rotate(-90 263 200)">reliure 15 mm</text>
+    <text x="450" y="200" class="t-blank" transform="rotate(-90 450 200)">trim ext. 30 mm</text>
+    <text x="360" y="62"  class="t-blank">blanc canonique 21 mm</text>
+    <text x="360" y="325" class="t-blank">blanc canonique 43 mm</text>
 
     <!-- Text block annotations -->
-    <text x="323" y="195" class="t-tb">bloc-texte</text>
-    <text x="323" y="205" class="t-tb-sub">100 × 237 mm</text>
-    <text x="323" y="216" class="t-tb-sub">mesure ≈ 52 chars</text>
+    <text x="341.5" y="170" class="t-tb">bloc-texte</text>
+    <text x="341.5" y="180" class="t-tb-sub">99 × 140 mm</text>
+    <text x="341.5" y="190" class="t-tb-sub">mesure 52 chars</text>
 
     <!-- Page label -->
     <text x="360" y="378" class="t-page">recto  ·  page impaire</text>
   </g>
 
-  <!-- ====================  Legend  ==================== -->
-  <g id="legend" transform="translate(478, 75)">
-    <text x="0" y="0"  class="t-legend-h">Modes notes</text>
-    <text x="0" y="11" class="t-legend">foot · pied de page</text>
-    <text x="0" y="19" class="t-legend">side · marge ←—</text>
-    <text x="0" y="27" class="t-legend">end · fin du doc</text>
+  <!-- ====================  Van de Graaf diagonals  ==================== -->
+  <g id="diagonals">
+    <line class="diagonal" x1="45"  y1="50" x2="465" y2="347"/>
+    <line class="diagonal" x1="465" y1="50" x2="45"  y2="347"/>
+    <line class="diagonal" x1="255" y1="50" x2="45"  y2="347"/>
+    <line class="diagonal" x1="255" y1="50" x2="465" y2="347"/>
+  </g>
 
-    <text x="0" y="44" class="t-legend-h">Classes images</text>
-    <text x="0" y="55" class="t-legend">img normale</text>
-    <text x="0" y="63" class="t-legend">{.margin} →</text>
-    <text x="0" y="71" class="t-legend">sidenote-area</text>
+  <!-- Corner dots — the 8 canonical corners of the two nested rectangles -->
+  <g id="corner-dots">
+    <!-- Verso text block -->
+    <circle class="corner-dot" cx="119" cy="102" r="1.0"/>
+    <circle class="corner-dot" cx="218" cy="102" r="1.0"/>
+    <circle class="corner-dot" cx="119" cy="242" r="1.0"/>
+    <circle class="corner-dot" cx="218" cy="242" r="1.0"/>
+    <!-- Verso live area -->
+    <circle class="corner-dot" cx="75"  cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="240" cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="75"  cy="304" r="1.2"/>
+    <circle class="corner-dot" cx="240" cy="304" r="1.2"/>
+    <!-- Recto text block -->
+    <circle class="corner-dot" cx="292" cy="102" r="1.0"/>
+    <circle class="corner-dot" cx="391" cy="102" r="1.0"/>
+    <circle class="corner-dot" cx="292" cy="242" r="1.0"/>
+    <circle class="corner-dot" cx="391" cy="242" r="1.0"/>
+    <!-- Recto live area -->
+    <circle class="corner-dot" cx="270" cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="435" cy="71"  r="1.2"/>
+    <circle class="corner-dot" cx="270" cy="304" r="1.2"/>
+    <circle class="corner-dot" cx="435" cy="304" r="1.2"/>
+  </g>
 
-    <text x="0" y="88" class="t-legend-h">Syntax inchangée</text>
-    <text x="0" y="99"  class="t-legend">[^id] dans texte</text>
-    <text x="0" y="107" class="t-legend">[^id]: contenu</text>
-    <text x="0" y="115" class="t-legend">le profil décide</text>
-    <text x="0" y="123" class="t-legend">où ça atterrit</text>
+  <!-- ====================  Derivation callout  ==================== -->
+  <g id="derivation" transform="translate(478, 70)">
+    <text x="0" y="0"  class="t-legend-h">Famille Van de Graaf</text>
+    <text x="0" y="11" class="t-legend">rectangles similaires à</text>
+    <text x="0" y="19" class="t-legend">la page, coins sur les</text>
+    <text x="0" y="27" class="t-legend">diagonales.</text>
+
+    <text x="0" y="44" class="t-legend-h">Choix utilisateur</text>
+    <text x="0" y="55" class="t-legend">· texte (mesure)</text>
+    <text x="0" y="63" class="t-legend">· live area</text>
+
+    <text x="0" y="80" class="t-formula">Bandes dérivées</text>
+    <text x="0" y="91" class="t-legend">outer gutter =</text>
+    <text x="0" y="99" class="t-legend">  2·(x₂ᴸ − x₂ᵀ) = 44</text>
+    <text x="0" y="107" class="t-legend">inner gutter = 22</text>
+    <text x="0" y="115" class="t-legend">header band  = 31</text>
+    <text x="0" y="123" class="t-legend">footer band  = 62</text>
+
+    <text x="0" y="140" class="t-legend-h">Sidenote</text>
+    <text x="0" y="151" class="t-legend">sidenote = outer</text>
+    <text x="0" y="159" class="t-legend">gutter − gap</text>
+    <text x="0" y="167" class="t-formula">= 44 − 5 = 39 mm</text>
+
+    <text x="0" y="184" class="t-legend-h">Vrais blancs</text>
+    <text x="0" y="194" class="t-legend">trim ext.  30 mm</text>
+    <text x="0" y="202" class="t-legend">reliure    15 mm</text>
+    <text x="0" y="210" class="t-legend">haut       21 mm</text>
+    <text x="0" y="218" class="t-legend">bas        43 mm</text>
   </g>
 
   <!-- ====================  Swatch legend  ==================== -->
@@ -263,16 +287,19 @@
     <rect width="8" height="6" class="text-block"/>
     <text x="11" y="5" class="t-legend">bloc-texte</text>
 
-    <rect x="56" width="8" height="6" class="sidenote-area"/>
-    <text x="67" y="5" class="t-legend">sidenote-area (contenu marginal)</text>
+    <rect x="60" width="8" height="6" class="live-area"/>
+    <text x="71" y="5" class="t-legend">live area</text>
 
-    <rect x="206" width="8" height="6" class="running-band"/>
-    <text x="217" y="5" class="t-legend">zone running</text>
+    <rect x="130" width="8" height="6" class="sidenote-area"/>
+    <text x="141" y="5" class="t-legend">sidenote-area</text>
 
-    <line x1="270" y1="3" x2="278" y2="3" class="anchor"/>
-    <text x="281" y="5" class="t-legend">ancre note ←→ sidenote</text>
+    <rect x="210" width="8" height="6" class="header-band"/>
+    <text x="221" y="5" class="t-legend">header/footer</text>
 
-    <line x1="378" y1="0" x2="378" y2="6" class="spine"/>
-    <text x="382" y="5" class="t-legend">reliure</text>
+    <rect x="290" width="8" height="6" class="gutter"/>
+    <text x="301" y="5" class="t-legend">gutter blanc</text>
+
+    <line x1="362" y1="0" x2="370" y2="6" class="diagonal"/>
+    <text x="373" y="5" class="t-legend">diagonales VdG</text>
   </g>
 </svg>

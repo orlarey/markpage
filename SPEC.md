@@ -1248,14 +1248,35 @@ jamais de saut de page sur recto.
 
 #### 9.5.4. Interaction avec §26 (header / footer)
 
-Les sélecteurs `header even` / `header odd` (idem `footer`) du §26.4
-ne deviennent significatifs **que** lorsque `duplex: true`. Sans
-duplex, paged.js traite toutes les pages comme `:right`, donc :
+**Sélecteurs de pages.** Les sélecteurs `header even` / `header odd`
+(idem `footer`) du §26.4 ne deviennent significatifs **que** lorsque
+`duplex: true`. Sans duplex, paged.js traite toutes les pages comme
+`:right`, donc :
 
 - `header odd` s'applique à toutes les pages (équivalent à `header`).
 - `header even` ne s'applique à rien.
 
 Pas d'erreur, simplement pas d'effet. Documenté en §26.4.
+
+**Auto-swap des slots `inner-left` / `outer-right`.** Le duplex active
+aussi le **basculement automatique** des slots sémantiques de
+positionnement (§9.6.6, §26.2) :
+
+| Mode | `inner-left` | `outer-right` |
+| :--- | :--- | :--- |
+| Sans duplex | gauche littéral | droite littéral |
+| Avec duplex | gauche sur recto, droite sur verso | droite sur recto, gauche sur verso |
+
+Conséquence majeure : **une seule fence** `header` couvre proprement
+les deux faces du livre relié — pas besoin de doubler avec un couple
+`header even` / `header odd` juste pour basculer le folio côté
+extérieur. C'est la propriété qui fait que l'auteur du `.md` n'a pas
+à comprendre la géométrie recto/verso pour produire un livre
+correctement composé.
+
+Idem pour la scholar's margin §9.7 — les sidenotes basculent
+automatiquement côté extérieur (à droite sur recto, à gauche sur
+verso) en duplex sans intervention auteur.
 
 #### 9.5.5. Pages blanches (paged.js `:blank`)
 
@@ -1281,197 +1302,240 @@ qualité typographique** sans demander à l'utilisateur de comprendre
 la typographie. Le §9.1 actuel expose 4 marges manuelles — c'est
 suffisant pour de la note technique ou un mémo, insuffisant pour un
 livre, un mémoire, un rapport de qualité éditoriale. Ce §9.6 décrit
-le modèle complet à terme.
+le modèle complet à terme, fondé sur la **propriété fractale du
+canon Van de Graaf** : les diagonales de construction admettent une
+*famille* de rectangles similaires à la page, dans laquelle on
+inscrit deux membres imbriqués — le bloc-texte et son enveloppe
+canonique (la « live area »).
 
-#### 9.6.1. Vue d'ensemble — trois axes indépendants
+#### 9.6.1. Structure fractale du canon — deux rectangles imbriqués
 
-| Axe | Pilote | Décisions |
-| :--- | :--- | :--- |
-| **A. Mesure** (line length) | `measureChars` (45-75, défaut 66) | Largeur du bloc-texte → marges horizontales |
-| **B. Canon** (proportions) | `marginCanon` (van-de-graaf / tschichold-9 / modern-book / golden) | Répartition inner/outer, hauteur bloc-texte → marges verticales |
-| **C. Running content** | `headerOffset`, `footerOffset` (mm, défaut 12) | Position du header/footer dans la marge |
+Les diagonales Van de Graaf (cf. §26 et les SVG de référence)
+définissent un canevas géométrique sur la page. Propriété clé : elles
+n'admettent **pas un seul** rectangle, mais une **famille de rectangles
+similaires à la page**, paramétrée par la position des coins le long
+des diagonales. Markpage utilise **deux membres** de cette famille
+pour structurer la mise en page :
 
-Les trois axes se combinent : la mesure et le canon **déterminent les
-marges**, le running offset **occupe une portion de ces marges**. Tant
-que `offset < margin`, tout coexiste sans conflit.
+| Rectangle  | Rôle  | Contient                                  |
+| :--------- | :---- | :----------------------------------------- |
+| Bloc-texte | corps | prose, formules, figures, tables           |
+| Live area  | image | bloc-texte + header + footer + sidenotes (§9.7) |
 
-#### 9.6.2. Axe A — la mesure pilote tout
+L'espace **entre** les deux rectangles est dérivé géométriquement et
+abrite le running content (header band, footer band, gutters). L'espace
+**entre la live area et le bord de page** est **blanc canonique** —
+intouchable, jamais imprimé.
 
-La **mesure** (caractères par ligne, *measure* / *line length* en
-typo anglo-saxonne) est la contrainte fondamentale de lisibilité.
-Bringhurst donne 45-75 caractères pour du texte continu en une
-colonne, avec 66 comme cible canonique.
+![Layout recto-verso : bloc-texte ⊂ live area, 8 coins sur les diagonales](docs/img/recto-verso-layout.svg)
 
-Chaîne de calcul :
+#### 9.6.2. La mesure du texte (paramètre 1)
 
+`measureChars` (45-75, défaut 66) — le nombre de caractères par ligne
+du bloc-texte, contrainte fondamentale de lisibilité (Bringhurst donne
+45-75 pour du texte continu en une colonne, 66 comme cible canonique).
+
+Chaîne de calcul de la largeur :
+
+```text
+charWidth_mm    = measureAverageCharWidth(bodyFont, bodyFontSize)
+textBlockWidth  = measureChars × charWidth_mm
+textBlockHeight = textBlockWidth × (pageHeight / pageWidth)
 ```
-charWidth_mm   = measureAverageCharWidth(bodyFont, bodyFontSize)
-textBlockWidth = measureChars × charWidth_mm
-horizontalMargins = pageWidth − textBlockWidth
-```
 
-`measureAverageCharWidth` utilise `canvas.measureText` sur une
-chaîne représentative (`'abcdefghijklmnopqrstuvwxyz'` divisé par 26)
-pour obtenir 1-2 % de précision. Heuristique de secours quand la
-fonte n'est pas encore chargée : `0.5 × bodyFontSize` (correct pour
-la plupart des serif).
+`measureAverageCharWidth` utilise `canvas.measureText` sur une chaîne
+représentative (`'abcdefghijklmnopqrstuvwxyz'` divisé par 26) pour
+obtenir 1-2 % de précision. Heuristique de secours : `0.5 × bodyFontSize`
+(correct pour la plupart des serif).
 
-**Exemple A4, Source Serif 11pt, 66 caractères** :
+La hauteur dérive par **similitude à la page** — le bloc-texte est un
+membre de la famille de rectangles similaires, automatiquement positionné
+sur les diagonales (top-outer sur la diagonale du spread, top-inner sur
+la diagonale interne de page).
+
+**Exemple A4 / Source Serif 11pt / 66 char** :
 
 - `charWidth_mm` ≈ 1.94 mm
 - `textBlockWidth` = 66 × 1.94 = **128 mm**
-- `horizontalMargins` = 210 − 128 = **82 mm** à répartir inner/outer
+- `textBlockHeight` = 128 × (297/210) = **181 mm**
 
-#### 9.6.3. Axe B — le canon répartit
+#### 9.6.3. La live area (paramètre 2)
 
-Le canon prend la décision de **comment répartir** les marges
-horizontales et verticales calculées au point A.
-
-| Canon | inner : top : outer : bottom | Origine |
-| :--- | :--- | :--- |
-| `manual` | (4 sliders, ratios libres) | comportement §9.1 actuel |
-| `van-de-graaf` | 1 : 1.5 : 2 : 3 | Manuscrits XVe siècle (Tschichold) |
-| `tschichold-9` | 1/9 : 2/9 : 2/9 : 4/9 | division simple en 9 parts |
-| `modern-book` | 1 : 1.2 : 1.4 : 1.8 | proportions tighter, livres contemporains |
-| `golden` | 1 : 1.618 : 1.618 : 2.618 | nombre d'or |
-
-Pour le canon, la hauteur du bloc-texte respecte par défaut
-l'**aspect ratio de la page** (rectangle similaire — Van de Graaf
-canonique), ce qui donne aussi la répartition top/bottom :
+`liveAreaChars` (> `measureChars`, défaut 85) — la mesure du **second**
+rectangle canonique, plus grand, qui enveloppe le bloc-texte ET tout le
+running content. Même chaîne de calcul, même famille canonique, mêmes
+diagonales :
 
 ```text
-textBlockHeight = textBlockWidth × (pageHeight / pageWidth)
-verticalMargins = pageHeight − textBlockHeight
-top    = verticalMargins × (canon.top / (canon.top + canon.bottom))
-bottom = verticalMargins × (canon.bottom / (canon.top + canon.bottom))
+liveAreaWidth  = liveAreaChars × charWidth_mm
+liveAreaHeight = liveAreaWidth × (pageHeight / pageWidth)
 ```
 
-**Suite de l'exemple A4 / Van de Graaf / 66 char** :
+La contrainte `liveAreaChars > measureChars` garantit que la live area
+contient strictement le bloc-texte. Le format de page borne par le haut
+(une mesure trop large ferait sortir la live area de la page).
 
-- `textBlockHeight` = 128 × (297/210) = **181 mm**
-- `verticalMargins` = 297 − 181 = **116 mm**
-- `top` = 116 × (1.5 / 4.5) = **39 mm**
-- `bottom` = 116 × (3 / 4.5) = **77 mm**
-- `inner` = 82 × (1 / 3) = **27 mm**
-- `outer` = 82 × (2 / 3) = **55 mm**
+**Suite de l'exemple A4 / 11pt / measure 66 / liveArea 85** :
+
+- `liveAreaWidth`  = 85 × 1.94 = **165 mm**
+- `liveAreaHeight` = 165 × (297/210) = **233 mm**
+
+#### 9.6.4. Bandes dérivées (header / footer / gutters)
+
+L'espace entre les deux rectangles canoniques se décompose en quatre
+bandes, dont les dimensions découlent automatiquement des deux mesures :
+
+| Bande           | Formule géométrique     | Position                          |
+| :-------------- | :---------------------- | :-------------------------------- |
+| outer gutter    | `2·(x2_L − x2_T)`       | côté externe (loin de la reliure) |
+| inner gutter    | `(x2_L − x2_T)`         | côté interne (vers la reliure)    |
+| header band     | `top_y_T − top_y_L`     | haut de la live area              |
+| footer band     | `bot_y_L − bot_y_T`     | bas de la live area               |
+
+où `x2_T` / `x2_L` sont les coordonnées top-inner-x du texte et de la
+live area dans le système de la page.
+
+**Propriété géométrique remarquable** : `outer gutter = 2 × inner gutter`.
+C'est une conséquence directe de la construction — la diagonale du spread
+a une pente moitié de celle de la diagonale interne de page, donc le coin
+top-outer s'éloigne deux fois plus vite que le coin top-inner quand on
+agrandit la live area.
+
+**Suite de l'exemple A4 / measure 66 / liveArea 85** :
+
+- header band  = **17 mm** — accommode 1-2 lignes + respiration
+- footer band  = **34 mm** — accommode folio + petit blanc canonique
+- outer gutter = **24 mm** — blanc à droite du texte (verso) / à gauche (recto)
+- inner gutter = **12 mm** — petit blanc côté reliure pour respiration
 
 Vérification lisibilité : 181 mm / (11pt × 1.4 interligne × 0.3528 mm/pt) ≈ **33 lignes par page**, dans le sweet spot livre (30-40).
 
-![Mise en page recto-verso, canon Van de Graaf, A4, mesure 66 caractères](docs/img/recto-verso-layout.svg)
+#### 9.6.5. Blancs canoniques (entre live area et bord de page)
 
-#### 9.6.4. Axe C — running content dans la marge
+L'espace entre la live area et le bord de page est laissé blanc, jamais
+imprimé. Ces dimensions découlent automatiquement de la position de la
+live area sur les diagonales — **non paramétrables séparément**. Pour
+les ajuster, il faut changer `liveAreaChars` (live area plus petite →
+blancs plus grands).
 
-Le header CSS Paged Media occupe les boxes `@top-*`, qui **vivent dans
-la marge supérieure** (cf. §26). Idem footer dans `@bottom-*` et la
-marge inférieure. Les running boxes ne s'**ajoutent** pas à la marge
-— elles la peuplent partiellement.
+**Suite de l'exemple A4 / liveArea 85** :
 
-Convention typographique : le header est placé **près du bord de la
-page** (10-15 mm), laissant le reste de la marge supérieure comme
-respiration avant le bloc-texte. La dissymétrie est volontaire — le
-header doit être perçu comme appartenant à l'architecture de page,
-pas au corps :
+| Bande blanche | Position                              | Valeur |
+| :------------ | :------------------------------------ | :----- |
+| trim externe  | bord externe page → live area outer  | **30 mm** |
+| reliure       | bord interne page → live area inner  | **15 mm** |
+| haut          | bord supérieur page → live area top  | **21 mm** |
+| bas           | bord inférieur page → live area bot  | **43 mm** |
 
-```text
-┌──────────────────────────┐  ← bord page (y = 0)
-│                          │
-│  ← headerOffset (12 mm)  │
-│ Header text              │  ← header baseline
-│                          │
-│  ← respiration           │
-│                          │
-├──────────────────────────┤  ← haut bloc-texte (y = top margin)
-│  bloc-texte              │
+Propriété typographique : `bas > haut` et `outer > inner`, conformément
+à la convention pour pages reliées (page « pose » visuellement vers le
+bas, marge intérieure réduite parce que mangée par la reliure). C'est
+garanti par la construction, pas par un réglage utilisateur.
+
+#### 9.6.6. Position des slots du running content
+
+Le running content (header, footer) occupe les bandes correspondantes
+sur **toute la largeur de la live area**. Trois slots par bande,
+alignés sur les bords de la live area (PAS sur ceux du bloc-texte) :
+
+- **`inner-left`** — côté reliure : à GAUCHE sur recto (impair), à DROITE sur verso (pair) en mode duplex (§9.5).
+- **`center`** — centre de la live area.
+- **`outer-right`** — côté externe : à DROITE sur recto, à GAUCHE sur verso en mode duplex.
+
+Sans duplex, l'auto-swap ne s'active pas — `inner-left` reste à gauche
+littéralement, `outer-right` reste à droite. L'utilisateur écrit donc
+**toujours** la fence de la même manière, le moteur s'occupe de basculer
+le rendu en duplex.
+
+**Convention typographique** : le folio se place côté extérieur de la
+reliure (à droite sur recto, à gauche sur verso) pour rester visible
+quand le livre est ouvert. En mode duplex, l'utilisateur écrit
+simplement :
+
+````
+```header
+| | Page {page}
 ```
+````
 
-Deux constantes (mm) ajoutées à `PdfSettings` :
+…et le folio atterrit automatiquement à droite sur recto, à gauche sur
+verso. Aucune fence séparée par parité nécessaire, contrairement à un
+système littéral `left | center | right`.
 
-```ts
-headerOffset: number  // bord-page → baseline header (défaut 12)
-footerOffset: number  // baseline footer → bord-page (défaut 12)
-```
-
-Implémentation CSS via padding sur les boxes du `@page` :
-
-```css
-@top-center {
-  vertical-align: top;
-  padding-top: <headerOffset>mm;
-}
-@bottom-center {
-  vertical-align: bottom;
-  padding-bottom: <footerOffset>mm;
-}
-```
-
-**Contrainte d'intégrité** : `headerOffset < topMargin` et
-`footerOffset < bottomMargin`. Sinon le running content chevauche le
-bloc-texte. Le validateur du formulaire Réglages émet un warning rouge
-explicite et bloque la sauvegarde — pas de correction silencieuse,
-l'utilisateur doit comprendre le conflit pour le résoudre (réduire
-l'offset, agrandir la marge, ou changer de canon).
-
-#### 9.6.5. Schéma — additions à `PdfSettings`
+#### 9.6.7. Schéma — additions à `PdfSettings`
 
 ```ts
 interface PdfSettings {
   // ... clés existantes ...
 
-  // Axe A — pilote des marges horizontales
-  measureChars: number;          // 45-75, défaut 66
-
-  // Axe B — répartition canonique
+  // Bascule manuel / dérivé
   marginMode: 'manual' | 'derived';
-  marginCanon:
-    | 'van-de-graaf'
-    | 'tschichold-9'
-    | 'modern-book'
-    | 'golden';
 
-  // Axe C — position running content
-  headerOffset: number;          // mm, défaut 12
-  footerOffset: number;          // mm, défaut 12
+  // Les deux mesures qui paramètrent tout (en mode 'derived')
+  measureChars:  number;   // 45-75, défaut 66 (bloc-texte)
+  liveAreaChars: number;   // > measureChars, défaut 85 (live area)
 }
 ```
 
-Quand `marginMode === 'derived'`, les 4 sliders `margins.top/bottom/
-left/right` deviennent **read-only** et affichent les valeurs
-calculées en temps réel (recalcul à chaque changement de `pageSize`,
-`bodyFont`, `bodyFontSize`, `measureChars`, `marginCanon`, ou
-bascule `duplex` du §9.5). Un toggle bascule entre `manual` (override
-total) et `derived` (calculé).
+Les **bandes dérivées** (header, footer, gutters) et les **blancs
+canoniques** se déduisent intégralement des deux mesures + du format
+de page. Aucun réglage indépendant pour `headerHeight`, `footerHeight`,
+`outerTrim`, `topBlank`, etc. — ils sortent de la construction
+géométrique.
 
-Sans duplex (§9.5), `inner` et `outer` deviennent `left = right =
-(inner + outer) / 2` — la page est symétrique, le canon ne pilote
-que la *largeur* du bloc-texte, pas sa position horizontale.
+Si l'utilisateur veut un header plus haut, il **baisse** `liveAreaChars`
+(live area plus petite → header band plus grand par différence).
 
-#### 9.6.6. Présets et UX
+Quand `marginMode === 'derived'`, les 4 sliders `margins.*` deviennent
+**read-only** et affichent les valeurs calculées (recalcul à chaque
+changement de `pageSize`, `bodyFont`, `bodyFontSize`, `measureChars`,
+`liveAreaChars`, ou bascule `duplex` du §9.5).
+
+#### 9.6.8. Présets et UX
 
 L'enjeu UX est de ne **pas** noyer l'utilisateur sous les options
-typographiques. Trois niveaux d'exposition envisageables :
+typographiques. Trois niveaux d'exposition :
 
-1. **Présets prêts à l'emploi** dans une dropdown : « Note technique »,
-   « Rapport », « Livre relié », « Mémoire », « Article scientifique ».
-   Chaque preset choisit un (mode, canon, mesure, duplex,
-   chaptersOnRecto) cohérents. C'est la voie par défaut.
+1. **Présets prêts à l'emploi** dans une dropdown :
+
+| Preset | measure | liveArea | duplex | usage |
+| :--- | :--- | :--- | :--- | :--- |
+| Note technique     | 70 | 90 | non | mémo, doc interne |
+| Rapport            | 66 | 85 | non | rapport, livre blanc |
+| Article scientifique | 68 | 85 | non | article, paper |
+| Livre relié        | 60 | 80 | oui | livre, mémoire |
+| Édition critique   | 52 | 85 | oui | livre annoté Tufte (cf §9.7) |
+
+Chaque preset choisit un (`measureChars`, `liveAreaChars`, `duplex`,
+`chaptersOnRecto`, `marginalContent.enabled`) cohérent. C'est la voie
+par défaut.
+
 2. **Réglages avancés** dépliables (collapsible section) qui exposent
-   les 6 réglages individuels du §9.6.5 pour les utilisateurs qui
-   veulent ajuster.
-3. **Mode `manual`** — bypass total, les 4 sliders classiques.
+   les **deux mesures** pour ajustement fin par les utilisateurs qui
+   savent ce qu'ils font.
+3. **Mode `manual`** — bypass total, les 4 sliders classiques §9.1.
 
-#### 9.6.7. Vision
+#### 9.6.9. Vision
 
-Mis bout à bout, les §9.5 (duplex), §9.6 (marges dérivées), §20
+Mis bout à bout, les §9.5 (duplex), §9.6 (mise en page canonique), §20
 (polices) et §26 (header/footer) convergent vers un **PDF de qualité
 typographique professionnelle** depuis du Markdown nu. L'utilisateur
 écrit en Markdown, choisit un preset (« Livre relié », « Rapport »…),
-remplit éventuellement un header et un footer — et obtient un
-document que rien ne distingue d'un livre composé par un typographe.
+remplit éventuellement un header et un footer — et obtient un document
+que rien ne distingue d'un livre composé par un typographe.
 
 C'est la direction structurante de markpage : pas un convertisseur
-Markdown → HTML décoré, mais un **outil de mise en page paginée**
-qui prend en charge les décisions typographiques que l'auteur ne
-veut pas (ou ne peut pas) prendre lui-même.
+Markdown → HTML décoré, mais un **outil de mise en page paginée** qui
+prend en charge les décisions typographiques que l'auteur ne veut pas
+(ou ne peut pas) prendre lui-même.
+
+La **structure fractale Van de Graaf** — page ⊃ live area ⊃ bloc-texte,
+toutes similaires entre elles et alignées sur les mêmes diagonales — est
+la propriété qui rend cette automatisation possible avec si peu de
+paramètres (2 mesures + 1 booléen duplex). Plus on zoome, plus on voit
+la même structure. C'est typique des canons classiques, et c'est aussi
+ce qui distingue un document typographiquement maîtrisé d'un document
+fait au jugé.
 
 ### 9.7. Marges érudites (scholar's margin / Tufte)
 
@@ -1479,45 +1543,53 @@ veut pas (ou ne peut pas) prendre lui-même.
 > dérivées §9.6 — c'est un quatrième axe optionnel qui s'enclenche
 > proprement par-dessus le modèle existant.
 
-Layout typographique où la **marge extérieure** porte du contenu
-(notes en marge, petites figures, commentaires) plutôt que d'être
-un blanc passif. Popularisé à l'époque moderne par les livres
-d'Edward Tufte, c'est en réalité une tradition ancienne — manuscrits
-médiévaux glossés, éditions critiques humanistes, marginalia des
-incunables. Très lisible pour les textes denses en commentaires :
-l'œil reste sur la ligne principale, jette un regard latéral pour
-le commentaire, revient sans perdre le fil.
+Layout typographique où l'**outer gutter** de la live area (§9.6.4)
+porte du contenu (notes en marge, petites figures, commentaires)
+plutôt que d'être un blanc passif. Conséquence directe et simple du
+modèle live area : **pas de nouvelle géométrie** à concevoir, juste un
+changement d'usage de l'espace déjà disponible dans la live area.
 
-**Pour markpage** : c'est un layout *niche* (édition critique,
-essai scientifique annoté, livre technique style Tufte ou Knuth),
-mais qui rentre **proprement** dans le modèle §9.6 — un axe
-supplémentaire optionnel, désactivable, et qui réutilise la
-syntaxe Markdown existante.
+Popularisé à l'époque moderne par les livres d'Edward Tufte, c'est en
+réalité une tradition ancienne — manuscrits médiévaux glossés,
+éditions critiques humanistes, marginalia des incunables. Très lisible
+pour les textes denses en commentaires : l'œil reste sur la ligne
+principale, jette un regard latéral pour le commentaire, revient sans
+perdre le fil.
 
-#### 9.7.1. Décomposition horizontale en 5 zones
+**Pour markpage** : layout *niche* (édition critique, essai
+scientifique annoté, livre technique style Tufte ou Knuth), qui rentre
+**proprement** dans le modèle §9.6 — un quatrième axe optionnel,
+désactivable, et qui réutilise la syntaxe Markdown existante.
 
-Au lieu du modèle classique `binding | text-block | outer-trim`,
-on a `binding | text-block | gap | sidenote-area | outer-trim` :
+#### 9.7.1. Décomposition — l'outer gutter devient actif
 
-| Zone | Valeur typique (A4) | Rôle |
-| :--- | :--- | :--- |
-| `bindingMargin` | 18 mm | reliure pure, jamais d'encre |
-| `textBlock.width` | 100 mm | corps principal, mesure ~52 chars |
-| `sidenoteGap` | 5 mm | gutter visuel entre texte et marge active |
-| `marginalArea.width` | 60 mm | zone des sidenotes (mesure ~30 chars en plus petit corps) |
-| `outerTrim` | 27 mm | blanc final côté tranche |
+Quand `marginalContent.enabled === true`, l'outer gutter de la live
+area (`2·(x2_L − x2_T)` mm, cf. §9.6.4) se subdivise en deux
+sous-zones :
 
-Total largeur = 210 mm (A4). Les valeurs s'inversent en page paire
-(verso) : la sidenote zone passe à gauche, le binding à droite.
+| Zone     | Calcul                          | Rôle                              |
+| :------- | :------------------------------ | :-------------------------------- |
+| sidenote | outer gutter − gap              | contenu marginal                  |
+| gap      | `marginalContent.gap` (mm)      | gutter visuel texte ↔ sidenote    |
 
-![Layout scholar's margin (recto-verso), A4 avec sidenote-area de 60 mm](docs/img/scholar-margin-layout.svg)
+**Exemple A4 / mesure 52 / liveArea 85 / gap 5 mm** :
+
+- outer gutter (§9.6.4) = 2 · (240 − 218) = **44 mm**
+- gap = **5 mm**
+- sidenote = 44 − 5 = **39 mm** (mesure ~22 chars à corps 0.85 × 11 pt)
+
+→ Le levier mental pour ajuster la largeur de sidenote est de **choisir
+une mesure de texte plus étroite** (`measureChars` ↓ → outer gutter ↑
+→ sidenote ↑). Pas de réglage `sidenoteWidth` indépendant.
+
+![Layout scholar's margin avec live area canonique](docs/img/scholar-margin-layout.svg)
 
 **Mesure du bloc-texte étroite par design.** Avec une zone de
 commentaire latérale active, l'œil ne « court » plus jusqu'à 66
-caractères — il fait des allers-retours entre le texte principal et
-la marge. Un bloc-texte plus étroit (50-55 chars) aère cette
-lecture en zigzag. Comparer à Tufte (*Visual Display* : 56 chars
-texte, marge active ≈ 28 chars).
+caractères — il fait des allers-retours entre le texte principal et la
+marge. Un bloc-texte plus étroit (50-55 chars) aère cette lecture en
+zigzag. Comparer à Tufte (*Visual Display* : 56 chars texte, marge
+active ≈ 28 chars).
 
 #### 9.7.2. Schéma — additions à `PdfSettings`
 
@@ -1526,11 +1598,9 @@ interface PdfSettings {
   // ... clés §9.5 / §9.6 existantes ...
 
   marginalContent: {
-    enabled: boolean;       // active la scholar's margin (défaut false)
-    width: number;          // mm, largeur de la sidenote-area (défaut 40)
-    gap: number;            // mm, gutter texte-sidenote (défaut 5)
-    outerTrim: number;      // mm, blanc final côté tranche (défaut 20)
-    fontSizeRatio: number;  // taille du texte sidenote / corps (défaut 0.85)
+    enabled: boolean;      // active la scholar's margin (défaut false)
+    gap: number;            // mm, gutter texte ↔ sidenote (défaut 5)
+    fontSizeRatio: number;  // taille relative au corps (défaut 0.85)
   };
 
   notes: {
@@ -1540,46 +1610,36 @@ interface PdfSettings {
 }
 ```
 
-**Trois leviers indépendants** :
+**Trois paramètres seulement** au lieu de cinq dans la version
+précédente — `width` et `outerTrim` étaient explicites mais redondants
+avec la géométrie de la live area, et ont été supprimés.
+
+Trois leviers logiques restent indépendants :
 
 1. `marginalContent.enabled` ouvre la **zone** de marge active —
    sans en imposer un contenu spécifique.
 2. `notes.position = 'side'` y place les **notes de bas de page**
    (le contenu le plus fréquent).
-3. Les **figures à classe `.margin`** (cf. §9.7.4) y placent les
+3. Les **figures à classe `.margin`** (cf. §9.7.5) y placent les
    illustrations latérales.
 
-Ce découplage permet par exemple d'avoir une scholar's margin
-**vide** côté notes (`notes.position = 'foot'`) mais qui héberge
-des margin figures — combinaison possible chez certains éditeurs.
+Ce découplage permet par exemple d'avoir une scholar's margin **vide
+côté notes** (`notes.position = 'foot'`) mais qui héberge des margin
+figures — combinaison possible chez certains éditeurs.
 
-#### 9.7.3. Interaction avec §9.6 — recalcul des marges
+#### 9.7.3. Auto-swap recto/verso
 
-Quand `marginalContent.enabled === true`, le calcul du §9.6
-absorbe les zones supplémentaires dans la marge extérieure
-existante :
+L'outer gutter de la live area est, par définition canonique, **côté
+extérieur** sur chaque page :
 
-```text
-outerMargin_total = sidenoteGap + marginalArea.width + outerTrim
-                  = 5            + 40                + 20         = 65 mm
-```
+- Sur **recto** (impair) : outer gutter à droite (loin reliure) → sidenote à droite.
+- Sur **verso** (pair) en mode duplex : outer gutter à gauche → sidenote à gauche.
 
-Le `outerMargin` produit par le canon (§9.6.3) devient un
-**budget** à répartir en trois sous-zones, pas un blanc unique.
-Conséquence : la largeur du bloc-texte se rétrécit
-mécaniquement par rapport au mode §9.6 nu (parce qu'on consomme
-de la place horizontale pour la zone sidenote).
-
-Si l'utilisateur veut conserver la largeur de bloc-texte du §9.6
-intacte tout en ajoutant la zone sidenote, il a deux choix :
-
-- Baisser `measureChars` (§9.6.2) — explicite, recommandé.
-- Augmenter le format de page (A4 → Letter wide, ou A3 plié) —
-  rarement pertinent.
-
-Le validateur du formulaire Réglages alerte quand le total des
-zones dépasse la largeur page disponible (page − bindingMargin
-< textBlock + outerMargin_total).
+C'est l'équivalent de la convention `outer-right` du running content
+(§9.6.6). En mode duplex (§9.5), le pipeline d'implémentation §9.7.5
+inverse automatiquement le `left` / `right` du positionnement absolu
+selon la parité — l'auteur n'écrit le contenu qu'**une seule fois**,
+les sidenotes apparaissent du bon côté de chaque page sans intervention.
 
 #### 9.7.4. Réutilisation de la syntaxe footnote (§17)
 
@@ -1624,8 +1684,9 @@ une classe Pandoc-style :
 
 La classe `.margin` est captée par le renderer et l'image est
 placée en marge à hauteur du paragraphe d'ancrage, avec largeur
-auto-bornée par `marginalArea.width`. Pas de wrapping de texte —
-l'image occupe sa propre ligne dans la marge.
+auto-bornée par la **sidenote-area dérivée** (§9.7.1, = outer gutter
+− gap). Pas de wrapping de texte — l'image occupe sa propre ligne
+dans la marge.
 
 Pour une image qui veut traverser texte + marge (full-bleed
 horizontal), une autre classe : `{.fullwidth}`. Hors v1.
@@ -1646,12 +1707,14 @@ relatif au paragraphe d'ancrage.
    l'ancre, dans le même paragraphe. Plus de section regroupée en
    bas de page.
 2. **CSS de positionnement** — `.sidenote { position: absolute;
-   width: <marginalArea.width>mm; left: calc(100% + <gap>mm); }`,
-   en s'appuyant sur un `position: relative` posé sur le
+   width: <sidenoteArea>mm; left: calc(100% + <gap>mm); }`, où
+   `<sidenoteArea>` est la valeur dérivée du §9.7.1 (outer gutter
+   − gap). On s'appuie sur un `position: relative` posé sur le
    conteneur `.text-column` ou directement sur chaque `<p>`.
 3. **Sensibilité duplex** — sur page paire (verso), inverser
    gauche/droite via `@page :left .sidenote { left: auto; right:
-   calc(100% + <gap>mm); }`.
+   calc(100% + <gap>mm); }`. Cohérent avec l'auto-swap `inner-left`
+   / `outer-right` des slots de running content §9.6.6.
 4. **Collision detection (JS post-pass)** — deux sidenotes
    proches verticalement se chevauchent. Une passe DOM après
    pagination paged.js mesure les rectangles et pousse vers le bas
@@ -1663,29 +1726,27 @@ relatif au paragraphe d'ancrage.
 
 #### 9.7.7. UX — preset « Édition critique »
 
-Dans la dropdown de présets (§9.6.6), ajout d'une entrée :
+Dans la dropdown de présets (§9.6.8), entrée :
 
 ```ts
 Édition critique  →  {
   marginMode: 'derived',
-  marginCanon: 'tschichold-9',
-  measureChars: 52,
-  marginalContent: { enabled: true, width: 40, gap: 5, outerTrim: 20,
-                     fontSizeRatio: 0.85 },
+  measureChars: 52,           // texte étroit
+  liveAreaChars: 85,          // live area large
+  marginalContent: { enabled: true, gap: 5, fontSizeRatio: 0.85 },
   notes: { position: 'side', numbered: false },
   duplex: true,
   chaptersOnRecto: true,
 }
 ```
 
-Un clic dans la dropdown — l'utilisateur passe d'un rapport
-classique à une édition critique Tufte-style. Aucune option
-typo à comprendre.
+Un clic dans la dropdown — l'utilisateur passe d'un rapport classique
+à une édition critique Tufte-style. Aucune option typo à comprendre.
 
 Préserver le découplage : un utilisateur avancé peut partir de
-« Livre relié », cocher `marginalContent.enabled`, ajuster la
-largeur, sans toucher au reste. La granularité préset / réglages
-fins est cumulative.
+« Livre relié », cocher `marginalContent.enabled`, baisser sa
+`measureChars` pour élargir la sidenote, sans toucher au reste. La
+granularité préset / réglages fins est cumulative.
 
 #### 9.7.8. Limites assumées
 
@@ -3576,8 +3637,7 @@ traitement des autres blocs spécialisés (`mermaid`, `chart`, `sender`,
 
 ### 26.2. Surface utilisateur
 
-Trois slots par bande (gauche / centre / droite), séparés par `|` sur
-**une ligne** :
+Trois slots par bande, séparés par `|` sur **une ligne** :
 
 ````
 ```header
@@ -3596,6 +3656,23 @@ Pipe littéral : `\|` (échappement antislash).
 Le formatage inline standard est supporté à l'intérieur de chaque
 slot, via le même mini-formateur regex local que les letterheads
 (§25) : `**gras**`, `*italique*`, `[texte](url)`, `![alt](url)`.
+
+**Alphabet sémantique des slots** : les trois positions canoniques
+s'appellent **`inner-left | center | outer-right`** (cf. §9.6.6 pour
+la justification typographique).
+
+- Sans mode duplex (§9.5) : `inner-left` se rend littéralement à
+  gauche, `outer-right` littéralement à droite. L'utilisateur peut
+  raisonner en termes de left/right sans rien apprendre de neuf.
+- En mode duplex : `inner-left` reste « côté reliure » (gauche sur
+  recto, **droite sur verso**), `outer-right` reste « côté extérieur »
+  (droite sur recto, **gauche sur verso**). L'auto-swap est silencieux —
+  l'auteur écrit la fence une seule fois.
+
+Conséquence pratique : un folio écrit dans le slot de droite
+(`outer-right`) atterrit automatiquement du bon côté du livre relié
+(extérieur de la reliure) sans nécessiter une `header even` séparée
+(§26.4).
 
 ### 26.3. Variables substituées
 
