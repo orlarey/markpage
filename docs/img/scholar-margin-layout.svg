@@ -9,8 +9,9 @@
   <desc>
     A4 spread, Van de Graaf canon, scholar's margin layout. Same nested-rectangle
     construction as docs/img/recto-verso-layout.svg, but here the live area's
-    outer gutter is wide enough (44 mm) to host a sidenote area (39 mm) plus a
-    5 mm gap to the text block. Header / footer bands are taller because the
+    outer gutter is wide enough (44 mm) to host a sidenote area (38.5 mm)
+    plus a 5.5 mm gap to the text block — both derived from the canon
+    (gap = innerGutter / 4, sidenote = outerGutter − gap). Header / footer bands are taller because the
     text block is narrower (52 chars instead of 66). All eight corners of the
     two rectangles lie on the four construction diagonals.
   </desc>
@@ -60,7 +61,8 @@
            top-outer = (75, 71), bottom-inner = (240, 304), width 165, height 233
 
          Outer gutter width = 2·(x2_L − x2_T) = 44 mm
-           → split into sidenote (39 mm) + gap (5 mm)
+           → split into sidenote (38.5 mm) + gap (5.5 mm)
+             where gap = innerGutter / 4 (also derived from the canon)
          Inner gutter        = (x2_L − x2_T)   = 22 mm
 
          Bands (smaller text → wider bands than recto-verso-layout):
@@ -84,7 +86,7 @@
     <rect class="gutter" x="218" y="102" width="22" height="140"/>
 
     <!--
-         Outer gutter (44 mm wide on verso = sidenote 39 + gap 5):
+         Outer gutter (44 mm wide on verso = sidenote 38.5 + gap 5.5):
          Sidenote area: x = 75..114, gap = 114..119 (gap stays plain page).
     -->
     <rect class="sidenote-area" x="75" y="102" width="39" height="140"/>
@@ -163,7 +165,7 @@
     <rect class="gutter" x="270" y="102" width="22" height="140"/>
 
     <!-- Sidenote area on the outer side of recto (right):
-         text outer at 391, then 5 mm gap, then sidenote 39 mm to live-outer 435 -->
+         text outer at 391, then 5.5 mm gap, then sidenote 38.5 mm to live-outer 435 -->
     <rect class="sidenote-area" x="396" y="102" width="39" height="140"/>
 
     <!-- Sample sidenote text -->
@@ -271,15 +273,17 @@
     <text x="0" y="123" class="t-legend">footer band  = 62</text>
 
     <text x="0" y="140" class="t-legend-h">Sidenote</text>
-    <text x="0" y="151" class="t-legend">sidenote = outer</text>
-    <text x="0" y="159" class="t-legend">gutter − gap</text>
-    <text x="0" y="167" class="t-formula">= 44 − 5 = 39 mm</text>
+    <text x="0" y="151" class="t-legend">gap = innerGutter/4</text>
+    <text x="0" y="159" class="t-formula">= 22/4 = 5.5 mm</text>
+    <text x="0" y="170" class="t-legend">sidenote = outer</text>
+    <text x="0" y="178" class="t-legend">  gutter − gap</text>
+    <text x="0" y="186" class="t-formula">= 44 − 5.5 = 38.5</text>
 
-    <text x="0" y="184" class="t-legend-h">Vrais blancs</text>
-    <text x="0" y="194" class="t-legend">trim ext.  30 mm</text>
-    <text x="0" y="202" class="t-legend">reliure    15 mm</text>
-    <text x="0" y="210" class="t-legend">haut       21 mm</text>
-    <text x="0" y="218" class="t-legend">bas        43 mm</text>
+    <text x="0" y="203" class="t-legend-h">Vrais blancs</text>
+    <text x="0" y="213" class="t-legend">trim ext.  30 mm</text>
+    <text x="0" y="221" class="t-legend">reliure    15 mm</text>
+    <text x="0" y="229" class="t-legend">haut       21 mm</text>
+    <text x="0" y="237" class="t-legend">bas        43 mm</text>
   </g>
 
   <!-- ====================  Swatch legend  ==================== -->

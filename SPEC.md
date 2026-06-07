@@ -1578,24 +1578,39 @@ perdre le fil.
 #### 9.7.1. Décomposition — l'outer gutter accueille du contenu
 
 L'outer gutter de la live area (`2·(x2_L − x2_T)` mm, cf. §9.6.4) se
-décompose en deux sous-zones figées, pilotées par des **constantes
-internes** (pas de réglages utilisateur — défauts typographiques
-sensés, modifiables uniquement en code) :
+décompose en deux sous-zones **toutes deux dérivées du canon** —
+aucun setting utilisateur, aucune constante magique :
 
-| Zone     | Calcul                       | Rôle                              |
-| :------- | :--------------------------- | :-------------------------------- |
-| sidenote | outer gutter − gap           | contenu marginal                  |
-| gap      | constante 5 mm               | gutter visuel texte ↔ sidenote    |
+| Zone     | Calcul                                  | Rôle                              |
+| :------- | :-------------------------------------- | :-------------------------------- |
+| gap      | `innerGutter / 4`                       | gutter visuel texte ↔ sidenote    |
+| sidenote | `outer gutter − gap`                    | contenu marginal                  |
+
+Le **gap dérive de l'inner gutter** : il est proportionnel à l'écart
+canonique entre les deux rectangles imbriqués. Conséquence : il
+*scale* automatiquement avec les choix de mesure — si l'utilisateur
+élargit l'inner gutter (live area plus grande), le gap suit, et la
+sidenote-area garde un rapport visuel cohérent avec son entourage.
 
 **Exemple A4 / mesure 52 / liveArea 85** :
 
 - outer gutter (§9.6.4) = 2 · (240 − 218) = **44 mm**
-- gap (constante) = **5 mm**
-- sidenote = 44 − 5 = **39 mm** (mesure ~22 chars à corps 0.85 × 11 pt)
+- inner gutter (§9.6.4) = 240 − 218 = **22 mm**
+- gap = 22 / 4 = **5.5 mm**
+- sidenote = 44 − 5.5 = **38.5 mm** (mesure ~22 chars à corps 0.85 × 11 pt)
 
-→ Le levier mental pour ajuster la largeur de sidenote est de **choisir
-une mesure de texte plus étroite** (`measureChars` ↓ → outer gutter ↑
-→ sidenote ↑). Pas de réglage `sidenoteWidth` indépendant.
+Vérification du *scaling* sur d'autres configurations :
+
+| measure / liveArea | inner gutter | gap | sidenote |
+| :--- | :--- | :--- | :--- |
+| 66 / 85 (rapport, sans scholar) | 12 mm | 3 mm | 21 mm |
+| 60 / 80 (livre relié)           | 17 mm | 4.3 mm | 29.7 mm |
+| 52 / 85 (édition critique)      | 22 mm | 5.5 mm | 38.5 mm |
+| 50 / 90 (Tufte généreux)        | 31 mm | 7.8 mm | 54.2 mm |
+
+→ Le levier mental pour ajuster la largeur de sidenote reste de
+**choisir une mesure de texte plus étroite** (`measureChars` ↓ → outer
+gutter ↑ → sidenote ↑). Le gap suit automatiquement.
 
 ![Layout scholar's margin avec live area canonique](docs/img/scholar-margin-layout.svg)
 
@@ -1626,9 +1641,11 @@ de ce design — la simplification finale absorbe tout dans le canon :
   `{.margin}` sur images.
 - `marginalContent.width`, `marginalContent.outerTrim` → supprimés ;
   dérivés du canon (§9.6.4).
-- `marginalContent.gap`, `marginalContent.fontSizeRatio` → déplacés en
-  **constantes internes** (5 mm, 0.85). Modifiables en code, pas par
-  l'utilisateur — pas de cas d'usage qui le justifie.
+- `marginalContent.gap` → supprimé ; **dérivé du canon** en
+  `innerGutter / 4` (§9.7.1). Scale avec les choix de mesure.
+- `marginalContent.fontSizeRatio` → déplacé en **constante interne**
+  (0.85). Modifiable en code seulement — pas de cas d'usage qui
+  justifie un réglage utilisateur.
 - `notes.numbered` → supprimé ; dérivé de `notes.position` :
   `'side'` → marqueur off (proximité visuelle suffit), `'foot'` et
   `'end'` → marqueur on (convention).
@@ -1713,15 +1730,16 @@ relatif au paragraphe d'ancrage.
    l'ancre, dans le même paragraphe. Plus de section regroupée en
    bas de page.
 2. **CSS de positionnement** — `.sidenote { position: absolute;
-   width: <sidenoteArea>mm; left: calc(100% + 5mm); font-size: 0.85em; }`,
-   où `<sidenoteArea>` est la valeur dérivée du §9.7.1 (outer gutter
-   − 5 mm) et où le `5mm` (gap) et le `0.85em` (font ratio) sont des
-   **constantes internes** §9.7.1, pas des réglages utilisateur. On
+   width: <sidenoteArea>mm; left: calc(100% + <gap>mm); font-size: 0.85em; }`,
+   où `<sidenoteArea>` et `<gap>` sont des valeurs **calculées
+   dynamiquement** depuis le canon (§9.7.1) : `gap = innerGutter / 4`
+   et `sidenoteArea = outerGutter − gap`. Le `0.85em` (font ratio)
+   reste la seule constante interne, modifiable en code seulement. On
    s'appuie sur un `position: relative` posé sur le conteneur
    `.text-column` ou directement sur chaque `<p>`.
 3. **Sensibilité duplex** — sur page paire (verso), inverser
    gauche/droite via `@page :left .sidenote { left: auto; right:
-   calc(100% + 5mm); }`. Cohérent avec l'auto-swap `inner-left` /
+   calc(100% + <gap>mm); }`. Cohérent avec l'auto-swap `inner-left` /
    `outer-right` des slots de running content §9.6.6.
 4. **Collision detection (JS post-pass)** — deux sidenotes
    proches verticalement se chevauchent. Une passe DOM après
