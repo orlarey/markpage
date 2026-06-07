@@ -1271,6 +1271,206 @@ héritent du header/footer courant — comportement neutre, à
 l'utilisateur de poser un `header blank` vide s'il veut les laisser
 nues.
 
+### 9.6. Mise en page typographique (marges dérivées, canons, running content)
+
+> **État** : design seul à ce stade — backlog après les Phases 2-3 du
+> chantier header/footer (§26.10).
+
+L'objectif de markpage à long terme est de produire un **PDF de
+qualité typographique** sans demander à l'utilisateur de comprendre
+la typographie. Le §9.1 actuel expose 4 marges manuelles — c'est
+suffisant pour de la note technique ou un mémo, insuffisant pour un
+livre, un mémoire, un rapport de qualité éditoriale. Ce §9.6 décrit
+le modèle complet à terme.
+
+#### 9.6.1. Vue d'ensemble — trois axes indépendants
+
+| Axe | Pilote | Décisions |
+| :--- | :--- | :--- |
+| **A. Mesure** (line length) | `measureChars` (45-75, défaut 66) | Largeur du bloc-texte → marges horizontales |
+| **B. Canon** (proportions) | `marginCanon` (van-de-graaf / tschichold-9 / modern-book / golden) | Répartition inner/outer, hauteur bloc-texte → marges verticales |
+| **C. Running content** | `headerOffset`, `footerOffset` (mm, défaut 12) | Position du header/footer dans la marge |
+
+Les trois axes se combinent : la mesure et le canon **déterminent les
+marges**, le running offset **occupe une portion de ces marges**. Tant
+que `offset < margin`, tout coexiste sans conflit.
+
+#### 9.6.2. Axe A — la mesure pilote tout
+
+La **mesure** (caractères par ligne, *measure* / *line length* en
+typo anglo-saxonne) est la contrainte fondamentale de lisibilité.
+Bringhurst donne 45-75 caractères pour du texte continu en une
+colonne, avec 66 comme cible canonique.
+
+Chaîne de calcul :
+
+```
+charWidth_mm   = measureAverageCharWidth(bodyFont, bodyFontSize)
+textBlockWidth = measureChars × charWidth_mm
+horizontalMargins = pageWidth − textBlockWidth
+```
+
+`measureAverageCharWidth` utilise `canvas.measureText` sur une
+chaîne représentative (`'abcdefghijklmnopqrstuvwxyz'` divisé par 26)
+pour obtenir 1-2 % de précision. Heuristique de secours quand la
+fonte n'est pas encore chargée : `0.5 × bodyFontSize` (correct pour
+la plupart des serif).
+
+**Exemple A4, Source Serif 11pt, 66 caractères** :
+
+- `charWidth_mm` ≈ 1.94 mm
+- `textBlockWidth` = 66 × 1.94 = **128 mm**
+- `horizontalMargins` = 210 − 128 = **82 mm** à répartir inner/outer
+
+#### 9.6.3. Axe B — le canon répartit
+
+Le canon prend la décision de **comment répartir** les marges
+horizontales et verticales calculées au point A.
+
+| Canon | inner : top : outer : bottom | Origine |
+| :--- | :--- | :--- |
+| `manual` | (4 sliders, ratios libres) | comportement §9.1 actuel |
+| `van-de-graaf` | 1 : 1.5 : 2 : 3 | Manuscrits XVe siècle (Tschichold) |
+| `tschichold-9` | 1/9 : 2/9 : 2/9 : 4/9 | division simple en 9 parts |
+| `modern-book` | 1 : 1.2 : 1.4 : 1.8 | proportions tighter, livres contemporains |
+| `golden` | 1 : 1.618 : 1.618 : 2.618 | nombre d'or |
+
+Pour le canon, la hauteur du bloc-texte respecte par défaut
+l'**aspect ratio de la page** (rectangle similaire — Van de Graaf
+canonique), ce qui donne aussi la répartition top/bottom :
+
+```text
+textBlockHeight = textBlockWidth × (pageHeight / pageWidth)
+verticalMargins = pageHeight − textBlockHeight
+top    = verticalMargins × (canon.top / (canon.top + canon.bottom))
+bottom = verticalMargins × (canon.bottom / (canon.top + canon.bottom))
+```
+
+**Suite de l'exemple A4 / Van de Graaf / 66 char** :
+
+- `textBlockHeight` = 128 × (297/210) = **181 mm**
+- `verticalMargins` = 297 − 181 = **116 mm**
+- `top` = 116 × (1.5 / 4.5) = **39 mm**
+- `bottom` = 116 × (3 / 4.5) = **77 mm**
+- `inner` = 82 × (1 / 3) = **27 mm**
+- `outer` = 82 × (2 / 3) = **55 mm**
+
+Vérification lisibilité : 181 mm / (11pt × 1.4 interligne × 0.3528 mm/pt) ≈ **33 lignes par page**, dans le sweet spot livre (30-40).
+
+#### 9.6.4. Axe C — running content dans la marge
+
+Le header CSS Paged Media occupe les boxes `@top-*`, qui **vivent dans
+la marge supérieure** (cf. §26). Idem footer dans `@bottom-*` et la
+marge inférieure. Les running boxes ne s'**ajoutent** pas à la marge
+— elles la peuplent partiellement.
+
+Convention typographique : le header est placé **près du bord de la
+page** (10-15 mm), laissant le reste de la marge supérieure comme
+respiration avant le bloc-texte. La dissymétrie est volontaire — le
+header doit être perçu comme appartenant à l'architecture de page,
+pas au corps :
+
+```text
+┌──────────────────────────┐  ← bord page (y = 0)
+│                          │
+│  ← headerOffset (12 mm)  │
+│ Header text              │  ← header baseline
+│                          │
+│  ← respiration           │
+│                          │
+├──────────────────────────┤  ← haut bloc-texte (y = top margin)
+│  bloc-texte              │
+```
+
+Deux constantes (mm) ajoutées à `PdfSettings` :
+
+```ts
+headerOffset: number  // bord-page → baseline header (défaut 12)
+footerOffset: number  // baseline footer → bord-page (défaut 12)
+```
+
+Implémentation CSS via padding sur les boxes du `@page` :
+
+```css
+@top-center {
+  vertical-align: top;
+  padding-top: <headerOffset>mm;
+}
+@bottom-center {
+  vertical-align: bottom;
+  padding-bottom: <footerOffset>mm;
+}
+```
+
+**Contrainte d'intégrité** : `headerOffset < topMargin` et
+`footerOffset < bottomMargin`. Sinon le running content chevauche le
+bloc-texte. Le validateur du formulaire Réglages émet un warning rouge
+explicite et bloque la sauvegarde — pas de correction silencieuse,
+l'utilisateur doit comprendre le conflit pour le résoudre (réduire
+l'offset, agrandir la marge, ou changer de canon).
+
+#### 9.6.5. Schéma — additions à `PdfSettings`
+
+```ts
+interface PdfSettings {
+  // ... clés existantes ...
+
+  // Axe A — pilote des marges horizontales
+  measureChars: number;          // 45-75, défaut 66
+
+  // Axe B — répartition canonique
+  marginMode: 'manual' | 'derived';
+  marginCanon:
+    | 'van-de-graaf'
+    | 'tschichold-9'
+    | 'modern-book'
+    | 'golden';
+
+  // Axe C — position running content
+  headerOffset: number;          // mm, défaut 12
+  footerOffset: number;          // mm, défaut 12
+}
+```
+
+Quand `marginMode === 'derived'`, les 4 sliders `margins.top/bottom/
+left/right` deviennent **read-only** et affichent les valeurs
+calculées en temps réel (recalcul à chaque changement de `pageSize`,
+`bodyFont`, `bodyFontSize`, `measureChars`, `marginCanon`, ou
+bascule `duplex` du §9.5). Un toggle bascule entre `manual` (override
+total) et `derived` (calculé).
+
+Sans duplex (§9.5), `inner` et `outer` deviennent `left = right =
+(inner + outer) / 2` — la page est symétrique, le canon ne pilote
+que la *largeur* du bloc-texte, pas sa position horizontale.
+
+#### 9.6.6. Présets et UX
+
+L'enjeu UX est de ne **pas** noyer l'utilisateur sous les options
+typographiques. Trois niveaux d'exposition envisageables :
+
+1. **Présets prêts à l'emploi** dans une dropdown : « Note technique »,
+   « Rapport », « Livre relié », « Mémoire », « Article scientifique ».
+   Chaque preset choisit un (mode, canon, mesure, duplex,
+   chaptersOnRecto) cohérents. C'est la voie par défaut.
+2. **Réglages avancés** dépliables (collapsible section) qui exposent
+   les 6 réglages individuels du §9.6.5 pour les utilisateurs qui
+   veulent ajuster.
+3. **Mode `manual`** — bypass total, les 4 sliders classiques.
+
+#### 9.6.7. Vision
+
+Mis bout à bout, les §9.5 (duplex), §9.6 (marges dérivées), §20
+(polices) et §26 (header/footer) convergent vers un **PDF de qualité
+typographique professionnelle** depuis du Markdown nu. L'utilisateur
+écrit en Markdown, choisit un preset (« Livre relié », « Rapport »…),
+remplit éventuellement un header et un footer — et obtient un
+document que rien ne distingue d'un livre composé par un typographe.
+
+C'est la direction structurante de markpage : pas un convertisseur
+Markdown → HTML décoré, mais un **outil de mise en page paginée**
+qui prend en charge les décisions typographiques que l'auteur ne
+veut pas (ou ne peut pas) prendre lui-même.
+
 ## 10. Aide intégrée
 
 - Le tutoriel `src/HELP.md` est bundlé via `import helpMd from './HELP.md?raw'`.
