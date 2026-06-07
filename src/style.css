@@ -2116,6 +2116,30 @@ figure.captioned > pre {
   font: inherit;
 }
 
+/* Inline validation messages rendered inside a settings section
+   beneath the fields they refer to. Surfaced by
+   `buildLayoutValidationMessages` in settings-form.ts. Warnings are
+   informational (the configuration still renders), errors block save
+   in the §9.6 derived-margins flow. */
+.settings-panel .field-warning,
+.settings-panel .field-error {
+  margin: 0.2rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+.settings-panel .field-warning {
+  background: #fff7e0;
+  color: #6a4b00;
+  border-left: 3px solid #d68a00;
+}
+.settings-panel .field-error {
+  background: #ffe9e6;
+  color: #7a0e00;
+  border-left: 3px solid #c0392b;
+}
+
 /* ---- Syntax-highlighted code blocks (highlight.js) -------------- */
 
 /* highlight.js wraps each fenced code block in

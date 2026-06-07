@@ -23,6 +23,11 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // markpage auto-detects the UI language from navigator.language on
+    // first launch. Pin French so the e2e tests can target the FR
+    // strings exposed by the Settings rail (matches the strings.ts
+    // table they assert against).
+    locale: 'fr-FR',
   },
   projects: [
     {

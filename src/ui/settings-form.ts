@@ -22,10 +22,12 @@ import {
   PAGE_SIZES,
   PAGE_SIZE_LABELS,
   WEIGHT_OPTIONS,
+  validateLayoutSettings,
   type Align,
   type AttrName,
   type DateMode,
   type ElementKey,
+  type LayoutValidationIssue,
   type MetadataField,
   type PageNumberPosition,
   type PdfSettings,
@@ -305,6 +307,11 @@ export function buildSettingsForm(
                 ),
               ]),
             ],
+          },
+          {
+            id: 'doc-layout',
+            label: t('settings.section.layout'),
+            build: () => buildLayoutSection(),
           },
           {
             id: 'doc-metadata',
@@ -688,6 +695,236 @@ export function buildSettingsForm(
   interface NumberFieldOptions {
     disabled?: boolean;
     step?: number;
+  }
+
+  // ---- §9.5 / §9.6 / §9.7 layout settings ---------------------------
+  //
+  // Five orthogonal levers exposed plus a preset dropdown. The preset
+  // detector reverse-maps the current PdfSettings to a preset id when
+  // every relevant field matches one of the curated bundles (§9.6.8) —
+  // the dropdown shows that id; otherwise it shows "Custom".
+
+  type LayoutPresetId =
+    | 'tech-note'
+    | 'report'
+    | 'paper'
+    | 'book'
+    | 'critical';
+
+  const LAYOUT_PRESETS: readonly LayoutPresetId[] = [
+    'tech-note',
+    'report',
+    'paper',
+    'book',
+    'critical',
+  ] as const;
+
+  interface LayoutPresetBundle {
+    marginMode: PdfSettings['marginMode'];
+    measureChars: number;
+    liveAreaChars: number;
+    duplex: boolean;
+    chapterBreak: PdfSettings['chapterBreak'];
+    notesPosition: PdfSettings['notes']['position'];
+  }
+
+  const LAYOUT_PRESET_BUNDLES: Record<LayoutPresetId, LayoutPresetBundle> = {
+    'tech-note': {
+      marginMode: 'derived',
+      measureChars: 70,
+      liveAreaChars: 90,
+      duplex: false,
+      chapterBreak: 'none',
+      notesPosition: 'foot',
+    },
+    'report': {
+      marginMode: 'derived',
+      measureChars: 66,
+      liveAreaChars: 85,
+      duplex: false,
+      chapterBreak: 'none',
+      notesPosition: 'foot',
+    },
+    'paper': {
+      marginMode: 'derived',
+      measureChars: 68,
+      liveAreaChars: 85,
+      duplex: false,
+      chapterBreak: 'none',
+      notesPosition: 'end',
+    },
+    'book': {
+      marginMode: 'derived',
+      measureChars: 60,
+      liveAreaChars: 80,
+      duplex: true,
+      chapterBreak: 'next-recto',
+      notesPosition: 'foot',
+    },
+    'critical': {
+      marginMode: 'derived',
+      measureChars: 52,
+      liveAreaChars: 85,
+      duplex: true,
+      chapterBreak: 'next-recto',
+      notesPosition: 'side',
+    },
+  };
+
+  function detectActiveLayoutPreset(s: PdfSettings): LayoutPresetId | null {
+    for (const id of LAYOUT_PRESETS) {
+      const p = LAYOUT_PRESET_BUNDLES[id];
+      if (
+        s.marginMode === p.marginMode &&
+        s.measureChars === p.measureChars &&
+        s.liveAreaChars === p.liveAreaChars &&
+        s.duplex === p.duplex &&
+        s.chapterBreak === p.chapterBreak &&
+        s.notes.position === p.notesPosition
+      ) {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  function applyLayoutPreset(s: PdfSettings, id: LayoutPresetId): void {
+    const p = LAYOUT_PRESET_BUNDLES[id];
+    s.marginMode = p.marginMode;
+    s.measureChars = p.measureChars;
+    s.liveAreaChars = p.liveAreaChars;
+    s.duplex = p.duplex;
+    s.chapterBreak = p.chapterBreak;
+    s.notes = { position: p.notesPosition };
+  }
+
+  /**
+   * Purpose: Render the "Mise en page" rail section — five lever inputs
+   *   plus a preset dropdown plus inline validation feedback.
+   * How: The `marginMode` selector gates whether `measureChars` /
+   *   `liveAreaChars` are editable (only meaningful in 'derived' mode).
+   *   Validation issues from `validateLayoutSettings` are rendered as
+   *   inline `<p>` warnings/errors below the section so the user sees
+   *   the conflict in context.
+   */
+  function buildLayoutSection(): HTMLElement[] {
+    const issues = validateLayoutSettings(current);
+    const derived = current.marginMode === 'derived';
+    return [
+      section(t('settings.section.layout'), [
+        // Preset dropdown — '' = Custom (current config does not match any).
+        selectField<LayoutPresetId | ''>(
+          t('settings.field.preset'),
+          ['', ...LAYOUT_PRESETS],
+          detectActiveLayoutPreset(current) ?? '',
+          (v) => {
+            if (v === '') return; // 'Custom' is read-only; selecting it does nothing.
+            applyLayoutPreset(current, v);
+            emit();
+            refresh();
+          },
+          (v) =>
+            v === ''
+              ? t('settings.preset.none')
+              : t(`settings.preset.${v}` as 'settings.preset.report'),
+        ),
+        selectField<PdfSettings['marginMode']>(
+          t('settings.field.margin-mode'),
+          ['manual', 'derived'],
+          current.marginMode,
+          (v) => {
+            current.marginMode = v;
+            emit();
+            refresh();
+          },
+          (v) =>
+            t(
+              `settings.field.margin-mode.${v}` as 'settings.field.margin-mode.manual',
+            ),
+        ),
+        numberField(
+          t('settings.field.measure-chars'),
+          current.measureChars,
+          30,
+          100,
+          (v) => {
+            current.measureChars = v;
+            emit();
+            refresh();
+          },
+          { disabled: !derived },
+        ),
+        numberField(
+          t('settings.field.live-area-chars'),
+          current.liveAreaChars,
+          35,
+          120,
+          (v) => {
+            current.liveAreaChars = v;
+            emit();
+            refresh();
+          },
+          { disabled: !derived },
+        ),
+        checkboxField(
+          t('settings.field.duplex'),
+          current.duplex,
+          (v) => {
+            current.duplex = v;
+            emit();
+            refresh(); // Preset detection depends on duplex.
+          },
+        ),
+        selectField<PdfSettings['chapterBreak']>(
+          t('settings.field.chapter-break'),
+          ['none', 'next-page', 'next-recto'],
+          current.chapterBreak,
+          (v) => {
+            current.chapterBreak = v;
+            emit();
+            refresh();
+          },
+          (v) =>
+            t(
+              `settings.field.chapter-break.${v}` as 'settings.field.chapter-break.none',
+            ),
+        ),
+        selectField<PdfSettings['notes']['position']>(
+          t('settings.field.notes-position'),
+          ['foot', 'side', 'end'],
+          current.notes.position,
+          (v) => {
+            current.notes = { position: v };
+            emit();
+            refresh();
+          },
+          (v) =>
+            t(
+              `settings.field.notes-position.${v}` as 'settings.field.notes-position.foot',
+            ),
+        ),
+        ...buildLayoutValidationMessages(issues),
+      ]),
+    ];
+  }
+
+  /**
+   * Purpose: Render the validation issues from `validateLayoutSettings`
+   *   as inline messages beneath the section's fields.
+   * How: One `<p>` per issue, classed `field-warning` or `field-error`
+   *   so the existing settings stylesheet can colour-code them. Empty
+   *   issues list → empty fragment (no chrome on a healthy config).
+   */
+  function buildLayoutValidationMessages(
+    issues: LayoutValidationIssue[],
+  ): HTMLElement[] {
+    return issues.map((issue) => {
+      const p = doc.createElement('p');
+      p.className =
+        issue.severity === 'error' ? 'field-error' : 'field-warning';
+      p.textContent = issue.message;
+      return p;
+    });
   }
 
   function numberField(
