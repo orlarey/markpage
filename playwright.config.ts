@@ -28,6 +28,11 @@ export default defineConfig({
     // strings exposed by the Settings rail (matches the strings.ts
     // table they assert against).
     locale: 'fr-FR',
+    // Some tests inject doc content via `navigator.clipboard.writeText`
+    // + Ctrl+V to avoid CodeMirror's auto-pair / ligatures. The
+    // `clipboard-write` permission must be granted explicitly under
+    // Chromium (Firefox doesn't enforce it the same way).
+    permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [
     {

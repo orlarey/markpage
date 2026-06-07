@@ -180,7 +180,7 @@ export async function paginate(
   // is passed as a separate stylesheet so paged.js sees it at polish
   // time, regardless of how it would have treated inline body <style>
   // tags. Cf. SPEC §26 Phase 2 (runs + first/blank args).
-  const pageRunningCss = applyPageRunningRuns(source);
+  const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
   // paged.js fills `renderTo` itself; clear any previous render first.
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -210,7 +210,7 @@ export async function paginateOnce(
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
-  const pageRunningCss = applyPageRunningRuns(source);
+  const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
   renderTo.innerHTML = '';
   await previewer.preview(
     source,

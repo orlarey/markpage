@@ -144,17 +144,37 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
     expect(root.innerHTML).toBe('<p>Hello</p><p>World</p>');
   });
 
-  it('emits one @page mp-section-1 rule for a single header fence and tags subsequent content', () => {
+  it('simplex (no duplex flag): emits a single @page rule per section, no auto-swap', () => {
     const root = makeRoot(
       renderPageRunning('header', 'Title | | Page {page}') +
         '<p>Body</p>',
     );
     const css = applyPageRunningRuns(root);
+    // Without duplex: a plain `@page mp-section-1 { ... }` rule, no
+    // :right / :left split.
     expect(css).toContain('@page mp-section-1 {');
+    expect(css).not.toContain('mp-section-1:right');
+    expect(css).not.toContain('mp-section-1:left');
     expect(css).toContain('@top-left { content: "Title"; }');
     expect(css).toContain('@top-right { content: "Page " counter(page); }');
     const p = root.querySelector('p')!;
-    expect(p.style.getPropertyValue('page')).toBe('mp-section-1');
+    expect(p.getAttribute('data-page')).toBe('mp-section-1');
+  });
+
+  it('duplex: emits paired :right + :left rules with slots swapped on :left', () => {
+    const root = makeRoot(
+      renderPageRunning('header', 'Title | | Page {page}') +
+        '<p>Body</p>',
+    );
+    const css = applyPageRunningRuns(root, { duplex: true });
+    const rectoLine = css.split('\n').find((l) => l.includes('mp-section-1:right'));
+    const versoLine = css.split('\n').find((l) => l.includes('mp-section-1:left'));
+    expect(rectoLine).toBeDefined();
+    expect(versoLine).toBeDefined();
+    expect(rectoLine).toContain('@top-left { content: "Title"; }');
+    expect(rectoLine).toContain('@top-right { content: "Page " counter(page); }');
+    expect(versoLine).toContain('@top-right { content: "Title"; }');
+    expect(versoLine).toContain('@top-left { content: "Page " counter(page); }');
   });
 
   it('does NOT tag content that appears BEFORE the first fence', () => {
@@ -166,9 +186,9 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
     applyPageRunningRuns(root);
     const ps = root.querySelectorAll('p');
     // Cover paragraph stays on the default (unnamed) page.
-    expect(ps[0].style.getPropertyValue('page')).toBe('');
+    expect(ps[0].getAttribute('data-page')).toBeNull();
     // Body paragraph is on mp-section-1.
-    expect(ps[1].style.getPropertyValue('page')).toBe('mp-section-1');
+    expect(ps[1].getAttribute('data-page')).toBe('mp-section-1');
   });
 
   it('partitions into multiple sections when fences appear at different positions', () => {
@@ -178,14 +198,18 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
         renderPageRunning('header', 'Chapter 2 | |') +
         '<p>Ch.2 text</p>',
     );
-    const css = applyPageRunningRuns(root);
-    expect(css).toContain('@page mp-section-1 {');
-    expect(css).toContain('@page mp-section-2 {');
+    const css = applyPageRunningRuns(root, { duplex: true });
+    // With duplex: each section emits BOTH :right and :left variants
+    // for the inner-left / outer-right auto-swap (§9.6.6 / §9.5.4).
+    expect(css).toContain('@page mp-section-1:right {');
+    expect(css).toContain('@page mp-section-1:left');
+    expect(css).toContain('@page mp-section-2:right {');
+    expect(css).toContain('@page mp-section-2:left');
     expect(css).toContain('"Chapter 1"');
     expect(css).toContain('"Chapter 2"');
     const ps = root.querySelectorAll('p');
-    expect(ps[0].style.getPropertyValue('page')).toBe('mp-section-1');
-    expect(ps[1].style.getPropertyValue('page')).toBe('mp-section-2');
+    expect(ps[0].getAttribute('data-page')).toBe('mp-section-1');
+    expect(ps[1].getAttribute('data-page')).toBe('mp-section-2');
   });
 
   it('inherits the prior section\'s state when a fence updates only one band', () => {
@@ -226,9 +250,11 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
         renderPageRunning('header', 'First only | |', ['first']) +
         '<p>X</p>',
     );
-    const css = applyPageRunningRuns(root);
-    // Both the default and the first-only rule are emitted for the section.
-    expect(css).toMatch(/@page mp-section-\d+ \{[^}]*"Default"[^}]*\}/);
+    const css = applyPageRunningRuns(root, { duplex: true });
+    // Default rule appears in the :right variant (the :left variant
+    // also exists and carries the swapped slots).
+    expect(css).toMatch(/@page mp-section-\d+:right \{[^}]*"Default"[^}]*\}/);
+    // The `first` arg keeps the literal slot mapping (no auto-swap):
     expect(css).toMatch(/@page mp-section-\d+:first \{[^}]*"First only"[^}]*\}/);
   });
 
@@ -240,6 +266,39 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
     );
     const css = applyPageRunningRuns(root);
     expect(css).toMatch(/@page mp-section-\d+:blank/);
+  });
+
+  it('duplex flag gates the paired :right + :left emission (§9.6.6 / §9.5.4)', () => {
+    const root1 = makeRoot(
+      renderPageRunning('header', 'A | | B') + '<p>X</p>',
+    );
+    const cssSimplex = applyPageRunningRuns(root1);
+    expect(cssSimplex).not.toContain(':right');
+    expect(cssSimplex).not.toContain(':left');
+
+    const root2 = makeRoot(
+      renderPageRunning('header', 'A | | B') + '<p>X</p>',
+    );
+    const cssDuplex = applyPageRunningRuns(root2, { duplex: true });
+    expect(cssDuplex).toContain(':right');
+    expect(cssDuplex).toContain(':left');
+  });
+
+  it('swaps only @top-left ↔ @top-right (center untouched, no spurious matches)', () => {
+    // A bottom-only fence with the center slot non-empty: assert the
+    // center stays put on the :left variant.
+    const root = makeRoot(
+      renderPageRunning('footer', 'B-inner | B-center | B-outer') +
+        '<p>X</p>',
+    );
+    const css = applyPageRunningRuns(root, { duplex: true });
+    const verso = css.split('\n').find((l) => l.includes(':left'));
+    expect(verso).toBeDefined();
+    // Center stays.
+    expect(verso).toContain('@bottom-center { content: "B-center"; }');
+    // Inner-left moves to @bottom-right on verso.
+    expect(verso).toContain('@bottom-right { content: "B-inner"; }');
+    expect(verso).toContain('@bottom-left { content: "B-outer"; }');
   });
 
   it('prepends a string-set rule on h1 when any fence is present (for {title})', () => {

@@ -101,7 +101,11 @@ export function renderPageRunning(
  *   Side effect: mutates the DOM. The mutation is idempotent on a
  *   stable input — calling twice yields the same result.
  */
-export function applyPageRunningRuns(root: HTMLElement): string {
+export function applyPageRunningRuns(
+  root: HTMLElement,
+  options: { duplex?: boolean } = {},
+): string {
+  const duplex = options.duplex === true;
   const children = Array.from(root.children);
   let sectionIdx = 0;
   let currentDecls = new Map<string, string>();
@@ -121,8 +125,19 @@ export function applyPageRunningRuns(root: HTMLElement): string {
       currentDecls = new Map(currentDecls);
       currentDecls.set(`${kind}:${argKey}`, decls);
       stateBySection.set(sectionIdx, currentDecls);
+      // Remove the sentinel from the DOM now that we've extracted its
+      // payload. Leaving it in place would make paged.js treat it as
+      // content (it sits between blocks), creating a stray block in the
+      // page flow and pushing the first content element onto page 2 —
+      // which then becomes the only page that gets the named-page
+      // classes (verified by probe).
+      sentinel.remove();
     } else if (sectionIdx > 0 && child instanceof HTMLElement) {
-      child.style.setProperty('page', `mp-section-${sectionIdx}`);
+      // paged.js's named-page tagging reads `data-page` attribute, not
+      // the CSS `page` property. Setting `style: page: name` is silently
+      // ignored — verified in pagedjs/src/modules/paged-media/atpage.js
+      // (`addPageAttributes` calls `start.dataset.page`).
+      child.setAttribute('data-page', `mp-section-${sectionIdx}`);
     }
   }
 
@@ -145,11 +160,55 @@ export function applyPageRunningRuns(root: HTMLElement): string {
       byArg.get(argKey)!.push(declText);
     }
     for (const [argKey, declList] of byArg) {
-      const selector = argKey === '' ? pageName : `${pageName}:${argKey}`;
-      cssRules.push(`@page ${selector} { ${declList.join(' ')} }`);
+      const declText = declList.join(' ');
+      if (argKey === '') {
+        // §9.6.6 / §9.5.4 — in duplex, the slot alphabet is
+        // `inner-left | center | outer-right`. On recto (`@page
+        // :right`) they map literally to @top-left / @top-center /
+        // @top-right; on verso (`@page :left`) we swap left ↔ right
+        // so the outer-right slot stays physically on the trim side
+        // of the open book.
+        // paged.js applies the `:left` rule even in simplex (every
+        // even page gets `pagedjs_left_page`), so we MUST gate the
+        // swap on the duplex flag — otherwise even pages would render
+        // with their slots inverted in a simplex document.
+        if (duplex) {
+          cssRules.push(`@page ${pageName}:right { ${declText} }`);
+          cssRules.push(`@page ${pageName}:left  { ${swapInnerOuter(declText)} }`);
+        } else {
+          cssRules.push(`@page ${pageName} { ${declText} }`);
+        }
+      } else {
+        // Non-default args (`first`, `blank`) keep the literal slot
+        // mapping for now — the auto-swap only applies to the default
+        // run rule. Refinement (per-arg swap) is a follow-up if the
+        // need surfaces.
+        cssRules.push(`@page ${pageName}:${argKey} { ${declText} }`);
+      }
     }
   }
   return cssRules.join('\n');
+}
+
+/**
+ * Purpose: Produce the verso (`@page :left`) variant of a band of
+ *   margin-box declarations by swapping `@top-left ↔ @top-right` and
+ *   `@bottom-left ↔ @bottom-right`. The center box never moves.
+ * How: Three-step rename via a unique placeholder so the two-way swap
+ *   doesn't lose its first side to the second renaming. Operates on
+ *   both `@top-*` and `@bottom-*` in one call — a fence's declarations
+ *   only ever touch one band but accumulated sections combine them.
+ */
+function swapInnerOuter(decls: string): string {
+  const TOP_PLACEHOLDER = '';
+  const BOT_PLACEHOLDER = '';
+  return decls
+    .replaceAll('@top-left', TOP_PLACEHOLDER)
+    .replaceAll('@top-right', '@top-left')
+    .replaceAll(TOP_PLACEHOLDER, '@top-right')
+    .replaceAll('@bottom-left', BOT_PLACEHOLDER)
+    .replaceAll('@bottom-right', '@bottom-left')
+    .replaceAll(BOT_PLACEHOLDER, '@bottom-right');
 }
 
 /**
