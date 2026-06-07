@@ -65,32 +65,50 @@ describe('pagedCss — duplex (mirror margins on @page :left)', () => {
 });
 
 describe('pagedCss — derived margins (marginMode: derived)', () => {
-  // happy-dom has no canvas, so measureAverageCharWidth falls back to
-  // the 0.5 em heuristic. With body fontSize=11pt this gives:
-  //   charWidth = 0.5 × 11 × 0.3528 ≈ 1.9404 mm
-  //   textWidth = 66 × 1.9404 ≈ 128.07 mm
-  //   textHeight = 128.07 × 297/210 ≈ 181.16 mm
-  //   inner = (210 − 128.07) / 3 ≈ 27.31
-  //   outer = (210 − 128.07) × 2/3 ≈ 54.62
-  //   top   = (297 − 181.16) / 3 ≈ 38.61
-  //   bottom = (297 − 181.16) × 2/3 ≈ 77.23
+  // §9.6 / §9.6.6 — in derived mode, @page margin tracks the LIVE
+  // AREA boundary (so @top-*/@bottom-* span the live area width).
+  // The narrower text-block dimensions are recovered via body padding
+  // on .pagedjs_page_content. happy-dom has no canvas, so
+  // measureAverageCharWidth falls back to the 0.5 em heuristic;
+  // body fontSize = 11pt gives charWidth ≈ 1.9404 mm.
+  //   liveAreaWidth  = 85 × 1.9404 ≈ 164.93 mm
+  //   liveAreaHeight = 164.93 × 297/210 ≈ 233.27 mm
+  //   inner_LA = (210 − 164.93) / 3 ≈ 15.02 mm
+  //   outer_LA = 2 × 15.02 ≈ 30.05 mm
+  //   top_LA   = (297 − 233.27) / 3 ≈ 21.24 mm
+  //   bottom_LA = 2 × 21.24 ≈ 42.49 mm
+  //   textBlockWidth  = 66 × 1.9404 ≈ 128.07 mm
+  //   header band  = top_TB − top_LA = 38.61 − 21.24 ≈ 17.37 mm
+  //   footer band  = bottom_TB − bottom_LA ≈ 34.74 mm
+  //   inner gutter = inner_TB − inner_LA ≈ 12.29 mm
+  //   outer gutter = outer_TB − outer_LA ≈ 24.58 mm
   const derivedSimplex: PdfSettings = { ...A4, marginMode: 'derived' };
   const derivedDuplex: PdfSettings = { ...derivedSimplex, duplex: true };
 
-  it('replaces the user margins with canonical values in simplex', () => {
+  it('@page margin tracks the LIVE AREA boundary in simplex', () => {
     const css = pagedCss(derivedSimplex);
-    // Single @page rule whose margin is `top outer bottom inner` ≈ 38.6 54.6 77.2 27.3.
-    expect(css).toMatch(/margin:\s+38\.6\d+mm\s+54\.6\d+mm\s+77\.2\d+mm\s+27\.3\d+mm;/);
-    // Manual margins MUST NOT leak through.
-    expect(css).not.toContain(`${m.left}mm ${m.right}mm`);
+    // top outer bottom inner — values for the live area at 85 chars.
+    expect(css).toMatch(/margin:\s+21\.\d+mm\s+30\.\d+mm\s+42\.\d+mm\s+15\.\d+mm;/);
+    // Manual margins must not leak.
+    expect(css).not.toContain(`margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`);
   });
 
-  it('uses canonical values for both @page :right and :left in duplex', () => {
+  it('mirrors the live-area margins on @page :right / :left in duplex', () => {
     const css = pagedCss(derivedDuplex);
-    // Recto: top outer bottom inner.
-    expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 54\.\d+mm 77\.\d+mm 27\.\d+mm; \}/);
-    // Verso: mirror.
-    expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 27\.\d+mm 77\.\d+mm 54\.\d+mm; \}/);
+    expect(css).toMatch(/@page :right \{ margin: 21\.\d+mm 30\.\d+mm 42\.\d+mm 15\.\d+mm; \}/);
+    expect(css).toMatch(/@page :left  \{ margin: 21\.\d+mm 15\.\d+mm 42\.\d+mm 30\.\d+mm; \}/);
+  });
+
+  it('emits body padding on .pagedjs_page_content to recover the text-block size (simplex)', () => {
+    const css = pagedCss(derivedSimplex);
+    // header band ≈ 17.37, outer gutter ≈ 24.58, footer band ≈ 34.74, inner gutter ≈ 12.29.
+    expect(css).toMatch(/\.pagedjs_page_content \{ padding: 17\.\d+mm 24\.\d+mm 34\.\d+mm 12\.\d+mm; \}/);
+  });
+
+  it('emits two body-padding rules in duplex, swapping inner/outer on the verso', () => {
+    const css = pagedCss(derivedDuplex);
+    expect(css).toMatch(/\.pagedjs_right_page \.pagedjs_page_content \{ padding: 17\.\d+mm 24\.\d+mm 34\.\d+mm 12\.\d+mm; \}/);
+    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 17\.\d+mm 12\.\d+mm 34\.\d+mm 24\.\d+mm; \}/);
   });
 
   it('falls back to the manual margins when marginMode === "manual" (unchanged)', () => {
@@ -98,6 +116,11 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     expect(css).toContain(
       `margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`,
     );
+    // No body-padding rule emitted in manual mode (the string
+    // `.pagedjs_page_content` may appear in unrelated comments —
+    // assert the absence of the actual padding RULE shape).
+    expect(css).not.toMatch(/\.pagedjs_page_content \{ padding:/);
+    expect(css).not.toMatch(/\.pagedjs_right_page \.pagedjs_page_content/);
   });
 });
 

@@ -16,6 +16,7 @@ import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,
   measureAverageCharWidth,
+  type CanonicalMargins,
 } from './typography';
 
 // Threshold for the pre-split pass (cf. `splitLongPreBlocks`). A code block
@@ -798,7 +799,18 @@ export function pagedCss(s: PdfSettings): string {
   // This is purely cosmetic in simplex (no spine, no swap), and it lets
   // the rest of the code branch on a single shape regardless of mode.
   const bodyFontSizePt = styles.body.fontSize ?? 11;
-  const derivedCanon =
+  // §9.6 derived geometry: TWO canonical rectangles on the same
+  // diagonals.
+  //   - text block: tighter, holds the actual prose;
+  //   - live area:  enclosing rectangle (with width = liveAreaChars ×
+  //                 charWidth) that also hosts the header / footer
+  //                 bands and the inner / outer gutters.
+  // The @page margin = LIVE AREA margins (= canonical blanks). The
+  // body content area becomes the live area, and we add internal
+  // padding on `.pagedjs_page_content` to push the actual text back
+  // to text-block dimensions — that padding *is* the header band /
+  // footer band / gutters of §9.6.4.
+  const textBlockCanon =
     s.marginMode === 'derived'
       ? computeCanonicalMargins(
           sizeMm.w,
@@ -807,7 +819,20 @@ export function pagedCss(s: PdfSettings): string {
           measureAverageCharWidth(bodyName, bodyFontSizePt),
         )
       : null;
-  const effMargins = derivedCanon ?? {
+  const liveAreaCanon =
+    s.marginMode === 'derived'
+      ? computeCanonicalMargins(
+          sizeMm.w,
+          sizeMm.h,
+          s.liveAreaChars,
+          measureAverageCharWidth(bodyName, bodyFontSizePt),
+        )
+      : null;
+  // In derived mode, the @page margin shrinks to the LIVE AREA
+  // boundary so the @top-* / @bottom-* boxes span the full live-area
+  // width (§9.6.6). In manual mode, behave exactly as before: the
+  // user's four sliders are authoritative.
+  const effMargins = liveAreaCanon ?? {
     top: m.top,
     bottom: m.bottom,
     inner: m.left,
@@ -833,6 +858,21 @@ export function pagedCss(s: PdfSettings): string {
       ${rectoMargin}
       ${pageNumberRule}
     }`;
+
+  // §9.6.4 — body padding inside the live area to recover the
+  // text-block dimensions. Each side's padding equals the canonical
+  // band height between the two nested rectangles:
+  //   header band   = textBlock.top   − liveArea.top
+  //   footer band   = textBlock.bottom − liveArea.bottom
+  //   inner gutter  = textBlock.inner  − liveArea.inner  (recto: left)
+  //   outer gutter  = textBlock.outer  − liveArea.outer  (recto: right)
+  // The body padding is applied on `.pagedjs_page_content`, scoped
+  // to the page parity classes paged.js sets. In duplex on a verso
+  // the inner/outer paddings swap, mirroring the margin swap above.
+  const bodyPaddingRule =
+    textBlockCanon !== null && liveAreaCanon !== null
+      ? buildBodyPaddingCss(SCOPE, textBlockCanon, liveAreaCanon, s.duplex)
+      : '';
   // §9.5.3 — chapterBreak forces a page break before each h1:
   //   - 'none':       no rule emitted
   //   - 'next-page':  CSS `break-before: page`
@@ -849,6 +889,7 @@ export function pagedCss(s: PdfSettings): string {
         : '';
   return `
     ${pageRule}
+    ${bodyPaddingRule}
     ${chapterBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */
@@ -1220,6 +1261,45 @@ function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
     left: Math.max(0, s.margins.left - SAFETY_MM),
     right: Math.max(0, s.margins.right - SAFETY_MM),
   };
+}
+
+/**
+ * Purpose: Build the body-content padding rule that recovers the
+ *   §9.6 text block dimensions from the live-area-sized page content
+ *   area. Targets `.pagedjs_page_content` (paged.js's wrapper around
+ *   the actual flow content) and respects duplex by swapping the
+ *   inner / outer paddings on `.pagedjs_left_page` (verso).
+ * How: Compute each side's padding as the difference between the
+ *   text-block canonical margin and the live-area canonical margin —
+ *   that difference equals the band height per §9.6.4. Emit one rule
+ *   for the recto/default and, in duplex, a second swapped rule for
+ *   the verso. Center-of-page positioning is automatic because the
+ *   live area is itself centred on the page.
+ */
+function buildBodyPaddingCss(
+  scope: string,
+  textBlock: CanonicalMargins,
+  liveArea: CanonicalMargins,
+  duplex: boolean,
+): string {
+  const padTop = Math.max(0, textBlock.top - liveArea.top);
+  const padBottom = Math.max(0, textBlock.bottom - liveArea.bottom);
+  const padInner = Math.max(0, textBlock.inner - liveArea.inner);
+  const padOuter = Math.max(0, textBlock.outer - liveArea.outer);
+  // CSS padding shorthand is `top right bottom left`. On recto:
+  //   right = outer, left = inner.
+  const rectoPadding = `padding: ${padTop}mm ${padOuter}mm ${padBottom}mm ${padInner}mm;`;
+  const versoPadding = `padding: ${padTop}mm ${padInner}mm ${padBottom}mm ${padOuter}mm;`;
+  // Scope to .pagedjs_page_content (paged.js's content wrapper). The
+  // `scope` prefix (`:where(#preview-pane, ...)`) keeps these rules
+  // from leaking outside the paginated containers.
+  if (!duplex) {
+    return `${scope} .pagedjs_page_content { ${rectoPadding} }`;
+  }
+  return (
+    `${scope} .pagedjs_right_page .pagedjs_page_content { ${rectoPadding} }\n` +
+    `${scope} .pagedjs_left_page  .pagedjs_page_content { ${versoPadding} }`
+  );
 }
 
 /**
