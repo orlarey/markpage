@@ -3839,21 +3839,22 @@ dessous indique ce qui est effectivement livré à chaque phase.
 | Phase | Livré ? | Couverture |
 | :---- | :------ | :--------- |
 | **1. Foundation** | **oui** | Fences `header` / `footer`, syntaxe `l \| c \| r`, variables `{page}` `{pages}` `{date}`, fence vide = bande effacée, escape `\\\|`. Pas d'args : la dernière fence du document gagne pour toute sa bande. |
-| **2. Runs + args `first` / `blank`** | non | Partition en runs, named pages, sélecteurs `first` et `blank` activés. |
-| **3. Duplex** | non | Active `even` / `odd` (cf. §9.5.4). Dépend de l'implémentation §9.5. |
+| **2. Runs + args `first` / `blank`** | **oui** | Partition en runs, named pages (`mp-section-N`), sélecteurs `first` et `blank` activés, accumulation d'état (un fence ne touche qu'à son slot `(kind, arg)`, le reste est hérité). |
+| **3. Duplex** | non | Active `even` / `odd` (cf. §9.5.4) et l'auto-swap `inner-left` / `outer-right` (§9.6.6). Dépend de l'implémentation §9.5. |
 | **4. `{title}` + inline markdown** | non | `string-set` sur les headings, `**gras**` / `*italique*` / `[lien]()` dans les slots via `running()` + element. |
 
 **Phase 1** suffit pour la majorité des cas réels (courrier, facture,
-rapport unifié) — un seul couple header/footer fixe par document. Les
-phases 2-4 traitent les usages multi-section (livre, mémoire,
+rapport unifié) — un seul couple header/footer fixe par document. **Les
+phases 2-4** traitent les usages multi-section (livre, mémoire,
 documentation paginée par chapitre).
 
 Module : `src/page-running.ts`. Wiring : `src/marked-config.ts`
 enregistre les handlers ; `src/preview-paginated.ts:paginate` et
-`paginateOnce` appellent `collectPageRunningCss(source)` après le
-parse markdown et passent le résultat comme second stylesheet à
-`previewer.preview()` (chemin sûr — éviter de dépendre du fait que
-paged.js scanne ou non les `<style>` du body).
+`paginateOnce` appellent `applyPageRunningRuns(source)` après le parse
+markdown (mutation DOM : tag inline `page: mp-section-N` sur chaque
+top-level child de la run courante) et passent le CSS retourné comme
+second stylesheet à `previewer.preview()` — chemin sûr, éviter de
+dépendre du fait que paged.js scanne ou non les `<style>` du body.
 
 ## 27. À décider plus tard
 

@@ -4,48 +4,159 @@
  *   content for the page margin boxes (top / bottom band, 3 slots each:
  *   left | center | right). Variables `{page}`, `{pages}`, `{date}` are
  *   substituted at render time (counters or static date).
- * How: Each fence emits a `<style>` element containing a `@page` block
- *   with the relevant `@top-*` (header) or `@bottom-*` (footer) margin
- *   boxes filled via the CSS `content` property. paged.js scans the
- *   document's CSS at layout time and applies the @page rules globally.
- *   When multiple fences appear, the cascade picks the LAST declaration
- *   per box — which gives "last fence wins" semantics for free in
- *   Phase 1 (per-band run partitioning is Phase 2, see SPEC §26.7).
+ * How:
+ *   - `renderPageRunning` emits an invisible `<style class="page-
+ *     running-fence" data-kind="..." data-args="...">` sentinel
+ *     containing only the `@<box>` declarations (no `@page` wrapper).
+ *     The sentinel marks its position in the document flow and carries
+ *     its payload as plain CSS box declarations.
+ *   - `applyPageRunningRuns` walks the document, partitions it into
+ *     runs at each sentinel, tags each top-level content child with
+ *     a `page: mp-section-N` inline style, and emits a CSS string
+ *     of `@page mp-section-N { ... }` rules to be passed to paged.js
+ *     as an additional stylesheet.
+ *
+ *   This realizes SPEC §26 Phase 2 — runs (the LAST fence of a given
+ *   `(kind, arg)` tuple wins for the section starting at its position,
+ *   inheriting all other tuples from prior sections). Sections come
+ *   from accumulated state, not from one section per fence.
+ *
+ *   Args recognized in Phase 2 (cf. SPEC §26.4):
+ *     - no args (default) — applies to all pages of the section
+ *     - first  — applies to the first page of the section (`@page name:first`)
+ *     - blank  — applies to paged.js-inserted blank pages (`:blank`)
  *
  *   A fence ALWAYS emits all 3 slots of its band, even if some are
- *   empty (content: ""). Reason: SPEC §26.6 says a fence replaces the
- *   ENTIRE band, so missing slots must clear any prior fence's slots
- *   for the same boxes — without this, the cascade would keep the old
- *   content.
+ *   empty (content: ""). Reason: SPEC §26.6 — a fence replaces the
+ *   ENTIRE band, so missing slots must clear any prior section's
+ *   slots for the same boxes.
  *
  *******************************************************************************/
 
 export type PageRunningKind = 'header' | 'footer';
 
+/** Args we recognize in Phase 2. Others are silently ignored. */
+type RecognizedArg = '' | 'first' | 'blank';
+
+const RECOGNIZED_ARGS: ReadonlySet<RecognizedArg> = new Set(['', 'first', 'blank']);
+
 /**
- * Purpose: Collect the CSS text of every `.page-running-fence` `<style>`
- *   element emitted by `renderPageRunning` and return them concatenated
- *   in document order. Caller passes the result as an additional
- *   stylesheet to paged.js so the `@page` rules are guaranteed to enter
- *   the CSSOM that paged.js polishes (relying on inline body `<style>`
- *   tags being read at the right phase is fragile across paged.js
- *   versions).
- * How: querySelectorAll on `style.page-running-fence`, read each one's
- *   textContent, join with newlines. Empty string when there are no
- *   fences. Does NOT remove the elements — they're harmless in flow
- *   (@page rules only apply in paginated contexts, and the inline
- *   <style> with no other rules contributes nothing to regular layout).
+ * Purpose: Render a `<style>` sentinel that carries the @-rule body for
+ *   one band (top for header, bottom for footer) plus the args as a
+ *   `data-args` attribute. The sentinel is placed inline in the
+ *   document flow at the fence's source position so
+ *   `applyPageRunningRuns` can partition the document there.
+ * How: Parse the body into 3 slots, convert each slot's mini-syntax
+ *   into a CSS `content` value, emit one declaration per margin box.
+ *   The `<style>` content is JUST the box declarations — no surrounding
+ *   `@page { ... }`. The wrapper is added per-section by
+ *   `applyPageRunningRuns` once it has assigned a section name.
  */
-export function collectPageRunningCss(root: HTMLElement): string {
-  const styles = root.querySelectorAll<HTMLStyleElement>(
-    'style.page-running-fence',
-  );
-  const parts: string[] = [];
-  for (const s of styles) {
-    const txt = s.textContent ?? '';
-    if (txt !== '') parts.push(txt);
+export function renderPageRunning(
+  kind: PageRunningKind,
+  body: string,
+  args: string[] = [],
+): string {
+  const slots = parseSlots(body);
+  const bandPrefix = kind === 'header' ? 'top' : 'bottom';
+  const decls = [
+    cssMarginBox(`${bandPrefix}-left`, slots.left),
+    cssMarginBox(`${bandPrefix}-center`, slots.center),
+    cssMarginBox(`${bandPrefix}-right`, slots.right),
+  ].join(' ');
+  const argKey = pickArg(args);
+  const argsAttr = argKey === '' ? '' : ` data-args="${argKey}"`;
+  return `<style class="page-running-fence" data-kind="${kind}"${argsAttr}>${decls}</style>\n`;
+}
+
+/**
+ * Purpose: Walk the document, partition it into runs at each fence
+ *   sentinel, tag each top-level content child with the inline style
+ *   `page: mp-section-N`, and return the assembled CSS string of
+ *   `@page` rules for all the sections.
+ * How: One left-to-right pass over `root.children`.
+ *   - When a sentinel is encountered: increment the section counter,
+ *     copy the previous section's accumulated state, and update the
+ *     one slot keyed by `(kind, arg)` carried by the sentinel.
+ *   - When a non-sentinel content element is encountered: set its
+ *     inline `page` property to the current section name (so paged.js
+ *     places it on a page of that name).
+ *   - At the end, emit one `@page mp-section-N { ... }` rule per
+ *     section, grouping the box declarations by arg key
+ *     (no arg → `@page name { ... }`, `first` → `@page name:first`,
+ *     `blank` → `@page name:blank`).
+ *
+ *   Content elements appearing BEFORE the first sentinel are not
+ *   tagged: they use the unnamed default `@page` rule (= no running
+ *   content). The user who wants a header on page 1 must place the
+ *   fence at the very top of the source.
+ *
+ *   Cascade semantics: a new fence with args `''` (default) replaces
+ *   the previous section's `''` declarations for that kind. A new
+ *   fence with args `first` updates only `first` and leaves the `''`
+ *   default untouched (so the section now has BOTH a default and a
+ *   first-page-only override). This is the "missing slots clear"
+ *   property of SPEC §26.5 at the (kind, arg) granularity.
+ *
+ *   Side effect: mutates the DOM. The mutation is idempotent on a
+ *   stable input — calling twice yields the same result.
+ */
+export function applyPageRunningRuns(root: HTMLElement): string {
+  const children = Array.from(root.children);
+  let sectionIdx = 0;
+  let currentDecls = new Map<string, string>();
+  // Per-section snapshot of accumulated declarations, indexed by section number.
+  const stateBySection = new Map<number, Map<string, string>>();
+
+  for (const child of children) {
+    if (
+      child.tagName === 'STYLE' &&
+      child.classList.contains('page-running-fence')
+    ) {
+      const sentinel = child as HTMLStyleElement;
+      const kind = (sentinel.dataset.kind ?? 'header') as PageRunningKind;
+      const argKey = (sentinel.dataset.args ?? '') as RecognizedArg;
+      const decls = sentinel.textContent ?? '';
+      sectionIdx += 1;
+      currentDecls = new Map(currentDecls);
+      currentDecls.set(`${kind}:${argKey}`, decls);
+      stateBySection.set(sectionIdx, currentDecls);
+    } else if (sectionIdx > 0 && child instanceof HTMLElement) {
+      child.style.setProperty('page', `mp-section-${sectionIdx}`);
+    }
   }
-  return parts.join('\n');
+
+  // Emit one @page rule per section × arg key combination.
+  const cssRules: string[] = [];
+  for (const [idx, decls] of stateBySection) {
+    const pageName = `mp-section-${idx}`;
+    // Group declarations by arg key.
+    const byArg = new Map<RecognizedArg, string[]>();
+    for (const [key, declText] of decls) {
+      const argKey = key.split(':')[1] as RecognizedArg;
+      if (!byArg.has(argKey)) byArg.set(argKey, []);
+      byArg.get(argKey)!.push(declText);
+    }
+    for (const [argKey, declList] of byArg) {
+      const selector = argKey === '' ? pageName : `${pageName}:${argKey}`;
+      cssRules.push(`@page ${selector} { ${declList.join(' ')} }`);
+    }
+  }
+  return cssRules.join('\n');
+}
+
+/**
+ * Purpose: Reduce a positional args array to the single recognized key
+ *   we use to disambiguate fences within a section. In Phase 2 these
+ *   are `first`, `blank`, or the empty string (default).
+ * How: Take the first arg that matches one of the recognized keys.
+ *   Unknown args are silently ignored (forward-compat with Phase 3+).
+ */
+function pickArg(args: string[]): RecognizedArg {
+  for (const a of args) {
+    if (RECOGNIZED_ARGS.has(a as RecognizedArg) && a !== '') return a as RecognizedArg;
+  }
+  return '';
 }
 
 interface Slots {
@@ -55,37 +166,11 @@ interface Slots {
 }
 
 /**
- * Purpose: Render a `<style>` element emitting the @page rules for one
- *   band (top for header, bottom for footer). The style tag lives in
- *   the document body — browsers tolerate <style> outside of <head> and
- *   paged.js reads @page rules from the full CSSOM.
- * How: Parse the body into 3 slots, convert each slot's mini-syntax
- *   into a CSS `content` value (string + counter()), emit one
- *   declaration per margin box. Always emit all 3 boxes of the band.
- */
-export function renderPageRunning(
-  kind: PageRunningKind,
-  body: string,
-  _args: string[] = [],
-): string {
-  const slots = parseSlots(body);
-  const bandPrefix = kind === 'header' ? 'top' : 'bottom';
-  const decls = [
-    cssMarginBox(`${bandPrefix}-left`, slots.left),
-    cssMarginBox(`${bandPrefix}-center`, slots.center),
-    cssMarginBox(`${bandPrefix}-right`, slots.right),
-  ].join('\n  ');
-  return `<style class="page-running-fence" data-kind="${kind}">@page {
-  ${decls}
-}</style>\n`;
-}
-
-/**
  * Purpose: Emit one `@<box-name> { content: ... }` declaration for a
  *   margin box (e.g. `@top-left { content: "Mon doc"; }`).
  * How: Convert the slot's mini-syntax to a CSS content value via
- *   slotContentToCss. Always emit the box — see header doc on why
- *   missing slots must explicitly clear (content: "").
+ *   slotContentToCss. Always emit the box — missing slots must clear
+ *   (content: "") to override any inherited rule.
  */
 function cssMarginBox(boxName: string, slotContent: string): string {
   return `@${boxName} { content: ${slotContentToCss(slotContent)}; }`;
@@ -130,9 +215,9 @@ function parseSlots(body: string): Slots {
  *   substitutions) into a CSS `content` value — a space-separated list
  *   of CSS strings and `counter(...)` calls.
  * How: Walk the slot, accumulating literal characters into a string
- *   buffer. On `{name}` emit the buffer as a JSON-escaped string token,
- *   then emit the corresponding counter / static substitution. Empty
- *   slot → `""` (a single empty string, valid CSS).
+ *   buffer. On `{name}` emit the buffer as a CSS string token, then
+ *   emit the corresponding counter / static substitution. Empty slot
+ *   → `""` (a single empty string, valid CSS).
  */
 function slotContentToCss(slot: string): string {
   if (slot === '') return '""';

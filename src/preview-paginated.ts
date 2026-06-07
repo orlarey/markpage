@@ -11,7 +11,7 @@ import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
 import { groupLetterheads } from './letterhead';
-import { collectPageRunningCss } from './page-running';
+import { applyPageRunningRuns } from './page-running';
 import { splitLongPreBlocks } from './pre-split';
 
 // Threshold for the pre-split pass (cf. `splitLongPreBlocks`). A code block
@@ -170,11 +170,13 @@ export async function paginate(
   // (fenced code, math, mermaid, image, table); the wrapper is the
   // reliable fix.
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
-  // Collect the CSS payloads of any `header` / `footer` fences in the
-  // source (Phase 1 page-running). Passed as a separate stylesheet so
-  // paged.js sees the @page rules at polish time, regardless of how it
-  // would have treated inline body <style> tags.
-  const pageRunningCss = collectPageRunningCss(source);
+  // Partition the source into runs at each `header` / `footer` fence
+  // sentinel, tag each top-level content element with `page: mp-
+  // section-N` inline, and collect the assembled @page rules. The CSS
+  // is passed as a separate stylesheet so paged.js sees it at polish
+  // time, regardless of how it would have treated inline body <style>
+  // tags. Cf. SPEC §26 Phase 2 (runs + first/blank args).
+  const pageRunningCss = applyPageRunningRuns(source);
   // paged.js fills `renderTo` itself; clear any previous render first.
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -204,7 +206,7 @@ export async function paginateOnce(
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
-  const pageRunningCss = collectPageRunningCss(source);
+  const pageRunningCss = applyPageRunningRuns(source);
   renderTo.innerHTML = '';
   await previewer.preview(
     source,

@@ -636,8 +636,8 @@ cleared). Literal pipe in slot text: `\|`.
 
 The fence emits **no visible content** in the document body — only
 the running content of every page's margin box. Place it anywhere in
-the source; the **last** fence of each type wins (current limitation
-— per-section runs are planned). An empty fence clears the band
+the source; each fence starts a new **run** that lasts until the next
+fence of the same kind overrides it. An empty fence clears the band
 entirely:
 
 ````markdown
@@ -645,10 +645,32 @@ entirely:
 ```
 ````
 
+**Positional args** for narrower targeting within a run:
+
+- `header first` — applies only to the **first page of the run**.
+  Typical use: a different header on the first page of a chapter.
+- `header blank` — applies only to **blank pages** that the renderer
+  inserts (e.g. to push the next chapter onto a recto). Useful to
+  strip the running header on such pages.
+
+A `header first` does NOT replace the default; it sits on top of it.
+The first page of the run uses `first`; subsequent pages use the
+default. You can combine both in the same source position:
+
+````markdown
+```header
+Chapter 3 | | Page {page}
+```
+
+```header first
+| Chapter 3 |
+```
+````
+
 **What's NOT supported yet** (planned, see SPEC §26.10):
 
-- Positional args like `header first`, `header even`, `header odd`,
-  `header blank` (need the run mechanism and duplex mode).
+- `header even` / `header odd` — recto/verso selectors. Need duplex
+  mode (Phase 3).
 - The `{title}` variable (current chapter title) — renders empty for now.
 - Inline markdown (`**bold**`, `*italic*`, `[link]()`, images) inside
   slots — CSS `content` only accepts strings and counters in v1.
@@ -656,7 +678,8 @@ entirely:
 **Typical use**: a fixed page header showing the document title at top-
 left and a page counter at top-right; a footer with the date or a
 copyright line. Drop one ` ```header ` and one ` ```footer ` near the
-top of your source, that's it.
+top of your source. Add more fences at chapter boundaries to swap
+the running content per section.
 
 ---
 
