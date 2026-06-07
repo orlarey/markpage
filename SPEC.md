@@ -1202,13 +1202,16 @@ tous les documents sont rendus comme une suite de pages identiques
 interface PdfSettings {
   // ... clés existantes ...
   duplex: boolean;          // défaut: false
-  chaptersOnRecto: boolean; // défaut: false
+  chapterBreak: 'none' | 'next-page' | 'next-recto';  // défaut: 'none'
 }
 ```
 
 Les deux clés sont **indépendantes**. La combinaison `duplex: true` +
-`chaptersOnRecto: true` est la plus fréquente (livre), mais chacune
-est utilisable seule.
+`chapterBreak: 'next-recto'` est la plus fréquente (livre relié).
+
+`chapterBreak` est plus général que l'ancienne clé `chaptersOnRecto` :
+il couvre aussi le cas simplex où l'utilisateur veut juste un saut de
+page avant chaque chapitre, sans contrainte de parité.
 
 #### 9.5.2. Marges miroir (`duplex: true`)
 
@@ -1233,18 +1236,25 @@ nommées ainsi dans le profil JSON (pas de `marginInner` /
 conditionnelle est documentée ici et dans le tooltip de la fenêtre
 Réglages quand `duplex` est coché.
 
-#### 9.5.3. Démarrage de chapitre sur recto (`chaptersOnRecto: true`)
+#### 9.5.3. Saut de page avant chapitre (`chapterBreak`)
 
-Émet `h1 { break-before: right }` dans le CSS — paged.js force chaque
-`<h1>` à démarrer sur une page recto, en insérant si nécessaire une
-page verso blanche. Sans `duplex`, l'effet visuel est invisible
-(pagination simple-face) mais la pagination reste correcte (page
-blanche comptée dans `{pages}`). Avec `duplex`, c'est le comportement
-classique des livres reliés.
+L'enum `chapterBreak` contrôle ce qui se passe à chaque h1 :
+
+| Valeur | Effet CSS | Cas d'usage |
+| :--- | :--- | :--- |
+| `'none'` (défaut) | (aucune règle) | chapitres dans le flux, rapport linéaire |
+| `'next-page'` | `h1 { break-before: page }` | chaque chapitre démarre sur une nouvelle page |
+| `'next-recto'` | `h1 { break-before: right }` | chaque chapitre démarre sur une page recto, page verso blanche insérée si besoin |
 
 Le ciblage est sur **h1 uniquement** : les chapitres sont des h1 par
 convention markpage (§3.1). Les sous-sections (h2-h6) ne forcent
-jamais de saut de page sur recto.
+jamais de saut de page.
+
+**Dégénérescence simplex** : sans `duplex`, paged.js traite toutes les
+pages comme `:right`. La valeur `'next-recto'` se réduit alors à
+`'next-page'` (toutes les pages étant déjà recto, la contrainte
+recto est satisfaite trivialement et aucune page blanche n'est
+insérée). Le profil reste donc valide même quand `duplex: false`.
 
 #### 9.5.4. Interaction avec §26 (header / footer)
 
@@ -1280,9 +1290,9 @@ verso) en duplex sans intervention auteur.
 
 #### 9.5.5. Pages blanches (paged.js `:blank`)
 
-Quand `chaptersOnRecto` insère une page verso blanche pour pousser
-le prochain h1 sur recto, cette page blanche reçoit la pseudo-classe
-`:blank`. Le sélecteur `header blank` / `footer blank` du §26.4
+Quand `chapterBreak === 'next-recto'` insère une page verso blanche
+pour pousser le prochain h1 sur recto, cette page blanche reçoit la
+pseudo-classe `:blank`. Le sélecteur `header blank` / `footer blank` du §26.4
 permet de la garder vraiment vide (sans header ni footer hérité), ce
 qui est la convention typographique habituelle pour les pages
 blanches techniques entre chapitres.
@@ -1498,17 +1508,19 @@ typographiques. Trois niveaux d'exposition :
 
 1. **Présets prêts à l'emploi** dans une dropdown :
 
-| Preset | measure | liveArea | duplex | usage |
-| :--- | :--- | :--- | :--- | :--- |
-| Note technique     | 70 | 90 | non | mémo, doc interne |
-| Rapport            | 66 | 85 | non | rapport, livre blanc |
-| Article scientifique | 68 | 85 | non | article, paper |
-| Livre relié        | 60 | 80 | oui | livre, mémoire |
-| Édition critique   | 52 | 85 | oui | livre annoté Tufte (cf §9.7) |
+| Preset | measure | liveArea | duplex | chapterBreak | notes.position | usage |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Note technique | 70 | 90 | non | none | foot | mémo, doc interne |
+| Rapport | 66 | 85 | non | none | foot | rapport, livre blanc |
+| Article scientifique | 68 | 85 | non | none | end | article, paper |
+| Livre relié | 60 | 80 | oui | next-recto | foot | livre, mémoire |
+| Édition critique | 52 | 85 | oui | next-recto | side | livre annoté Tufte (cf §9.7) |
 
 Chaque preset choisit un (`measureChars`, `liveAreaChars`, `duplex`,
-`chaptersOnRecto`, `marginalContent.enabled`) cohérent. C'est la voie
-par défaut.
+`chapterBreak`, `notes.position`) cohérent. C'est la voie par défaut.
+Les cinq leviers exposés couvrent tout l'éventail des mises en page,
+du mémo simple à l'édition critique Tufte-style — pas un setting de
+plus.
 
 2. **Réglages avancés** dépliables (collapsible section) qui exposent
    les **deux mesures** pour ajustement fin par les utilisateurs qui
@@ -1532,10 +1544,14 @@ prend en charge les décisions typographiques que l'auteur ne veut pas
 La **structure fractale Van de Graaf** — page ⊃ live area ⊃ bloc-texte,
 toutes similaires entre elles et alignées sur les mêmes diagonales — est
 la propriété qui rend cette automatisation possible avec si peu de
-paramètres (2 mesures + 1 booléen duplex). Plus on zoome, plus on voit
-la même structure. C'est typique des canons classiques, et c'est aussi
-ce qui distingue un document typographiquement maîtrisé d'un document
-fait au jugé.
+paramètres : **deux mesures** (texte, live area), **un booléen duplex**,
+**un enum de saut de chapitre**, **un enum de position des notes**.
+Cinq leviers, point. Tout le reste — header band, footer band, gutters,
+sidenote-area, marges blanches, auto-swap recto/verso, marqueurs de
+notes — est **dérivé** par construction géométrique ou par convention
+typographique. Plus on zoome, plus on voit la même structure. C'est
+typique des canons classiques, et c'est aussi ce qui distingue un
+document typographiquement maîtrisé d'un document fait au jugé.
 
 ### 9.7. Marges érudites (scholar's margin / Tufte)
 
@@ -1543,11 +1559,14 @@ fait au jugé.
 > dérivées §9.6 — c'est un quatrième axe optionnel qui s'enclenche
 > proprement par-dessus le modèle existant.
 
-Layout typographique où l'**outer gutter** de la live area (§9.6.4)
-porte du contenu (notes en marge, petites figures, commentaires)
-plutôt que d'être un blanc passif. Conséquence directe et simple du
-modèle live area : **pas de nouvelle géométrie** à concevoir, juste un
-changement d'usage de l'espace déjà disponible dans la live area.
+**Pas un mode à activer, juste un usage de l'espace existant.** Le
+modèle live area (§9.6) produit toujours un **outer gutter** entre le
+bloc-texte et le bord externe de la live area. La taille de ce gutter
+est dérivée des deux mesures (`2·(x2_L − x2_T)`, cf. §9.6.4). « Marges
+érudites » désigne simplement le cas où ce gutter porte du contenu —
+sidenotes, petites figures — au lieu d'être blanc. **Aucun setting
+booléen n'active la zone** : la zone est toujours là, on choisit ou
+non d'y mettre du contenu.
 
 Popularisé à l'époque moderne par les livres d'Edward Tufte, c'est en
 réalité une tradition ancienne — manuscrits médiévaux glossés,
@@ -1556,26 +1575,22 @@ pour les textes denses en commentaires : l'œil reste sur la ligne
 principale, jette un regard latéral pour le commentaire, revient sans
 perdre le fil.
 
-**Pour markpage** : layout *niche* (édition critique, essai
-scientifique annoté, livre technique style Tufte ou Knuth), qui rentre
-**proprement** dans le modèle §9.6 — un quatrième axe optionnel,
-désactivable, et qui réutilise la syntaxe Markdown existante.
+#### 9.7.1. Décomposition — l'outer gutter accueille du contenu
 
-#### 9.7.1. Décomposition — l'outer gutter devient actif
+L'outer gutter de la live area (`2·(x2_L − x2_T)` mm, cf. §9.6.4) se
+décompose en deux sous-zones figées, pilotées par des **constantes
+internes** (pas de réglages utilisateur — défauts typographiques
+sensés, modifiables uniquement en code) :
 
-Quand `marginalContent.enabled === true`, l'outer gutter de la live
-area (`2·(x2_L − x2_T)` mm, cf. §9.6.4) se subdivise en deux
-sous-zones :
+| Zone     | Calcul                       | Rôle                              |
+| :------- | :--------------------------- | :-------------------------------- |
+| sidenote | outer gutter − gap           | contenu marginal                  |
+| gap      | constante 5 mm               | gutter visuel texte ↔ sidenote    |
 
-| Zone     | Calcul                          | Rôle                              |
-| :------- | :------------------------------ | :-------------------------------- |
-| sidenote | outer gutter − gap              | contenu marginal                  |
-| gap      | `marginalContent.gap` (mm)      | gutter visuel texte ↔ sidenote    |
-
-**Exemple A4 / mesure 52 / liveArea 85 / gap 5 mm** :
+**Exemple A4 / mesure 52 / liveArea 85** :
 
 - outer gutter (§9.6.4) = 2 · (240 − 218) = **44 mm**
-- gap = **5 mm**
+- gap (constante) = **5 mm**
 - sidenote = 44 − 5 = **39 mm** (mesure ~22 chars à corps 0.85 × 11 pt)
 
 → Le levier mental pour ajuster la largeur de sidenote est de **choisir
@@ -1597,35 +1612,26 @@ active ≈ 28 chars).
 interface PdfSettings {
   // ... clés §9.5 / §9.6 existantes ...
 
-  marginalContent: {
-    enabled: boolean;      // active la scholar's margin (défaut false)
-    gap: number;            // mm, gutter texte ↔ sidenote (défaut 5)
-    fontSizeRatio: number;  // taille relative au corps (défaut 0.85)
-  };
-
   notes: {
     position: 'foot' | 'side' | 'end';  // §17 footnotes redirigées
-    numbered: boolean;                   // affichage du marqueur numérique
   };
 }
 ```
 
-**Trois paramètres seulement** au lieu de cinq dans la version
-précédente — `width` et `outerTrim` étaient explicites mais redondants
-avec la géométrie de la live area, et ont été supprimés.
+**Un seul paramètre exposé**, contre cinq dans les versions précédentes
+de ce design — la simplification finale absorbe tout dans le canon :
 
-Trois leviers logiques restent indépendants :
-
-1. `marginalContent.enabled` ouvre la **zone** de marge active —
-   sans en imposer un contenu spécifique.
-2. `notes.position = 'side'` y place les **notes de bas de page**
-   (le contenu le plus fréquent).
-3. Les **figures à classe `.margin`** (cf. §9.7.5) y placent les
-   illustrations latérales.
-
-Ce découplage permet par exemple d'avoir une scholar's margin **vide
-côté notes** (`notes.position = 'foot'`) mais qui héberge des margin
-figures — combinaison possible chez certains éditeurs.
+- `marginalContent.enabled` → supprimé ; la zone est toujours là, on
+  choisit d'y mettre du contenu via `notes.position` et/ou la classe
+  `{.margin}` sur images.
+- `marginalContent.width`, `marginalContent.outerTrim` → supprimés ;
+  dérivés du canon (§9.6.4).
+- `marginalContent.gap`, `marginalContent.fontSizeRatio` → déplacés en
+  **constantes internes** (5 mm, 0.85). Modifiables en code, pas par
+  l'utilisateur — pas de cas d'usage qui le justifie.
+- `notes.numbered` → supprimé ; dérivé de `notes.position` :
+  `'side'` → marqueur off (proximité visuelle suffit), `'foot'` et
+  `'end'` → marqueur on (convention).
 
 #### 9.7.3. Auto-swap recto/verso
 
@@ -1667,11 +1673,11 @@ choisi — propriété **majeure** pour la portabilité (exporter un
 document pour un éditeur qui veut des endnotes, sans modifier la
 source).
 
-**Marqueurs numériques en mode `side`** : la proximité visuelle de
-la note à son ancre rend le numéro souvent superflu. L'option
-`notes.numbered: false` (par défaut en mode `side`) supprime le
-marqueur ; un petit symbole discret (`◆`, `*`, …) reste optionnel
-pour les cas où plusieurs notes se chevauchent verticalement.
+**Marqueurs numériques en mode `side`** : la proximité visuelle de la
+note à son ancre rend le numéro superflu — il est donc **automatiquement
+masqué** quand `notes.position === 'side'`. En mode `foot` ou `end`, le
+marqueur est rendu (convention). Dérivé du seul `notes.position`, pas
+de setting indépendant.
 
 #### 9.7.5. Figures dans la marge
 
@@ -1707,14 +1713,16 @@ relatif au paragraphe d'ancrage.
    l'ancre, dans le même paragraphe. Plus de section regroupée en
    bas de page.
 2. **CSS de positionnement** — `.sidenote { position: absolute;
-   width: <sidenoteArea>mm; left: calc(100% + <gap>mm); }`, où
-   `<sidenoteArea>` est la valeur dérivée du §9.7.1 (outer gutter
-   − gap). On s'appuie sur un `position: relative` posé sur le
-   conteneur `.text-column` ou directement sur chaque `<p>`.
+   width: <sidenoteArea>mm; left: calc(100% + 5mm); font-size: 0.85em; }`,
+   où `<sidenoteArea>` est la valeur dérivée du §9.7.1 (outer gutter
+   − 5 mm) et où le `5mm` (gap) et le `0.85em` (font ratio) sont des
+   **constantes internes** §9.7.1, pas des réglages utilisateur. On
+   s'appuie sur un `position: relative` posé sur le conteneur
+   `.text-column` ou directement sur chaque `<p>`.
 3. **Sensibilité duplex** — sur page paire (verso), inverser
    gauche/droite via `@page :left .sidenote { left: auto; right:
-   calc(100% + <gap>mm); }`. Cohérent avec l'auto-swap `inner-left`
-   / `outer-right` des slots de running content §9.6.6.
+   calc(100% + 5mm); }`. Cohérent avec l'auto-swap `inner-left` /
+   `outer-right` des slots de running content §9.6.6.
 4. **Collision detection (JS post-pass)** — deux sidenotes
    proches verticalement se chevauchent. Une passe DOM après
    pagination paged.js mesure les rectangles et pousse vers le bas
@@ -1731,22 +1739,21 @@ Dans la dropdown de présets (§9.6.8), entrée :
 ```ts
 Édition critique  →  {
   marginMode: 'derived',
-  measureChars: 52,           // texte étroit
-  liveAreaChars: 85,          // live area large
-  marginalContent: { enabled: true, gap: 5, fontSizeRatio: 0.85 },
-  notes: { position: 'side', numbered: false },
-  duplex: true,
-  chaptersOnRecto: true,
+  measureChars: 52,                // texte étroit → outer gutter ample
+  liveAreaChars: 85,               // live area large → bandes confortables
+  notes: { position: 'side' },     // sidenotes dans l'outer gutter
+  duplex: true,                    // miroir verso + auto-swap
+  chapterBreak: 'next-recto',      // h1 démarre sur recto
 }
 ```
 
-Un clic dans la dropdown — l'utilisateur passe d'un rapport classique
-à une édition critique Tufte-style. Aucune option typo à comprendre.
+Cinq champs au total. Un clic dans la dropdown — l'utilisateur passe
+d'un rapport classique à une édition critique Tufte-style.
 
 Préserver le découplage : un utilisateur avancé peut partir de
-« Livre relié », cocher `marginalContent.enabled`, baisser sa
-`measureChars` pour élargir la sidenote, sans toucher au reste. La
-granularité préset / réglages fins est cumulative.
+« Livre relié », baisser `measureChars` pour élargir l'outer gutter,
+et passer `notes.position` à `'side'` pour y placer ses notes. Aucune
+autre intervention.
 
 #### 9.7.8. Limites assumées
 
@@ -3715,8 +3722,8 @@ dans le profil, cf. §9.5.4). Sans duplex, paged.js traite toutes les
 pages comme `:right` : `odd` s'applique partout (équivalent à
 *aucun*), `even` ne s'applique nulle part. Pas d'erreur, juste pas
 d'effet visible. Idem `blank` : il ne se déclenche qu'avec
-`chaptersOnRecto: true` qui insère réellement des pages verso
-blanches (§9.5.5).
+`chapterBreak: 'next-recto'` qui insère réellement des pages verso
+blanches (§9.5.3, §9.5.5).
 
 Les args peuvent **se cumuler dans le document** : un `header first`
 au début de chapitre 1 + un `header` plus loin = première page un
