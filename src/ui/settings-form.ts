@@ -18,7 +18,6 @@
 import {
   ALIGNS,
   ELEMENT_DESCRIPTORS,
-  PAGE_NUMBER_POSITIONS,
   PAGE_SIZES,
   PAGE_SIZE_LABELS,
   WEIGHT_OPTIONS,
@@ -29,7 +28,6 @@ import {
   type ElementKey,
   type LayoutValidationIssue,
   type MetadataField,
-  type PageNumberPosition,
   type PdfSettings,
   type Style,
 } from '../settings';
@@ -103,19 +101,9 @@ export interface SettingsForm {
   refresh(): void;
 }
 
-// Both label maps are functions so each call respects the active
-// locale — relevant when the user picks a fresh locale and we
+// Locale-aware label maps. Functions so each call respects the
+// active locale — relevant when the user picks a fresh locale and we
 // rebuild the form before the page reload kicks in.
-const POSITION_LABELS = (): Record<PageNumberPosition, string> => ({
-  none: t('position.none'),
-  'top-left': t('position.top-left'),
-  'top-center': t('position.top-center'),
-  'top-right': t('position.top-right'),
-  'bottom-left': t('position.bottom-left'),
-  'bottom-center': t('position.bottom-center'),
-  'bottom-right': t('position.bottom-right'),
-});
-
 const DATE_MODE_LABELS = (): Record<DateMode, string> => ({
   none: t('date.none'),
   today: t('date.today'),
@@ -259,15 +247,29 @@ export function buildSettingsForm(
                   },
                   (v) => (v === 'fr' ? 'Français' : 'English'),
                 ),
-                selectField<PageNumberPosition>(
-                  t('settings.field.page-number-position'),
-                  PAGE_NUMBER_POSITIONS,
-                  current.pageNumber.position,
+                // Default en-tête / pied de page. Same syntax as
+                // a ```header / ```footer fence body — `left | center
+                // | right` slots, with `{page}` / `{pages}` / `{title}`
+                // / `{date}` substitutions and `**bold**` / `*italic*`
+                // inline emphasis. A fence later in the document
+                // overrides the matching band per cascade.
+                textField(
+                  t('settings.field.header-default'),
+                  current.header,
+                  t('settings.field.header-default-placeholder'),
                   (v) => {
-                    current.pageNumber.position = v;
+                    current.header = v;
                     emit();
                   },
-                  (v) => POSITION_LABELS()[v],
+                ),
+                textField(
+                  t('settings.field.footer-default'),
+                  current.footer,
+                  t('settings.field.footer-default-placeholder'),
+                  (v) => {
+                    current.footer = v;
+                    emit();
+                  },
                 ),
               ]),
               // Layout: preset + canon + duplex / chapter / notes.
@@ -436,7 +438,6 @@ export function buildSettingsForm(
               'table',
               'caption',
               'running-content',
-              'page-number',
             ] as const
           ).map((key) => ({
             id: `typo-${key}`,
@@ -936,6 +937,20 @@ export function buildSettingsForm(
       p.textContent = issue.message;
       return p;
     });
+  }
+
+  function textField(
+    label: string,
+    value: string,
+    placeholder: string,
+    onChange: (v: string) => void,
+  ): HTMLElement {
+    const input = doc.createElement('input');
+    input.type = 'text';
+    input.value = value;
+    input.placeholder = placeholder;
+    input.addEventListener('input', () => onChange(input.value));
+    return row(label, input);
   }
 
   function numberField(

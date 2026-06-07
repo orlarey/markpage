@@ -43,25 +43,6 @@ export const PAGE_SIZE_LABELS: Record<PageSize, string> = {
   SLIDES_16_9: 'Slides 16:9',
 };
 
-export type PageNumberPosition =
-  | 'none'
-  | 'top-left'
-  | 'top-center'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-center'
-  | 'bottom-right';
-
-export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
-  'none',
-  'top-left',
-  'top-center',
-  'top-right',
-  'bottom-left',
-  'bottom-center',
-  'bottom-right',
-];
-
 /**
  * Purpose: Text alignment for a styled element.
  */
@@ -134,8 +115,7 @@ export type ElementKey =
   | 'callout'
   | 'table'
   | 'caption'
-  | 'running-content'
-  | 'page-number';
+  | 'running-content';
 
 export const ELEMENT_KEYS: ElementKey[] = [
   'body',
@@ -155,7 +135,6 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'table',
   'caption',
   'running-content',
-  'page-number',
 ];
 
 /**
@@ -257,10 +236,6 @@ export const ELEMENT_DESCRIPTORS: Record<
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'weight', 'italic'],
   },
-  'page-number': {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline'],
-  },
 };
 
 /**
@@ -328,9 +303,18 @@ export interface PdfSettings {
   organization: MetadataField;
   date: DateSetting;
   styles: Record<ElementKey, Style>;
-  pageNumber: {
-    position: PageNumberPosition;
-  };
+  // Default running content (SPEC §26.5). The strings carry one fence
+  // body each — same syntax as a `\`\`\`header` / `\`\`\`footer` fence
+  // body: three slots separated by `|`, with `{page}` / `{pages}` /
+  // `{title}` / `{date}` substitutions and `**bold**` / `*italic*`
+  // inline emphasis allowed. They are synthesised as invisible fences
+  // at the very top of the source so the cascade machinery in
+  // page-running.ts treats them like a "section 0": active everywhere
+  // until a real fence in the doc overrides the same band (header or
+  // footer), at which point that band switches over per cascade.
+  // Empty string ↔ no default for that band.
+  header: string;
+  footer: string;
   // Maximum upscaling factor applied to mermaid diagrams in the PDF. The
   // diagram is scaled up to this factor, but never beyond the width and
   // height bounds defined below.
@@ -510,11 +494,14 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     table: {},
     caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
     'running-content': { fontSize: 9, color: '#57606a', weight: 400, italic: false },
-    'page-number': { fontSize: 9, color: '#57606a', weight: 400, italic: false, underline: false },
   },
-  pageNumber: {
-    position: 'bottom-center',
-  },
+  // Default header / footer for new profiles. Matches the previous
+  // built-in default of `pageNumber.position = 'bottom-center'` — an
+  // empty header and a centered page counter in the footer. Users can
+  // edit both fields in Réglages → Page, or override them by writing a
+  // \`\`\`header / \`\`\`footer fence directly in the doc.
+  header: '',
+  footer: ' | {page} | ',
   customFonts: [],
   // First-launch default for the doc language. Re-resolved at the
   // creation of a fresh profile via `detectLanguage()` so a user
@@ -589,11 +576,17 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     ),
     date: merge(d.date, obj.date as Partial<DateSetting> | undefined),
     styles: mergeStyles(obj),
-    pageNumber: {
-      position:
-        ((obj.pageNumber as { position?: PageNumberPosition } | undefined)
-          ?.position as PageNumberPosition | undefined) ?? d.pageNumber.position,
-    },
+    // Migrate the legacy pageNumber.position → an equivalent footer
+    // (or header for top-* positions) fence body string. Any explicit
+    // `header` / `footer` field in the input wins over the migration.
+    header:
+      typeof obj.header === 'string'
+        ? (obj.header as string)
+        : migrateHeaderFromPageNumber(obj) ?? d.header,
+    footer:
+      typeof obj.footer === 'string'
+        ? (obj.footer as string)
+        : migrateFooterFromPageNumber(obj) ?? d.footer,
     customFonts: Array.isArray(obj.customFonts)
       ? (obj.customFonts as CustomFont[])
       : d.customFonts,
@@ -621,6 +614,38 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
       obj.notes as Partial<PdfSettings['notes']> | undefined,
     ),
   };
+}
+
+/**
+ * Purpose: Migrate the legacy `pageNumber.position` field into a slot
+ *   string for the new `footer` (or `header`) setting. Returns `null`
+ *   when the input doesn't carry a recognisable pageNumber position —
+ *   the caller falls back to the DEFAULT_SETTINGS value. The slot
+ *   layout mirrors the dropdown corners:
+ *     - `top-{side}` ↔ header band; `bottom-{side}` ↔ footer band.
+ *     - `-left` / `-center` / `-right` fills the matching slot with
+ *       `{page}`; the other two slots stay empty.
+ */
+function migrateFromPageNumber(
+  obj: Record<string, unknown>,
+  band: 'top' | 'bottom',
+): string | null {
+  const pn = obj.pageNumber as { position?: string } | undefined;
+  const pos = pn?.position;
+  if (typeof pos !== 'string') return null;
+  if (pos === 'none') return '';
+  const [b, slot] = pos.split('-');
+  if (b !== band) return '';
+  if (slot === 'left') return '{page} | | ';
+  if (slot === 'center') return ' | {page} | ';
+  if (slot === 'right') return ' | | {page}';
+  return null;
+}
+function migrateHeaderFromPageNumber(obj: Record<string, unknown>): string | null {
+  return migrateFromPageNumber(obj, 'top');
+}
+function migrateFooterFromPageNumber(obj: Record<string, unknown>): string | null {
+  return migrateFromPageNumber(obj, 'bottom');
 }
 
 /**
@@ -696,7 +721,6 @@ function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
   const d = DEFAULT_SETTINGS.styles;
   const out: Record<ElementKey, Style> = { ...d };
   const inStyles = obj.styles;
-  const inPageNumber = obj.pageNumber;
   if (inStyles && typeof inStyles === 'object') {
     const s = inStyles as Record<
       string,
@@ -727,15 +751,32 @@ function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
     if (s.h1 && !s.title) {
       out.title = { ...d.title, ...s.h1 };
     }
+    // Pre-v0.16: dedicated `page-number` element style — fold it into
+    // `running-content` (which now styles the whole header / footer
+    // band, page counter included) when the latter is at defaults.
+    const pn = (inStyles as Record<string, Style>)['page-number'];
+    if (
+      pn &&
+      out['running-content'].fontSize === d['running-content'].fontSize &&
+      out['running-content'].color === d['running-content'].color
+    ) {
+      out['running-content'] = { ...out['running-content'], ...pn };
+    }
   }
-  // Legacy: pageNumber.style { fontSize, italics, color } lived at the top
-  // level; we now treat it like any other styled element.
+  // Legacy: pre-v0.16 pageNumber.style { fontSize, italics, color }
+  // lived at the top level. Migrate into `running-content` (same
+  // condition as above — only if running-content is at defaults).
+  const inPageNumber = obj.pageNumber;
   if (inPageNumber && typeof inPageNumber === 'object') {
     const ps = (inPageNumber as { style?: { fontSize?: number; italics?: boolean; color?: string } })
       .style;
-    if (ps) {
-      out['page-number'] = {
-        ...out['page-number'],
+    if (
+      ps &&
+      out['running-content'].fontSize === d['running-content'].fontSize &&
+      out['running-content'].color === d['running-content'].color
+    ) {
+      out['running-content'] = {
+        ...out['running-content'],
         ...(ps.fontSize !== undefined && { fontSize: ps.fontSize }),
         ...(ps.color !== undefined && { color: ps.color }),
         ...(ps.italics !== undefined && { italic: ps.italics }),

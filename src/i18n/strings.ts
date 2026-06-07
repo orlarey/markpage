@@ -98,7 +98,6 @@ const FR = {
   'settings.section.spacing': 'Espacement',
   'settings.section.headings': 'Titres',
   'settings.section.body': 'Corps',
-  'settings.section.page-number': 'Numéro de page',
   'settings.section.mermaid': 'Diagrammes Mermaid',
   'settings.section.math': 'Formules mathématiques',
   'settings.section.ui-language': 'Interface',
@@ -178,15 +177,6 @@ const FR = {
   'date.custom': 'Date personnalisée',
   'date.field-label': 'Date',
 
-  // ---- page-number positions ---------------------------------------
-  'position.none': 'aucun',
-  'position.top-left': 'haut gauche',
-  'position.top-center': 'haut centre',
-  'position.top-right': 'haut droite',
-  'position.bottom-left': 'bas gauche',
-  'position.bottom-center': 'bas centre',
-  'position.bottom-right': 'bas droite',
-
   // ---- settings field labels ---------------------------------------
   'settings.field.author': 'Auteur',
   'settings.field.organization': 'Organisation',
@@ -224,7 +214,10 @@ const FR = {
   'settings.field.mermaid-width': 'Largeur max. (% du texte)',
   'settings.field.mermaid-height': 'Hauteur max. (% du texte)',
   'settings.field.math-scale': 'Échelle des formules (%)',
-  'settings.field.page-number-position': 'Numéro de page',
+  'settings.field.header-default': 'En-tête par défaut',
+  'settings.field.header-default-placeholder': 'gauche | centre | droite',
+  'settings.field.footer-default': 'Pied de page par défaut',
+  'settings.field.footer-default-placeholder': '| {page} |',
   'settings.field.math-font-set': 'Police des formules',
   'math-font-set.newcm': 'NewComputerModern (serif)',
   'math-font-set.fira': 'Fira Math (sans-serif)',
@@ -254,7 +247,6 @@ const FR = {
   'element.table': 'Tableau',
   'element.caption': 'Légende (caption)',
   'element.running-content': 'En-tête / pied de page',
-  'element.page-number': 'Numéro de page',
   // ---- per-attribute labels (matrix columns) -----------------------
   'attr.family': 'Police',
   'attr.fontSize': 'Taille (pt)',
@@ -384,7 +376,6 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.section.spacing': 'Spacing',
   'settings.section.headings': 'Headings',
   'settings.section.body': 'Body',
-  'settings.section.page-number': 'Page number',
   'settings.section.mermaid': 'Mermaid diagrams',
   'settings.section.math': 'Math formulas',
   'settings.section.ui-language': 'Interface',
@@ -464,15 +455,6 @@ const EN: Record<keyof typeof FR, string> = {
   'date.custom': 'Custom date',
   'date.field-label': 'Date',
 
-  // ---- page-number positions ---------------------------------------
-  'position.none': 'none',
-  'position.top-left': 'top left',
-  'position.top-center': 'top centre',
-  'position.top-right': 'top right',
-  'position.bottom-left': 'bottom left',
-  'position.bottom-center': 'bottom centre',
-  'position.bottom-right': 'bottom right',
-
   // ---- settings field labels ---------------------------------------
   'settings.field.author': 'Author',
   'settings.field.organization': 'Organisation',
@@ -510,7 +492,10 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.field.mermaid-width': 'Max width (% of text)',
   'settings.field.mermaid-height': 'Max height (% of text)',
   'settings.field.math-scale': 'Formula scale (%)',
-  'settings.field.page-number-position': 'Page number',
+  'settings.field.header-default': 'Default header',
+  'settings.field.header-default-placeholder': 'left | centre | right',
+  'settings.field.footer-default': 'Default footer',
+  'settings.field.footer-default-placeholder': '| {page} |',
   'settings.field.math-font-set': 'Math font',
   'math-font-set.newcm': 'NewComputerModern (serif)',
   'math-font-set.fira': 'Fira Math (sans-serif)',
@@ -540,7 +525,6 @@ const EN: Record<keyof typeof FR, string> = {
   'element.table': 'Table',
   'element.caption': 'Caption',
   'element.running-content': 'Header / footer',
-  'element.page-number': 'Page number',
   // ---- per-attribute labels (matrix columns) -----------------------
   'attr.family': 'Font',
   'attr.fontSize': 'Size (pt)',

@@ -11,7 +11,7 @@ import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
 import { groupLetterheads } from './letterhead';
-import { applyPageRunningRuns } from './page-running';
+import { applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter } from './page-running';
 import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,
@@ -183,6 +183,15 @@ export async function paginate(
   // no risk of paged.js's polisher stripping a selector it doesn't
   // recognize.
   renderTo.classList.toggle('duplex', settings.duplex);
+  // Reset the running-element name counter so synthesized + in-doc
+  // fences both number from mpr1 again on each render — keeps the
+  // output deterministic across reloads / hot-reloads.
+  resetPageRunningCounter();
+  // Inject the user-configured default header / footer fences (from
+  // settings) at the very top of the source, so they become the
+  // leading section. Real fences in the doc open subsequent sections
+  // that override the matching band via the same cascade rules.
+  prependDefaultFences(source, settings);
   // Partition the source into runs at each `header` / `footer` fence
   // sentinel, tag each top-level content element with `page: mp-
   // section-N` inline, and collect the assembled @page rules. The CSS
@@ -223,6 +232,8 @@ export async function paginateOnce(
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
+  resetPageRunningCounter();
+  prependDefaultFences(source, settings);
   const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -779,14 +790,11 @@ function isPresentableBlock(el: Element): boolean {
 export function pagedCss(s: PdfSettings): string {
   const sizeMm = pageSizeMm(s);
   const m = s.margins;
-  const pn = s.pageNumber;
   const styles = s.styles;
-  const pageNumberRule = pageNumberCss(pn, styles['page-number']);
-  // Running-content typography (§ user-asked improvement). Styles the
-  // wrapper paged.js mounts inside every margin box, so it picks up
-  // all six @top-* / @bottom-* boxes at once. page-number's own rule
-  // is emitted inside @page (= higher specificity) and overrides for
-  // the folio specifically.
+  // Running-content typography reaches all six @top-* / @bottom-*
+  // boxes — header, footer, and (since v0.16) the page counter too,
+  // which is just another running content slot now that the dedicated
+  // pageNumber setting is gone.
   const runningContentRule = runningContentCss(styles['running-content']);
   // Per-element family overrides the trio; the trio is the fallback
   // when the matrix leaves `family` undefined.
@@ -880,7 +888,6 @@ export function pagedCss(s: PdfSettings): string {
     ? `
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;
-      ${pageNumberRule}
     }
     @page :right { ${rectoMargin} }
     @page :left  { ${versoMargin} }`
@@ -888,7 +895,6 @@ export function pagedCss(s: PdfSettings): string {
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;
       ${rectoMargin}
-      ${pageNumberRule}
     }`;
 
   // §9.6.4 — body padding inside the live area to recover the
@@ -1752,30 +1758,3 @@ function runningContentCss(style: Style): string {
   return `:where(#preview-pane, #markpage-print-target) :is(${boxes}) { ${decls.join(' ')} }`;
 }
 
-/**
- * Purpose: Translate the PageNumber position + style into a `@<corner>` rule.
- * How: Emits `content: counter(page)` with font styling, or "" when `none`.
- */
-function pageNumberCss(
-  pn: PdfSettings['pageNumber'],
-  style: Style,
-): string {
-  if (pn.position === 'none') return '';
-  const [, hSide] = pn.position.split('-') as [
-    'top' | 'bottom',
-    'left' | 'center' | 'right',
-  ];
-  const vSide = pn.position.startsWith('top') ? 'top' : 'bottom';
-  const at = `@${vSide}-${hSide}`;
-  return `
-    ${at} {
-      content: counter(page);
-      ${style.family !== undefined && style.family.trim() !== '' ? `font-family: ${quoteFontFamily(style.family)};` : ''}
-      ${style.fontSize !== undefined ? `font-size: ${style.fontSize}pt;` : ''}
-      ${style.color !== undefined ? `color: ${style.color};` : ''}
-      ${style.weight !== undefined ? `font-weight: ${style.weight};` : ''}
-      ${style.italic ? 'font-style: italic;' : ''}
-      ${style.underline ? 'text-decoration: underline;' : ''}
-    }
-  `;
-}

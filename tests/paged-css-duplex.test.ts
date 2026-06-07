@@ -58,7 +58,7 @@ describe('pagedCss — duplex (mirror margins on @page :left)', () => {
     );
   });
 
-  it('moves the page size + page-number rule into the generic @page (kept identical for both faces)', () => {
+  it('keeps the page size rule on the generic @page (shared across both faces)', () => {
     const css = pagedCss(duplex);
     expect(css).toMatch(/@page\s*\{\s*size: \d+mm \d+mm;\s*[\s\S]*?\}/);
   });

@@ -60,6 +60,40 @@ export function resetPageRunningCounter(): void {
 }
 
 /**
+ * Purpose: Inject the user-configured default header / footer (from
+ *   `settings.header` / `settings.footer`) as invisible fence sentinels
+ *   at the very top of the source — so the existing fence machinery in
+ *   `applyPageRunningRuns` picks them up as the leading section. A real
+ *   `\`\`\`header` / `\`\`\`footer` fence later in the document opens a
+ *   new section that overrides the corresponding band via the same
+ *   cascade semantics that applies between in-doc fences (§26.5).
+ * How: Build the sentinel HTML with `renderPageRunning` (same path as
+ *   marked-config uses for fence blocks), parse it into a fragment,
+ *   prepend it to `root`. Empty strings are skipped — no fence is
+ *   synthesized, so the doc behaves as if neither setting was set.
+ *
+ *   Important: this MUST run after marked has produced the source
+ *   tree (and after any in-doc fences are already in place) but
+ *   BEFORE `applyPageRunningRuns` walks. That keeps the synthetic
+ *   sentinels at the very start of `root.children`, where they create
+ *   "section 1" — every real fence after them opens section 2, 3, …
+ *   and inherits the defaults for the other band per cascade.
+ */
+export function prependDefaultFences(
+  root: HTMLElement,
+  settings: { header?: string; footer?: string },
+): void {
+  const parts: string[] = [];
+  const header = (settings.header ?? '').trim();
+  const footer = (settings.footer ?? '').trim();
+  if (header !== '') parts.push(renderPageRunning('header', settings.header!));
+  if (footer !== '') parts.push(renderPageRunning('footer', settings.footer!));
+  if (parts.length === 0) return;
+  const frag = document.createRange().createContextualFragment(parts.join(''));
+  root.insertBefore(frag, root.firstChild);
+}
+
+/**
  * Purpose: Render a `<style>` sentinel that carries the @-rule body for
  *   one band (top for header, bottom for footer) plus the args as a
  *   `data-args` attribute. The sentinel is placed inline in the
