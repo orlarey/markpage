@@ -1,16 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Purpose: End-to-end verification that the `notes.position: 'side'`
- *   layout actually places sidenote spans in the outer gutter of the
- *   live area at the height of their anchor (SPEC §9.7 — Tufte-CSS
- *   approach). Cross-checks two facts:
- *     1. In default `foot` mode, sidenote spans are present in the
- *        DOM but invisible (display: none).
- *     2. In `side` mode (via the "Édition critique" preset), the
- *        section.footnotes is hidden, the sidenote is visible and
- *        positioned to the right of its containing paragraph (or
- *        to the left on a verso page if duplex is on).
+ * Purpose: End-to-end verification that the three `notes.position`
+ *   modes wire the right rendering:
+ *     - 'foot' (default): paged.js's `float: footnote` moves each
+ *       `.sidenote` into the per-page `.pagedjs_footnote_area`; the
+ *       document-tail `section.footnotes` is hidden.
+ *     - 'side' (Édition critique preset): the `.sidenote` span sits
+ *       absolutely in the outer gutter at the height of its anchor;
+ *       the body `.footnote-ref` superscript stays visible (back-link
+ *       anchor) and the document-tail section is hidden.
  */
 
 async function openSettings(page: Page): Promise<Page> {
@@ -26,8 +25,9 @@ async function waitForRender(page: Page): Promise<void> {
     .locator('.pagedjs_pages')
     .waitFor({ state: 'attached', timeout: 30_000 });
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
-  // The doc-tail section.footnotes only attaches once paged.js has
-  // flowed all the content — wait until pagination is complete.
+  // Pagination is complete when paged.js has flowed the trailing
+  // section.footnotes into the DOM — even in foot/side modes where
+  // we hide it visually, it's still inserted by the chunker.
   await page.waitForFunction(
     () => document.querySelectorAll('section.footnotes').length > 0,
     null,
@@ -53,28 +53,41 @@ async function injectFootnoteDoc(page: Page): Promise<void> {
   await page.waitForTimeout(600);
 }
 
-test('foot mode: sidenote spans are present in the DOM but hidden', async ({ page }) => {
+test('foot mode (default): sidenote lands in the per-page .pagedjs_footnote_area, document-tail section is hidden', async ({ page }) => {
   await page.goto('/');
   await injectFootnoteDoc(page);
   await page.locator('button.preview-toggle').click();
   await waitForRender(page);
 
-  // The sidenote span exists (footnoteRef renderer emits it always).
-  const present = await page.locator('.sidenote').count();
-  expect(present).toBeGreaterThan(0);
+  // paged.js consumed `float: footnote` and moved the .sidenote
+  // element into the page's footnote area. Wait for that to happen.
+  await page.waitForFunction(
+    () => document.querySelectorAll('.pagedjs_footnote_area .sidenote').length > 0,
+    null,
+    { timeout: 30_000 },
+  );
 
-  // It's display: none.
-  const display = await page
-    .locator('.sidenote')
-    .first()
-    .evaluate((el) => getComputedStyle(el).display);
-  expect(display).toBe('none');
+  const inFootArea = await page.locator('.pagedjs_footnote_area .sidenote').count();
+  expect(inFootArea).toBeGreaterThan(0);
 
-  // The document-tail section.footnotes IS visible.
+  // The footnote element sits on the SAME page as its anchor (paged.js
+  // pairs the footnote-call and the moved element per page).
+  const sameAsAnchor = await page.evaluate(() => {
+    const foot = document.querySelector('.pagedjs_footnote_area .sidenote');
+    const call = document.querySelector('[data-footnote-call]');
+    if (!foot || !call) return false;
+    const footPage = foot.closest('.pagedjs_page');
+    const callPage = call.closest('.pagedjs_page');
+    return footPage !== null && footPage === callPage;
+  });
+  expect(sameAsAnchor).toBe(true);
+
+  // The document-tail section.footnotes is hidden (paged.js is
+  // authoritative for the body in foot mode).
   const sec = page.locator('section.footnotes');
   expect(await sec.count()).toBeGreaterThan(0);
   const secDisplay = await sec.first().evaluate((el) => getComputedStyle(el).display);
-  expect(secDisplay).not.toBe('none');
+  expect(secDisplay).toBe('none');
 });
 
 test("side mode (Édition critique preset): sidenote visible at right of its anchor's paragraph", async ({
@@ -105,6 +118,26 @@ test("side mode (Édition critique preset): sidenote visible at right of its anc
   const sec = page.locator('section.footnotes');
   const secDisplay = await sec.first().evaluate((el) => getComputedStyle(el).display);
   expect(secDisplay).toBe('none');
+
+  // Body anchor superscript stays visible in side mode (it's the
+  // back-link to the sidenote — Tufte convention shows the number
+  // both as the in-body anchor AND at the start of the note).
+  const refDisplay = await page
+    .locator('.footnote-ref')
+    .first()
+    .evaluate((el) => getComputedStyle(el).display);
+  expect(refDisplay).not.toBe('none');
+
+  // The in-sidenote `.sidenote-num` superscript carries the SAME
+  // number as the body anchor.
+  const numsMatch = await page.evaluate(() => {
+    const sup = document.querySelector('.footnote-ref');
+    const sideNum = document.querySelector('.sidenote .sidenote-num');
+    if (!sup || !sideNum) return null;
+    return { body: sup.textContent?.trim(), side: sideNum.textContent?.trim() };
+  });
+  expect(numsMatch).not.toBeNull();
+  expect(numsMatch!.body).toBe(numsMatch!.side);
 
   // Position check: on a recto page (page 0), the sidenote sits to
   // the right of its anchor's containing paragraph. Read the sidenote

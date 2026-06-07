@@ -693,7 +693,12 @@ marked.use({
         } finally {
           inEndnotesRender = false;
         }
-        const sidenote = `<span class="sidenote" id="sn-${idEsc}">${inlineBody}</span>`;
+        // Prepend the note number as a small <sup class="sidenote-num">
+        // — visible in 'side' mode (Tufte sidenote convention: number
+        // appears both as the in-body anchor AND at the start of the
+        // sidenote body), hidden in 'foot' mode (paged.js generates its
+        // own ::footnote-marker for floated notes).
+        const sidenote = `<span class="sidenote" id="sn-${idEsc}"><sup class="sidenote-num">${num}</sup>${inlineBody}</span>`;
         return sup + sidenote;
       },
     },

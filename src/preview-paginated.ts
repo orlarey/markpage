@@ -846,16 +846,30 @@ export function pagedCss(s: PdfSettings): string {
           measureAverageCharWidth(bodyName, bodyFontSizePt),
         )
       : null;
-  // In derived mode, the @page margin shrinks to the LIVE AREA
-  // boundary so the @top-* / @bottom-* boxes span the full live-area
-  // width (§9.6.6). In manual mode, behave exactly as before: the
+  // In derived mode, the @page margin is asymmetric: vertical (top /
+  // bottom) = TEXT BLOCK margins, horizontal (inner / outer) = LIVE
+  // AREA margins. This puts the @top-* / @bottom-* boxes inside the
+  // header / footer BANDS of the canon (§9.6.6) rather than the
+  // canonical blank zone above / below them. The author-supplied header
+  // / footer text is then pushed to the inside edge of the box (via
+  // `align-items: flex-end` for @top-* and `flex-start` for @bottom-*
+  // below) so it visually sits in the live area, not in the blank
+  // page-edge zone. In manual mode, behave exactly as before: the
   // user's four sliders are authoritative.
-  const effMargins = liveAreaCanon ?? {
-    top: m.top,
-    bottom: m.bottom,
-    inner: m.left,
-    outer: m.right,
-  };
+  const effMargins =
+    textBlockCanon !== null && liveAreaCanon !== null
+      ? {
+          top: textBlockCanon.top,
+          bottom: textBlockCanon.bottom,
+          inner: liveAreaCanon.inner,
+          outer: liveAreaCanon.outer,
+        }
+      : {
+          top: m.top,
+          bottom: m.bottom,
+          inner: m.left,
+          outer: m.right,
+        };
   // §9.5.2 — when duplex is on, the inner margin (binding) stays
   // physically on the spine side of the open book. On recto (@page
   // :right), inner = LEFT and outer = RIGHT; on verso (@page :left)
@@ -910,6 +924,74 @@ export function pagedCss(s: PdfSettings): string {
     liveAreaCanon,
     s.duplex,
   );
+  // §9.6.6 — in derived mode the @top-* / @bottom-* margin boxes are
+  // taller than the canonical-blank zone (the @page margin is set to
+  // the TEXT BLOCK top / bottom, not the live area). We want the
+  // running content to sit at the LIVE AREA edge:
+  //   - header: at the TOP of the live area (just inside its top edge)
+  //   - footer: at the BOTTOM of the live area (just inside its
+  //     bottom edge)
+  // The canonical blank zones (live_LA.top above the header / live_LA.
+  // bottom below the footer) become symmetric breathing room toward
+  // the page edges, and the header / footer BANDS become breathing
+  // room toward the body text. paged.js uses flex inside each margin
+  // box, so we combine `align-items` with `padding` to place the inner
+  // `.pagedjs_margin-content` precisely:
+  //   - @top-*    : align-items: flex-start; padding-top:    live_LA.top
+  //   - @bottom-* : align-items: flex-end;   padding-bottom: live_LA.bottom
+  // NOTE on specificity: paged.js's polisher base.js ships
+  //   `.pagedjs_pagebox .pagedjs_margin-bottom-center { align-items: center; }`
+  // with specificity (0,2,0). To override `align-items` (centred by
+  // default) we MUST match that specificity. `:where(...)` contributes
+  // 0 to specificity by design; the `.pagedjs_pagebox` prefix adds the
+  // second class we need. `:is(...)` contributes the max specificity
+  // of its arguments (= 0,1,0 for class lists), so the total here is
+  // (0,2,0) — equal to paged.js's, and our rules come later in the
+  // cascade so they win.
+  const marginBoxAlignRule =
+    textBlockCanon !== null && liveAreaCanon !== null
+      ? `
+    ${SCOPE} .pagedjs_pagebox :is(.pagedjs_margin-top-left, .pagedjs_margin-top-center, .pagedjs_margin-top-right,
+        .pagedjs_margin-top-left-corner, .pagedjs_margin-top-right-corner) {
+      align-items: flex-start;
+      padding-top: ${liveAreaCanon.top}mm;
+    }
+    ${SCOPE} .pagedjs_pagebox :is(.pagedjs_margin-bottom-left, .pagedjs_margin-bottom-center, .pagedjs_margin-bottom-right,
+        .pagedjs_margin-bottom-left-corner, .pagedjs_margin-bottom-right-corner) {
+      align-items: flex-end;
+      padding-bottom: ${liveAreaCanon.bottom}mm;
+    }`
+      : '';
+  // CSS custom properties exposing the canonical geometry so the
+  // debug-guides overlay (style.css, gated on `.debug-layout`) can
+  // draw the live-area and text-block outlines as pseudo-elements on
+  // `.pagedjs_page` / `.pagedjs_page_content` without re-deriving the
+  // values. Set on both the on-screen pane and the print target so the
+  // same rules light up in either container. In manual mode there is
+  // no canonical decomposition: live area = text block = user margins,
+  // and the gutters collapse to zero.
+  const eff = effMargins;
+  const gutInner =
+    textBlockCanon !== null && liveAreaCanon !== null
+      ? Math.max(0, textBlockCanon.inner - liveAreaCanon.inner)
+      : 0;
+  const gutOuter =
+    textBlockCanon !== null && liveAreaCanon !== null
+      ? Math.max(0, textBlockCanon.outer - liveAreaCanon.outer)
+      : 0;
+  const liveTop = liveAreaCanon?.top ?? eff.top;
+  const liveBottom = liveAreaCanon?.bottom ?? eff.bottom;
+  const liveInner = liveAreaCanon?.inner ?? eff.inner;
+  const liveOuter = liveAreaCanon?.outer ?? eff.outer;
+  const canonVarsRule = `
+    ${SCOPE} {
+      --mp-live-top: ${liveTop}mm;
+      --mp-live-bottom: ${liveBottom}mm;
+      --mp-live-inner: ${liveInner}mm;
+      --mp-live-outer: ${liveOuter}mm;
+      --mp-gutter-inner: ${gutInner}mm;
+      --mp-gutter-outer: ${gutOuter}mm;
+    }`;
   // §9.5.3 — chapterBreak forces a page break before each h1:
   //   - 'none':       no rule emitted
   //   - 'next-page':  CSS `break-before: page`
@@ -927,6 +1009,8 @@ export function pagedCss(s: PdfSettings): string {
   return `
     ${pageRule}
     ${bodyPaddingRule}
+    ${marginBoxAlignRule}
+    ${canonVarsRule}
     ${runningContentRule}
     ${sidenoteRule}
     ${chapterBreakRule}
@@ -949,6 +1033,29 @@ export function pagedCss(s: PdfSettings): string {
     /* First heading on the page should never push the body content
        down — paged.js doesn't trim leading margins itself. */
     ${SCOPE} > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+    /* Hug the text-block top edge. paged.js always wraps the page
+       content in an anonymous div (.pagedjs_page_content > div), then
+       our keepLabelsWithNext() may add another (.keep-with-next), and
+       the actual content (h1, p, blockquote, ...) lives under that.
+       Empirically, the inner element's margin-top is NOT absorbed by
+       the wrapper chain — it surfaces as a visible gap above the first
+       line. Zero the margin-top on every link in the first-child chain
+       so the leading element sits flush against the text-block top
+       edge regardless of how many wrappers paged.js / we have
+       inserted. Continuation fragments are unaffected (paged.js zeroes
+       their margin-top on its own fragmentation pass).
+       NOTE on specificity: must use :is(#preview-pane, #print-target)
+       — NOT :where(...) — so the rule carries ID specificity (1,4,0)
+       and beats the fluid-preview rules from preview.ts (specificity
+       1,1,1, e.g. #preview-pane h1.doc-title with its own margin
+       shorthand) that leak into the paged tree because it lives
+       inside #preview-pane. */
+    :is(#preview-pane, #markpage-print-target) .pagedjs_page_content > :first-child,
+    :is(#preview-pane, #markpage-print-target) .pagedjs_page_content > :first-child > :first-child,
+    :is(#preview-pane, #markpage-print-target) .pagedjs_page_content > :first-child > :first-child > :first-child,
+    :is(#preview-pane, #markpage-print-target) .pagedjs_page_content > :first-child > :first-child > :first-child > :first-child {
+      margin-top: 0;
+    }
     ${SCOPE} p { margin: ${styles.body.marginAbove ?? 1}em 0 ${styles.body.marginBelow ?? 1}em; }
     /* Prevent orphan headings at the foot of a page. This rule is
        intentionally unscoped: paged.js parses the selector itself
@@ -1403,14 +1510,17 @@ function buildBodyPaddingCss(
   liveArea: CanonicalMargins,
   duplex: boolean,
 ): string {
-  const padTop = Math.max(0, textBlock.top - liveArea.top);
-  const padBottom = Math.max(0, textBlock.bottom - liveArea.bottom);
+  // Vertical padding is ZERO: the @page margin (in derived mode) is
+  // already set to the TEXT BLOCK top / bottom so the body content
+  // area has the text-block height natively. Only the horizontal
+  // gutters (inner / outer) need to be subtracted from the live area
+  // to recover the text-block width.
   const padInner = Math.max(0, textBlock.inner - liveArea.inner);
   const padOuter = Math.max(0, textBlock.outer - liveArea.outer);
   // CSS padding shorthand is `top right bottom left`. On recto:
   //   right = outer, left = inner.
-  const rectoPadding = `padding: ${padTop}mm ${padOuter}mm ${padBottom}mm ${padInner}mm;`;
-  const versoPadding = `padding: ${padTop}mm ${padInner}mm ${padBottom}mm ${padOuter}mm;`;
+  const rectoPadding = `padding: 0 ${padOuter}mm 0 ${padInner}mm;`;
+  const versoPadding = `padding: 0 ${padInner}mm 0 ${padOuter}mm;`;
   // Scope to .pagedjs_page_content (paged.js's content wrapper). The
   // `scope` prefix (`:where(#preview-pane, ...)`) keeps these rules
   // from leaking outside the paginated containers.
@@ -1456,9 +1566,49 @@ function buildSidenoteCss(
   liveArea: CanonicalMargins | null,
   duplex: boolean,
 ): string {
-  // In every mode except 'side', the inline sidenote is hidden —
-  // the rendered section.footnotes carries the body.
-  if (position !== 'side' || textBlock === null || liveArea === null) {
+  // === 'end' mode ============================================
+  // The classical Markdown rendering: the `<section class="footnotes">`
+  // collected at the document tail carries the body of every note,
+  // and the inline `.sidenote` span is hidden. The body superscript
+  // `.footnote-ref` stays visible (it's the back-link anchor).
+  if (position === 'end') {
+    return `${scope} .sidenote { display: none; }`;
+  }
+  // === 'foot' mode ===========================================
+  // Real per-page footnotes via the CSS Paged Media `float: footnote`
+  // property — paged.js (modules/paged-media/footnotes.js) intercepts
+  // the declaration, moves every matched element to the page's
+  // `.pagedjs_footnote_area`, and auto-generates a numeric
+  // `::footnote-call` at the original position plus a
+  // `::footnote-marker` at the start of the moved element.
+  //   - Hide our manual `.footnote-ref` superscript so we don't double
+  //     the in-body marker with paged.js's auto-generated one.
+  //   - Hide our internal `.sidenote-num` prefix inside the moved
+  //     element so we don't double the marker in the footnote area.
+  //   - Hide the document-tail `section.footnotes` (paged.js is now
+  //     authoritative for the body).
+  if (position === 'foot') {
+    return [
+      // UNSCOPED on purpose: paged.js's footnote handler captures the
+      // selector and runs `parsed.querySelectorAll(selector)` against
+      // the CLONED SOURCE (which lives outside `#preview-pane`). A
+      // scoped selector like `:where(#preview-pane, ...) .sidenote`
+      // would match zero elements there. The rule is only meaningful
+      // in a paginated context anyway, so leaking it globally is harmless.
+      `.sidenote { float: footnote; }`,
+      // The remaining rules apply to the RENDERED DOM (inside the
+      // preview / print container) so they keep the scope.
+      `${scope} .footnote-ref { display: none; }`,
+      `${scope} .sidenote .sidenote-num { display: none; }`,
+      `${scope} section.footnotes { display: none; }`,
+    ].join('\n');
+  }
+  // === 'side' mode ===========================================
+  // Tufte-CSS approach: position the inline `.sidenote` span absolutely
+  // in the outer gutter at the height of its anchor. Requires the
+  // canonical margins so we know the gutter width; degrades silently
+  // to plain hide if `marginMode === 'manual'`.
+  if (textBlock === null || liveArea === null) {
     return `${scope} .sidenote { display: none; }`;
   }
   const outerGutter = Math.max(0, textBlock.outer - liveArea.outer);
@@ -1491,23 +1641,31 @@ function buildSidenoteCss(
     `  max-width: ${noteWidth}mm;\n` +
     `  height: auto;\n` +
     `}`;
+  // Numeric prefix inside the sidenote (small superscript with a
+  // half-space after it). Matches the convention where the same
+  // number appears as the body anchor AND at the start of the note.
+  const sidenoteNum =
+    `${scope} .sidenote .sidenote-num {\n` +
+    `  font-size: 0.75em;\n` +
+    `  vertical-align: super;\n` +
+    `  margin-right: 0.25em;\n` +
+    `}`;
   // Paragraphs (and related block hosts) need a positioning context.
   const relative =
     `${scope} :where(p, li, blockquote, .pagedjs_page_content) { position: relative; }`;
-  // Hide the in-text superscript and the document-tail footnote section.
-  const hides =
-    `${scope} .footnote-ref { display: none; }\n` +
-    `${scope} section.footnotes { display: none; }`;
+  // Only the document-tail footnote section is hidden in side mode —
+  // the body `.footnote-ref` superscript stays visible as the anchor.
+  const hides = `${scope} section.footnotes { display: none; }`;
   // Duplex: on verso pages, flip to the opposite side.
   if (!duplex) {
-    return [hides, relative, recto].join('\n');
+    return [hides, relative, recto, sidenoteNum].join('\n');
   }
   const verso =
     `${scope} .pagedjs_left_page :is(.sidenote, img.margin) {\n` +
     `  left: -${outerGutter}mm;\n` +
     `  right: auto;\n` +
     `}`;
-  return [hides, relative, recto, verso].join('\n');
+  return [hides, relative, recto, sidenoteNum, verso].join('\n');
 }
 
 /**
@@ -1538,16 +1696,22 @@ function pageSizeMm(s: PdfSettings): { w: number; h: number } {
 }
 
 /**
- * Purpose: Style the wrapper that paged.js mounts inside every
- *   margin box (`.pagedjs_margin-content`). One ruleset reaches all
- *   six @top-* / @bottom-* boxes at once so author-supplied header /
- *   footer fences pick up the requested typography (font, size,
- *   colour, weight, italic) without per-box repetition.
- * How: Emit a low-specificity rule against `.pagedjs_margin-content`;
- *   the `page-number` rule generated inside @page is more specific
- *   (paged.js polishes it to a class selector against the specific
- *   margin box), so the folio's own styling overrides this one when
- *   the page number falls in a box the user also wrote a fence for.
+ * Purpose: Apply the user-configured header / footer typography (font,
+ *   size, colour, weight, italic) to every @top-* / @bottom-* margin
+ *   box at once, so author-supplied fences pick up the requested
+ *   defaults without per-box repetition.
+ * How: Target the @margin BOX selectors (`.pagedjs_margin-top-left`
+ *   etc.) rather than the inner `.pagedjs_margin-content` wrapper.
+ *   Reason: paged.js renders fence content via `::after` on
+ *   `.pagedjs_margin-content`, and a direct rule on that wrapper would
+ *   override (via the cascade) any per-slot styling we extract from
+ *   `**...**` whole-slot bold / italic markers — those get emitted on
+ *   the @margin BOX itself (e.g. `.pagedjs_margin-top-right`). Putting
+ *   our running-content defaults on the same selector level lets the
+ *   per-slot rule win by source order (page-running.css is injected
+ *   AFTER paged-rules.css, so its declarations override on tie).
+ *   The inner `.pagedjs_margin-content` and `::after` inherit
+ *   font-family / font-size / color / weight / style from the box.
  */
 function runningContentCss(style: Style): string {
   const decls: string[] = [];
@@ -1567,7 +1731,25 @@ function runningContentCss(style: Style): string {
     decls.push('font-style: italic;');
   }
   if (decls.length === 0) return '';
-  return `:where(#preview-pane, #markpage-print-target) .pagedjs_margin-content { ${decls.join(' ')} }`;
+  // All eight @margin-box positions (4 sides × top/center/bottom or
+  // left/center/right) plus the 4 corners. Listing them explicitly
+  // matches what paged.js generates from @top-* / @bottom-* etc. rules,
+  // so author per-slot extracts (also class selectors on these names)
+  // sit at the same specificity tier — page-running.css is injected
+  // after paged-rules.css so per-slot wins on tie.
+  const boxes = [
+    '.pagedjs_margin-top-left-corner',
+    '.pagedjs_margin-top-left',
+    '.pagedjs_margin-top-center',
+    '.pagedjs_margin-top-right',
+    '.pagedjs_margin-top-right-corner',
+    '.pagedjs_margin-bottom-left-corner',
+    '.pagedjs_margin-bottom-left',
+    '.pagedjs_margin-bottom-center',
+    '.pagedjs_margin-bottom-right',
+    '.pagedjs_margin-bottom-right-corner',
+  ].join(', ');
+  return `:where(#preview-pane, #markpage-print-target) :is(${boxes}) { ${decls.join(' ')} }`;
 }
 
 /**

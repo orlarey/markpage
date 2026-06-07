@@ -65,50 +65,79 @@ describe('pagedCss — duplex (mirror margins on @page :left)', () => {
 });
 
 describe('pagedCss — derived margins (marginMode: derived)', () => {
-  // §9.6 / §9.6.6 — in derived mode, @page margin tracks the LIVE
-  // AREA boundary (so @top-*/@bottom-* span the live area width).
-  // The narrower text-block dimensions are recovered via body padding
-  // on .pagedjs_page_content. happy-dom has no canvas, so
-  // measureAverageCharWidth falls back to the 0.5 em heuristic;
-  // body fontSize = 11pt gives charWidth ≈ 1.9404 mm.
+  // §9.6 / §9.6.6 — in derived mode, @page margin is asymmetric:
+  // vertical (top/bottom) = TEXT BLOCK margins, horizontal
+  // (inner/outer) = LIVE AREA margins. This places the @top-* /
+  // @bottom-* boxes inside the canonical header / footer BANDS rather
+  // than in the canonical blank zone above / below them. The narrower
+  // text-block width is recovered via horizontal-only body padding on
+  // .pagedjs_page_content (vertical padding is 0; the body height
+  // already equals the text-block height by virtue of the @page
+  // margin).
+  // happy-dom has no canvas, so measureAverageCharWidth falls back to
+  // the 0.5 em heuristic; body fontSize = 11pt gives charWidth ≈
+  // 1.9404 mm.
   //   liveAreaWidth  = 85 × 1.9404 ≈ 164.93 mm
   //   liveAreaHeight = 164.93 × 297/210 ≈ 233.27 mm
-  //   inner_LA = (210 − 164.93) / 3 ≈ 15.02 mm
-  //   outer_LA = 2 × 15.02 ≈ 30.05 mm
-  //   top_LA   = (297 − 233.27) / 3 ≈ 21.24 mm
-  //   bottom_LA = 2 × 21.24 ≈ 42.49 mm
+  //   inner_LA ≈ 15.02 mm, outer_LA ≈ 30.05 mm
+  //   top_LA   ≈ 21.24 mm, bottom_LA ≈ 42.49 mm
   //   textBlockWidth  = 66 × 1.9404 ≈ 128.07 mm
-  //   header band  = top_TB − top_LA = 38.61 − 21.24 ≈ 17.37 mm
-  //   footer band  = bottom_TB − bottom_LA ≈ 34.74 mm
+  //   inner_TB ≈ 27.31 mm, outer_TB ≈ 54.62 mm
+  //   top_TB   ≈ 38.61 mm, bottom_TB ≈ 77.22 mm
   //   inner gutter = inner_TB − inner_LA ≈ 12.29 mm
   //   outer gutter = outer_TB − outer_LA ≈ 24.58 mm
   const derivedSimplex: PdfSettings = { ...A4, marginMode: 'derived' };
   const derivedDuplex: PdfSettings = { ...derivedSimplex, duplex: true };
 
-  it('@page margin tracks the LIVE AREA boundary in simplex', () => {
+  it('@page margin: vertical = TEXT BLOCK, horizontal = LIVE AREA (simplex)', () => {
     const css = pagedCss(derivedSimplex);
-    // top outer bottom inner — values for the live area at 85 chars.
-    expect(css).toMatch(/margin:\s+21\.\d+mm\s+30\.\d+mm\s+42\.\d+mm\s+15\.\d+mm;/);
+    // top outer bottom inner — top/bottom from text block (38/77),
+    // outer/inner from live area (30/15).
+    expect(css).toMatch(/margin:\s+38\.\d+mm\s+30\.\d+mm\s+77\.\d+mm\s+15\.\d+mm;/);
     // Manual margins must not leak.
     expect(css).not.toContain(`margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`);
   });
 
-  it('mirrors the live-area margins on @page :right / :left in duplex', () => {
+  it('mirrors inner/outer on @page :right / :left in duplex (vertical stays text-block)', () => {
     const css = pagedCss(derivedDuplex);
-    expect(css).toMatch(/@page :right \{ margin: 21\.\d+mm 30\.\d+mm 42\.\d+mm 15\.\d+mm; \}/);
-    expect(css).toMatch(/@page :left  \{ margin: 21\.\d+mm 15\.\d+mm 42\.\d+mm 30\.\d+mm; \}/);
+    expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 30\.\d+mm 77\.\d+mm 15\.\d+mm; \}/);
+    expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 15\.\d+mm 77\.\d+mm 30\.\d+mm; \}/);
   });
 
-  it('emits body padding on .pagedjs_page_content to recover the text-block size (simplex)', () => {
+  it('emits horizontal-only body padding on .pagedjs_page_content (simplex)', () => {
     const css = pagedCss(derivedSimplex);
-    // header band ≈ 17.37, outer gutter ≈ 24.58, footer band ≈ 34.74, inner gutter ≈ 12.29.
-    expect(css).toMatch(/\.pagedjs_page_content \{ padding: 17\.\d+mm 24\.\d+mm 34\.\d+mm 12\.\d+mm; \}/);
+    // padding shorthand: 0 outer 0 inner — gutters only.
+    expect(css).toMatch(/\.pagedjs_page_content \{ padding: 0 24\.\d+mm 0 12\.\d+mm; \}/);
   });
 
   it('emits two body-padding rules in duplex, swapping inner/outer on the verso', () => {
     const css = pagedCss(derivedDuplex);
-    expect(css).toMatch(/\.pagedjs_right_page \.pagedjs_page_content \{ padding: 17\.\d+mm 24\.\d+mm 34\.\d+mm 12\.\d+mm; \}/);
-    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 17\.\d+mm 12\.\d+mm 34\.\d+mm 24\.\d+mm; \}/);
+    expect(css).toMatch(/\.pagedjs_right_page \.pagedjs_page_content \{ padding: 0 24\.\d+mm 0 12\.\d+mm; \}/);
+    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 0 12\.\d+mm 0 24\.\d+mm; \}/);
+  });
+
+  it('emits CSS variables --mp-live-* and --mp-gutter-* for the debug overlay', () => {
+    const css = pagedCss(derivedSimplex);
+    expect(css).toMatch(/--mp-live-top:\s+21\.\d+mm/);
+    expect(css).toMatch(/--mp-live-bottom:\s+42\.\d+mm/);
+    expect(css).toMatch(/--mp-live-inner:\s+15\.\d+mm/);
+    expect(css).toMatch(/--mp-live-outer:\s+30\.\d+mm/);
+    expect(css).toMatch(/--mp-gutter-inner:\s+12\.\d+mm/);
+    expect(css).toMatch(/--mp-gutter-outer:\s+24\.\d+mm/);
+  });
+
+  it('places header / footer at the live-area edges via align-items + padding', () => {
+    const css = pagedCss(derivedSimplex);
+    // Header: align-items: flex-start + padding-top = live_LA.top (≈ 21mm)
+    //         → text top sits at the live area top edge.
+    expect(css).toMatch(
+      /\.pagedjs_margin-top-center[\s\S]*?align-items:\s+flex-start;\s*padding-top:\s+21\.\d+mm/,
+    );
+    // Footer: align-items: flex-end + padding-bottom = live_LA.bottom (≈ 42mm)
+    //         → text bottom sits at the live area bottom edge.
+    expect(css).toMatch(
+      /\.pagedjs_margin-bottom-center[\s\S]*?align-items:\s+flex-end;\s*padding-bottom:\s+42\.\d+mm/,
+    );
   });
 
   it('falls back to the manual margins when marginMode === "manual" (unchanged)', () => {
@@ -125,7 +154,7 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
 });
 
 describe('pagedCss — running-content typography', () => {
-  it('emits a .pagedjs_margin-content rule reflecting the running-content style', () => {
+  it('emits a margin-box rule reflecting the running-content style', () => {
     const css = pagedCss({
       ...A4,
       styles: {
@@ -138,14 +167,17 @@ describe('pagedCss — running-content typography', () => {
         },
       },
     });
-    expect(css).toContain('.pagedjs_margin-content {');
+    // Targets the @margin BOX selectors directly (not the inner
+    // .pagedjs_margin-content wrapper) so per-slot bold / italic
+    // extracts (page-running.css) can override via the cascade.
+    expect(css).toMatch(/\.pagedjs_margin-top-left[\s\S]*\.pagedjs_margin-bottom-right/);
     expect(css).toContain('font-size: 10pt');
     expect(css).toContain('color: #222222');
     expect(css).toContain('font-weight: 500');
     expect(css).toContain('font-style: italic');
   });
 
-  it('emits nothing for the running-content selector when the style has no overrides', () => {
+  it('emits no margin-box typography rule when the style has no overrides', () => {
     const css = pagedCss({
       ...A4,
       styles: {
@@ -153,7 +185,9 @@ describe('pagedCss — running-content typography', () => {
         'running-content': {},
       },
     });
-    // No selector emitted means the box inherits the body styling.
+    // Absent style → no rule. We assert neither the new box-targeted
+    // shape nor the legacy .pagedjs_margin-content shape leaks out.
+    expect(css).not.toMatch(/:is\(\.pagedjs_margin-top-left-corner/);
     expect(css).not.toContain('.pagedjs_margin-content {');
   });
 });

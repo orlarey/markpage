@@ -13,34 +13,48 @@ import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
 const A4 = DEFAULT_SETTINGS;
 
 describe('pagedCss — sidenote rendering branch on notes.position', () => {
-  it("default 'foot': hides every .sidenote, keeps section.footnotes visible", () => {
+  it("default 'foot': floats the sidenote (paged.js per-page footnote area), hides body sup and tail section", () => {
     const css = pagedCss({ ...A4, notes: { position: 'foot' } });
+    // paged.js's `float: footnote` moves the .sidenote to the per-page
+    // .pagedjs_footnote_area; the inline span carries the body.
+    expect(css).toMatch(/\.sidenote \{ float: footnote;/);
+    // Manual sup is hidden — paged.js auto-generates a footnote-call.
+    expect(css).toMatch(/\.footnote-ref \{ display: none/);
+    // In-sidenote number prefix is hidden — paged.js auto-generates a
+    // footnote-marker at the start of the floated element.
+    expect(css).toMatch(/\.sidenote \.sidenote-num \{ display: none/);
+    // Document-tail section is hidden (paged.js is authoritative).
+    expect(css).toMatch(/section\.footnotes \{ display: none/);
+  });
+
+  it("'end' keeps the inline sidenote hidden and lets section.footnotes render at the document tail", () => {
+    const css = pagedCss({ ...A4, notes: { position: 'end' } });
     expect(css).toContain('.sidenote { display: none;');
-    // Must NOT hide the document-tail footnote section in 'foot' mode.
+    // section.footnotes is the visible carrier in 'end' mode.
     expect(css).not.toMatch(/section\.footnotes \{ display: none/);
-    // Must NOT hide the superscript ref.
+    // No float: footnote in 'end' mode.
+    expect(css).not.toMatch(/\.sidenote \{ float: footnote/);
+    // Body sup stays visible as a back-link anchor.
     expect(css).not.toMatch(/\.footnote-ref \{ display: none/);
   });
 
-  it("'end' behaves like 'foot' for the visible footnote section", () => {
-    const css = pagedCss({ ...A4, notes: { position: 'end' } });
-    expect(css).toContain('.sidenote { display: none;');
-    expect(css).not.toMatch(/section\.footnotes \{ display: none/);
-  });
-
-  it("'side' in derived mode emits absolute positioning + hide-fallbacks", () => {
+  it("'side' in derived mode emits absolute positioning, keeps the body sup visible, adds the in-sidenote number prefix", () => {
     const css = pagedCss({
       ...A4,
       marginMode: 'derived',
       notes: { position: 'side' },
     });
-    // The fallback rendering must be hidden.
-    expect(css).toMatch(/\.footnote-ref \{ display: none/);
+    // The body sup STAYS visible in side mode (Tufte: number appears
+    // both as the in-body anchor AND at the start of the sidenote).
+    expect(css).not.toMatch(/\.footnote-ref \{ display: none/);
+    // Document-tail section is hidden — sidenote is the carrier.
     expect(css).toMatch(/section\.footnotes \{ display: none/);
     // Sidenotes AND margin figures share the outer-gutter positioning
     // via an :is(.sidenote, img.margin) group selector (§9.7.5).
     expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*position: absolute;/);
     expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*right: -\d+\.\d+mm;/);
+    // Numeric prefix inside the sidenote is styled as a small sup.
+    expect(css).toMatch(/\.sidenote \.sidenote-num \{[\s\S]*vertical-align: super/);
     // Paragraphs (and friends) need position: relative as containing block.
     expect(css).toMatch(
       /:where\(p, li, blockquote, \.pagedjs_page_content\) \{ position: relative; \}/,

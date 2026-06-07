@@ -216,13 +216,23 @@ body,
 }
 
 /* Debug-guides overlay (toolbar button + Cmd/Ctrl+Shift+G). Toggled
-   by the `.debug-layout` class on #preview-pane. Shows:
-   - the page-area outline (dashed grey on .pagedjs_pagebox)
-   - the live-area outline (dashed green on .pagedjs_page_content,
-     since that IS the live area in derived margin mode)
-   - the two page diagonals (TL→BR + TR→BL) drawn by the SVG overlay
-     `paginate()` injects on every .pagedjs_pagebox; the SVG is
-     `display: none` by default and `block` under .debug-layout.
+   by the `.debug-layout` class on #preview-pane. Shows three nested
+   rectangles + the page diagonals:
+     - PAGE outline (dashed grey) on .pagedjs_pagebox (= live-area
+       width × text-block height, post-asymmetric-@page-margins). It
+       isn't a canonical rectangle per se, but it's the host paged.js
+       box; useful as a sanity outline.
+     - LIVE AREA outline (dashed green) drawn as a pseudo-element on
+       .pagedjs_page using the --mp-live-* CSS vars emitted by
+       pagedCss(). On verso (in duplex) the inner / outer sides swap.
+     - TEXT BLOCK outline (dashed orange) drawn as a pseudo-element on
+       .pagedjs_page_content's content box. The body has zero vertical
+       padding (top/bottom = 0); horizontal padding = the canonical
+       gutters (--mp-gutter-*) so the inset rectangle = text block.
+     - Two page diagonals (TL↔BR + TR↔BL, role-aware in duplex) drawn
+       by the SVG overlay `paginate()` injects on every .pagedjs_pagebox;
+       the SVG is `display: none` by default and `block` under
+       .debug-layout.
    pointer-events:none keeps the overlay from intercepting clicks. */
 #preview-pane svg.mp-guides-overlay {
   position: absolute;
@@ -242,9 +252,44 @@ body,
   outline: 1px dashed #999;
   outline-offset: -1px;
 }
-#preview-pane.debug-layout .pagedjs_page_content {
+#preview-pane.debug-layout .pagedjs_page {
+  position: relative;
+}
+#preview-pane.debug-layout .pagedjs_page::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  top: var(--mp-live-top, 0);
+  bottom: var(--mp-live-bottom, 0);
+  left: var(--mp-live-inner, 0);
+  right: var(--mp-live-outer, 0);
   outline: 1px dashed #4a8a44;
-  outline-offset: -1px;
+  z-index: 2;
+}
+#preview-pane.debug-layout.duplex .pagedjs_left_page::before {
+  left: var(--mp-live-outer, 0);
+  right: var(--mp-live-inner, 0);
+}
+#preview-pane.debug-layout .pagedjs_page_content {
+  position: relative;
+}
+/* Text-block outline = .pagedjs_page_content's CONTENT box (inset by
+   the horizontal gutters; the body has zero vertical padding). Recto
+   default; verso swaps inner / outer in duplex mode. */
+#preview-pane.debug-layout .pagedjs_page_content::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  left: var(--mp-gutter-inner, 0);
+  right: var(--mp-gutter-outer, 0);
+  outline: 1px dashed #b8762a;
+  z-index: 2;
+}
+#preview-pane.debug-layout.duplex .pagedjs_left_page .pagedjs_page_content::before {
+  left: var(--mp-gutter-outer, 0);
+  right: var(--mp-gutter-inner, 0);
 }
 #preview-pane.debug-layout svg.mp-guides-overlay {
   display: block;

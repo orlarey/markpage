@@ -41,6 +41,25 @@ type RecognizedArg = '' | 'first' | 'blank';
 const RECOGNIZED_ARGS: ReadonlySet<RecognizedArg> = new Set(['', 'first', 'blank']);
 
 /**
+ * Monotonic counter for unique running-element names (`mpr1`, `mpr2`, …).
+ * Used when a slot mixes plain text with inline markdown emphasis and
+ * therefore can't be rendered as a flat CSS `content: "..."` string —
+ * we inject an actual HTML element and let paged.js's
+ * `position: running()` + `content: element()` machinery render it in
+ * the margin box. Module-level rather than per-render: stale names
+ * don't conflict because previous renders' DOM is fully replaced.
+ * Tests can call `resetPageRunningCounter()` for deterministic names.
+ */
+let runningCounter = 0;
+function nextRunningName(): string {
+  runningCounter += 1;
+  return `mpr${runningCounter}`;
+}
+export function resetPageRunningCounter(): void {
+  runningCounter = 0;
+}
+
+/**
  * Purpose: Render a `<style>` sentinel that carries the @-rule body for
  *   one band (top for header, bottom for footer) plus the args as a
  *   `data-args` attribute. The sentinel is placed inline in the
@@ -59,14 +78,24 @@ export function renderPageRunning(
 ): string {
   const slots = parseSlots(body);
   const bandPrefix = kind === 'header' ? 'top' : 'bottom';
-  const decls = [
-    cssMarginBox(`${bandPrefix}-left`, slots.left),
-    cssMarginBox(`${bandPrefix}-center`, slots.center),
-    cssMarginBox(`${bandPrefix}-right`, slots.right),
-  ].join(' ');
+  const outputs = [
+    renderSlot(`${bandPrefix}-left`, slots.left),
+    renderSlot(`${bandPrefix}-center`, slots.center),
+    renderSlot(`${bandPrefix}-right`, slots.right),
+  ];
+  const decls = outputs.map((o) => o.decl).join(' ');
+  // Slots that needed the element() path bring their own HTML running
+  // element (positioned out of flow by paged.js via `position: running()`
+  // — see applyPageRunningRuns for the global rule that wires it up).
+  // The element MUST sit in the document near its sentinel so paged.js
+  // sees it during the chunking pass.
+  const runningEls = outputs
+    .filter((o) => o.runningHtml !== undefined)
+    .map((o) => o.runningHtml)
+    .join('');
   const argKey = pickArg(args);
   const argsAttr = argKey === '' ? '' : ` data-args="${argKey}"`;
-  return `<style class="page-running-fence" data-kind="${kind}"${argsAttr}>${decls}</style>\n`;
+  return `<style class="page-running-fence" data-kind="${kind}"${argsAttr}>${decls}</style>${runningEls}\n`;
 }
 
 /**
@@ -111,6 +140,24 @@ export function applyPageRunningRuns(
   let currentDecls = new Map<string, string>();
   // Per-section snapshot of accumulated declarations, indexed by section number.
   const stateBySection = new Map<number, Map<string, string>>();
+  // Collected running-element names (from .mp-running divs that the
+  // element() path injects next to its sentinel). Each needs a global
+  // `position: running()` rule so paged.js captures it and pipes it to
+  // the matching `content: element(...)` reference in the @page rules.
+  const runningNames: string[] = [];
+  // Collected .mp-running divs themselves. We defer tagging them with
+  // a data-page until AFTER the walk completes: every fence in a run
+  // increments sectionIdx, so consecutive fences (e.g. header + footer
+  // at the top of the doc) would otherwise give their respective
+  // .mp-running divs DIFFERENT data-page values (mp-section-1 vs
+  // mp-section-2). paged.js treats those data-page transitions between
+  // sibling elements as page boundaries, leaving the cover page
+  // visually empty (it contains only invisible running sources).
+  // Tagging all .mp-running divs with the FINAL section after the walk
+  // keeps the data-page uniform across the whole leading block of
+  // sentinels + their sources, so the first body element lands on the
+  // same page as the sources.
+  const mpRunningDivs: HTMLElement[] = [];
 
   for (const child of children) {
     if (
@@ -132,12 +179,40 @@ export function applyPageRunningRuns(
       // which then becomes the only page that gets the named-page
       // classes (verified by probe).
       sentinel.remove();
+    } else if (
+      child instanceof HTMLElement &&
+      child.classList.contains('mp-running')
+    ) {
+      // Running element for the element() path. paged.js's
+      // `position: running()` rule (registered globally below) will set
+      // display:none on the source and append a clone to whichever
+      // @margin box references it via `content: element(name)`. Collect
+      // its name so we can emit the matching `position: running()` rule.
+      for (const cls of child.classList) {
+        const m = /^mp-running-(\w+)$/.exec(cls);
+        if (m && m[1] !== undefined) runningNames.push(m[1]);
+      }
+      // Defer the data-page tagging — done in a second pass below so
+      // every .mp-running gets the SAME (final) section, regardless of
+      // when its parent fence was processed (see mpRunningDivs comment).
+      mpRunningDivs.push(child);
     } else if (sectionIdx > 0 && child instanceof HTMLElement) {
       // paged.js's named-page tagging reads `data-page` attribute, not
       // the CSS `page` property. Setting `style: page: name` is silently
       // ignored — verified in pagedjs/src/modules/paged-media/atpage.js
       // (`addPageAttributes` calls `start.dataset.page`).
       child.setAttribute('data-page', `mp-section-${sectionIdx}`);
+    }
+  }
+  // Second pass: tag every .mp-running with the FINAL section index so
+  // adjacent sources don't trigger page boundaries (see mpRunningDivs
+  // comment above). The final section is the one that actually consumes
+  // the running elements via element() in its (cascaded) @page rule —
+  // section 1 in a header-only doc, section 2 if the doc has both a
+  // header and a footer fence at the top, etc.
+  if (sectionIdx > 0) {
+    for (const div of mpRunningDivs) {
+      div.setAttribute('data-page', `mp-section-${sectionIdx}`);
     }
   }
 
@@ -149,6 +224,22 @@ export function applyPageRunningRuns(
   // is at least one section — without fences there is nothing to back.
   if (stateBySection.size > 0) {
     cssRules.push('h1 { string-set: mp-title content() }');
+  }
+  // Global `position: running()` rules for every running element the
+  // element() path injected. UNSCOPED on purpose: paged.js's
+  // running-headers handler runs the selector against the cloned source
+  // DOM (which lives outside `#preview-pane`), so a scope wrapper would
+  // make the rule match zero elements — same caveat as `float: footnote`
+  // in buildSidenoteCss(). Belt-and-braces: a non-paged.js renderer
+  // (no running-headers handler) would still show the element in body
+  // flow; hide it with a fallback `display: none` so users never see
+  // running content twice. paged.js's `position: running()` overrides
+  // the `display: none` for the captured copy.
+  for (const name of runningNames) {
+    cssRules.push(`.mp-running-${name} { position: running(${name}); }`);
+  }
+  if (runningNames.length > 0) {
+    cssRules.push('.mp-running { display: none; }');
   }
   for (const [idx, decls] of stateBySection) {
     const pageName = `mp-section-${idx}`;
@@ -248,12 +339,99 @@ interface Slots {
  *   wanting per-fragment styling have to wait for the proper
  *   `running()` + element pipeline (out of v1 practice, SPEC §26.10).
  */
-function cssMarginBox(boxName: string, slotContent: string): string {
+interface RenderedSlot {
+  /** The `@<box> { ... }` CSS rule for this slot. */
+  decl: string;
+  /**
+   * Set when the slot was rendered via the element() path: an HTML
+   * element that paged.js will pull out of flow and place in the
+   * margin box. Empty when the slot used the plain CSS `content: "..."`
+   * path. The element carries `class="mp-running mp-running-<name>"`
+   * so applyPageRunningRuns can emit the matching `position: running()`
+   * rule.
+   */
+  runningHtml?: string;
+}
+
+function renderSlot(boxName: string, slotContent: string): RenderedSlot {
   const { content, bold, italic } = extractWholeSlotStyle(slotContent);
-  const decls = [`content: ${slotContentToCss(content)};`];
-  if (bold) decls.push('font-weight: bold;');
-  if (italic) decls.push('font-style: italic;');
-  return `@${boxName} { ${decls.join(' ')} }`;
+  // Whole-slot wrap path (and the trivial plain-text / vars-only path):
+  // emit a `content: "..."` CSS string, optionally bolding / italicizing
+  // the entire margin box. This is the only path that supports `{var}`
+  // substitutions because CSS `content` can mix strings and counter()
+  // calls — element() captures a static HTML element and would lose
+  // dynamic counters.
+  if (bold || italic || !needsElementRendering(content)) {
+    const decls = [`content: ${slotContentToCss(content)};`];
+    if (bold) decls.push('font-weight: bold;');
+    if (italic) decls.push('font-style: italic;');
+    return { decl: `@${boxName} { ${decls.join(' ')} }` };
+  }
+  // element() path: the slot mixes plain text with inline emphasis
+  // (and contains no `{var}` substitutions, so we don't sacrifice
+  // dynamic counter rendering). Convert the slot's inline markdown
+  // (`**bold**`, `*italic*`, `***both***`) to an HTML fragment, wrap
+  // it in a `<div class="mp-running mp-running-<name>">`, and reference
+  // it via element(<name>) in the margin box. paged.js's
+  // running-headers handler (modules/generated-content/running-headers.js)
+  // captures the element from the source and renders it at the
+  // requested location.
+  const name = nextRunningName();
+  const html = inlineMarkdownToHtml(content);
+  return {
+    decl: `@${boxName} { content: element(${name}); }`,
+    runningHtml: `<div class="mp-running mp-running-${name}">${html}</div>`,
+  };
+}
+
+/**
+ * Whether the slot needs the element() rendering path — i.e. it has
+ * inline markdown emphasis the CSS `content` string can't express AND
+ * it has no `{var}` substitutions (which only the CSS path supports).
+ */
+function needsElementRendering(slot: string): boolean {
+  return slotHasInlineEmphasis(slot) && !slotHasVars(slot);
+}
+
+function slotHasVars(slot: string): boolean {
+  return /\{[\w-]+\}/.test(slot);
+}
+
+/**
+ * True if the slot contains a `**bold**` / `*italic*` pair that isn't
+ * the whole-slot wrap already handled by extractWholeSlotStyle. The
+ * markers must surround at least one non-whitespace character (markdown
+ * requires emphasis spans to have content) — `* foo *` with leading /
+ * trailing space inside the markers doesn't count as emphasis per
+ * CommonMark.
+ */
+function slotHasInlineEmphasis(slot: string): boolean {
+  // bold (`**X**`) or bold-italic (`***X***`) — pattern requires a
+  // non-space character right after the opening run.
+  if (/\*\*\S[\s\S]*?\S\*\*|\*\*\S\*\*/.test(slot)) return true;
+  // italic (`*X*`) — must NOT be part of a `**` run. The negative
+  // lookbehind / lookahead exclude `*` neighbours.
+  if (/(?<!\*)\*\S[\s\S]*?\S\*(?!\*)|(?<!\*)\*\S\*(?!\*)/.test(slot)) return true;
+  return false;
+}
+
+/**
+ * Tiny inline-markdown → HTML converter for fence slot text. Handles
+ * `***X***` (bold + italic), `**X**` (bold) and `*X*` (italic) — order
+ * matters: longer markers first so the shorter regex doesn't match a
+ * leading `*` of a `**` pair. Everything else is HTML-escaped first to
+ * keep authors from accidentally injecting raw tags.
+ */
+function inlineMarkdownToHtml(s: string): string {
+  const escaped = s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return escaped
+    .replace(/\*\*\*(\S(?:[\s\S]*?\S)?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(\S(?:[\s\S]*?\S)?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(?<!\*)\*(\S(?:[\s\S]*?\S)?)\*(?!\*)/g, '<em>$1</em>');
 }
 
 /**

@@ -435,6 +435,7 @@ export function buildSettingsForm(
               'quote',
               'table',
               'caption',
+              'running-content',
               'page-number',
             ] as const
           ).map((key) => ({
