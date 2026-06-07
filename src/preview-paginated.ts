@@ -873,6 +873,25 @@ export function pagedCss(s: PdfSettings): string {
     textBlockCanon !== null && liveAreaCanon !== null
       ? buildBodyPaddingCss(SCOPE, textBlockCanon, liveAreaCanon, s.duplex)
       : '';
+
+  // §9.7 — sidenote rendering (notes.position === 'side'). The
+  // footnoteRef renderer always emits `<sup class="footnote-ref">` +
+  // `<span class="sidenote">body</span>` adjacent to each `[^id]`
+  // anchor. The CSS below decides which of the two is visible:
+  //   - default (foot / end): hide every .sidenote; the section.footnotes
+  //     at the document tail keeps the conventional rendering.
+  //   - side: hide section.footnotes AND the .footnote-ref superscript;
+  //     position .sidenote absolutely in the outer gutter so it sits at
+  //     the line of its anchor. Requires derived mode to know the outer
+  //     gutter width — degrades silently in manual mode (sidenotes
+  //     still hidden, footnote section visible).
+  const sidenoteRule = buildSidenoteCss(
+    SCOPE,
+    s.notes.position,
+    textBlockCanon,
+    liveAreaCanon,
+    s.duplex,
+  );
   // §9.5.3 — chapterBreak forces a page break before each h1:
   //   - 'none':       no rule emitted
   //   - 'next-page':  CSS `break-before: page`
@@ -890,6 +909,7 @@ export function pagedCss(s: PdfSettings): string {
   return `
     ${pageRule}
     ${bodyPaddingRule}
+    ${sidenoteRule}
     ${chapterBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */
@@ -1300,6 +1320,82 @@ function buildBodyPaddingCss(
     `${scope} .pagedjs_right_page .pagedjs_page_content { ${rectoPadding} }\n` +
     `${scope} .pagedjs_left_page  .pagedjs_page_content { ${versoPadding} }`
   );
+}
+
+/**
+ * Purpose: Build the sidenote CSS for the §9.7 scholar-margin
+ *   rendering. Returns a stylesheet fragment that:
+ *     - In `foot` / `end` modes: hides every `.sidenote` (the existing
+ *       `<section class="footnotes">` provides the visible rendering).
+ *     - In `side` mode: hides the footnote section and the `<sup
+ *       class="footnote-ref">` superscript, then positions the
+ *       `.sidenote` span absolutely in the outer gutter so it sits at
+ *       the line of its anchor.
+ * How: Side mode requires knowing the outer-gutter geometry; if we
+ *   don't have it (i.e. `marginMode === 'manual'`), fall back to the
+ *   default `display: none` to avoid sidenotes spilling over the body
+ *   text. The width is computed as `outerGutter - GAP` where
+ *   `GAP = innerGutter / 4` per §9.7.1, leaving a visual breathing
+ *   space between the text block and the sidenote area.
+ *
+ *   Paragraphs (and other block containers that may host an anchor)
+ *   get `position: relative` so the absolutely-positioned sidenote
+ *   anchors on the paragraph rather than the page-content root —
+ *   keeps the sidenote vertically near its anchor instead of pinned
+ *   to the page top.
+ *
+ *   In duplex the outer gutter is on the LEFT on verso, so the
+ *   sidenote uses `left: -...mm` instead of `right: -...mm` on
+ *   `.pagedjs_left_page`.
+ */
+function buildSidenoteCss(
+  scope: string,
+  position: 'foot' | 'side' | 'end',
+  textBlock: CanonicalMargins | null,
+  liveArea: CanonicalMargins | null,
+  duplex: boolean,
+): string {
+  // In every mode except 'side', the inline sidenote is hidden —
+  // the rendered section.footnotes carries the body.
+  if (position !== 'side' || textBlock === null || liveArea === null) {
+    return `${scope} .sidenote { display: none; }`;
+  }
+  const outerGutter = Math.max(0, textBlock.outer - liveArea.outer);
+  const innerGutter = Math.max(0, textBlock.inner - liveArea.inner);
+  // Visual breathing between the text block and the sidenote area.
+  // Default rule §9.7.1: gap = innerGutter / 4 (sound when innerGutter
+  // is itself derived; clamp to a sensible minimum so very tight live
+  // areas don't end up with sidenotes glued to the text).
+  const gap = Math.max(1.5, innerGutter / 4);
+  const noteWidth = Math.max(5, outerGutter - gap);
+  const recto =
+    `${scope} .sidenote {\n` +
+    `  display: inline-block;\n` +
+    `  position: absolute;\n` +
+    `  right: -${outerGutter}mm;\n` +
+    `  width: ${noteWidth}mm;\n` +
+    `  font-size: 0.85em;\n` +
+    `  line-height: 1.3;\n` +
+    `  text-indent: 0;\n` +
+    `  text-align: left;\n` +
+    `}`;
+  // Paragraphs (and related block hosts) need a positioning context.
+  const relative =
+    `${scope} :where(p, li, blockquote, .pagedjs_page_content) { position: relative; }`;
+  // Hide the in-text superscript and the document-tail footnote section.
+  const hides =
+    `${scope} .footnote-ref { display: none; }\n` +
+    `${scope} section.footnotes { display: none; }`;
+  // Duplex: on verso pages, flip to the opposite side.
+  if (!duplex) {
+    return [hides, relative, recto].join('\n');
+  }
+  const verso =
+    `${scope} .pagedjs_left_page .sidenote {\n` +
+    `  left: -${outerGutter}mm;\n` +
+    `  right: auto;\n` +
+    `}`;
+  return [hides, relative, recto, verso].join('\n');
 }
 
 /**

@@ -613,7 +613,34 @@ marked.use({
         // a footnote referenced N times shouldn't generate N elements
         // with the same DOM id.
         const idAttr = t.isFirst ? ` id="fnref-${idEsc}"` : '';
-        return `<sup class="footnote-ref"><a href="#fn-${idEsc}"${idAttr}>${num}</a></sup>`;
+        const sup = `<sup class="footnote-ref"><a href="#fn-${idEsc}"${idAttr}>${num}</a></sup>`;
+        // §9.7 — emit the body INLINE as a <span class="sidenote">
+        // adjacent to the FIRST occurrence of each footnote ref.
+        // Subsequent occurrences only get the <sup> superscript (a
+        // back-pointer to the same note); duplicating the sidenote
+        // span would clash on the DOM id and double the visible
+        // note in 'side' mode.
+        // The pagedCss rule for `.sidenote` shows or hides this span
+        // based on `notes.position`:
+        //   - 'foot' / 'end' (default): the section.footnotes at the
+        //     document tail is visible, the sidenote is `display: none`.
+        //   - 'side': the section.footnotes is hidden, the sidenote
+        //     is positioned absolute in the outer gutter at the
+        //     anchor's line. Tufte-CSS approach.
+        // Body is rendered with the inEndnotesRender guard so the
+        // inner parseInline doesn't wipe our footnote/citation
+        // registries via the preprocess hook.
+        if (!t.isFirst) return sup;
+        const body = footnoteDefs.get(t.id) ?? '';
+        let inlineBody = '';
+        inEndnotesRender = true;
+        try {
+          inlineBody = marked.parseInline(body) as string;
+        } finally {
+          inEndnotesRender = false;
+        }
+        const sidenote = `<span class="sidenote" id="sn-${idEsc}">${inlineBody}</span>`;
+        return sup + sidenote;
       },
     },
     {
