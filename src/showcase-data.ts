@@ -317,6 +317,27 @@ sorting routine of \ref{alg:bubble} runs once at startup.
 `,
   },
   {
+    id: 'header-footer',
+    title: 'Running page header and footer',
+    description:
+      'A ```header / ```footer fence fills the top / bottom band of every page with up to three slots (`left | center | right`). Substitutions `{page}`, `{pages}`, `{date}` resolve per page. Use it for a recurring document title, page counter, copyright line, or rendering date.',
+    sourceLang: 'markdown',
+    source: `## A document with running content
+
+\`\`\`header
+Quarterly report — Q1 | | Page {page} / {pages}
+\`\`\`
+
+\`\`\`footer
+| © Acme Industries 2026 | {date}
+\`\`\`
+
+Every page of this document carries the report title at the top-left
+and a page counter at the top-right. The footer shows the copyright
+in the center and the render date on the right.
+`,
+  },
+  {
     id: 'charts',
     title: 'Charts from CSV data',
     description:

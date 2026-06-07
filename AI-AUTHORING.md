@@ -41,6 +41,7 @@ further down.
 | Numbered pseudocode                   | ` ```algorithm `                   |
 | Source + rendered side-by-side        | ` ```demo `                        |
 | Letterhead (invoices, courriers, …)   | sender / recipient / signature     |
+| Running page header / footer          | ` ```header ` / ` ```footer `      |
 
 When two blocks fit (e.g. a tiny `csv` vs. a pipe table), prefer
 the simpler one. When in doubt between `adt` and `ebnf`, ask:
@@ -603,6 +604,59 @@ recipient-only).
 - Legal mentions — `::: caution [Mentions légales]` callout
 - Items table / totals — pipe tables (for now; an `items` block with
   auto-computed totals is planned)
+
+---
+
+## Running page header and footer (`header` / `footer`)
+
+Two fences that fill the page margin boxes — same three slots per
+band, on a single line, separated by `|`:
+
+````markdown
+```header
+Mon document | | Page {page} / {pages}
+```
+
+```footer
+| © Yann Orlarey | {date}
+```
+````
+
+Slot order: **left | center | right**. Empty slot = empty pipe
+segment (`| Chap |` → only the center is filled, left and right are
+cleared). Literal pipe in slot text: `\|`.
+
+**Substitutions** (resolved at render time):
+
+| Token       | Meaning                                          |
+| :---------- | :----------------------------------------------- |
+| `{page}`    | current page number                              |
+| `{pages}`   | total page count                                 |
+| `{date}`    | render date (long French form)                   |
+
+The fence emits **no visible content** in the document body — only
+the running content of every page's margin box. Place it anywhere in
+the source; the **last** fence of each type wins (current limitation
+— per-section runs are planned). An empty fence clears the band
+entirely:
+
+````markdown
+```header
+```
+````
+
+**What's NOT supported yet** (planned, see SPEC §26.10):
+
+- Positional args like `header first`, `header even`, `header odd`,
+  `header blank` (need the run mechanism and duplex mode).
+- The `{title}` variable (current chapter title) — renders empty for now.
+- Inline markdown (`**bold**`, `*italic*`, `[link]()`, images) inside
+  slots — CSS `content` only accepts strings and counters in v1.
+
+**Typical use**: a fixed page header showing the document title at top-
+left and a page counter at top-right; a footer with the date or a
+copyright line. Drop one ` ```header ` and one ` ```footer ` near the
+top of your source, that's it.
 
 ---
 

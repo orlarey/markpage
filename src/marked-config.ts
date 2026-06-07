@@ -23,6 +23,7 @@ import { renderEbnfBlock } from './ebnf';
 import { renderTreeBlock } from './tree';
 import { highlightCode, isKnownLanguage } from './highlight';
 import { renderLetterhead } from './letterhead';
+import { renderPageRunning } from './page-running';
 import {
   anchorId,
   prescanLabels,
@@ -352,6 +353,24 @@ marked.use({
       if (lang === 'signature' || lang.startsWith('signature ')) {
         return injectSource(
           renderLetterhead('signature', token.text, info.args),
+          raw,
+        );
+      }
+      // ```header / ```footer — running content for the page margin
+      // boxes (top / bottom band, 3 slots: left | center | right).
+      // Substitutions: {page}, {pages}, {date}. The handler emits an
+      // invisible <style> with @page rules; paged.js applies them at
+      // layout time. Cascade order means the last fence in source wins
+      // for any given band (Phase 1). See SPEC §26.
+      if (lang === 'header' || lang.startsWith('header ')) {
+        return injectSource(
+          renderPageRunning('header', token.text, info.args),
+          raw,
+        );
+      }
+      if (lang === 'footer' || lang.startsWith('footer ')) {
+        return injectSource(
+          renderPageRunning('footer', token.text, info.args),
           raw,
         );
       }

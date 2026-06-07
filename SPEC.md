@@ -1191,6 +1191,11 @@ recto-verso (livret, mémoire, rapport relié). Inactive par défaut —
 tous les documents sont rendus comme une suite de pages identiques
 (toutes traitées comme `:right` au sens CSS Paged Media).
 
+> **État** : design seul à ce stade. L'implémentation est planifiée
+> en Phase 3 du chantier header/footer (cf. §26.10) parce que les
+> args `even` / `odd` / `blank` des fences §26 dépendent
+> directement de la bascule duplex pour devenir significatifs.
+
 #### 9.5.1. Schéma — ajout à `PdfSettings`
 
 ```ts
@@ -3277,6 +3282,31 @@ scroll-sync (§14.2) puisse remonter à la fence d'origine.
 - **Substitutions dynamiques personnalisées** (`{custom-var}` lues du
   frontmatter) — pour les workflows type « numéro de version, nom du
   client » sans recompiler le profil.
+
+### 26.10. État d'implémentation
+
+Le chantier est découpé en quatre phases livrables séparément. La
+spec §26.1–§26.9 décrit le **design cible complet** ; le tableau ci-
+dessous indique ce qui est effectivement livré à chaque phase.
+
+| Phase | Livré ? | Couverture |
+| :---- | :------ | :--------- |
+| **1. Foundation** | **oui** | Fences `header` / `footer`, syntaxe `l \| c \| r`, variables `{page}` `{pages}` `{date}`, fence vide = bande effacée, escape `\\\|`. Pas d'args : la dernière fence du document gagne pour toute sa bande. |
+| **2. Runs + args `first` / `blank`** | non | Partition en runs, named pages, sélecteurs `first` et `blank` activés. |
+| **3. Duplex** | non | Active `even` / `odd` (cf. §9.5.4). Dépend de l'implémentation §9.5. |
+| **4. `{title}` + inline markdown** | non | `string-set` sur les headings, `**gras**` / `*italique*` / `[lien]()` dans les slots via `running()` + element. |
+
+**Phase 1** suffit pour la majorité des cas réels (courrier, facture,
+rapport unifié) — un seul couple header/footer fixe par document. Les
+phases 2-4 traitent les usages multi-section (livre, mémoire,
+documentation paginée par chapitre).
+
+Module : `src/page-running.ts`. Wiring : `src/marked-config.ts`
+enregistre les handlers ; `src/preview-paginated.ts:paginate` et
+`paginateOnce` appellent `collectPageRunningCss(source)` après le
+parse markdown et passent le résultat comme second stylesheet à
+`previewer.preview()` (chemin sûr — éviter de dépendre du fait que
+paged.js scanne ou non les `<style>` du body).
 
 ## 27. À décider plus tard
 

@@ -81,6 +81,10 @@ A Markdown extended for technical and scientific writing:
   overrides per-document, `slides: true` to switch to slides
   mode, plus `mathjax-preamble:` for defining `\newcommand`
   macros once and using them in every formula
+- **Running page header / footer** (` ```header ` / ` ```footer `)
+  — fill the top / bottom margin of every page with up to three
+  slots (`left | center | right`); substitutions `{page}`,
+  `{pages}`, `{date}` resolve per-page
 
 ## Export formats and sharing
 
