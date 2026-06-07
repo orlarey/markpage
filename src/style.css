@@ -215,6 +215,28 @@ body,
   margin: 0 auto 24px;
 }
 
+/* Duplex spread layout (§9.5). When `paginate()` toggles the .duplex
+   class on #preview-pane, lay out pages as facing pairs (verso on the
+   left, recto on the right). The first page (cover, always recto)
+   lands alone on the right column of the first row. Scoped to
+   #preview-pane only — the print export target (#markpage-print-
+   target) keeps the linear stacking the print pipeline expects. */
+#preview-pane.duplex .pagedjs_pages {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  column-gap: 0;
+}
+#preview-pane.duplex .pagedjs_right_page { grid-column: 2; }
+#preview-pane.duplex .pagedjs_left_page  { grid-column: 1; }
+#preview-pane.duplex .pagedjs_page {
+  /* Drop the auto horizontal centring; the grid handles placement.
+     Keep the inter-row vertical spacing (margin-bottom) and the
+     drop shadow from the base rule above. */
+  margin-left: 0;
+  margin-right: 0;
+}
+
 #editor-pane .cm-editor {
   height: 100%;
 }

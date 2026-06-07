@@ -175,6 +175,14 @@ export async function paginate(
   // (fenced code, math, mermaid, image, table); the wrapper is the
   // reliable fix.
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
+  // §9.5 — toggle the `.duplex` class on the render target so the
+  // host stylesheet (style.css) lays out pages as facing spreads in
+  // the preview. paged.js doesn't process this rule (we keep the
+  // host doc as the source of truth for app chrome), so toggling a
+  // class is the cleanest route — no per-render <style> injection,
+  // no risk of paged.js's polisher stripping a selector it doesn't
+  // recognize.
+  renderTo.classList.toggle('duplex', settings.duplex);
   // Partition the source into runs at each `header` / `footer` fence
   // sentinel, tag each top-level content element with `page: mp-
   // section-N` inline, and collect the assembled @page rules. The CSS
