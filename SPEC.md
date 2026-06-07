@@ -166,7 +166,6 @@ overrides du renderer `code`, voir §5 et §8) :
   l'import récupère le texte, les titres, listes, gras/italique, liens
   et citations, mais pas les images
 - HTML brut dans le Markdown
-- Recto/verso (marges alternées) à l'export PDF
 - Notes de bas de page **multi-paragraphes** (continuations indentées
   à la Pandoc — single-line seulement en v1)
 - Numérotation automatique des admonitions académiques
@@ -1184,6 +1183,88 @@ prochain export.
 Hors v1 : binding par document (un doc se souvient de son profil),
 nécessiterait un champ `settingsProfileId` sur `DocEntry` et une
 politique de migration.
+
+### 9.5. Mode duplex (recto-verso)
+
+Bascule de profil pour les documents destinés à l'impression
+recto-verso (livret, mémoire, rapport relié). Inactive par défaut —
+tous les documents sont rendus comme une suite de pages identiques
+(toutes traitées comme `:right` au sens CSS Paged Media).
+
+#### 9.5.1. Schéma — ajout à `PdfSettings`
+
+```ts
+interface PdfSettings {
+  // ... clés existantes ...
+  duplex: boolean;          // défaut: false
+  chaptersOnRecto: boolean; // défaut: false
+}
+```
+
+Les deux clés sont **indépendantes**. La combinaison `duplex: true` +
+`chaptersOnRecto: true` est la plus fréquente (livre), mais chacune
+est utilisable seule.
+
+#### 9.5.2. Marges miroir (`duplex: true`)
+
+Quand `duplex` est activé, la sémantique de `margins.left` /
+`margins.right` du profil bascule : les valeurs deviennent **intérieur
+(reliure)** / **extérieur (tranche)** plutôt que gauche / droite
+absolues. Le générateur CSS émet alors deux blocs `@page` :
+
+```css
+@page :left  { margin-left: <margins.right>mm; margin-right: <margins.left>mm; }
+@page :right { margin-left: <margins.left>mm;  margin-right: <margins.right>mm; }
+```
+
+Les pages recto (impaires en numérotation 1-based, `:right` en CSS)
+gardent les valeurs nominales ; les pages verso (paires, `:left`)
+inversent. Résultat : la marge intérieure (reliure) est toujours du
+même côté physique du livre, quelle que soit la face.
+
+**Convention** : on garde les clés `margins.left` / `margins.right`
+nommées ainsi dans le profil JSON (pas de `marginInner` /
+`marginOuter`) pour éviter le churn d'API. La sémantique
+conditionnelle est documentée ici et dans le tooltip de la fenêtre
+Réglages quand `duplex` est coché.
+
+#### 9.5.3. Démarrage de chapitre sur recto (`chaptersOnRecto: true`)
+
+Émet `h1 { break-before: right }` dans le CSS — paged.js force chaque
+`<h1>` à démarrer sur une page recto, en insérant si nécessaire une
+page verso blanche. Sans `duplex`, l'effet visuel est invisible
+(pagination simple-face) mais la pagination reste correcte (page
+blanche comptée dans `{pages}`). Avec `duplex`, c'est le comportement
+classique des livres reliés.
+
+Le ciblage est sur **h1 uniquement** : les chapitres sont des h1 par
+convention markpage (§3.1). Les sous-sections (h2-h6) ne forcent
+jamais de saut de page sur recto.
+
+#### 9.5.4. Interaction avec §26 (header / footer)
+
+Les sélecteurs `header even` / `header odd` (idem `footer`) du §26.4
+ne deviennent significatifs **que** lorsque `duplex: true`. Sans
+duplex, paged.js traite toutes les pages comme `:right`, donc :
+
+- `header odd` s'applique à toutes les pages (équivalent à `header`).
+- `header even` ne s'applique à rien.
+
+Pas d'erreur, simplement pas d'effet. Documenté en §26.4.
+
+#### 9.5.5. Pages blanches (paged.js `:blank`)
+
+Quand `chaptersOnRecto` insère une page verso blanche pour pousser
+le prochain h1 sur recto, cette page blanche reçoit la pseudo-classe
+`:blank`. Le sélecteur `header blank` / `footer blank` du §26.4
+permet de la garder vraiment vide (sans header ni footer hérité), ce
+qui est la convention typographique habituelle pour les pages
+blanches techniques entre chapitres.
+
+Par défaut (pas de fence `blank` explicite), les pages blanches
+héritent du header/footer courant — comportement neutre, à
+l'utilisateur de poser un `header blank` vide s'il veut les laisser
+nues.
 
 ## 10. Aide intégrée
 
@@ -3007,9 +3088,198 @@ fonction en fin de lettre.
   reste donc rendue PDF via paged.js uniquement. Ajout simple le jour
   où on en a besoin pour compiler hors navigateur.
 
-## 26. À décider plus tard
+## 26. En-têtes et pieds de page — blocs `header` / `footer` (`src/page-running.ts`)
 
-- Recto/verso (marges alternées).
+Deux fences spécialisés pour les **contenus courants** des marges de
+page en sortie PDF : titre du document à gauche, titre de section au
+centre, numéro de page à droite — ou toute autre composition à
+3 zones. Le modèle est **« set-and-forget jusqu'à la prochaine
+occurrence »** : un fence posé dans la source markdown s'applique à la
+page courante et à toutes les pages suivantes jusqu'à ce qu'un nouveau
+fence du même type le remplace. Inspiré de CSS Paged Media (zones
+`@top-left` / `@top-center` / `@top-right`, idem bottom, et de la
+notion de named pages), réduit à un sous-ensemble pragmatique pour
+l'authoring.
+
+### 26.1. Pourquoi des fences plutôt que du frontmatter
+
+Le frontmatter YAML (§24) fournit déjà un canal « set-once pour le
+document entier » : il **suffit** pour un en-tête statique du début à
+la fin. Mais il **ne permet pas** ce qui est le vrai cas d'usage
+intéressant : faire **évoluer** le header/footer en cours de document.
+
+Cas typiques où l'évolution compte :
+
+- Page de garde sans header ni footer, puis re-activation au début
+  du corps du document.
+- Header de chapitre qui change quand on entre dans une nouvelle
+  partie (« Partie I — Théorie » → « Partie II — Pratique »).
+- Footer qui disparaît sur la dernière page (mentions légales en
+  pied unique).
+- Annexe avec un footer différent du corps.
+
+Les fences sont **block-level**, **positionnés** dans le flux source,
+et **dispatchés sur l'info string** — le seul point d'extension que
+CommonMark laisse explicitement aux outils. Cohérent avec le
+traitement des autres blocs spécialisés (`mermaid`, `chart`, `sender`,
+`recipient`, `signature`).
+
+### 26.2. Surface utilisateur
+
+Trois slots par bande (gauche / centre / droite), séparés par `|` sur
+**une ligne** :
+
+````
+```header
+Mon document | Chapitre 1 | Page {page} / {pages}
+```
+
+```footer
+{date} | | © Yann Orlarey
+```
+````
+
+Slot vide = pipe vide. `| Chapitre 1 |` rend uniquement le centre.
+
+Pipe littéral : `\|` (échappement antislash).
+
+Le formatage inline standard est supporté à l'intérieur de chaque
+slot, via le même mini-formateur regex local que les letterheads
+(§25) : `**gras**`, `*italique*`, `[texte](url)`, `![alt](url)`.
+
+### 26.3. Variables substituées
+
+| Variable | Substitution |
+| :--- | :--- |
+| `{page}` | numéro de la page courante (entier, base 1) |
+| `{pages}` | nombre total de pages dans le document rendu |
+| `{title}` | titre courant (h1 le plus récent, sinon h2 — sinon vide) |
+| `{date}` | date du rendu, format court FR/EN selon `settings.language` |
+
+Mécanisme d'implémentation :
+
+- `{page}` / `{pages}` → équivalents CSS `counter(page)` /
+  `counter(pages)` dans `@page { @top-left { content: ... } }`.
+- `{title}` → CSS `string-set` posé sur les headings (`h1 {
+  string-set: page-title content() }`) + `content: string(page-title)`
+  dans la zone de marge.
+- `{date}` → substitution **statique** au moment de la génération CSS
+  (paged.js n'a pas d'équivalent natif).
+
+Pas de format imposé pour les compteurs en v1 (entier décimal). Les
+formes `{page:roman}` / `{page:02d}` pourront être ajoutées sans
+casser la compatibilité (regex permissive sur le nom).
+
+### 26.4. Sélecteurs de page — args
+
+Sur le modèle de `recipient flow` (§25.3), le fence accepte un arg
+positionnel qui détermine **sur quelles pages** la règle s'applique :
+
+| Arg | Pages cibles | Équivalent CSS |
+| :--- | :--- | :--- |
+| *(aucun)* | toutes les pages depuis la position | `@page` |
+| `first` | uniquement la première page du run | `@page :first` |
+| `even` | pages paires (verso si recto-démarre) | `@page :left` |
+| `odd` | pages impaires (recto) | `@page :right` |
+| `blank` | pages blanches insérées par paged.js | `@page :blank` |
+
+**`even` et `odd` n'agissent qu'avec le mode duplex** (`duplex: true`
+dans le profil, cf. §9.5.4). Sans duplex, paged.js traite toutes les
+pages comme `:right` : `odd` s'applique partout (équivalent à
+*aucun*), `even` ne s'applique nulle part. Pas d'erreur, juste pas
+d'effet visible. Idem `blank` : il ne se déclenche qu'avec
+`chaptersOnRecto: true` qui insère réellement des pages verso
+blanches (§9.5.5).
+
+Les args peuvent **se cumuler dans le document** : un `header first`
+au début de chapitre 1 + un `header` plus loin = première page un
+header, pages suivantes un autre. Les sélecteurs s'écrasent par type
+(un nouveau `header first` remplace l'ancien `header first`, sans
+toucher au `header` "all").
+
+### 26.5. Effacement (fence vide)
+
+Un fence sans contenu **efface** le slot pour les pages suivantes :
+
+````markdown
+```header
+```
+````
+
+Émet « pas de header » à partir de cette position — utile pour la
+page de garde, la dernière page, ou tout simplement pour annuler un
+header de chapitre précédent. Ne ramène **pas** au défaut du profil
+(sinon il serait impossible de tout vider). Pour revenir au défaut
+profil il faut le re-saisir explicitement.
+
+### 26.6. Interaction avec le profil PDF (§9)
+
+Le profil JSON peut fournir un header/footer **par défaut** (clés
+`pageHeader` / `pageFooter` à ajouter dans `PdfSettings`, chaînes au
+format pipe identique à la syntaxe fence).
+
+**Règle de priorité** : un fence du document **remplace intégralement**
+la bande concernée (les 3 slots ensemble) à partir de sa position, sans
+fusion partielle slot par slot avec le profil. Justification : la
+fusion serait surprenante (« j'efface le slot gauche, pourquoi le
+défaut profil ne revient pas ? ») ; le « remplacement total + fence
+vide pour effacer » est plus prédictible.
+
+### 26.7. Pipeline d'implémentation
+
+Module `src/page-running.ts` :
+
+1. **Extraction** — une passe pré-parse balaye la source markdown,
+   extrait toutes les fences `header` / `footer` avec leur position
+   (offset ligne) et leur arg, et **les remplace par des marqueurs
+   invisibles** dans le markdown (commentaires HTML ou divs vides à
+   classe sentinelle).
+2. **Découpe en runs** — les marqueurs sont ordonnés par position. Un
+   run = un intervalle entre deux marqueurs du même type/arg, traduit
+   en named-page CSS (`page: run-N` sur les éléments DOM de
+   l'intervalle).
+3. **Génération CSS** — pour chaque run, émission d'un bloc
+   `@page run-N { @top-left { content: ... } @top-center { ... }
+   @top-right { ... } }` (idem `@bottom-*` pour footer). Les
+   substitutions `{page}` / `{pages}` / `{title}` deviennent
+   `counter()` / `string()`, `{date}` est substitué en dur.
+4. **Injection** — le CSS généré est concaténé à la sortie de
+   `pagedCss(settings)` avant la passe paged.js.
+
+Annotation `data-line` préservée sur les marqueurs pour que le
+scroll-sync (§14.2) puisse remonter à la fence d'origine.
+
+### 26.8. Limites assumées en v1
+
+- **3 slots par bande** uniquement (left / center / right). Pas
+  d'accès aux 4 coins (`@top-left-corner`, etc.) — trop spécialisé,
+  trop fragile en cross-renderer.
+- **1 ligne par slot** (jointe par `<br>` HTML si besoin de
+  multi-ligne, mais déconseillé : les zones de marge paged.js ont une
+  hauteur fixe).
+- **Pas de named pages utilisateur** (`@page chapter1 { ... }`). Les
+  named pages sont générées en interne par le pipeline mais pas
+  exposées dans la syntaxe markdown.
+- **Pas de `{title}` filtré par niveau** (toujours le heading le plus
+  récent, h1 ou h2 confondu). Affinements possibles : `{title:1}` /
+  `{title:2}` si le besoin remonte.
+- **Pas de formats compteurs** (`{page:roman}` etc.) — entier
+  décimal en v1, syntaxe extensible.
+
+### 26.9. Hors v1
+
+- **Marges de page différentes par run** (`@page run-N { margin: ... }`)
+  — la mécanique named-page le permettrait sans coût mais ouvre la
+  porte à des bugs de pagination ; à étudier si le besoin remonte.
+- **Header/footer en sortie LaTeX** (§21) — `fancyhdr` packet, mapping
+  identique des 3 slots. Naturel le jour où l'export LaTeX intègre les
+  letterheads.
+- **Substitutions dynamiques personnalisées** (`{custom-var}` lues du
+  frontmatter) — pour les workflows type « numéro de version, nom du
+  client » sans recompiler le profil.
+
+## 27. À décider plus tard
+
 - Mode sombre de l'éditeur.
 - Export d'un HTML autonome.
 - Notes de bas de page **multi-paragraphes** (continuations 4-espaces
