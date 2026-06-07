@@ -1368,8 +1368,12 @@ function buildSidenoteCss(
   // areas don't end up with sidenotes glued to the text).
   const gap = Math.max(1.5, innerGutter / 4);
   const noteWidth = Math.max(5, outerGutter - gap);
+  // §9.7.5 — margin figures (`img.margin`) share the same outer-gutter
+  // positioning as sidenotes. The selector targets BOTH so authors
+  // can mix `[^id]` footnote anchors with `![alt](url){.margin}`
+  // images in the same flow without writing separate CSS.
   const recto =
-    `${scope} .sidenote {\n` +
+    `${scope} :is(.sidenote, img.margin) {\n` +
     `  display: inline-block;\n` +
     `  position: absolute;\n` +
     `  right: -${outerGutter}mm;\n` +
@@ -1378,6 +1382,13 @@ function buildSidenoteCss(
     `  line-height: 1.3;\n` +
     `  text-indent: 0;\n` +
     `  text-align: left;\n` +
+    `}\n` +
+    // Margin images cap their max-width to the sidenote area so an
+    // oversized source file doesn't blow out the outer gutter; height
+    // is auto for aspect-ratio preservation.
+    `${scope} img.margin {\n` +
+    `  max-width: ${noteWidth}mm;\n` +
+    `  height: auto;\n` +
     `}`;
   // Paragraphs (and related block hosts) need a positioning context.
   const relative =
@@ -1391,7 +1402,7 @@ function buildSidenoteCss(
     return [hides, relative, recto].join('\n');
   }
   const verso =
-    `${scope} .pagedjs_left_page .sidenote {\n` +
+    `${scope} .pagedjs_left_page :is(.sidenote, img.margin) {\n` +
     `  left: -${outerGutter}mm;\n` +
     `  right: auto;\n` +
     `}`;

@@ -59,6 +59,15 @@ interface FootnoteRefToken {
   isFirst: boolean;
 }
 
+interface ImageAttrsToken {
+  type: 'imageAttrs';
+  raw: string;
+  alt: string;
+  href: string;
+  /** Space-separated class names extracted from the `{.foo .bar}` suffix. */
+  classes: string;
+}
+
 interface CitationRefToken {
   type: 'citationRef';
   raw: string;
@@ -578,6 +587,51 @@ marked.use({
       // the end of the document via the postprocess hook.
       renderer() {
         return '';
+      },
+    },
+    {
+      // Pandoc-style trailing class attribute on images:
+      // `![alt](url){.classname}`. The §9.7.5 use case is the
+      // `{.margin}` class that drops the image into the outer gutter
+      // (rendered alongside sidenotes by the pagedCss rule). The
+      // syntax also accepts multiple classes — `{.foo .bar}` — but
+      // an `#id` slot is reserved for a later phase.
+      // Must precede the default image tokenizer so this extension
+      // wins on the matching pattern; marked tries custom inline
+      // extensions before the built-in ones, which is what we want.
+      name: 'imageAttrs',
+      level: 'inline',
+      start(src: string) {
+        const m = /!\[/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        // ![alt](url){.cls1 .cls2 …}
+        // alt may be empty (drag-dropped images); url stops at the
+        // first ')'; class list is one-or-more `.name` separated by
+        // whitespace.
+        const match =
+          /^!\[([^\]\n]*)\]\(([^)\n]+)\)\{(\.[A-Za-z][\w-]*(?:\s+\.[A-Za-z][\w-]*)*)\}/.exec(
+            src,
+          );
+        if (!match) return undefined;
+        const classes = (match[3] ?? '')
+          .split(/\s+/)
+          .map((c) => c.replace(/^\./, ''))
+          .filter((c) => c !== '')
+          .join(' ');
+        const token: ImageAttrsToken = {
+          type: 'imageAttrs',
+          raw: match[0],
+          alt: match[1] ?? '',
+          href: match[2] ?? '',
+          classes,
+        };
+        return token as unknown as Tokens.Generic;
+      },
+      renderer(token) {
+        const t = token as unknown as ImageAttrsToken;
+        return `<img alt="${escapeHtml(t.alt)}" src="${escapeHtml(t.href)}" class="${escapeHtml(t.classes)}">`;
       },
     },
     {

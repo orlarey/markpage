@@ -37,9 +37,10 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
     // The fallback rendering must be hidden.
     expect(css).toMatch(/\.footnote-ref \{ display: none/);
     expect(css).toMatch(/section\.footnotes \{ display: none/);
-    // The sidenote span must get absolute positioning in the outer gutter.
-    expect(css).toMatch(/\.sidenote \{[\s\S]*position: absolute;/);
-    expect(css).toMatch(/\.sidenote \{[\s\S]*right: -\d+\.\d+mm;/);
+    // Sidenotes AND margin figures share the outer-gutter positioning
+    // via an :is(.sidenote, img.margin) group selector (§9.7.5).
+    expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*position: absolute;/);
+    expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*right: -\d+\.\d+mm;/);
     // Paragraphs (and friends) need position: relative as containing block.
     expect(css).toMatch(
       /:where\(p, li, blockquote, \.pagedjs_page_content\) \{ position: relative; \}/,
@@ -53,8 +54,19 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
       duplex: true,
       notes: { position: 'side' },
     });
-    // Verso flip: same .sidenote but anchored on the left.
-    expect(css).toMatch(/\.pagedjs_left_page \.sidenote \{[\s\S]*left: -\d+\.\d+mm;[\s\S]*right: auto;/);
+    // Verso flip targets the same :is() group on verso pages.
+    expect(css).toMatch(
+      /\.pagedjs_left_page :is\(\.sidenote, img\.margin\) \{[\s\S]*left: -\d+\.\d+mm;[\s\S]*right: auto;/,
+    );
+  });
+
+  it("'side' caps img.margin width to the sidenote area (no overflow)", () => {
+    const css = pagedCss({
+      ...A4,
+      marginMode: 'derived',
+      notes: { position: 'side' },
+    });
+    expect(css).toMatch(/img\.margin \{[\s\S]*max-width: \d+\.?\d*mm;[\s\S]*height: auto;/);
   });
 
   it("'side' in manual mode degrades to hide-sidenote (no geometry to anchor it)", () => {
