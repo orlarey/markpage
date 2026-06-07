@@ -1473,6 +1473,249 @@ Markdown → HTML décoré, mais un **outil de mise en page paginée**
 qui prend en charge les décisions typographiques que l'auteur ne
 veut pas (ou ne peut pas) prendre lui-même.
 
+### 9.7. Marges érudites (scholar's margin / Tufte)
+
+> **État** : design seul à ce stade. À considérer après les marges
+> dérivées §9.6 — c'est un quatrième axe optionnel qui s'enclenche
+> proprement par-dessus le modèle existant.
+
+Layout typographique où la **marge extérieure** porte du contenu
+(notes en marge, petites figures, commentaires) plutôt que d'être
+un blanc passif. Popularisé à l'époque moderne par les livres
+d'Edward Tufte, c'est en réalité une tradition ancienne — manuscrits
+médiévaux glossés, éditions critiques humanistes, marginalia des
+incunables. Très lisible pour les textes denses en commentaires :
+l'œil reste sur la ligne principale, jette un regard latéral pour
+le commentaire, revient sans perdre le fil.
+
+**Pour markpage** : c'est un layout *niche* (édition critique,
+essai scientifique annoté, livre technique style Tufte ou Knuth),
+mais qui rentre **proprement** dans le modèle §9.6 — un axe
+supplémentaire optionnel, désactivable, et qui réutilise la
+syntaxe Markdown existante.
+
+#### 9.7.1. Décomposition horizontale en 5 zones
+
+Au lieu du modèle classique `binding | text-block | outer-trim`,
+on a `binding | text-block | gap | sidenote-area | outer-trim` :
+
+| Zone | Valeur typique (A4) | Rôle |
+| :--- | :--- | :--- |
+| `bindingMargin` | 18 mm | reliure pure, jamais d'encre |
+| `textBlock.width` | 100 mm | corps principal, mesure ~52 chars |
+| `sidenoteGap` | 5 mm | gutter visuel entre texte et marge active |
+| `marginalArea.width` | 60 mm | zone des sidenotes (mesure ~30 chars en plus petit corps) |
+| `outerTrim` | 27 mm | blanc final côté tranche |
+
+Total largeur = 210 mm (A4). Les valeurs s'inversent en page paire
+(verso) : la sidenote zone passe à gauche, le binding à droite.
+
+![Layout scholar's margin (recto-verso), A4 avec sidenote-area de 60 mm](docs/img/scholar-margin-layout.svg)
+
+**Mesure du bloc-texte étroite par design.** Avec une zone de
+commentaire latérale active, l'œil ne « court » plus jusqu'à 66
+caractères — il fait des allers-retours entre le texte principal et
+la marge. Un bloc-texte plus étroit (50-55 chars) aère cette
+lecture en zigzag. Comparer à Tufte (*Visual Display* : 56 chars
+texte, marge active ≈ 28 chars).
+
+#### 9.7.2. Schéma — additions à `PdfSettings`
+
+```ts
+interface PdfSettings {
+  // ... clés §9.5 / §9.6 existantes ...
+
+  marginalContent: {
+    enabled: boolean;       // active la scholar's margin (défaut false)
+    width: number;          // mm, largeur de la sidenote-area (défaut 40)
+    gap: number;            // mm, gutter texte-sidenote (défaut 5)
+    outerTrim: number;      // mm, blanc final côté tranche (défaut 20)
+    fontSizeRatio: number;  // taille du texte sidenote / corps (défaut 0.85)
+  };
+
+  notes: {
+    position: 'foot' | 'side' | 'end';  // §17 footnotes redirigées
+    numbered: boolean;                   // affichage du marqueur numérique
+  };
+}
+```
+
+**Trois leviers indépendants** :
+
+1. `marginalContent.enabled` ouvre la **zone** de marge active —
+   sans en imposer un contenu spécifique.
+2. `notes.position = 'side'` y place les **notes de bas de page**
+   (le contenu le plus fréquent).
+3. Les **figures à classe `.margin`** (cf. §9.7.4) y placent les
+   illustrations latérales.
+
+Ce découplage permet par exemple d'avoir une scholar's margin
+**vide** côté notes (`notes.position = 'foot'`) mais qui héberge
+des margin figures — combinaison possible chez certains éditeurs.
+
+#### 9.7.3. Interaction avec §9.6 — recalcul des marges
+
+Quand `marginalContent.enabled === true`, le calcul du §9.6
+absorbe les zones supplémentaires dans la marge extérieure
+existante :
+
+```text
+outerMargin_total = sidenoteGap + marginalArea.width + outerTrim
+                  = 5            + 40                + 20         = 65 mm
+```
+
+Le `outerMargin` produit par le canon (§9.6.3) devient un
+**budget** à répartir en trois sous-zones, pas un blanc unique.
+Conséquence : la largeur du bloc-texte se rétrécit
+mécaniquement par rapport au mode §9.6 nu (parce qu'on consomme
+de la place horizontale pour la zone sidenote).
+
+Si l'utilisateur veut conserver la largeur de bloc-texte du §9.6
+intacte tout en ajoutant la zone sidenote, il a deux choix :
+
+- Baisser `measureChars` (§9.6.2) — explicite, recommandé.
+- Augmenter le format de page (A4 → Letter wide, ou A3 plié) —
+  rarement pertinent.
+
+Le validateur du formulaire Réglages alerte quand le total des
+zones dépasse la largeur page disponible (page − bindingMargin
+< textBlock + outerMargin_total).
+
+#### 9.7.4. Réutilisation de la syntaxe footnote (§17)
+
+Le grand bénéfice du modèle proposé : **aucune nouvelle syntaxe
+Markdown**. Les notes restent écrites avec la syntaxe footnote
+classique :
+
+```markdown
+Le théorème de Cantor[^1] établit que…
+
+[^1]: Démontré en 1891 dans *Über eine elementare Frage der
+      Mannigfaltigkeitslehre*.
+```
+
+C'est le **profil PDF** qui décide où elles atterrissent :
+
+| `notes.position` | Rendu |
+| :--- | :--- |
+| `foot` (défaut) | section regroupée en bas de page (comportement §17 actuel) |
+| `side` | placées en marge à hauteur de l'ancre, dans la sidenote-area |
+| `end` | regroupées en fin de document (endnotes) |
+
+Le même `.md` se compile en mode foot, side ou end selon le profil
+choisi — propriété **majeure** pour la portabilité (exporter un
+document pour un éditeur qui veut des endnotes, sans modifier la
+source).
+
+**Marqueurs numériques en mode `side`** : la proximité visuelle de
+la note à son ancre rend le numéro souvent superflu. L'option
+`notes.numbered: false` (par défaut en mode `side`) supprime le
+marqueur ; un petit symbole discret (`◆`, `*`, …) reste optionnel
+pour les cas où plusieurs notes se chevauchent verticalement.
+
+#### 9.7.5. Figures dans la marge
+
+Une image markdown peut être marquée pour la sidenote-area via
+une classe Pandoc-style :
+
+```markdown
+![Le diapason de Galilée](galileo-pendulum.png){.margin}
+```
+
+La classe `.margin` est captée par le renderer et l'image est
+placée en marge à hauteur du paragraphe d'ancrage, avec largeur
+auto-bornée par `marginalArea.width`. Pas de wrapping de texte —
+l'image occupe sa propre ligne dans la marge.
+
+Pour une image qui veut traverser texte + marge (full-bleed
+horizontal), une autre classe : `{.fullwidth}`. Hors v1.
+
+#### 9.7.6. Pipeline d'implémentation
+
+paged.js 0.4 **ne supporte pas** les mécanismes CSS GCPM
+(`float: outside`, `position: footnote` dans la marge). La voie
+pratique est l'approche **Tufte-CSS** : positionnement absolu
+relatif au paragraphe d'ancrage.
+
+Étapes :
+
+1. **Footnotes pré-positionnées au parse** — le post-processor §17
+   (`appendFootnotesSection`) bascule sur un mode « inline » quand
+   `notes.position === 'side'` : chaque `[^id]` est résolu en un
+   `<span class="sidenote">…</span>` injecté **juste après**
+   l'ancre, dans le même paragraphe. Plus de section regroupée en
+   bas de page.
+2. **CSS de positionnement** — `.sidenote { position: absolute;
+   width: <marginalArea.width>mm; left: calc(100% + <gap>mm); }`,
+   en s'appuyant sur un `position: relative` posé sur le
+   conteneur `.text-column` ou directement sur chaque `<p>`.
+3. **Sensibilité duplex** — sur page paire (verso), inverser
+   gauche/droite via `@page :left .sidenote { left: auto; right:
+   calc(100% + <gap>mm); }`.
+4. **Collision detection (JS post-pass)** — deux sidenotes
+   proches verticalement se chevauchent. Une passe DOM après
+   pagination paged.js mesure les rectangles et pousse vers le bas
+   chaque sidenote qui chevauche la précédente. L'ancrage idéal
+   reste « hauteur du marker », l'ajustement est minimal (5-10 mm
+   en typique).
+5. **Figures dans la marge** — même mécanique que sidenotes pour
+   les images marquées `.margin`, avec gestion d'aspect ratio.
+
+#### 9.7.7. UX — preset « Édition critique »
+
+Dans la dropdown de présets (§9.6.6), ajout d'une entrée :
+
+```ts
+Édition critique  →  {
+  marginMode: 'derived',
+  marginCanon: 'tschichold-9',
+  measureChars: 52,
+  marginalContent: { enabled: true, width: 40, gap: 5, outerTrim: 20,
+                     fontSizeRatio: 0.85 },
+  notes: { position: 'side', numbered: false },
+  duplex: true,
+  chaptersOnRecto: true,
+}
+```
+
+Un clic dans la dropdown — l'utilisateur passe d'un rapport
+classique à une édition critique Tufte-style. Aucune option
+typo à comprendre.
+
+Préserver le découplage : un utilisateur avancé peut partir de
+« Livre relié », cocher `marginalContent.enabled`, ajuster la
+largeur, sans toucher au reste. La granularité préset / réglages
+fins est cumulative.
+
+#### 9.7.8. Limites assumées
+
+- **paged.js sans GCPM** : pas de flow continu d'une sidenote
+  longue sur plusieurs pages. Une note qui dépasse la hauteur de
+  page courante est **tronquée visuellement** (ou pousse les
+  notes suivantes — résolu par la passe collision). Documenté
+  comme contrainte : « les sidenotes restent courtes (≤ 8 lignes
+  typiquement) ».
+- **Pas de wrap texte autour des margin figures** — l'image
+  occupe une bande horizontale dédiée dans la sidenote-area, le
+  texte principal continue normalement à côté.
+- **Pas de marker custom par note** — soit `numbered: true`
+  (1, 2, 3…), soit `numbered: false` (rien), choisis globalement.
+  Les exceptions ponctuelles via `[^*name]` sortent du scope v1.
+- **Source LaTeX (§21)** : conversion du même `.md` en LaTeX
+  Tufte (`tufte-book.cls`) — possible mais Hors v1.
+
+#### 9.7.9. Hors v1
+
+- **Sidenotes traversant pages** — DOM gymnastics non triviales
+  pour découper un long span absolu en deux à la pagination.
+- **Margin figures avec wrap texte** — texte qui contourne
+  l'image dans la sidenote-area (Markdown classique ne le permet
+  pas non plus, donc pas de demande user immédiate).
+- **Sidenotes interactives** (collapsible, hover popup) — pertinent
+  pour le HTML standalone, hors scope PDF.
+- **Numérotation hybride** : certaines notes numérotées,
+  d'autres pas, selon classification dans la source.
+
 ## 10. Aide intégrée
 
 - Le tutoriel `src/HELP.md` est bundlé via `import helpMd from './HELP.md?raw'`.
