@@ -86,6 +86,40 @@ describe('renderPageRunning — sentinel emission', () => {
     expect(html).toContain('@top-left { content: string(mp-title); }');
   });
 
+  it('applies font-weight: bold when the WHOLE slot is wrapped in **…**', () => {
+    const html = renderPageRunning('footer', '| | **{page}**');
+    expect(html).toContain(
+      '@bottom-right { content: counter(page); font-weight: bold; }',
+    );
+    // The literal asterisks must NOT leak into the CSS content.
+    expect(html).not.toMatch(/content: "\*\*"/);
+  });
+
+  it('applies font-style: italic when the WHOLE slot is wrapped in *…*', () => {
+    const html = renderPageRunning('header', '*Mon document* | |');
+    expect(html).toContain(
+      '@top-left { content: "Mon document"; font-style: italic; }',
+    );
+  });
+
+  it('combines bold + italic for ***…*** wraps', () => {
+    const html = renderPageRunning('footer', '***{page}*** | |');
+    expect(html).toContain(
+      '@bottom-left { content: counter(page); font-weight: bold; font-style: italic; }',
+    );
+  });
+
+  it('leaves PARTIAL emphasis (mixed content) untouched — markers render literally', () => {
+    // Mixed-content slots can't get per-fragment styling — out of v1
+    // practice. The asterisks just pass through as text.
+    const html = renderPageRunning('footer', '| | Page **{page}**');
+    expect(html).toContain(
+      '@bottom-right { content: "Page **" counter(page) "**"; }',
+    );
+    // No font-weight applied at the box level.
+    expect(html).not.toMatch(/@bottom-right \{[^}]*font-weight: bold/);
+  });
+
   it('emits unknown variables as literal {name} text (so typos are visible)', () => {
     const html = renderPageRunning('header', '{foo}');
     expect(html).toContain('@top-left { content: "{foo}"; }');

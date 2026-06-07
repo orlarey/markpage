@@ -237,9 +237,49 @@ interface Slots {
  * How: Convert the slot's mini-syntax to a CSS content value via
  *   slotContentToCss. Always emit the box — missing slots must clear
  *   (content: "") to override any inherited rule.
+ *
+ *   Phase-4b partial support: if the slot text is entirely wrapped in
+ *   `**...**` (bold), `*...*` (italic), or `***...***` (bold italic),
+ *   strip the markers AND apply font-weight / font-style to the whole
+ *   margin box. CSS `content` can't host nested styling, so we get
+ *   exactly one styled slot at a time — sufficient for the common
+ *   case of a bold folio (`**{page}**`). Mixed-style slots like
+ *   `Page **{page}**` still render the asterisks literally; users
+ *   wanting per-fragment styling have to wait for the proper
+ *   `running()` + element pipeline (out of v1 practice, SPEC §26.10).
  */
 function cssMarginBox(boxName: string, slotContent: string): string {
-  return `@${boxName} { content: ${slotContentToCss(slotContent)}; }`;
+  const { content, bold, italic } = extractWholeSlotStyle(slotContent);
+  const decls = [`content: ${slotContentToCss(content)};`];
+  if (bold) decls.push('font-weight: bold;');
+  if (italic) decls.push('font-style: italic;');
+  return `@${boxName} { ${decls.join(' ')} }`;
+}
+
+/**
+ * Purpose: If the slot is wrapped entirely in markdown-style emphasis
+ *   markers, return the content stripped of the markers plus the
+ *   styling flags to apply on the margin box.
+ * How: Test the strongest wrap (`***`) first, then bold (`**`), then
+ *   italic (`*`). The length guards (≥7, ≥5, ≥3) ensure we have at
+ *   least one character inside the markers — guards against `**`
+ *   (empty bold) and similar pathological inputs.
+ */
+function extractWholeSlotStyle(slot: string): {
+  content: string;
+  bold: boolean;
+  italic: boolean;
+} {
+  if (slot.startsWith('***') && slot.endsWith('***') && slot.length >= 7) {
+    return { content: slot.slice(3, -3), bold: true, italic: true };
+  }
+  if (slot.startsWith('**') && slot.endsWith('**') && slot.length >= 5) {
+    return { content: slot.slice(2, -2), bold: true, italic: false };
+  }
+  if (slot.startsWith('*') && slot.endsWith('*') && slot.length >= 3) {
+    return { content: slot.slice(1, -1), bold: false, italic: true };
+  }
+  return { content: slot, bold: false, italic: false };
 }
 
 /**
