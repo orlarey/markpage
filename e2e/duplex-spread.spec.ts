@@ -54,7 +54,7 @@ test('duplex: verso (page 1) and the next recto (page 2) share a row', async ({
   await page.goto('/');
   // Enable duplex.
   const settings = await openSettings(page);
-  await settings.getByRole('button', { name: 'Mise en page', exact: true }).click();
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
   const duplex = settings
     .getByText('Recto-verso')
     .locator('xpath=following-sibling::input');

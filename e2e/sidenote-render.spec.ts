@@ -87,8 +87,8 @@ test("side mode (Édition critique preset): sidenote visible at right of its anc
   //   marginMode='derived', measureChars=52, liveAreaChars=85,
   //   duplex=true, chapterBreak='next-recto', notes.position='side'.
   const settings = await openSettings(page);
-  await settings.getByRole('button', { name: 'Mise en page', exact: true }).click();
-  await settings.locator('select').first().selectOption({ label: 'Édition critique' });
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  await settings.getByText('Préréglage').locator('xpath=following-sibling::select').selectOption({ label: 'Édition critique' });
 
   await page.locator('button.preview-toggle').click();
   await waitForRender(page);

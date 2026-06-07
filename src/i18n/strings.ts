@@ -100,6 +100,7 @@ const FR = {
   'settings.section.math': 'Formules mathématiques',
   'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Langue du document',
+  'settings.section.page-format': 'Format de page',
 
   // ---- layout section (SPEC §9.5 / §9.6 / §9.7) --------------------
   'settings.section.layout': 'Mise en page',
@@ -382,6 +383,7 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.section.math': 'Math formulas',
   'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Document language',
+  'settings.section.page-format': 'Page format',
 
   // ---- layout section (SPEC §9.5 / §9.6 / §9.7) --------------------
   'settings.section.layout': 'Layout',

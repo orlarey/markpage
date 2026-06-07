@@ -90,7 +90,7 @@ test('duplex mirrors the page-2 content area to the verso position', async ({
   await setAsymmetricMargins(settings);
 
   // Enable duplex.
-  await settings.getByRole('button', { name: 'Mise en page', exact: true }).click();
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
   const duplexCheckbox = settings
     .getByText('Recto-verso')
     .locator('xpath=following-sibling::input');

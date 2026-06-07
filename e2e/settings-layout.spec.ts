@@ -1,13 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Purpose: Exercise the new "Mise en page" rail section (SPEC §9.5 /
- *   §9.6 / §9.7 Sub-phase A.2). Asserts the section appears, exposes
- *   the five layout levers plus the preset dropdown, the marginMode
- *   selector gates the two measure inputs, and the preset dropdown
- *   round-trips (applying a preset then reading it back).
- * How: Opens the Settings detached window via the toolbar button, then
- *   navigates to the Layout rail entry. All assertions run against the
+ * Purpose: Exercise the layout-config block of the merged "Page" rail
+ *   item (SPEC §9.5 / §9.6 / §9.7). Asserts the five layout levers +
+ *   preset dropdown are present, the marginMode selector gates the
+ *   two measure inputs, and the preset dropdown round-trips
+ *   (applying a preset then reading it back).
+ * How: Opens the Settings detached window, navigates to the "Page"
+ *   rail entry (which holds Format + Mise en page + Marges in one
+ *   place since the layout-merge cleanup), runs assertions on the
  *   popup `Page` Playwright surfaces as a context event.
  */
 
@@ -17,7 +18,7 @@ async function openLayoutSection(page: Page): Promise<Page> {
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
   // Rail entries are buttons with the section label as text content.
-  await settingsPage.getByRole('button', { name: 'Mise en page', exact: true }).click();
+  await settingsPage.getByRole('button', { name: 'Page', exact: true }).click();
   return settingsPage;
 }
 
@@ -69,7 +70,7 @@ test('Selecting the "Édition critique" preset wires every lever to its bundle',
   await page.goto('/');
   const settings = await openLayoutSection(page);
 
-  const presetSelect = settings.locator('select').first();
+  const presetSelect = settings.getByText('Préréglage').locator('xpath=following-sibling::select');
   await presetSelect.selectOption({ label: 'Édition critique' });
 
   // Layout section refreshes after a preset is applied. The section is

@@ -231,10 +231,14 @@ export function buildSettingsForm(
         titleKey: 'rail.group.document',
         items: [
           {
+            // Single merged "Page" rail item: format + canon-driven
+            // layout + the four mm margins live together because the
+            // user thinks of them as one workflow ("set up the page").
             id: 'doc-page',
             label: t('settings.section.page'),
             build: () => [
-              section(t('settings.section.page'), [
+              // Format: pageSize, doc language, page-number position.
+              section(t('settings.section.page-format'), [
                 selectField(
                   t('settings.field.page-size'),
                   PAGE_SIZES,
@@ -265,6 +269,13 @@ export function buildSettingsForm(
                   },
                   (v) => POSITION_LABELS()[v],
                 ),
+              ]),
+              // Layout: preset + canon + duplex / chapter / notes.
+              ...buildLayoutSection(),
+              // The four manual mm margins. Disabled when marginMode
+              // is 'derived' — the canon is authoritative then and
+              // the values displayed are advisory.
+              section(t('settings.section.margins'), [
                 numberField(
                   t('settings.field.margin-top'),
                   current.margins.top,
@@ -274,6 +285,7 @@ export function buildSettingsForm(
                     current.margins.top = v;
                     emit();
                   },
+                  { disabled: current.marginMode === 'derived' },
                 ),
                 numberField(
                   t('settings.field.margin-bottom'),
@@ -284,6 +296,7 @@ export function buildSettingsForm(
                     current.margins.bottom = v;
                     emit();
                   },
+                  { disabled: current.marginMode === 'derived' },
                 ),
                 numberField(
                   t('settings.field.margin-left'),
@@ -294,6 +307,7 @@ export function buildSettingsForm(
                     current.margins.left = v;
                     emit();
                   },
+                  { disabled: current.marginMode === 'derived' },
                 ),
                 numberField(
                   t('settings.field.margin-right'),
@@ -304,14 +318,10 @@ export function buildSettingsForm(
                     current.margins.right = v;
                     emit();
                   },
+                  { disabled: current.marginMode === 'derived' },
                 ),
               ]),
             ],
-          },
-          {
-            id: 'doc-layout',
-            label: t('settings.section.layout'),
-            build: () => buildLayoutSection(),
           },
           {
             id: 'doc-metadata',

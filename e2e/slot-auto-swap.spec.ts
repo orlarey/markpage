@@ -106,7 +106,7 @@ test('duplex: outer-right content swaps to top-left on verso pages', async ({ pa
 
   // Enable duplex via the Layout settings.
   const settings = await openSettings(page);
-  await settings.getByRole('button', { name: 'Mise en page', exact: true }).click();
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
   const duplex = settings
     .getByText('Recto-verso')
     .locator('xpath=following-sibling::input');

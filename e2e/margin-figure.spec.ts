@@ -72,8 +72,8 @@ test("side mode: img.margin is positioned absolute in the outer gutter", async (
   await injectMarginFigureDoc(page);
 
   const settings = await openSettings(page);
-  await settings.getByRole('button', { name: 'Mise en page', exact: true }).click();
-  await settings.locator('select').first().selectOption({ label: 'Édition critique' });
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  await settings.getByText('Préréglage').locator('xpath=following-sibling::select').selectOption({ label: 'Édition critique' });
 
   await page.locator('button.preview-toggle').click();
   await waitForRender(page);

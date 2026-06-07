@@ -70,8 +70,8 @@ test('derived mode (Rapport preset) yields canonical asymmetric margins', async 
   // measureChars=66, liveAreaChars=85, duplex=false, chapterBreak='none',
   // notes.position='foot'.
   const settings = await openSettings(page);
-  await settings.getByRole('button', { name: 'Mise en page', exact: true }).click();
-  const presetSelect = settings.locator('select').first();
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  const presetSelect = settings.getByText('Préréglage').locator('xpath=following-sibling::select');
   await presetSelect.selectOption({ label: 'Rapport' });
 
   await page.locator('button.preview-toggle').click();
