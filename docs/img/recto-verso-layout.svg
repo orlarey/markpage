@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 560 400"
+     width="900"
+     font-family="-apple-system, system-ui, sans-serif"
+     role="img"
+     aria-label="Recto-verso page layout following the Van de Graaf canon on A4 with a 66-character measure, showing inner / outer / top / bottom margins, text block, and the running header / footer offsets.">
+  <title>Mise en page recto-verso — canon Van de Graaf</title>
+  <desc>
+    A spread of two A4 pages (verso on the left, recto on the right) annotated with
+    the Van de Graaf canon proportions derived from a 66-character measure at 11 pt
+    Source Serif. Inner = 27 mm, outer = 55 mm, top = 39 mm, bottom = 77 mm; text
+    block = 128 × 181 mm; running header / footer baselines at 12 mm from the page
+    edge. The diagram is also used in SPEC §9.6 to illustrate the three margin axes
+    (measure, canon, running offset).
+  </desc>
+
+  <style>
+    .page          { fill: #fafafa; stroke: #1f1f1f; stroke-width: 0.5; }
+    .text-block    { fill: #eaf1ff; stroke: #2c5cd6; stroke-width: 0.5; }
+    .running-band  { fill: #fff4e0; opacity: 0.55; }
+    .running-line  { stroke: #b06700; stroke-width: 0.6; }
+    .spine         { stroke: #888; stroke-width: 0.45; stroke-dasharray: 2.2 1.6; }
+    .dim           { stroke: #888; stroke-width: 0.3; }
+    .dim-arrow     { fill: #888; }
+
+    .t-title       { font-size: 11px; fill: #111; font-weight: 600; text-anchor: middle; }
+    .t-sub         { font-size: 6.4px; fill: #555; text-anchor: middle; }
+    .t-page        { font-size: 7.5px; fill: #222; font-weight: 600; text-anchor: middle; }
+    .t-margin      { font-size: 5.4px; fill: #333; font-style: italic; }
+    .t-margin-c    { font-size: 5.4px; fill: #333; font-style: italic; text-anchor: middle; }
+    .t-tb          { font-size: 5.6px; fill: #2c5cd6; font-weight: 600; text-anchor: middle; }
+    .t-tb-sub      { font-size: 5px;   fill: #2c5cd6; text-anchor: middle; }
+    .t-run         { font-size: 5px; fill: #8a4f00; font-style: italic; }
+    .t-spine       { font-size: 5.4px; fill: #777; text-anchor: middle; }
+    .t-legend      { font-size: 5.6px; fill: #333; }
+    .t-legend-h    { font-size: 6px; fill: #111; font-weight: 600; }
+  </style>
+
+  <!-- Title block -->
+  <text x="280" y="20" class="t-title">Mise en page recto-verso — canon Van de Graaf</text>
+  <text x="280" y="32" class="t-sub">A4 (210 × 297 mm) · mesure 66 caractères · Source Serif 11 pt</text>
+
+  <!--
+       Coordinate convention: 1 SVG unit ≈ 1 mm.
+       Spread: left page (verso) at (45, 50) size 210×297; right page (recto)
+       at (255, 50) size 210×297; pages touch at x = 255 (the spine).
+       Derived metrics (measure-driven Van de Graaf):
+         inner = 27 mm   outer = 55 mm   top = 39 mm   bottom = 77 mm
+         text block = 128 × 181 mm
+         headerOffset = footerOffset = 12 mm
+  -->
+
+  <!-- ====================  Verso (left page, paire)  ==================== -->
+  <g id="verso">
+    <!-- Page rectangle -->
+    <rect class="page" x="45" y="50" width="210" height="297"/>
+
+    <!-- Running header band (top 24 mm) for visual hint -->
+    <rect class="running-band" x="45" y="50" width="210" height="24"/>
+    <!-- Running footer band (bottom 24 mm) -->
+    <rect class="running-band" x="45" y="323" width="210" height="24"/>
+
+    <!-- Text block — outer (55) on the left, inner (27) on the right -->
+    <rect class="text-block" x="100" y="89" width="128" height="181"/>
+
+    <!-- Running header baseline (12 mm from page top, y = 62) -->
+    <line class="running-line" x1="100" y1="62" x2="228" y2="62"/>
+    <text x="178" y="60" class="t-run" text-anchor="middle">Header (offset 12 mm)</text>
+
+    <!-- Running footer baseline (12 mm from page bottom, y = 335) -->
+    <line class="running-line" x1="100" y1="335" x2="228" y2="335"/>
+    <text x="178" y="343" class="t-run" text-anchor="middle">Footer (offset 12 mm)</text>
+
+    <!-- Margin labels: top, bottom, outer, inner -->
+    <text x="164" y="83" class="t-margin-c">top 39 mm</text>
+    <text x="164" y="280" class="t-margin-c">bottom 77 mm</text>
+    <!-- outer (left side of verso) -->
+    <text x="48" y="180" class="t-margin" transform="rotate(-90 48 180)">outer 55 mm</text>
+    <!-- inner (right side of verso, toward spine) -->
+    <text x="234" y="180" class="t-margin" transform="rotate(-90 234 180)">inner 27 mm</text>
+
+    <!-- Text block annotations -->
+    <text x="164" y="178" class="t-tb">bloc-texte</text>
+    <text x="164" y="188" class="t-tb-sub">128 × 181 mm</text>
+    <text x="164" y="200" class="t-tb-sub">≈ 33 lignes (11 pt × 1.4)</text>
+
+    <!-- Page label -->
+    <text x="150" y="362" class="t-page">verso  ·  page paire</text>
+  </g>
+
+  <!-- ====================  Spine (binding fold)  ==================== -->
+  <line class="spine" x1="255" y1="48" x2="255" y2="349"/>
+  <text x="255" y="368" class="t-spine">reliure</text>
+
+  <!-- ====================  Recto (right page, impaire)  ==================== -->
+  <g id="recto">
+    <!-- Page rectangle -->
+    <rect class="page" x="255" y="50" width="210" height="297"/>
+
+    <!-- Running bands -->
+    <rect class="running-band" x="255" y="50" width="210" height="24"/>
+    <rect class="running-band" x="255" y="323" width="210" height="24"/>
+
+    <!-- Text block — inner (27) on the left, outer (55) on the right -->
+    <rect class="text-block" x="282" y="89" width="128" height="181"/>
+
+    <!-- Running header baseline -->
+    <line class="running-line" x1="282" y1="62" x2="410" y2="62"/>
+    <text x="346" y="60" class="t-run" text-anchor="middle">Header (offset 12 mm)</text>
+
+    <!-- Running footer baseline -->
+    <line class="running-line" x1="282" y1="335" x2="410" y2="335"/>
+    <text x="346" y="343" class="t-run" text-anchor="middle">Footer (offset 12 mm)</text>
+
+    <!-- Margin labels -->
+    <text x="346" y="83" class="t-margin-c">top 39 mm</text>
+    <text x="346" y="280" class="t-margin-c">bottom 77 mm</text>
+    <!-- inner (left side of recto, toward spine) -->
+    <text x="270" y="180" class="t-margin" transform="rotate(-90 270 180)">inner 27 mm</text>
+    <!-- outer (right side of recto) -->
+    <text x="461" y="180" class="t-margin" transform="rotate(-90 461 180)">outer 55 mm</text>
+
+    <!-- Text block annotations -->
+    <text x="346" y="178" class="t-tb">bloc-texte</text>
+    <text x="346" y="188" class="t-tb-sub">128 × 181 mm</text>
+    <text x="346" y="200" class="t-tb-sub">≈ 33 lignes (11 pt × 1.4)</text>
+
+    <!-- Page label -->
+    <text x="360" y="362" class="t-page">recto  ·  page impaire</text>
+  </g>
+
+  <!-- ====================  Legend / formula  ==================== -->
+  <g id="legend" transform="translate(475, 70)">
+    <text x="0" y="0"  class="t-legend-h">Ratios canon</text>
+    <text x="0" y="11" class="t-legend">inner : top : outer : bottom</text>
+    <text x="0" y="19" class="t-legend">= 1 : 1.5 : 2 : 3</text>
+
+    <text x="0" y="34" class="t-legend-h">Mesure</text>
+    <text x="0" y="44" class="t-legend">66 chars × 0.5 em</text>
+    <text x="0" y="52" class="t-legend">× 11 pt = 128 mm</text>
+
+    <text x="0" y="67" class="t-legend-h">Marges horiz.</text>
+    <text x="0" y="77" class="t-legend">210 − 128 = 82 mm</text>
+    <text x="0" y="85" class="t-legend">→ inner 27, outer 55</text>
+
+    <text x="0" y="100" class="t-legend-h">Marges vert.</text>
+    <text x="0" y="110" class="t-legend">bloc 128 × (297/210)</text>
+    <text x="0" y="118" class="t-legend">= 181 mm</text>
+    <text x="0" y="126" class="t-legend">297 − 181 = 116 mm</text>
+    <text x="0" y="134" class="t-legend">→ top 39, bottom 77</text>
+
+    <text x="0" y="149" class="t-legend-h">Running content</text>
+    <text x="0" y="159" class="t-legend">offset 12 mm depuis</text>
+    <text x="0" y="167" class="t-legend">le bord de page</text>
+    <text x="0" y="175" class="t-legend">(dans la marge,</text>
+    <text x="0" y="183" class="t-legend">pas en plus)</text>
+  </g>
+
+  <!-- ====================  Visual legend swatches  ==================== -->
+  <g id="swatches" transform="translate(20, 380)">
+    <rect width="8" height="6" class="text-block"/>
+    <text x="11" y="5" class="t-legend">bloc-texte</text>
+
+    <rect x="56" width="8" height="6" class="running-band"/>
+    <text x="67" y="5" class="t-legend">zone running</text>
+
+    <line x1="124" y1="3" x2="132" y2="3" class="running-line"/>
+    <text x="135" y="5" class="t-legend">baseline header / footer</text>
+
+    <line x1="230" y1="0" x2="230" y2="6" class="spine"/>
+    <text x="234" y="5" class="t-legend">reliure</text>
+  </g>
+</svg>

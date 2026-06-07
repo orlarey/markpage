@@ -1357,6 +1357,8 @@ bottom = verticalMargins × (canon.bottom / (canon.top + canon.bottom))
 
 Vérification lisibilité : 181 mm / (11pt × 1.4 interligne × 0.3528 mm/pt) ≈ **33 lignes par page**, dans le sweet spot livre (30-40).
 
+![Mise en page recto-verso, canon Van de Graaf, A4, mesure 66 caractères](docs/img/recto-verso-layout.svg)
+
 #### 9.6.4. Axe C — running content dans la marge
 
 Le header CSS Paged Media occupe les boxes `@top-*`, qui **vivent dans
