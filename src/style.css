@@ -215,6 +215,119 @@ body,
   margin: 0 auto 24px;
 }
 
+/* Debug-guides overlay (toolbar button + Cmd/Ctrl+Shift+G). Toggled
+   by the `.debug-layout` class on #preview-pane. Shows three nested
+   rectangles + the page diagonals:
+     - PAGE outline (dashed grey) on .pagedjs_pagebox (= live-area
+       width × text-block height, post-asymmetric-@page-margins). It
+       isn't a canonical rectangle per se, but it's the host paged.js
+       box; useful as a sanity outline.
+     - LIVE AREA outline (dashed green) drawn as a pseudo-element on
+       .pagedjs_page using the --mp-live-* CSS vars emitted by
+       pagedCss(). On verso (in duplex) the inner / outer sides swap.
+     - TEXT BLOCK outline (dashed orange) drawn as a pseudo-element on
+       .pagedjs_page_content's content box. The body has zero vertical
+       padding (top/bottom = 0); horizontal padding = the canonical
+       gutters (--mp-gutter-*) so the inset rectangle = text block.
+     - Two page diagonals (TL↔BR + TR↔BL, role-aware in duplex) drawn
+       by the SVG overlay `paginate()` injects on every .pagedjs_pagebox;
+       the SVG is `display: none` by default and `block` under
+       .debug-layout.
+   pointer-events:none keeps the overlay from intercepting clicks. */
+#preview-pane svg.mp-guides-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: none;
+}
+#preview-pane svg.mp-guides-overlay line {
+  stroke: #b8762a;
+  stroke-width: 0.4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.55;
+}
+#preview-pane.debug-layout .pagedjs_pagebox {
+  outline: 1px dashed #999;
+  outline-offset: -1px;
+}
+#preview-pane.debug-layout .pagedjs_page {
+  position: relative;
+}
+#preview-pane.debug-layout .pagedjs_page::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  top: var(--mp-live-top, 0);
+  bottom: var(--mp-live-bottom, 0);
+  left: var(--mp-live-inner, 0);
+  right: var(--mp-live-outer, 0);
+  outline: 1px dashed #4a8a44;
+  z-index: 2;
+}
+#preview-pane.debug-layout.duplex .pagedjs_left_page::before {
+  left: var(--mp-live-outer, 0);
+  right: var(--mp-live-inner, 0);
+}
+#preview-pane.debug-layout .pagedjs_page_content {
+  position: relative;
+}
+/* Text-block outline = .pagedjs_page_content's CONTENT box (inset by
+   the horizontal gutters; the body has zero vertical padding). Recto
+   default; verso swaps inner / outer in duplex mode. */
+#preview-pane.debug-layout .pagedjs_page_content::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  left: var(--mp-gutter-inner, 0);
+  right: var(--mp-gutter-outer, 0);
+  outline: 1px dashed #b8762a;
+  z-index: 2;
+}
+#preview-pane.debug-layout.duplex .pagedjs_left_page .pagedjs_page_content::before {
+  left: var(--mp-gutter-outer, 0);
+  right: var(--mp-gutter-inner, 0);
+}
+#preview-pane.debug-layout svg.mp-guides-overlay {
+  display: block;
+}
+
+/* Duplex spread layout (§9.5). When `paginate()` toggles the .duplex
+   class on #preview-pane, lay out pages as facing pairs (verso on the
+   left, recto on the right). The first page (cover, always recto)
+   lands alone on the right column of the first row. Scoped to
+   #preview-pane only — the print export target (#markpage-print-
+   target) keeps the linear stacking the print pipeline expects. */
+#preview-pane.duplex .pagedjs_pages {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  column-gap: 0;
+}
+/* Push pages so they touch at the spine (= column boundary). Verso
+   right-aligns in column 1, recto left-aligns in column 2. The cover
+   (first page = recto alone in column 2) inherits the recto rule and
+   sits flush at the spine line — aligned vertically with subsequent
+   rectos. */
+#preview-pane.duplex .pagedjs_right_page {
+  grid-column: 2;
+  justify-self: start;
+}
+#preview-pane.duplex .pagedjs_left_page {
+  grid-column: 1;
+  justify-self: end;
+}
+#preview-pane.duplex .pagedjs_page {
+  /* Drop the auto horizontal centring; the grid handles placement.
+     Keep the inter-row vertical spacing (margin-bottom) and the
+     drop shadow from the base rule above. */
+  margin-left: 0;
+  margin-right: 0;
+}
+
 #editor-pane .cm-editor {
   height: 100%;
 }
@@ -2114,6 +2227,30 @@ figure.captioned > pre {
   border-radius: 6px;
   cursor: pointer;
   font: inherit;
+}
+
+/* Inline validation messages rendered inside a settings section
+   beneath the fields they refer to. Surfaced by
+   `buildLayoutValidationMessages` in settings-form.ts. Warnings are
+   informational (the configuration still renders), errors block save
+   in the §9.6 derived-margins flow. */
+.settings-panel .field-warning,
+.settings-panel .field-error {
+  margin: 0.2rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+.settings-panel .field-warning {
+  background: #fff7e0;
+  color: #6a4b00;
+  border-left: 3px solid #d68a00;
+}
+.settings-panel .field-error {
+  background: #ffe9e6;
+  color: #7a0e00;
+  border-left: 3px solid #c0392b;
 }
 
 /* ---- Syntax-highlighted code blocks (highlight.js) -------------- */

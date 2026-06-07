@@ -4,7 +4,8 @@
  *   preview-toggle, export, settings — and return a small control surface for
  *   live label / view-mode updates.
  * How: Static DOM via `document.createElement`, each button wired to one of the
- *   caller's handlers; `mountToolbar` returns `{ setViewMode, setDocName }`.
+ *   caller's handlers; `mountToolbar` returns `{ setViewMode, setDocName,
+ *   setGuidesPressed }`.
  *
  *******************************************************************************/
 
@@ -31,6 +32,10 @@ export interface ToolbarHandlers {
   onExport(anchor: HTMLElement): void;
   onSettings(): void;
   onTogglePreview(): void;
+  // Toggles the typographic-guides overlay (debug). The caller flips
+  // the .debug-layout class on #preview-pane and is responsible for
+  // reflecting the new state back via setGuidesPressed().
+  onToggleGuides(): void;
 }
 
 /**
@@ -42,6 +47,9 @@ export interface ToolbarControl {
   // Update the label shown on [Mon doc ▾] after a rename / switch /
   // create. The trailing caret stays.
   setDocName(name: string): void;
+  // Update the [Guides] button's aria-pressed state after the
+  // debug overlay is toggled (button click OR keyboard shortcut).
+  setGuidesPressed(pressed: boolean): void;
 }
 
 /**
@@ -87,6 +95,17 @@ export function mountToolbar(
     handlers.initialViewMode === 'preview' ? 'true' : 'false',
   );
   previewBtn.addEventListener('click', () => handlers.onTogglePreview());
+
+  // [Guides] — debug overlay button. Lives next to the preview toggle
+  // since it only affects the preview pane. Initial state is "off"
+  // (non-persistent across reloads, as agreed in the design).
+  const guidesBtn = document.createElement('button');
+  guidesBtn.type = 'button';
+  guidesBtn.className = 'guides-toggle';
+  guidesBtn.textContent = t('toolbar.guides');
+  guidesBtn.title = t('toolbar.guides-title');
+  guidesBtn.setAttribute('aria-pressed', 'false');
+  guidesBtn.addEventListener('click', () => handlers.onToggleGuides());
 
   const styleBtn = document.createElement('button');
   styleBtn.type = 'button';
@@ -170,7 +189,7 @@ export function mountToolbar(
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(previewBtn, exportBtn, settingsBtn);
+  right.append(previewBtn, guidesBtn, exportBtn, settingsBtn);
 
   parent.append(left, center, right);
 
@@ -183,6 +202,9 @@ export function mountToolbar(
     },
     setDocName(name: string) {
       docLabel.textContent = name;
+    },
+    setGuidesPressed(pressed: boolean) {
+      guidesBtn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
     },
   };
 }

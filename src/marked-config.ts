@@ -59,6 +59,15 @@ interface FootnoteRefToken {
   isFirst: boolean;
 }
 
+interface ImageAttrsToken {
+  type: 'imageAttrs';
+  raw: string;
+  alt: string;
+  href: string;
+  /** Space-separated class names extracted from the `{.foo .bar}` suffix. */
+  classes: string;
+}
+
 interface CitationRefToken {
   type: 'citationRef';
   raw: string;
@@ -581,6 +590,51 @@ marked.use({
       },
     },
     {
+      // Pandoc-style trailing class attribute on images:
+      // `![alt](url){.classname}`. The §9.7.5 use case is the
+      // `{.margin}` class that drops the image into the outer gutter
+      // (rendered alongside sidenotes by the pagedCss rule). The
+      // syntax also accepts multiple classes — `{.foo .bar}` — but
+      // an `#id` slot is reserved for a later phase.
+      // Must precede the default image tokenizer so this extension
+      // wins on the matching pattern; marked tries custom inline
+      // extensions before the built-in ones, which is what we want.
+      name: 'imageAttrs',
+      level: 'inline',
+      start(src: string) {
+        const m = /!\[/.exec(src);
+        return m === null ? undefined : m.index;
+      },
+      tokenizer(src: string) {
+        // ![alt](url){.cls1 .cls2 …}
+        // alt may be empty (drag-dropped images); url stops at the
+        // first ')'; class list is one-or-more `.name` separated by
+        // whitespace.
+        const match =
+          /^!\[([^\]\n]*)\]\(([^)\n]+)\)\{(\.[A-Za-z][\w-]*(?:\s+\.[A-Za-z][\w-]*)*)\}/.exec(
+            src,
+          );
+        if (!match) return undefined;
+        const classes = (match[3] ?? '')
+          .split(/\s+/)
+          .map((c) => c.replace(/^\./, ''))
+          .filter((c) => c !== '')
+          .join(' ');
+        const token: ImageAttrsToken = {
+          type: 'imageAttrs',
+          raw: match[0],
+          alt: match[1] ?? '',
+          href: match[2] ?? '',
+          classes,
+        };
+        return token as unknown as Tokens.Generic;
+      },
+      renderer(token) {
+        const t = token as unknown as ImageAttrsToken;
+        return `<img alt="${escapeHtml(t.alt)}" src="${escapeHtml(t.href)}" class="${escapeHtml(t.classes)}">`;
+      },
+    },
+    {
       name: 'footnoteRef',
       level: 'inline',
       start(src: string) {
@@ -613,7 +667,39 @@ marked.use({
         // a footnote referenced N times shouldn't generate N elements
         // with the same DOM id.
         const idAttr = t.isFirst ? ` id="fnref-${idEsc}"` : '';
-        return `<sup class="footnote-ref"><a href="#fn-${idEsc}"${idAttr}>${num}</a></sup>`;
+        const sup = `<sup class="footnote-ref"><a href="#fn-${idEsc}"${idAttr}>${num}</a></sup>`;
+        // §9.7 — emit the body INLINE as a <span class="sidenote">
+        // adjacent to the FIRST occurrence of each footnote ref.
+        // Subsequent occurrences only get the <sup> superscript (a
+        // back-pointer to the same note); duplicating the sidenote
+        // span would clash on the DOM id and double the visible
+        // note in 'side' mode.
+        // The pagedCss rule for `.sidenote` shows or hides this span
+        // based on `notes.position`:
+        //   - 'foot' / 'end' (default): the section.footnotes at the
+        //     document tail is visible, the sidenote is `display: none`.
+        //   - 'side': the section.footnotes is hidden, the sidenote
+        //     is positioned absolute in the outer gutter at the
+        //     anchor's line. Tufte-CSS approach.
+        // Body is rendered with the inEndnotesRender guard so the
+        // inner parseInline doesn't wipe our footnote/citation
+        // registries via the preprocess hook.
+        if (!t.isFirst) return sup;
+        const body = footnoteDefs.get(t.id) ?? '';
+        let inlineBody = '';
+        inEndnotesRender = true;
+        try {
+          inlineBody = marked.parseInline(body) as string;
+        } finally {
+          inEndnotesRender = false;
+        }
+        // Prepend the note number as a small <sup class="sidenote-num">
+        // — visible in 'side' mode (Tufte sidenote convention: number
+        // appears both as the in-body anchor AND at the start of the
+        // sidenote body), hidden in 'foot' mode (paged.js generates its
+        // own ::footnote-marker for floated notes).
+        const sidenote = `<span class="sidenote" id="sn-${idEsc}"><sup class="sidenote-num">${num}</sup>${inlineBody}</span>`;
+        return sup + sidenote;
       },
     },
     {

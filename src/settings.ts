@@ -43,25 +43,6 @@ export const PAGE_SIZE_LABELS: Record<PageSize, string> = {
   SLIDES_16_9: 'Slides 16:9',
 };
 
-export type PageNumberPosition =
-  | 'none'
-  | 'top-left'
-  | 'top-center'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-center'
-  | 'bottom-right';
-
-export const PAGE_NUMBER_POSITIONS: PageNumberPosition[] = [
-  'none',
-  'top-left',
-  'top-center',
-  'top-right',
-  'bottom-left',
-  'bottom-center',
-  'bottom-right',
-];
-
 /**
  * Purpose: Text alignment for a styled element.
  */
@@ -134,7 +115,7 @@ export type ElementKey =
   | 'callout'
   | 'table'
   | 'caption'
-  | 'page-number';
+  | 'running-content';
 
 export const ELEMENT_KEYS: ElementKey[] = [
   'body',
@@ -153,7 +134,7 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'callout',
   'table',
   'caption',
-  'page-number',
+  'running-content',
 ];
 
 /**
@@ -251,9 +232,9 @@ export const ELEMENT_DESCRIPTORS: Record<
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
   },
-  'page-number': {
+  'running-content': {
     category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline'],
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic'],
   },
 };
 
@@ -322,9 +303,18 @@ export interface PdfSettings {
   organization: MetadataField;
   date: DateSetting;
   styles: Record<ElementKey, Style>;
-  pageNumber: {
-    position: PageNumberPosition;
-  };
+  // Default running content (SPEC §26.5). The strings carry one fence
+  // body each — same syntax as a `\`\`\`header` / `\`\`\`footer` fence
+  // body: three slots separated by `|`, with `{page}` / `{pages}` /
+  // `{title}` / `{date}` substitutions and `**bold**` / `*italic*`
+  // inline emphasis allowed. They are synthesised as invisible fences
+  // at the very top of the source so the cascade machinery in
+  // page-running.ts treats them like a "section 0": active everywhere
+  // until a real fence in the doc overrides the same band (header or
+  // footer), at which point that band switches over per cascade.
+  // Empty string ↔ no default for that band.
+  header: string;
+  footer: string;
   // Maximum upscaling factor applied to mermaid diagrams in the PDF. The
   // diagram is scaled up to this factor, but never beyond the width and
   // height bounds defined below.
@@ -358,6 +348,47 @@ export interface PdfSettings {
   //   - asana: Asana Math (modern serif, generous x-height)
   //   - tex:   classic MathJax TeX font (legacy look)
   mathFontSet: MathFontSet;
+
+  // === Layout / typography (SPEC §9.5 / §9.6 / §9.7) ============================
+  // When `duplex: true`, pages alternate recto/verso semantics:
+  //   - margins.left / .right become inner / outer (mirrored via @page :left).
+  //   - header/footer slots `inner-left` / `outer-right` auto-swap (§9.6.6).
+  //   - `header even` / `header odd` page selectors become meaningful (§26.4).
+  duplex: boolean;
+  // Page-break behaviour at each h1 (§9.5.3):
+  //   - 'none':       no forced break, h1 sits in flow.
+  //   - 'next-page':  `h1 { break-before: page }` — chapter starts on new page.
+  //   - 'next-recto': `h1 { break-before: right }` — chapter starts on recto,
+  //                   blank verso inserted if needed. Degenerates to 'next-page'
+  //                   in simplex (all pages are :right).
+  chapterBreak: 'none' | 'next-page' | 'next-recto';
+  // Layout-mode lever (§9.6):
+  //   - 'manual':  the 4 `margins.*` sliders pilot the page. Compat with all
+  //                pre-§9.6 profiles, and the path for power-users who want
+  //                full control.
+  //   - 'derived': the page area is computed from the two measures below via
+  //                the Van de Graaf canon — two nested similar rectangles on
+  //                the construction diagonals (text block ⊂ live area). The 4
+  //                `margins.*` values become read-only in the UI and are
+  //                recomputed on each change.
+  marginMode: 'manual' | 'derived';
+  // Number of characters per line of the text block (§9.6.2). 45–75 is the
+  // Bringhurst readability band; 66 is the canonical centre. Drives the text
+  // block width via canvas-measured character width of the body font.
+  measureChars: number;
+  // Number of characters per line at the LIVE AREA scale (§9.6.3). Must be
+  // strictly greater than measureChars — the live area encloses the text
+  // block. The space between the two becomes header / footer / gutters,
+  // dimensioned automatically by the canon's geometry.
+  liveAreaChars: number;
+  // Footnote placement (§9.7.2). The same `[^id]` Markdown syntax compiles to
+  // a different rendering depending on this setting:
+  //   - 'foot': classical numbered footnote section at the page bottom (§17).
+  //   - 'side': Tufte-style sidenote in the outer gutter of the live area,
+  //             aligned with its anchor. Marker auto-suppressed (proximity
+  //             carries the reference).
+  //   - 'end':  endnotes — single section at the document tail (§17 variant).
+  notes: { position: 'foot' | 'side' | 'end' };
 }
 
 /**
@@ -462,11 +493,15 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     },
     table: {},
     caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
-    'page-number': { fontSize: 9, color: '#57606a', weight: 400, italic: false, underline: false },
+    'running-content': { fontSize: 9, color: '#57606a', weight: 400, italic: false },
   },
-  pageNumber: {
-    position: 'bottom-center',
-  },
+  // Default header / footer for new profiles. Matches the previous
+  // built-in default of `pageNumber.position = 'bottom-center'` — an
+  // empty header and a centered page counter in the footer. Users can
+  // edit both fields in Réglages → Page, or override them by writing a
+  // \`\`\`header / \`\`\`footer fence directly in the doc.
+  header: '',
+  footer: ' | {page} | ',
   customFonts: [],
   // First-launch default for the doc language. Re-resolved at the
   // creation of a fresh profile via `detectLanguage()` so a user
@@ -478,6 +513,19 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   mermaidMaxHeightPct: 0.7,
   mathScale: 1.0,
   mathFontSet: 'newcm',
+  // Layout / typography defaults — chosen so opening any pre-§9.6 profile
+  // renders byte-identical to before: `marginMode: 'manual'` keeps the four
+  // sliders authoritative, `duplex: false` keeps the page symmetric,
+  // `chapterBreak: 'none'` keeps h1 in flow, `notes.position: 'foot'`
+  // preserves the §17 footnote rendering. The two measures are stored even
+  // in manual mode so toggling to 'derived' does not immediately need a
+  // round of inputs from the user.
+  duplex: false,
+  chapterBreak: 'none',
+  marginMode: 'manual',
+  measureChars: 66,
+  liveAreaChars: 85,
+  notes: { position: 'foot' },
 };
 
 const KEY = 'markpage:settings';
@@ -528,11 +576,17 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     ),
     date: merge(d.date, obj.date as Partial<DateSetting> | undefined),
     styles: mergeStyles(obj),
-    pageNumber: {
-      position:
-        ((obj.pageNumber as { position?: PageNumberPosition } | undefined)
-          ?.position as PageNumberPosition | undefined) ?? d.pageNumber.position,
-    },
+    // Migrate the legacy pageNumber.position → an equivalent footer
+    // (or header for top-* positions) fence body string. Any explicit
+    // `header` / `footer` field in the input wins over the migration.
+    header:
+      typeof obj.header === 'string'
+        ? (obj.header as string)
+        : migrateHeaderFromPageNumber(obj) ?? d.header,
+    footer:
+      typeof obj.footer === 'string'
+        ? (obj.footer as string)
+        : migrateFooterFromPageNumber(obj) ?? d.footer,
     customFonts: Array.isArray(obj.customFonts)
       ? (obj.customFonts as CustomFont[])
       : d.customFonts,
@@ -546,7 +600,112 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     mathScale: (obj.mathScale as number | undefined) ?? d.mathScale,
     mathFontSet:
       (obj.mathFontSet as MathFontSet | undefined) ?? d.mathFontSet,
+    duplex: (obj.duplex as boolean | undefined) ?? d.duplex,
+    chapterBreak:
+      (obj.chapterBreak as PdfSettings['chapterBreak'] | undefined) ??
+      d.chapterBreak,
+    marginMode:
+      (obj.marginMode as PdfSettings['marginMode'] | undefined) ?? d.marginMode,
+    measureChars: (obj.measureChars as number | undefined) ?? d.measureChars,
+    liveAreaChars:
+      (obj.liveAreaChars as number | undefined) ?? d.liveAreaChars,
+    notes: merge(
+      d.notes,
+      obj.notes as Partial<PdfSettings['notes']> | undefined,
+    ),
   };
+}
+
+/**
+ * Purpose: Migrate the legacy `pageNumber.position` field into a slot
+ *   string for the new `footer` (or `header`) setting. Returns `null`
+ *   when the input doesn't carry a recognisable pageNumber position —
+ *   the caller falls back to the DEFAULT_SETTINGS value. The slot
+ *   layout mirrors the dropdown corners:
+ *     - `top-{side}` ↔ header band; `bottom-{side}` ↔ footer band.
+ *     - `-left` / `-center` / `-right` fills the matching slot with
+ *       `{page}`; the other two slots stay empty.
+ */
+function migrateFromPageNumber(
+  obj: Record<string, unknown>,
+  band: 'top' | 'bottom',
+): string | null {
+  const pn = obj.pageNumber as { position?: string } | undefined;
+  const pos = pn?.position;
+  if (typeof pos !== 'string') return null;
+  if (pos === 'none') return '';
+  const [b, slot] = pos.split('-');
+  if (b !== band) return '';
+  if (slot === 'left') return '{page} | | ';
+  if (slot === 'center') return ' | {page} | ';
+  if (slot === 'right') return ' | | {page}';
+  return null;
+}
+function migrateHeaderFromPageNumber(obj: Record<string, unknown>): string | null {
+  return migrateFromPageNumber(obj, 'top');
+}
+function migrateFooterFromPageNumber(obj: Record<string, unknown>): string | null {
+  return migrateFromPageNumber(obj, 'bottom');
+}
+
+/**
+ * Purpose: Describe a layout configuration issue produced by
+ *   `validateLayoutSettings`. Carries a field id (so the Settings UI can
+ *   highlight the offending input) and a severity:
+ *     - 'error':   the configuration is invalid (the renderer must not
+ *                  attempt the 'derived' computation); the form should
+ *                  block the save.
+ *     - 'warning': the configuration is unusual but renderable; surface
+ *                  a hint to the user without blocking.
+ */
+export type LayoutValidationField =
+  | 'measureChars'
+  | 'liveAreaChars';
+export interface LayoutValidationIssue {
+  field: LayoutValidationField;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+/**
+ * Purpose: Statically validate the two `measureChars` / `liveAreaChars`
+ *   levers introduced by §9.6 (live area model). Returns an empty list
+ *   when the configuration is sound.
+ * How: Three checks — Bringhurst's readability band (45-75), the
+ *   hard structural invariant `liveAreaChars > measureChars` (§9.6.3:
+ *   the live area must strictly contain the text block), and a soft
+ *   upper cap on `liveAreaChars` (110 chars × 0.5 em × 11 pt ≈ 213 mm,
+ *   already over an A4's width — the page-fit check that depends on
+ *   the actually-loaded body font happens at render time).
+ *   Only relevant when `marginMode === 'derived'`; in 'manual' mode
+ *   the two measures are ignored. The validator does NOT gate on
+ *   `marginMode` itself — the caller decides whether to ignore issues
+ *   for an inert config.
+ */
+export function validateLayoutSettings(s: PdfSettings): LayoutValidationIssue[] {
+  const issues: LayoutValidationIssue[] = [];
+  if (s.measureChars < 45 || s.measureChars > 75) {
+    issues.push({
+      field: 'measureChars',
+      severity: 'warning',
+      message: `measureChars=${s.measureChars} sort de la zone de lisibilité (Bringhurst 45-75)`,
+    });
+  }
+  if (s.liveAreaChars <= s.measureChars) {
+    issues.push({
+      field: 'liveAreaChars',
+      severity: 'error',
+      message: `liveAreaChars (${s.liveAreaChars}) doit être strictement supérieur à measureChars (${s.measureChars})`,
+    });
+  }
+  if (s.liveAreaChars > 110) {
+    issues.push({
+      field: 'liveAreaChars',
+      severity: 'warning',
+      message: `liveAreaChars=${s.liveAreaChars} risque de sortir de la largeur d'une A4 standard à 11 pt`,
+    });
+  }
+  return issues;
 }
 
 /**
@@ -562,7 +721,6 @@ function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
   const d = DEFAULT_SETTINGS.styles;
   const out: Record<ElementKey, Style> = { ...d };
   const inStyles = obj.styles;
-  const inPageNumber = obj.pageNumber;
   if (inStyles && typeof inStyles === 'object') {
     const s = inStyles as Record<
       string,
@@ -593,15 +751,32 @@ function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
     if (s.h1 && !s.title) {
       out.title = { ...d.title, ...s.h1 };
     }
+    // Pre-v0.16: dedicated `page-number` element style — fold it into
+    // `running-content` (which now styles the whole header / footer
+    // band, page counter included) when the latter is at defaults.
+    const pn = (inStyles as Record<string, Style>)['page-number'];
+    if (
+      pn &&
+      out['running-content'].fontSize === d['running-content'].fontSize &&
+      out['running-content'].color === d['running-content'].color
+    ) {
+      out['running-content'] = { ...out['running-content'], ...pn };
+    }
   }
-  // Legacy: pageNumber.style { fontSize, italics, color } lived at the top
-  // level; we now treat it like any other styled element.
+  // Legacy: pre-v0.16 pageNumber.style { fontSize, italics, color }
+  // lived at the top level. Migrate into `running-content` (same
+  // condition as above — only if running-content is at defaults).
+  const inPageNumber = obj.pageNumber;
   if (inPageNumber && typeof inPageNumber === 'object') {
     const ps = (inPageNumber as { style?: { fontSize?: number; italics?: boolean; color?: string } })
       .style;
-    if (ps) {
-      out['page-number'] = {
-        ...out['page-number'],
+    if (
+      ps &&
+      out['running-content'].fontSize === d['running-content'].fontSize &&
+      out['running-content'].color === d['running-content'].color
+    ) {
+      out['running-content'] = {
+        ...out['running-content'],
         ...(ps.fontSize !== undefined && { fontSize: ps.fontSize }),
         ...(ps.color !== undefined && { color: ps.color }),
         ...(ps.italics !== undefined && { italic: ps.italics }),

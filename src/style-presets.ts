@@ -99,7 +99,7 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
 /**
  * Purpose: Overlay a preset on top of a base settings object.
  * How: Spread `preset` over `base`, then re-merge each nested record
- *   (margins, fonts, styles, pageNumber) one level deep.
+ *   (margins, fonts, styles) one level deep.
  */
 export function applyStylePreset(
   base: PdfSettings,
@@ -116,10 +116,6 @@ export function applyStylePreset(
     styles: preset.styles
       ? { ...base.styles, ...preset.styles }
       : base.styles,
-    pageNumber: {
-      ...base.pageNumber,
-      ...(preset.pageNumber ?? {}),
-    },
   };
 }
 
