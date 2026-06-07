@@ -781,12 +781,49 @@ export function pagedCss(s: PdfSettings): string {
   // modal, the toolbar, etc. `:where(...)` keeps specificity at zero
   // so the rules can still be overridden by component CSS.
   const SCOPE = ':where(#preview-pane, #markpage-print-target)';
-  return `
+  // §9.5.2 — when duplex is on, `margins.left` and `margins.right`
+  // semantically become inner / outer. On recto (`@page :right`, the
+  // odd page in the spread that paged.js treats as default) we keep
+  // the nominal values; on verso (`@page :left`) we swap them so the
+  // inner margin (binding) stays physically on the spine side of the
+  // open book. In simplex the single `@page` rule carries the recto
+  // values and there is no `:left` override — all pages render the
+  // same way.
+  const rectoMargin =
+    `margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`;
+  const versoMargin =
+    `margin: ${m.top}mm ${m.left}mm ${m.bottom}mm ${m.right}mm;`;
+  const pageRule = s.duplex
+    ? `
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;
-      margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;
       ${pageNumberRule}
     }
+    @page :right { ${rectoMargin} }
+    @page :left  { ${versoMargin} }`
+    : `
+    @page {
+      size: ${sizeMm.w}mm ${sizeMm.h}mm;
+      ${rectoMargin}
+      ${pageNumberRule}
+    }`;
+  // §9.5.3 — chapterBreak forces a page break before each h1:
+  //   - 'none':       no rule emitted
+  //   - 'next-page':  CSS `break-before: page`
+  //   - 'next-recto': CSS `break-before: right` (next odd page; in
+  //                   simplex degenerates to next-page automatically).
+  // Unscoped on purpose — paged.js parses the selector itself and
+  // can't cope with `:where(...)`. The rule is only meaningful in
+  // paginated contexts so leaking it globally is harmless.
+  const chapterBreakRule =
+    s.chapterBreak === 'next-page'
+      ? 'h1 { break-before: page; }'
+      : s.chapterBreak === 'next-recto'
+        ? 'h1 { break-before: right; }'
+        : '';
+  return `
+    ${pageRule}
+    ${chapterBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */
     ${SCOPE} {
