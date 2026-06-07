@@ -358,6 +358,47 @@ export interface PdfSettings {
   //   - asana: Asana Math (modern serif, generous x-height)
   //   - tex:   classic MathJax TeX font (legacy look)
   mathFontSet: MathFontSet;
+
+  // === Layout / typography (SPEC §9.5 / §9.6 / §9.7) ============================
+  // When `duplex: true`, pages alternate recto/verso semantics:
+  //   - margins.left / .right become inner / outer (mirrored via @page :left).
+  //   - header/footer slots `inner-left` / `outer-right` auto-swap (§9.6.6).
+  //   - `header even` / `header odd` page selectors become meaningful (§26.4).
+  duplex: boolean;
+  // Page-break behaviour at each h1 (§9.5.3):
+  //   - 'none':       no forced break, h1 sits in flow.
+  //   - 'next-page':  `h1 { break-before: page }` — chapter starts on new page.
+  //   - 'next-recto': `h1 { break-before: right }` — chapter starts on recto,
+  //                   blank verso inserted if needed. Degenerates to 'next-page'
+  //                   in simplex (all pages are :right).
+  chapterBreak: 'none' | 'next-page' | 'next-recto';
+  // Layout-mode lever (§9.6):
+  //   - 'manual':  the 4 `margins.*` sliders pilot the page. Compat with all
+  //                pre-§9.6 profiles, and the path for power-users who want
+  //                full control.
+  //   - 'derived': the page area is computed from the two measures below via
+  //                the Van de Graaf canon — two nested similar rectangles on
+  //                the construction diagonals (text block ⊂ live area). The 4
+  //                `margins.*` values become read-only in the UI and are
+  //                recomputed on each change.
+  marginMode: 'manual' | 'derived';
+  // Number of characters per line of the text block (§9.6.2). 45–75 is the
+  // Bringhurst readability band; 66 is the canonical centre. Drives the text
+  // block width via canvas-measured character width of the body font.
+  measureChars: number;
+  // Number of characters per line at the LIVE AREA scale (§9.6.3). Must be
+  // strictly greater than measureChars — the live area encloses the text
+  // block. The space between the two becomes header / footer / gutters,
+  // dimensioned automatically by the canon's geometry.
+  liveAreaChars: number;
+  // Footnote placement (§9.7.2). The same `[^id]` Markdown syntax compiles to
+  // a different rendering depending on this setting:
+  //   - 'foot': classical numbered footnote section at the page bottom (§17).
+  //   - 'side': Tufte-style sidenote in the outer gutter of the live area,
+  //             aligned with its anchor. Marker auto-suppressed (proximity
+  //             carries the reference).
+  //   - 'end':  endnotes — single section at the document tail (§17 variant).
+  notes: { position: 'foot' | 'side' | 'end' };
 }
 
 /**
@@ -478,6 +519,19 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   mermaidMaxHeightPct: 0.7,
   mathScale: 1.0,
   mathFontSet: 'newcm',
+  // Layout / typography defaults — chosen so opening any pre-§9.6 profile
+  // renders byte-identical to before: `marginMode: 'manual'` keeps the four
+  // sliders authoritative, `duplex: false` keeps the page symmetric,
+  // `chapterBreak: 'none'` keeps h1 in flow, `notes.position: 'foot'`
+  // preserves the §17 footnote rendering. The two measures are stored even
+  // in manual mode so toggling to 'derived' does not immediately need a
+  // round of inputs from the user.
+  duplex: false,
+  chapterBreak: 'none',
+  marginMode: 'manual',
+  measureChars: 66,
+  liveAreaChars: 85,
+  notes: { position: 'foot' },
 };
 
 const KEY = 'markpage:settings';
@@ -546,7 +600,80 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     mathScale: (obj.mathScale as number | undefined) ?? d.mathScale,
     mathFontSet:
       (obj.mathFontSet as MathFontSet | undefined) ?? d.mathFontSet,
+    duplex: (obj.duplex as boolean | undefined) ?? d.duplex,
+    chapterBreak:
+      (obj.chapterBreak as PdfSettings['chapterBreak'] | undefined) ??
+      d.chapterBreak,
+    marginMode:
+      (obj.marginMode as PdfSettings['marginMode'] | undefined) ?? d.marginMode,
+    measureChars: (obj.measureChars as number | undefined) ?? d.measureChars,
+    liveAreaChars:
+      (obj.liveAreaChars as number | undefined) ?? d.liveAreaChars,
+    notes: merge(
+      d.notes,
+      obj.notes as Partial<PdfSettings['notes']> | undefined,
+    ),
   };
+}
+
+/**
+ * Purpose: Describe a layout configuration issue produced by
+ *   `validateLayoutSettings`. Carries a field id (so the Settings UI can
+ *   highlight the offending input) and a severity:
+ *     - 'error':   the configuration is invalid (the renderer must not
+ *                  attempt the 'derived' computation); the form should
+ *                  block the save.
+ *     - 'warning': the configuration is unusual but renderable; surface
+ *                  a hint to the user without blocking.
+ */
+export type LayoutValidationField =
+  | 'measureChars'
+  | 'liveAreaChars';
+export interface LayoutValidationIssue {
+  field: LayoutValidationField;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+/**
+ * Purpose: Statically validate the two `measureChars` / `liveAreaChars`
+ *   levers introduced by §9.6 (live area model). Returns an empty list
+ *   when the configuration is sound.
+ * How: Three checks — Bringhurst's readability band (45-75), the
+ *   hard structural invariant `liveAreaChars > measureChars` (§9.6.3:
+ *   the live area must strictly contain the text block), and a soft
+ *   upper cap on `liveAreaChars` (110 chars × 0.5 em × 11 pt ≈ 213 mm,
+ *   already over an A4's width — the page-fit check that depends on
+ *   the actually-loaded body font happens at render time).
+ *   Only relevant when `marginMode === 'derived'`; in 'manual' mode
+ *   the two measures are ignored. The validator does NOT gate on
+ *   `marginMode` itself — the caller decides whether to ignore issues
+ *   for an inert config.
+ */
+export function validateLayoutSettings(s: PdfSettings): LayoutValidationIssue[] {
+  const issues: LayoutValidationIssue[] = [];
+  if (s.measureChars < 45 || s.measureChars > 75) {
+    issues.push({
+      field: 'measureChars',
+      severity: 'warning',
+      message: `measureChars=${s.measureChars} sort de la zone de lisibilité (Bringhurst 45-75)`,
+    });
+  }
+  if (s.liveAreaChars <= s.measureChars) {
+    issues.push({
+      field: 'liveAreaChars',
+      severity: 'error',
+      message: `liveAreaChars (${s.liveAreaChars}) doit être strictement supérieur à measureChars (${s.measureChars})`,
+    });
+  }
+  if (s.liveAreaChars > 110) {
+    issues.push({
+      field: 'liveAreaChars',
+      severity: 'warning',
+      message: `liveAreaChars=${s.liveAreaChars} risque de sortir de la largeur d'une A4 standard à 11 pt`,
+    });
+  }
+  return issues;
 }
 
 /**
