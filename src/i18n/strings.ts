@@ -249,6 +249,7 @@ const FR = {
   'element.callout': 'Encadré (callout)',
   'element.table': 'Tableau',
   'element.caption': 'Légende (caption)',
+  'element.running-content': 'En-tête / pied de page',
   'element.page-number': 'Numéro de page',
   // ---- per-attribute labels (matrix columns) -----------------------
   'attr.family': 'Police',
@@ -530,6 +531,7 @@ const EN: Record<keyof typeof FR, string> = {
   'element.callout': 'Callout',
   'element.table': 'Table',
   'element.caption': 'Caption',
+  'element.running-content': 'Header / footer',
   'element.page-number': 'Page number',
   // ---- per-attribute labels (matrix columns) -----------------------
   'attr.family': 'Font',

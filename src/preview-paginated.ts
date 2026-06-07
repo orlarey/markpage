@@ -770,6 +770,12 @@ export function pagedCss(s: PdfSettings): string {
   const pn = s.pageNumber;
   const styles = s.styles;
   const pageNumberRule = pageNumberCss(pn, styles['page-number']);
+  // Running-content typography (§ user-asked improvement). Styles the
+  // wrapper paged.js mounts inside every margin box, so it picks up
+  // all six @top-* / @bottom-* boxes at once. page-number's own rule
+  // is emitted inside @page (= higher specificity) and overrides for
+  // the folio specifically.
+  const runningContentRule = runningContentCss(styles['running-content']);
   // Per-element family overrides the trio; the trio is the fallback
   // when the matrix leaves `family` undefined.
   const bodyName = (styles.body.family ?? '').trim() || s.fonts.body;
@@ -909,6 +915,7 @@ export function pagedCss(s: PdfSettings): string {
   return `
     ${pageRule}
     ${bodyPaddingRule}
+    ${runningContentRule}
     ${sidenoteRule}
     ${chapterBreakRule}
 
@@ -1434,6 +1441,39 @@ function pageSizeMm(s: PdfSettings): { w: number; h: number } {
       // a slide of the same width comfortably without retuning.
       return { w: 210, h: 118.125 };
   }
+}
+
+/**
+ * Purpose: Style the wrapper that paged.js mounts inside every
+ *   margin box (`.pagedjs_margin-content`). One ruleset reaches all
+ *   six @top-* / @bottom-* boxes at once so author-supplied header /
+ *   footer fences pick up the requested typography (font, size,
+ *   colour, weight, italic) without per-box repetition.
+ * How: Emit a low-specificity rule against `.pagedjs_margin-content`;
+ *   the `page-number` rule generated inside @page is more specific
+ *   (paged.js polishes it to a class selector against the specific
+ *   margin box), so the folio's own styling overrides this one when
+ *   the page number falls in a box the user also wrote a fence for.
+ */
+function runningContentCss(style: Style): string {
+  const decls: string[] = [];
+  if (style.family !== undefined && style.family.trim() !== '') {
+    decls.push(`font-family: ${quoteFontFamily(style.family)};`);
+  }
+  if (style.fontSize !== undefined) {
+    decls.push(`font-size: ${style.fontSize}pt;`);
+  }
+  if (style.color !== undefined) {
+    decls.push(`color: ${style.color};`);
+  }
+  if (style.weight !== undefined) {
+    decls.push(`font-weight: ${style.weight};`);
+  }
+  if (style.italic) {
+    decls.push('font-style: italic;');
+  }
+  if (decls.length === 0) return '';
+  return `:where(#preview-pane, #markpage-print-target) .pagedjs_margin-content { ${decls.join(' ')} }`;
 }
 
 /**

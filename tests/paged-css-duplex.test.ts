@@ -124,6 +124,40 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
   });
 });
 
+describe('pagedCss — running-content typography', () => {
+  it('emits a .pagedjs_margin-content rule reflecting the running-content style', () => {
+    const css = pagedCss({
+      ...A4,
+      styles: {
+        ...A4.styles,
+        'running-content': {
+          fontSize: 10,
+          color: '#222222',
+          weight: 500,
+          italic: true,
+        },
+      },
+    });
+    expect(css).toContain('.pagedjs_margin-content {');
+    expect(css).toContain('font-size: 10pt');
+    expect(css).toContain('color: #222222');
+    expect(css).toContain('font-weight: 500');
+    expect(css).toContain('font-style: italic');
+  });
+
+  it('emits nothing for the running-content selector when the style has no overrides', () => {
+    const css = pagedCss({
+      ...A4,
+      styles: {
+        ...A4.styles,
+        'running-content': {},
+      },
+    });
+    // No selector emitted means the box inherits the body styling.
+    expect(css).not.toContain('.pagedjs_margin-content {');
+  });
+});
+
 describe('pagedCss — chapterBreak', () => {
   it("emits `h1 { break-before: page }` for 'next-page'", () => {
     const css = pagedCss({ ...A4, chapterBreak: 'next-page' });

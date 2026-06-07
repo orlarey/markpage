@@ -134,6 +134,7 @@ export type ElementKey =
   | 'callout'
   | 'table'
   | 'caption'
+  | 'running-content'
   | 'page-number';
 
 export const ELEMENT_KEYS: ElementKey[] = [
@@ -153,6 +154,7 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'callout',
   'table',
   'caption',
+  'running-content',
   'page-number',
 ];
 
@@ -250,6 +252,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   caption: {
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
+  },
+  'running-content': {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic'],
   },
   'page-number': {
     category: 'inline',
@@ -503,6 +509,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     },
     table: {},
     caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
+    'running-content': { fontSize: 9, color: '#57606a', weight: 400, italic: false },
     'page-number': { fontSize: 9, color: '#57606a', weight: 400, italic: false, underline: false },
   },
   pageNumber: {
