@@ -1872,9 +1872,24 @@ Lorsqu'un `sender` et un `recipient flow` sont placés côte à côte,
 markpage les groupe automatiquement dans une rangée flex pour qu'ils
 se présentent comme deux blocs adresse en haut de la lettre.
 
-### Aide-mémoire des fences \label{sec:fences-cheatsheet}
+---
 
-Vue d'ensemble des fences spécifiques à markpage :
+## Aide-mémoire des fences \label{sec:fences-cheatsheet}
+
+Markpage reconnaît une vingtaine de **fences spécialisées** au-delà
+du Markdown standard. La table ci-dessous les liste, puis chaque
+fence est illustrée par un exemple minimal avec un lien vers la
+section détaillée quand il y en a une.
+
+**Caption + label** : toutes les fences qui produisent un bloc
+captionnable (figure, algorithme, tableau, listing) acceptent une
+caption entre guillemets et un `\label{…}` pour la référence
+croisée :
+
+````markdown
+```algorithm "Tri à bulles" \label{alg:tri}
+```
+````
 
 | Fence       | Effet                                                                       |
 |-------------|-----------------------------------------------------------------------------|
@@ -1896,9 +1911,209 @@ Vue d'ensemble des fences spécifiques à markpage :
 | `header`    | En-tête de page (3 slots, voir *En-tête et pied de page*). Idem `footer`.   |
 | `mermaid`   | Diagrammes Mermaid (séquence, flowchart, classes, etc.)                     |
 
-Toutes acceptent une **caption entre guillemets** et un `\label{…}`
-quand c'est sémantiquement pertinent (figure, algorithme, tableau,
-listing) — voir *Références croisées* plus haut.
+### `adt` — types algébriques
+
+````markdown
+```adt
+Expr ::= Num(value) | Add(left, right) | Mul(left, right)
+```
+````
+
+Définitions BNF-ish en grille alignée. Voir *Types algébriques (ADT)*.
+
+### `algorithm` — pseudo-code
+
+````markdown
+```algorithm "Tri à bulles"
+for i = 1 to n-1 do
+  for j = 0 to n-i-1 do
+    if A[j] > A[j+1] then
+      swap A[j] and A[j+1]
+return A
+```
+````
+
+Numéros de ligne, mots-clés en gras. Voir *Algorithmes
+(pseudo-code)*.
+
+### `bda` — diagrammes en blocs (Faust)
+
+````markdown
+```bda
+(_ , _) : + : *(0.5)
+```
+````
+
+Algèbre des blocs à la Faust : opérateurs `:`, `,`, `<:`, `:>`, `~`.
+Voir *Diagrammes en blocs à la Faust (BDA)*.
+
+### `category` — diagrammes commutatifs
+
+````markdown
+```category
+f : A -> B
+g : B -> C
+gof = g . f : A -> C
+```
+````
+
+DSL déclaratif pour diagrammes commutatifs. Voir *Diagrammes
+catégoriques déclaratifs*.
+
+### `chart` — graphiques
+
+````markdown
+```chart line
+x, sin, cos
+0, 0, 1
+1.57, 1, 0
+3.14, 0, -1
+```
+````
+
+Tracé de courbes (`line`), barres (`bar`), etc. à partir d'un CSV
+embarqué. Voir *Graphiques*.
+
+### `csv` / `tsv` — tableaux de données denses
+
+````markdown
+```csv
+Nom, Âge, Ville
+Alice, 32, Paris
+Bob, 27, Lyon
+```
+````
+
+Tableau dense à partir d'un séparateur virgule (`csv`) ou tabulation
+(`tsv`). Voir *Tableaux de données (CSV / TSV)*.
+
+### `demo` — source markdown + rendu
+
+````markdown
+```demo
+**Gras**, *italique*, [un lien](https://example.com).
+```
+````
+
+Side-by-side source + rendu, utile pour les slides pédagogiques.
+Voir *Démos pédagogiques*.
+
+### `diff` — texte diff colorisé
+
+````markdown
+```diff
+@@ exemple ligne 12 @@
+ function hello(name) {
+-  console.log('Bonjour ' + name);
++  console.log(`Bonjour ${name}`);
+ }
+```
+````
+
+Coloration vert / rouge des `+` / `-`. Voir *Diffs*.
+
+### `ebnf` — grammaires en rails
+
+````markdown
+```ebnf
+identifier ::= letter (letter | digit | "_")*
+```
+````
+
+Productions EBNF rendues en railroad diagrams (un SVG par
+production). Voir *Grammaires EBNF*.
+
+### `header` / `footer` — en-tête et pied de page
+
+````markdown
+```header
+{title} |  | {page}
+```
+````
+
+3 slots `gauche | centre | droite`. Variables `{page}`, `{pages}`,
+`{title}`, `{date}`. Emphase inline `**gras**` / `*italique*`. Voir
+*En-tête et pied de page*.
+
+### `inference` — règles d'inférence
+
+````markdown
+```inference
+\Gamma \vdash e_1 : \tau_1 \to \tau_2
+\Gamma \vdash e_2 : \tau_1
+---
+\Gamma \vdash e_1\,e_2 : \tau_2
+```
+````
+
+Une barre horizontale (3+ tirets) sépare les prémisses (au-dessus)
+de la conclusion (en dessous). Rendu en LaTeX `\dfrac{…}{…}`. Voir
+*Règles d'inférence*.
+
+### `math` — bloc mathématique
+
+````markdown
+```math
+\int_0^\infty e^{-x^2} \, dx = \frac{\sqrt{\pi}}{2}
+```
+````
+
+Équivalent de `$$…$$`. Accepte `\label{eq:…}` pour la référence
+croisée. Voir *Formules mathématiques*.
+
+### `mermaid` — diagrammes Mermaid
+
+````markdown
+```mermaid
+graph LR
+  A[Idée] --> B[Brouillon]
+  B --> C[Document final]
+```
+````
+
+Diagrammes de séquence, flowcharts, gantt, classes, état, etc. Voir
+*Diagrammes Mermaid*.
+
+### `sender` / `recipient` / `signature` — courriers
+
+````markdown
+```sender
+**Marie Dupont**
+12 rue de la Paix
+75002 Paris
+```
+
+```recipient
+Jean Martin
+Société Acme
+8 boulevard Voltaire
+75011 Paris
+```
+
+```signature
+**Marie Dupont**
+*Directrice associée*
+```
+````
+
+`sender` reste à gauche (flex), `recipient` se positionne en fenêtre
+DL (ajoutez `flow` pour le mettre en flex à droite), `signature`
+s'aligne à droite en fin de doc. Voir *Lettres et correspondance*.
+
+### `tree` — arbre Unicode ou SVG
+
+````markdown
+```tree
+src/
+  preview.ts
+  ui/
+    settings-form.ts
+```
+````
+
+Outline indentée → arbre Unicode (`├──`, `└──`). Ajoutez `svg` après
+`tree` pour un diagramme SVG top-down. Voir *Arbres (Unicode ou
+SVG)*.
 
 ---
 

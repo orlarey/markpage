@@ -1809,9 +1809,23 @@ When a `sender` and a `recipient flow` sit next to each other,
 markpage automatically groups them into a flex row so they show as
 two address blocks at the top of the letter.
 
-### Fence cheatsheet \label{sec:fences-cheatsheet}
+---
 
-Overview of markpage-specific fences:
+## Fence cheatsheet \label{sec:fences-cheatsheet}
+
+markpage recognises about twenty **specialised fences** beyond
+standard Markdown. The table below lists them all, then each fence
+gets a minimal example with a link to the detailed section when one
+exists.
+
+**Caption + label**: every fence that produces a captionable block
+(figure, algorithm, table, listing) accepts a quoted caption and a
+`\label{…}` for cross-references:
+
+````markdown
+```algorithm "Bubble sort" \label{alg:sort}
+```
+````
 
 | Fence       | Effect                                                                       |
 |-------------|------------------------------------------------------------------------------|
@@ -1833,9 +1847,208 @@ Overview of markpage-specific fences:
 | `header`    | Page header (3 slots, see *Header and footer*). Same with `footer`.          |
 | `mermaid`   | Mermaid diagrams (sequence, flowchart, class, etc.)                          |
 
-All of them accept a **quoted caption** and a `\label{…}` where it
-makes semantic sense (figure, algorithm, table, listing) — see
-*Cross-references* above.
+### `adt` — algebraic data types
+
+````markdown
+```adt
+Expr ::= Num(value) | Add(left, right) | Mul(left, right)
+```
+````
+
+BNF-ish definitions in an aligned grid. See *Algebraic data types
+(ADT)*.
+
+### `algorithm` — pseudocode
+
+````markdown
+```algorithm "Bubble sort"
+for i = 1 to n-1 do
+  for j = 0 to n-i-1 do
+    if A[j] > A[j+1] then
+      swap A[j] and A[j+1]
+return A
+```
+````
+
+Numbered lines, bolded keywords. See *Algorithms (pseudocode)*.
+
+### `bda` — Faust-style block diagrams
+
+````markdown
+```bda
+(_ , _) : + : *(0.5)
+```
+````
+
+Faust-style block algebra: operators `:`, `,`, `<:`, `:>`, `~`. See
+*Faust block diagrams (BDA)*.
+
+### `category` — commutative diagrams
+
+````markdown
+```category
+f : A -> B
+g : B -> C
+gof = g . f : A -> C
+```
+````
+
+Declarative DSL for commutative diagrams. See *Declarative
+commutative diagrams*.
+
+### `chart` — charts
+
+````markdown
+```chart line
+x, sin, cos
+0, 0, 1
+1.57, 1, 0
+3.14, 0, -1
+```
+````
+
+Line, bar, etc. from embedded CSV data. See *Charts*.
+
+### `csv` / `tsv` — dense data tables
+
+````markdown
+```csv
+Name, Age, City
+Alice, 32, Paris
+Bob, 27, Lyon
+```
+````
+
+Dense table from a comma (`csv`) or tab (`tsv`) separator. See
+*Data tables (CSV / TSV)*.
+
+### `demo` — markdown source + render
+
+````markdown
+```demo
+**Bold**, *italic*, [a link](https://example.com).
+```
+````
+
+Side-by-side source + render, handy for course slides. See *Teaching
+demos*.
+
+### `diff` — coloured diff text
+
+````markdown
+```diff
+@@ example line 12 @@
+ function hello(name) {
+-  console.log('Hello ' + name);
++  console.log(`Hello ${name}`);
+ }
+```
+````
+
+Green / red coloration of `+` / `-`. See *Diffs*.
+
+### `ebnf` — railroad grammars
+
+````markdown
+```ebnf
+identifier ::= letter (letter | digit | "_")*
+```
+````
+
+EBNF productions rendered as railroad diagrams (one SVG per
+production). See *EBNF grammars*.
+
+### `header` / `footer` — page header and footer
+
+````markdown
+```header
+{title} |  | {page}
+```
+````
+
+3 slots `left | centre | right`. Variables `{page}`, `{pages}`,
+`{title}`, `{date}`. Inline emphasis `**bold**` / `*italic*`. See
+*Header and footer*.
+
+### `inference` — inference rules
+
+````markdown
+```inference
+\Gamma \vdash e_1 : \tau_1 \to \tau_2
+\Gamma \vdash e_2 : \tau_1
+---
+\Gamma \vdash e_1\,e_2 : \tau_2
+```
+````
+
+A horizontal bar (3+ dashes) separates premises (above) from
+conclusion (below). Rendered as a LaTeX `\dfrac{…}{…}`. See
+*Inference rules*.
+
+### `math` — math block
+
+````markdown
+```math
+\int_0^\infty e^{-x^2} \, dx = \frac{\sqrt{\pi}}{2}
+```
+````
+
+Equivalent of `$$…$$`. Accepts `\label{eq:…}` for cross-references.
+See *Math formulas*.
+
+### `mermaid` — Mermaid diagrams
+
+````markdown
+```mermaid
+graph LR
+  A[Idea] --> B[Draft]
+  B --> C[Final doc]
+```
+````
+
+Sequence diagrams, flowcharts, gantt, class, state, etc. See
+*Mermaid diagrams*.
+
+### `sender` / `recipient` / `signature` — letters
+
+````markdown
+```sender
+**Mary Smith**
+12 Acacia Avenue
+London W1A 1AA
+```
+
+```recipient
+John Brown
+Acme Ltd
+8 Voltaire Blvd
+Manchester M1 1AA
+```
+
+```signature
+**Mary Smith**
+*Managing partner*
+```
+````
+
+`sender` stays on the left (flex), `recipient` is DL-window
+positioned (add `flow` to switch to right-column flex), `signature`
+right-aligns at the end of the document. See *Letters and
+correspondence*.
+
+### `tree` — Unicode or SVG tree
+
+````markdown
+```tree
+src/
+  preview.ts
+  ui/
+    settings-form.ts
+```
+````
+
+Indented outline → Unicode tree (`├──`, `└──`). Add `svg` after
+`tree` for a top-down SVG diagram. See *Trees (Unicode or SVG)*.
 
 ---
 
