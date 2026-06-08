@@ -1,6 +1,9 @@
-# Spécification du langage `category`
+---
+title: Spécification du langage `category`
+author: Yann Orlarey
+version: 0.1 (brouillon)
+---
 
-**Version :** 0.1 (brouillon)
 **Objet :** une syntaxe textuelle, intégrable en Markdown, pour décrire les diagrammes de théorie des catégories.
 
 ---
@@ -595,7 +598,9 @@ Mermaid ne rend pas LaTeX dans ses étiquettes. **L'éditeur s'en charge en amon
 
 Couverture pratique : lettres grecques (toutes), indices et exposants à un chiffre (et `^-N` négatifs), opérateurs courants. ~95 % des labels rencontrés dans les diagrammes typiques.
 
-**Limite restante (différée à une éventuelle v2)** — les labels qui sortent du périmètre Unicode (`\sum_{i=0}^n`, fractions, accents empilés, indices alphabétiques au-delà des quelques `ᵢⱼₓ` disponibles) rendent leur source LaTeX littéralement. Pour les traiter, il faudrait parser le SVG Mermaid après rendu et remplacer les `<text>` des labels concernés par des `<foreignObject>` contenant un rendu MathJax — gestion non triviale des coordonnées et tailles, à implémenter si une vraie demande émerge.
+::: note [Limite restante (différée à une éventuelle v2)]
+Les labels qui sortent du périmètre Unicode (`\sum_{i=0}^n`, fractions, accents empilés, indices alphabétiques au-delà des quelques `ᵢⱼₓ` disponibles) rendent leur source LaTeX littéralement. Pour les traiter, il faudrait parser le SVG Mermaid après rendu et remplacer les `<text>` des labels concernés par des `<foreignObject>` contenant un rendu MathJax — gestion non triviale des coordonnées et tailles, à implémenter si une vraie demande émerge.
+:::
 
 ### 7.B.7 Exemple complet de transpilation Mermaid
 

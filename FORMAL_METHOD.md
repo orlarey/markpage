@@ -1,4 +1,8 @@
-# Lightweight formal specification method
+---
+title: Lightweight formal specification method
+author: Yann Orlarey
+language: en
+---
 
 Every software development project begins with a specification written in
 Markdown.
