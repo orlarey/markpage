@@ -188,6 +188,25 @@ marked.use({
   // (renderMathBlocks → MathJax → SVG) handles them uniformly.
   // Other languages fall through to the default fenced-code renderer.
   renderer: {
+    // Security policy: raw HTML in the markdown source is out of scope
+    // (SPEC). marked passes inline / block HTML tokens through by
+    // default — which would let any `<script>`, `<iframe>`, or
+    // `<img onerror>` embedded in user content (typed, pasted, or
+    // imported from `.html` / `.docx`) execute when the renderer
+    // injects the parsed HTML via `innerHTML` (preview.ts:64 and the
+    // paginate pipeline). Override both block (`html`) and inline
+    // (`html` with `block: false`) tokens to emit the token's raw
+    // text HTML-escaped, so `<script>alert(1)</script>` lands in the
+    // preview as literal "<script>alert(1)</script>" instead of an
+    // executable tag. This catches every entry path (editor typing,
+    // paste, imported docs, future shared-link payloads) in one place.
+    // Our own SVG / pseudo-element / fence outputs go through other
+    // renderer overrides above — they are NEVER produced as `html`
+    // tokens, so this override has zero impact on them.
+    html(token) {
+      const t = token as { text?: string; raw?: string };
+      return escapeHtml(t.text ?? t.raw ?? '');
+    },
     code(token) {
       const lang = (token.lang ?? '').trim();
       // The original fenced-block source. Stashed as data-source on
