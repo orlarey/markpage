@@ -134,6 +134,7 @@ const FR = {
   'help.close': 'Fermer',
   'help.export-pdf': 'Exporter .pdf',
   'help.generating': 'Génération…',
+  'help.toc': 'Sommaire',
 
   // ---- profile / settings import-export errors ---------------------
   'profile-import.invalid-json': 'JSON invalide',
@@ -412,6 +413,7 @@ const EN: Record<keyof typeof FR, string> = {
   'help.close': 'Close',
   'help.export-pdf': 'Export .pdf',
   'help.generating': 'Generating…',
+  'help.toc': 'Contents',
 
   // ---- profile / settings import-export errors ---------------------
   'profile-import.invalid-json': 'Invalid JSON',

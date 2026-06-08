@@ -137,11 +137,15 @@ function buildHelpWindow(
     <header class="help-window-header">
       <h1><span class="markpage-logo" id="help-window-logo"></span> &mdash; ${t('help.title-suffix')}</h1>
       <div class="help-window-actions">
+        <button type="button" class="toc-toggle" aria-expanded="false" aria-controls="help-toc-nav">${t('help.toc')}</button>
         ${options.onExportPdf ? `<button type="button" class="export-pdf">${t('help.export-pdf')}</button>` : ''}
         <button type="button" class="close">${t('help.close')}</button>
       </div>
     </header>
-    <main class="help-body" id="help-body"></main>
+    <div class="help-window-layout">
+      <nav class="help-toc" id="help-toc-nav" aria-label="${t('help.toc')}"></nav>
+      <main class="help-body" id="help-body"></main>
+    </div>
   `;
   // Render the brand into the placeholder span. We do this from JS
   // rather than inlining the <span class="markpage-logo-mark">… because
@@ -155,6 +159,17 @@ function buildHelpWindow(
   const body = win.document.getElementById('help-body');
   if (!body) return;
   body.innerHTML = marked.parse(helpMarkdown, { async: false });
+
+  // Build the sticky table of contents from h2 / h3 headings in the
+  // rendered body. Each heading gets a slug id (assigned by buildToc
+  // for ones that don't already carry one), and the TOC links scroll
+  // smoothly to those targets. We do this BEFORE the async render
+  // pass below: math / mermaid render only swaps inner content of
+  // already-existing elements, it doesn't shift heading offsets.
+  const tocNav = win.document.getElementById('help-toc-nav');
+  if (tocNav) {
+    buildToc(win, body, tocNav);
+  }
 
   // Post-processing then insert buttons. We await the render* pass
   // before scanning for buttons because mermaid (in particular)
@@ -198,6 +213,21 @@ function buildHelpWindow(
           pdfBtn.disabled = false;
           pdfBtn.textContent = t('help.export-pdf');
         });
+    });
+  }
+
+  // Wire the responsive "Sommaire" toggle. On wide windows the sidebar
+  // is always visible (the toggle button is hidden via CSS media
+  // query); on narrow windows the toggle slides the sidebar in / out
+  // as an overlay. Toggling sets `aria-expanded` and adds a class on
+  // <body> that CSS hooks for the drawer animation.
+  const tocBtn = win.document.querySelector(
+    '.help-window-actions .toc-toggle',
+  ) as HTMLButtonElement | null;
+  if (tocBtn) {
+    tocBtn.addEventListener('click', () => {
+      const open = win.document.body.classList.toggle('toc-open');
+      tocBtn.setAttribute('aria-expanded', String(open));
     });
   }
 }
@@ -267,6 +297,151 @@ function addInsertButtons(
 }
 
 /**
+ * Purpose: Build a sticky table of contents from h2 / h3 headings in
+ *   the help body, and wire smooth scroll-to-anchor on click plus
+ *   active-section tracking via IntersectionObserver.
+ * How: Walk every h2 and h3 in the rendered body that is NOT inside a
+ *   `<pre>` (code-example headings shouldn't appear in the TOC). For
+ *   each, assign a slug id if it doesn't already have one (markdown
+ *   examples never reach here, so collisions are unlikely; we still
+ *   deduplicate by suffixing -2, -3…). Build a flat list of `<li>`
+ *   with class `toc-h2` / `toc-h3`, each wrapping an `<a>` whose
+ *   href is `#<slug>`. On click, smoothly scroll the heading into
+ *   view AND collapse the responsive drawer if it's open.
+ *
+ *   IntersectionObserver fires every time a heading crosses the top
+ *   of the viewport — we mark the most recent one as the active
+ *   section and add `.active` on its TOC link. A small rootMargin
+ *   (top: -20% / bottom: -75%) makes the highlight feel responsive
+ *   to scroll without flickering on tiny scroll movements.
+ */
+export function buildToc(win: Window, body: HTMLElement, nav: HTMLElement): void {
+  const doc = win.document;
+  // Skip headings that live inside code examples (```markdown blocks
+  // showing markdown source). They render as `<pre><code>…</code></pre>`,
+  // and any `## Foo` shown there isn't a real H2 element anyway —
+  // marked emits them as text inside <code>, not as <h2>. So the
+  // `:not(pre h*)` guard is mostly defensive against edge cases.
+  const headings = Array.from(
+    body.querySelectorAll<HTMLElement>('h2, h3, h4'),
+  ).filter((h) => h.closest('pre') === null);
+  if (headings.length === 0) return;
+
+  const seenSlugs = new Set<string>();
+  const slugify = (s: string): string =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '') // strip diacritics
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'section';
+
+  const ul = doc.createElement('ul');
+  ul.className = 'help-toc-list';
+  for (const h of headings) {
+    if (!h.id) {
+      let slug = slugify(h.textContent ?? '');
+      let bumped = slug;
+      let n = 2;
+      while (seenSlugs.has(bumped)) {
+        bumped = `${slug}-${n}`;
+        n += 1;
+      }
+      h.id = bumped;
+      seenSlugs.add(bumped);
+    } else {
+      seenSlugs.add(h.id);
+    }
+    const li = doc.createElement('li');
+    li.className = `toc-${h.tagName.toLowerCase()}`;
+    const a = doc.createElement('a');
+    a.href = `#${h.id}`;
+    a.textContent = (h.textContent ?? '').trim();
+    a.dataset.target = h.id;
+    a.addEventListener('click', (evt) => {
+      evt.preventDefault();
+      h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Update the URL hash without a re-scroll so the address bar
+      // reflects the section and the user can copy a deep link.
+      history.replaceState(null, '', `#${h.id}`);
+      // Close the responsive drawer if it was open.
+      doc.body.classList.remove('toc-open');
+      const tocBtn = doc.querySelector(
+        '.help-window-actions .toc-toggle',
+      ) as HTMLButtonElement | null;
+      tocBtn?.setAttribute('aria-expanded', 'false');
+    });
+    li.append(a);
+    ul.append(li);
+  }
+  nav.append(ul);
+
+  // Scroll-spy: keep the active link in sync with the heading
+  // currently nearest the top of the viewport. We observe ALL
+  // headings (h2 + h3) so the highlight tracks deep sections too.
+  const linksByTarget = new Map<string, HTMLAnchorElement>();
+  for (const a of ul.querySelectorAll<HTMLAnchorElement>('a[data-target]')) {
+    const target = a.dataset.target;
+    if (target !== undefined) linksByTarget.set(target, a);
+  }
+  let activeId: string | null = null;
+  const setActive = (id: string | null): void => {
+    if (id === activeId) return;
+    if (activeId !== null) linksByTarget.get(activeId)?.classList.remove('active');
+    if (id !== null) {
+      const link = linksByTarget.get(id);
+      link?.classList.add('active');
+      // Keep the active link in view inside the sidebar's scroll
+      // container — `nearest` avoids jumping the whole sidebar to
+      // top/bottom when the active heading is already visible.
+      link?.scrollIntoView({ block: 'nearest' });
+    }
+    activeId = id;
+  };
+  // Track which headings are currently above the top fold line —
+  // the deepest one is the active section. `entries` only fires on
+  // crossing, so we maintain our own set instead of recomputing.
+  const aboveFold = new Set<string>();
+  const obs = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        const id = (e.target as HTMLElement).id;
+        if (!id) continue;
+        const bbox = e.boundingClientRect;
+        // The heading is considered "above the fold" once its TOP
+        // passes the rootMargin band — IntersectionObserver fires
+        // with isIntersecting=false in both directions, so use
+        // bbox.top to disambiguate above vs below the viewport.
+        if (e.isIntersecting) {
+          aboveFold.add(id);
+        } else if (bbox.top < 0) {
+          aboveFold.add(id);
+        } else {
+          aboveFold.delete(id);
+        }
+      }
+      // Pick the last heading (in document order) that's currently
+      // above the fold — that's the section the reader is in.
+      let last: string | null = null;
+      for (const h of headings) {
+        if (aboveFold.has(h.id)) last = h.id;
+      }
+      setActive(last ?? headings[0]?.id ?? null);
+    },
+    {
+      root: null,
+      // Top band that defines "above the fold" for the scroll-spy.
+      // -10% from the top keeps a small dead zone so the highlight
+      // doesn't flicker when a heading is right at the edge.
+      rootMargin: '-10% 0% -75% 0%',
+      threshold: 0,
+    },
+  );
+  for (const h of headings) obs.observe(h);
+}
+
+/**
  * Purpose: Window-only styles (sticky header, insert-button positioning).
  * How: Returns a CSS string concatenated after the bundled app stylesheet.
  */
@@ -314,11 +489,107 @@ function windowSpecificCss(): string {
       opacity: 0.6;
       cursor: progress;
     }
-    /* Help body lives at the window root, mimic the modal padding. */
+    /* Layout: sticky TOC sidebar on the left + scrolling body on the
+       right. The sidebar is height-locked to the viewport so its
+       contents stay visible regardless of body scroll position. */
+    .help-window-layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      align-items: start;
+    }
+    .help-toc {
+      position: sticky;
+      /* Header height (~52px) defines where the sidebar starts so it
+         doesn't slide under the sticky header. */
+      top: 52px;
+      max-height: calc(100vh - 52px);
+      overflow-y: auto;
+      padding: 1rem 0.6rem 1rem 1rem;
+      border-right: 1px solid #eaecef;
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+    .help-toc-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .help-toc-list li {
+      margin: 0;
+    }
+    .help-toc-list a {
+      display: block;
+      padding: 0.15rem 0.4rem;
+      color: #57606a;
+      text-decoration: none;
+      border-radius: 4px;
+      border-left: 2px solid transparent;
+    }
+    .help-toc-list a:hover {
+      background: #f3f4f6;
+      color: #1f2328;
+    }
+    .help-toc-list a.active {
+      color: #0969da;
+      border-left-color: #0969da;
+      background: #ddf4ff;
+    }
+    .help-toc-list .toc-h2 a {
+      font-weight: 500;
+      margin-top: 0.35rem;
+    }
+    .help-toc-list .toc-h3 a {
+      padding-left: 1.1rem;
+      font-size: 0.82rem;
+    }
+    .help-toc-list .toc-h4 a {
+      padding-left: 1.9rem;
+      font-size: 0.78rem;
+      color: #6e7681;
+    }
+    /* Help body lives next to the TOC, mimic the historical padding. */
     #help-body {
-      padding: 1rem 1.5rem;
+      padding: 1rem 1.5rem 4rem;
       max-width: 740px;
       margin: 0 auto;
+      /* Add scroll-margin so anchor jumps don't hide the heading
+         under the sticky header. */
+      scroll-padding-top: 60px;
+    }
+    #help-body :is(h1, h2, h3, h4) {
+      scroll-margin-top: 60px;
+    }
+    /* The Sommaire toggle button is only useful on narrow windows. */
+    .help-window-actions .toc-toggle {
+      display: none;
+    }
+
+    /* Narrow window: sidebar slides in / out as an overlay drawer.
+       The Sommaire toggle becomes visible; clicking it sets
+       .toc-open on body which slides the sidebar into view. */
+    @media (max-width: 800px) {
+      .help-window-layout {
+        grid-template-columns: 1fr;
+      }
+      .help-window-actions .toc-toggle {
+        display: inline-block;
+      }
+      .help-toc {
+        position: fixed;
+        top: 52px;
+        left: 0;
+        z-index: 9;
+        width: 260px;
+        max-width: 80vw;
+        background: #fff;
+        border-right: 1px solid #d0d7de;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+        transform: translateX(-105%);
+        transition: transform 180ms ease-out;
+      }
+      body.toc-open .help-toc {
+        transform: translateX(0);
+      }
     }
     /* Insert button: floats top-right of each <pre>. Always visible
        at low opacity so the user can tell at a glance which blocks
