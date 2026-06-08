@@ -299,6 +299,113 @@ Markdown classique pour de petits tableaux :
 (Pour les **tableaux de données denses**, voir la section *Tableaux
 de données (CSV / TSV)* plus bas.)
 
+#### Diffs (texte comparé) \label{sec:diff}
+
+Pour afficher un patch (avant / après) ou un extrait de revue de
+code, utilisez la fence `diff` : chaque ligne est colorisée selon son
+premier caractère (`+` ajouté en vert, `-` retiré en rouge, `@@` en
+en-tête de hunk, le reste en contexte).
+
+````
+```diff
+@@ exemple ligne 12 @@
+ function hello(name) {
+-  console.log('Bonjour ' + name);
++  console.log(`Bonjour ${name}`);
+ }
+```
+````
+
+Aucune option : tout est dans le contenu.
+
+#### Arbres (Unicode ou SVG) \label{sec:tree}
+
+La fence `tree` transforme une **outline indentée** en arbre. Par
+défaut, rendu Unicode avec connecteurs `├──` / `└──` (idéal pour les
+arborescences de fichiers ou de code) ; ajoutez l'argument `svg`
+pour un diagramme top-down (utile pour les arbres syntaxiques).
+
+````
+```tree
+src/
+  preview.ts
+  preview-paginated.ts
+  ui/
+    settings-form.ts
+    help-window.ts
+```
+````
+
+Rendu Unicode (par défaut) :
+
+```
+src/
+├── preview.ts
+├── preview-paginated.ts
+└── ui/
+    ├── settings-form.ts
+    └── help-window.ts
+```
+
+Pour un arbre syntaxique en SVG :
+
+````
+```tree svg
+S
+  NP
+    Det "le"
+    N "chat"
+  VP
+    V "mange"
+```
+````
+
+L'unité d'indentation est détectée automatiquement (la première ligne
+indentée donne le pas). Les blocs `tree` sont captionnables comme une
+figure : `` ```tree "Mon arbre" `` ``.
+
+#### Algorithmes (pseudo-code) \label{sec:algorithm}
+
+La fence `algorithm` rend un pseudo-code style *algorithm2e* : numéros
+de ligne à gauche, mots-clés (`for`, `while`, `if`, `then`, `else`,
+`return`, `Input`, `Output`, `Require`…) en gras, indentation
+préservée.
+
+````markdown
+```algorithm "Tri à bulles"
+Input: tableau A de n entiers
+Output: A trié en ordre croissant
+for i = 1 to n-1 do
+  for j = 0 to n-i-1 do
+    if A[j] > A[j+1] then
+      swap A[j] and A[j+1]
+return A
+```
+````
+
+La caption entre guillemets est optionnelle ; combinée avec
+`\label{alg:tri}` après la caption, l'algorithme devient numéroté et
+référençable via `\ref{alg:tri}` (voir *Références croisées* plus bas).
+
+#### Démos pédagogiques (source + rendu côte à côte) \label{sec:demo}
+
+La fence `demo` affiche **côte à côte** la source markdown et son
+rendu — pratique pour les slides de cours ou pour montrer une syntaxe
+au lecteur sans avoir à recopier deux fois.
+
+````markdown
+```demo
+**Gras**, *italique*, [un lien](https://example.com).
+
+> Une citation pour illustrer.
+```
+````
+
+Argument optionnel : `zoom=auto` (défaut, ajuste à la hauteur de la
+slide en mode slides), `zoom=0.7` (facteur explicite entre 0.1 et
+2.0). Caption + label fonctionnent comme partout
+(`` ```demo "Listes" \label{fig:listes} ``).
+
 ### Gérer plusieurs documents \label{sec:multi-doc}
 
 markpage garde **tous vos documents** dans le navigateur. La liste se
@@ -1668,6 +1775,130 @@ trois contrôles pour adapter la taille des diagrammes dans le PDF :
   (hors marges) que le diagramme peut occuper (par défaut 100 %).
 - **Hauteur max. (% du texte)** : fraction de la hauteur de la page
   (hors marges) que le diagramme peut occuper (par défaut 70 %).
+
+### Grammaires EBNF \label{sec:ebnf}
+
+La fence `ebnf` rend des productions [EBNF style
+W3C](https://www.w3.org/TR/xml/#sec-notation) sous forme de
+**diagrammes en rails** (railroad / syntax diagrams) — un SVG par
+production. Idéal pour documenter une syntaxe de langage ou un
+format de fichier.
+
+````markdown
+```ebnf
+identifier ::= letter (letter | digit | "_")*
+letter ::= [a-zA-Z]
+digit ::= [0-9]
+```
+````
+
+Une erreur de parse produit un bloc rouge avec le message — pas
+d'export bloquant. Sous le capot,
+[ebnf2railroad](https://github.com/matthijsgroen/ebnf2railroad) fait
+le rendu ; la syntaxe accepte les opérateurs `?` (optionnel), `*`
+(répétition), `|` (alternative), `()` (groupement).
+
+### Types algébriques (ADT) \label{sec:adt}
+
+Pour définir des structures de données algébriques en notation
+BNF-ish, la fence `adt` rend chaque définition sous forme de **grille
+alignée** : nom du type à gauche, suivi de `::=` puis des
+constructeurs séparés par `|`. Les commentaires entre `(* … *)`
+s'alignent en marge.
+
+````markdown
+```adt
+Expr ::= Num(value)        (* littéral entier *)
+       | Add(left, right)  (* somme *)
+       | Mul(left, right)  (* produit *)
+       | Var(name)         (* variable libre *)
+
+Stmt ::= Assign(name, expr)
+       | If(cond, then_branch, else_branch)
+       | While(cond, body)
+```
+````
+
+Plusieurs définitions dans le même bloc s'enchaînent ; les lignes
+qui ne parsent pas sont signalées dans un panneau d'avertissement
+sous le rendu (visible mais non bloquant).
+
+### Lettres et correspondance \label{sec:letters}
+
+Pour les courriers, devis, factures, propositions commerciales,
+markpage fournit trois fences spécifiques : `sender` (émetteur),
+`recipient` (destinataire) et `signature` (bloc de fin). Chacune
+émet un bloc `<div class="letterhead letterhead-…">` avec les
+lignes du corps jointes par `<br>` et le formatage inline
+(`**gras**`, `*italique*`, `[lien](url)`) géré directement.
+
+````markdown
+```sender
+**Marie Dupont**
+*Étude Dupont & Associés*
+12 rue de la Paix
+75002 Paris
+contact@dupont-asso.fr
+```
+
+```recipient
+Jean Martin
+Société Acme
+8 boulevard Voltaire
+75011 Paris
+```
+````
+
+**Positionnement** :
+
+- `sender` reste dans le flux flex (colonne gauche).
+- `recipient` est par défaut **positionné fenêtre DL** (absolu,
+  calibré pour l'enveloppe DL française à fenêtre). Ajoutez
+  l'argument `flow` pour le faire revenir en flex (colonne droite,
+  utile sans enveloppe à fenêtre).
+- `signature` est aligné à droite en fin de document : typiquement
+  une image + nom + qualité, protégé contre les coupures de page.
+
+````markdown
+```signature
+![](signature-marie.png)
+
+**Marie Dupont**
+*Directrice associée*
+```
+````
+
+Lorsqu'un `sender` et un `recipient flow` sont placés côte à côte,
+markpage les groupe automatiquement dans une rangée flex pour qu'ils
+se présentent comme deux blocs adresse en haut de la lettre.
+
+### Aide-mémoire des fences \label{sec:fences-cheatsheet}
+
+Vue d'ensemble des fences spécifiques à markpage :
+
+| Fence       | Effet                                                                       |
+|-------------|-----------------------------------------------------------------------------|
+| `math`      | Bloc mathématique (équivalent `$$…$$`)                                      |
+| `csv`       | Tableau de données dense (virgule séparateur). `tsv` pour tabulation.       |
+| `inference` | Règle d'inférence (prémisses / conclusion)                                  |
+| `chart`     | Graphique (courbes, barres, etc.) à partir de données                       |
+| `ebnf`      | Diagrammes de syntaxe (railroad) pour grammaires                            |
+| `category`  | Diagrammes catégoriques déclaratifs                                         |
+| `bda`       | Diagrammes en blocs à la Faust                                              |
+| `adt`       | Types algébriques (grille BNF)                                              |
+| `diff`      | Texte diff unifié colorisé                                                  |
+| `tree`      | Arbre Unicode depuis une outline indentée. `tree svg` pour un rendu SVG.    |
+| `algorithm` | Pseudo-code numéroté à la algorithm2e                                       |
+| `demo`      | Source markdown + rendu côte à côte                                         |
+| `sender`    | Bloc émetteur d'une lettre (haut gauche). Voir aussi `recipient`.           |
+| `recipient` | Bloc destinataire (positionnement fenêtre DL par défaut, `flow` pour flex)  |
+| `signature` | Bloc de signature en fin de lettre (image + nom, aligné à droite)           |
+| `header`    | En-tête de page (3 slots, voir *En-tête et pied de page*). Idem `footer`.   |
+| `mermaid`   | Diagrammes Mermaid (séquence, flowchart, classes, etc.)                     |
+
+Toutes acceptent une **caption entre guillemets** et un `\label{…}`
+quand c'est sémantiquement pertinent (figure, algorithme, tableau,
+listing) — voir *Références croisées* plus haut.
 
 ---
 

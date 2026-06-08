@@ -286,6 +286,113 @@ Classic Markdown for small tables:
 (For **dense data tables**, see the *Data tables (CSV / TSV)*
 section below.)
 
+#### Diffs (compared text) \label{sec:diff}
+
+To show a patch (before / after) or a code review excerpt, use the
+`diff` fence: each line is coloured according to its first character
+(`+` added in green, `-` removed in red, `@@` hunk header, the rest
+as context).
+
+````markdown
+```diff
+@@ example line 12 @@
+ function hello(name) {
+-  console.log('Hello ' + name);
++  console.log(`Hello ${name}`);
+ }
+```
+````
+
+No options — everything lives in the content.
+
+#### Trees (Unicode or SVG) \label{sec:tree}
+
+The `tree` fence turns an **indented outline** into a tree. Default
+renders Unicode box-drawing connectors `├──` / `└──` (great for file
+trees and code hierarchies); add the `svg` argument for a top-down
+diagram (handy for syntax trees).
+
+````markdown
+```tree
+src/
+  preview.ts
+  preview-paginated.ts
+  ui/
+    settings-form.ts
+    help-window.ts
+```
+````
+
+Unicode rendering (default):
+
+```
+src/
+├── preview.ts
+├── preview-paginated.ts
+└── ui/
+    ├── settings-form.ts
+    └── help-window.ts
+```
+
+For a syntax tree in SVG:
+
+````markdown
+```tree svg
+S
+  NP
+    Det "the"
+    N "cat"
+  VP
+    V "eats"
+```
+````
+
+The indent unit is auto-detected (first indented line sets the
+step). `tree` blocks are captionable like figures: `` ```tree "My
+tree" `` ``.
+
+#### Algorithms (pseudocode) \label{sec:algorithm}
+
+The `algorithm` fence renders pseudocode in *algorithm2e* style:
+line numbers on the left, keywords (`for`, `while`, `if`, `then`,
+`else`, `return`, `Input`, `Output`, `Require`…) bolded, leading
+indentation preserved.
+
+````markdown
+```algorithm "Bubble sort"
+Input: array A of n integers
+Output: A sorted ascending
+for i = 1 to n-1 do
+  for j = 0 to n-i-1 do
+    if A[j] > A[j+1] then
+      swap A[j] and A[j+1]
+return A
+```
+````
+
+The quoted caption is optional; combined with `\label{alg:sort}`
+after the caption, the algorithm becomes numbered and referenceable
+via `\ref{alg:sort}` (see *Cross-references* below).
+
+#### Teaching demos (source + render side by side) \label{sec:demo}
+
+The `demo` fence shows the markdown source **next to** its rendered
+output — handy for course slides or for showing a syntax to the
+reader without typing it twice.
+
+````markdown
+```demo
+**Bold**, *italic*, [a link](https://example.com).
+
+> A quote to illustrate.
+```
+````
+
+Optional argument: `zoom=auto` (default, fits to slide height in
+slides mode), `zoom=0.7` (explicit factor between 0.1 and 2.0).
+Caption + label work as usual
+(`` ```demo "Lists" \label{fig:lists} `` ``).
+
 ### Managing multiple documents \label{sec:multi-doc}
 
 markpage keeps **all your documents** in the browser. The list lives
@@ -1608,6 +1715,127 @@ three controls to adjust diagram size in the PDF:
   margins) the diagram can occupy (default 100 %).
 - **Max height (% of text)**: fraction of the page height
   (excluding margins) the diagram can occupy (default 70 %).
+
+### EBNF grammars \label{sec:ebnf}
+
+The `ebnf` fence renders [W3C-style EBNF](https://www.w3.org/TR/xml/#sec-notation)
+productions as **railroad / syntax diagrams** — one SVG per
+production. Great for documenting a language grammar or a file
+format.
+
+````markdown
+```ebnf
+identifier ::= letter (letter | digit | "_")*
+letter ::= [a-zA-Z]
+digit ::= [0-9]
+```
+````
+
+A parse error produces a red block with the message — not a blocking
+export. Under the hood,
+[ebnf2railroad](https://github.com/matthijsgroen/ebnf2railroad)
+handles the rendering; the syntax accepts `?` (optional), `*`
+(repetition), `|` (alternative), `()` (grouping) operators.
+
+### Algebraic data types (ADT) \label{sec:adt}
+
+To define algebraic data structures in BNF-ish notation, the `adt`
+fence renders each definition as an **aligned grid**: type name on
+the left, then `::=` followed by constructors separated by `|`.
+Comments in `(* … *)` align in the margin.
+
+````markdown
+```adt
+Expr ::= Num(value)        (* integer literal *)
+       | Add(left, right)  (* sum *)
+       | Mul(left, right)  (* product *)
+       | Var(name)         (* free variable *)
+
+Stmt ::= Assign(name, expr)
+       | If(cond, then_branch, else_branch)
+       | While(cond, body)
+```
+````
+
+Multiple definitions can live in the same block; lines that don't
+parse surface in a warning panel under the render (visible but
+non-blocking).
+
+### Letters and correspondence \label{sec:letters}
+
+For letters, quotes, invoices and commercial proposals, markpage
+ships three dedicated fences: `sender`, `recipient` and `signature`.
+Each emits a `<div class="letterhead letterhead-…">` block with body
+lines joined by `<br>` and inline formatting (`**bold**`, `*italic*`,
+`[link](url)`) handled directly.
+
+````markdown
+```sender
+**Mary Smith**
+*Smith & Associates*
+12 Acacia Avenue
+London W1A 1AA
+contact@smith-asso.com
+```
+
+```recipient
+John Brown
+Acme Ltd
+8 Voltaire Blvd
+Manchester M1 1AA
+```
+````
+
+**Positioning**:
+
+- `sender` stays in flex flow (left column).
+- `recipient` defaults to **DL-window positioning** (absolute,
+  calibrated for the French DL window envelope). Add the `flow`
+  argument to put it back in flex (right column, useful when not
+  using a window envelope).
+- `signature` aligns right at the end of the document: typically an
+  image + name + role, protected against page splits.
+
+````markdown
+```signature
+![](signature-mary.png)
+
+**Mary Smith**
+*Managing partner*
+```
+````
+
+When a `sender` and a `recipient flow` sit next to each other,
+markpage automatically groups them into a flex row so they show as
+two address blocks at the top of the letter.
+
+### Fence cheatsheet \label{sec:fences-cheatsheet}
+
+Overview of markpage-specific fences:
+
+| Fence       | Effect                                                                       |
+|-------------|------------------------------------------------------------------------------|
+| `math`      | Math block (equivalent to `$$…$$`)                                           |
+| `csv`       | Dense data table (comma separator). `tsv` for tab.                           |
+| `inference` | Inference rule (premises / conclusion)                                       |
+| `chart`     | Chart (line, bar, etc.) from data                                            |
+| `ebnf`      | Railroad syntax diagrams for grammars                                        |
+| `category`  | Declarative commutative diagrams                                             |
+| `bda`       | Faust-style block-diagram algebra                                            |
+| `adt`       | Algebraic data types (BNF grid)                                              |
+| `diff`      | Coloured unified-diff text                                                   |
+| `tree`      | Unicode tree from indented outline. `tree svg` for SVG rendering.            |
+| `algorithm` | Pseudocode numbered algorithm2e-style                                        |
+| `demo`      | Markdown source + render side by side                                        |
+| `sender`    | Letter sender block (top left). See also `recipient`.                        |
+| `recipient` | Letter recipient block (DL-window positioning by default, `flow` for flex)   |
+| `signature` | Closing signature block (image + name, right-aligned)                        |
+| `header`    | Page header (3 slots, see *Header and footer*). Same with `footer`.          |
+| `mermaid`   | Mermaid diagrams (sequence, flowchart, class, etc.)                          |
+
+All of them accept a **quoted caption** and a `\label{…}` where it
+makes semantic sense (figure, algorithm, table, listing) — see
+*Cross-references* above.
 
 ---
 
