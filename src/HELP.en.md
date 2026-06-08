@@ -384,23 +384,182 @@ the content. **Tip**: switch to Preview mode first, open Settings,
 place the window next to the preview — every change reflects in
 real time on the paginated document.
 
-The window is organised in several **cards** (Author and date, Page,
-Fonts, Margins, Spacing, Headings, Body, Page number, Mermaid
-diagrams). If you make the window wider, the cards
-**automatically flow into two or three columns** side by side to
-cut down on scrolling.
+The window is organised into several **cards** grouped in a side
+rail by theme: *Document* (author, date, format, header, footer),
+*Layout* (presets, margins, duplex, notes), *Typography* (fonts,
+matching packs, per-element styling), *Content* (math, Mermaid
+diagrams).
 
-What you can adjust:
+The sections below cover the main levers.
 
-- **Author, organisation, date** shown under the main title.
-  *To override on a per-document basis* — say a paper signed by a
-  different team — use a *YAML frontmatter* at the top of the doc
-  instead (cf. *Going further → YAML frontmatter*).
-- **Page format** (A4, A5, Letter…, plus **Slides 16:9** to produce
-  a Beamer-style presentation PDF — see *Slides mode* below)
-- **Margins** in millimetres
-- **Justification** of text
-- **Line spacing**
+#### Page format, margins and canon \label{sec:layout}
+
+The **Layout** card gathers the page format, margin mode (manual
+or derived) and ready-to-use presets.
+
+- **Page format**: A4, A5, Letter, Legal, B5, A3, plus **Slides
+  16:9** for a Beamer-style presentation PDF (see *Slides mode*
+  below).
+
+- **Presets**: five coherent combos to get going in one click; each
+  preset sets margins, line measure, duplex mode and note placement
+  in one go.
+  - *Tech note* — derived margins, ~70-character measure, simplex,
+    footnotes.
+  - *Report* — derived margins, ~66-character measure, simplex
+    (sober default).
+  - *Paper* — derived margins, ~68-character measure, notes
+    collected at end of document.
+  - *Book* — derived margins, ~60-character measure, **duplex**,
+    new chapter on a recto.
+  - *Critical edition* — wide derived margins, ~52-character measure,
+    duplex, **margin notes** Tufte-style.
+
+  Tweaking any one lever after picking a preset flips the dropdown
+  to "Custom".
+
+- **Margin mode**. Two modes.
+  - *Manual* — the four Top / Bottom / Left / Right fields (in
+    millimetres) are editable and the result depends solely on your
+    values.
+  - *Derived* — markpage computes the margins from the Van de Graaf
+    construction (the book canon). You set the **line measure**
+    (`measureChars`, the number of characters wide a body line is —
+    ideally between 45 and 75 for readability, cf. Bringhurst) and
+    the **live-area width** (`liveAreaChars`, wider than the
+    measure: it holds the header, footer and margin notes). The
+    text block and the live area are then two rectangles similar to
+    the page, on the same diagonals — the inner/outer ratio is 1:2,
+    same for top/bottom. The manual sliders are disabled (the values
+    shown are advisory).
+
+- **Duplex (recto-verso)**: checkbox. Enables a two-page layout
+  (recto on the right, verso on the left) with automatic
+  inner/outer margin mirroring. The cover (page 1) stays alone on
+  the right in the preview, then spreads follow. In the preview
+  you actually see the two facing pages side by side with the
+  spine in the middle.
+
+- **Chapter break**: three options for what happens at each `# H1`
+  heading.
+  - *None* — the heading follows the flow.
+  - *Next page* (`next-page`) — every `h1` starts on a new page.
+  - *Next recto* (`next-recto`) — every `h1` starts on a recto
+    (insert a blank page if needed). Book convention.
+
+- **Notes**: *foot* (per-page, default), *side* (Tufte style,
+  derived margins required), or *end* (end of document). See the
+  *Notes* section below.
+
+> **💡 Visual margin overlay** — Toggle the debug overlay with the
+> **Guides** button in the toolbar, or the `Cmd/Ctrl + Shift + G`
+> shortcut. Three rectangles appear on every page: the page outline
+> (grey), the live area (green) and the text block (orange), plus
+> the canon diagonals. Handy to see where your headers, footers and
+> notes actually land. Toggle again to hide.
+
+#### Header and footer \label{sec:running}
+
+To show a header, a footer or a page number, two complementary
+mechanisms:
+
+**The two Settings fields** "Default header" and "Default footer"
+in the *Page* card. They apply to the whole document unless a fence
+in the markdown overrides them (see below). The syntax is the same
+as a fence body: three slots separated by `|`. By default the footer
+holds a centered page counter: ` | {page} | `.
+
+**The `\`\`\`header` / `\`\`\`footer` fences** in the document
+itself. They take effect from their position in the source until
+the end of the document (or until the next fence of the same kind),
+and **override** the Settings default for the matching band. Three
+slots:
+
+````markdown
+```header
+left | centre | right
+```
+````
+
+Example: a header with the document title on the right, and a
+footer with a page counter on the right and the date on the left:
+
+````markdown
+```header
+ |  | {title}
+```
+
+```footer
+{date} |  | page {page} / {pages}
+```
+````
+
+**Variables available** inside slots:
+
+- `{page}` — current page number.
+- `{pages}` — total page count.
+- `{title}` — text of the most recent `# H1` crossed (useful for a
+  running chapter title in the header).
+- `{date}` — document date (as set in Settings).
+
+**Inline formatting** in slots:
+
+- `**text**` — bold.
+- `*text*` — italic.
+- `***text***` — bold italic.
+
+You can mix fixed text and variables:
+`Welcome to **markpage** | | {page} / {pages}`.
+
+**Typography** of headers/footers: *Typography* card → *Header /
+footer*. Font, size, colour, weight, italic — defaults aim for a
+light grey (`#57606a`, ~9 pt) so they don't compete with the body
+text.
+
+> ⚠ Limitation: a slot that combines **both** a variable
+> (`{page}`) **and** mid-slot emphasis (`Page **{page}**`) renders
+> the asterisks literally. To bold the counter, wrap the **whole**
+> slot in asterisks (`**{page}**`).
+
+#### Notes: foot of page, margin, end of document \label{sec:notes-modes}
+
+The **Notes** field (*Layout* card) controls where Pandoc notes
+(`[^id]` + definition, see *Footnotes* below for the syntax) land.
+
+- *Foot of page* (`foot`, default) — each note is placed
+  **automatically at the foot of the page** that holds its anchor,
+  like in a printed book. The body marker and the foot-of-page
+  number are generated and numbered by paged.js.
+
+- *In the margin* (`side`) — each note slides into the outer
+  gutter, at the height of its anchor (Tufte CSS). The number
+  shows as both an in-body superscript and a small superscript at
+  the start of the note. **Requires derived margin mode** (markpage
+  needs to know the gutter width to place the note); in manual
+  mode this setting falls back to *end of document*.
+
+- *End of document* (`end`) — all notes are gathered at the end of
+  the document in a numbered *Notes* section.
+
+#### Margin figures \label{sec:margin-figures}
+
+In derived margin mode (outer gutter known) you can drop a figure
+into the margin with the Pandoc attribute syntax:
+
+```
+![Diagram](my-diagram.png){.margin}
+```
+
+The image aligns in the outer gutter (right on recto, left on
+verso in duplex), at the height of the paragraph that holds it.
+Its width is capped to the gutter width so it doesn't overflow.
+The `.margin` class only affects placement — you can combine it
+with a caption: `![alt](url "my caption"){.margin}`.
+
+#### Typography \label{sec:typography}
+
+The *Typography* card — global and per-element levers.
+
 - **Fonts** for headings, body and code — picked from a catalogue of
   ~17 Google Fonts (Inter, EB Garamond, JetBrains Mono…). Fonts
   are loaded on demand; first use needs a connection, after that
@@ -408,6 +567,7 @@ What you can adjust:
   bundled and work offline. *Note: the editor itself always keeps
   Roboto Condensed / Mono regardless of your choices — the
   input zone's appearance doesn't change.*
+
 - **Matching pack** — a dropdown above the three font selectors that
   aligns all four font slots (headings / body / code / math font)
   to a pre-coordinated pack in one click. Three packs ship by
@@ -416,12 +576,14 @@ What you can adjust:
   math-heavy documents), *STIX Two + STIX Math* (large-x-height
   serif for long academic texts). Tweaking any single slot
   switches the dropdown to "Custom".
+
 - **Custom Google Fonts** — for a family outside the catalogue,
   paste the Google Fonts URL (for example
   `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)
   into the "+ Add" field, confirm. The font appears immediately
   in all three pickers (Headings / Body / Code) and can be removed
   with a click on the cross on its chip.
+
 - **Spacing** — three ratios that control the document's vertical
   density:
   - *Above / below headings* (default `1.6` / `0.6`):
@@ -430,19 +592,25 @@ What you can adjust:
     "belongs" to the section that follows.
   - *Between paragraphs* (default `1.0`): symmetric margin
     applied to each paragraph.
-- **Headings (h1 to h4)** — for each: size, colour, **weight**
+
+- **Per element** (title, h1 to h4, body, inline code, code block,
+  quote, link, metadata, math block, callout, Mermaid, table,
+  caption, **header / footer**): for each, size, colour, **weight**
   (Light / Regular / Medium / Semibold / Bold), **italic**, and
-  **rule** (border-bottom below the heading). If the chosen font
-  doesn't ship the requested weight or italic cut, the browser
-  *synthesises* a fake bold / italic, usually less pretty — the
-  fix is to pick a more complete font, or to include the desired
-  weight in your custom Google Fonts URL.
-- **Body** — size and colour of normal text, code, and quotes
-  (with their vertical bar).
-- **Page number**: position, size, colour, italic
-- **Mermaid diagrams**: max upscale, max width, max height
-  (cf. *Mermaid diagrams* section below).
-- **Math formulas**:
+  depending on the type a **border**, **background**, **above /
+  below margin**. If the chosen font doesn't ship the requested
+  weight or italic cut, the browser *synthesises* a fake bold /
+  italic, usually less pretty — the fix is to pick a more complete
+  font, or to include the desired weight in your custom Google
+  Fonts URL.
+
+- **Justification** of text and **line spacing** in the *Body*
+  sub-card.
+
+- **Mermaid diagrams** (*Content* card): max upscale, max width, max
+  height (cf. *Mermaid diagrams* section below).
+
+- **Math formulas** (*Content* card):
   - *Math font* — five math fonts to pick from: NewComputerModern
     (default, TeX serif), Fira Math (sans-serif, pairs with Roboto /
     Fira Sans), STIX 2 or Asana (modern serifs), or classic TeX.
@@ -711,8 +879,13 @@ analysing a digital signal.
 The `id` identifier can be a number, a word, or a short label — it
 only serves to link the call to its definition, and never appears
 in the render. Footnotes are **numbered automatically** in the
-order they appear in the text (not in the order of the
-definitions), and grouped at the end of the document.
+order they appear in the text (not in the order of the definitions).
+
+**The placement** depends on the *Notes* setting (*Layout* card):
+*foot of page* (default, each note at the foot of the page that
+holds its anchor), *in the margin* (outer gutter, at anchor height
+— Tufte style), or *end of document*. See the *Notes: foot of
+page, margin, end of document* section above for the three modes.
 
 Inside a footnote you can use **`bold`**, *italic*, `inline code`,
 links, or even `$math$`. The same footnote can be referenced

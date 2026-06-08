@@ -399,25 +399,190 @@ au contenu. **Astuce** : passez d'abord en mode Aperçu, ouvrez les
 Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
 se reflète en temps réel sur le document paginé.
 
-La fenêtre s'organise en plusieurs **cartes** (Auteur et date, Page,
-Polices, Marges, Espacement, Titres, Corps, Numéro de page,
-Diagrammes Mermaid). Si vous élargissez la fenêtre, les cartes
-**passent automatiquement sur deux ou trois colonnes** côte à côte
-pour réduire le scroll.
+La fenêtre s'organise en plusieurs **cartes** réparties dans une
+barre latérale par thème : *Document* (auteur, date, format,
+en-tête, pied de page), *Mise en page* (préréglages, marges,
+recto-verso, notes), *Typographie* (polices, packs assortis, par
+élément du document), *Contenu* (math, diagrammes Mermaid).
 
-Ce que vous pouvez régler :
+Les sections ci-dessous détaillent les principaux leviers.
 
-- **Auteur, organisation, date** affichés sous le titre principal.
-  *Pour un override par document* — par exemple un papier de
-  recherche signé d'une autre équipe — utilisez plutôt le
-  *frontmatter YAML* en tête de doc (cf. *Pour aller encore plus
-  loin → Frontmatter YAML*).
-- **Format de page** (A4, A5, Letter…, plus **Slides 16:9** pour
-  produire un PDF de présentation à la Beamer — voir *Mode slides*
-  plus bas)
-- **Marges** en millimètres
-- **Justification** du texte
-- **Interligne**
+#### Format, marges et canon de mise en page \label{sec:layout}
+
+La carte **Mise en page** rassemble le format de page, le choix
+des marges (manuelles ou dérivées) et les présets prêts à l'emploi.
+
+- **Format de page** : A4, A5, Letter, Legal, B5, A3, plus
+  **Slides 16:9** pour un PDF de présentation à la Beamer (voir
+  *Mode slides* plus bas).
+
+- **Préréglages** : cinq combinaisons cohérentes pour démarrer en un
+  clic ; chaque préréglage règle d'un coup les marges, la mesure de
+  ligne, le recto-verso et le placement des notes.
+  - *Note technique* — marges dérivées, mesure ~70 caractères,
+    simplex, notes de bas de page.
+  - *Rapport* — marges dérivées, mesure ~66 caractères, simplex
+    (défaut sobre).
+  - *Article* — marges dérivées, mesure ~68 caractères, notes
+    regroupées en fin de document.
+  - *Livre* — marges dérivées, mesure ~60 caractères, **recto-verso**,
+    nouveau chapitre sur recto.
+  - *Édition critique* — marges dérivées larges, mesure ~52 caractères,
+    recto-verso, notes **en marge** à la Tufte.
+
+  Modifier un seul levier après avoir choisi un préréglage bascule
+  la dropdown en « Personnalisé ».
+
+- **Mode de marges**. Deux modes au choix.
+  - *Manuel* — les quatre champs Haut / Bas / Gauche / Droite (en
+    millimètres) sont éditables, et le résultat dépend uniquement de
+    vos valeurs.
+  - *Dérivé* — markpage calcule les marges à partir de la
+    construction de Van de Graaf (canon du livre). Vous fixez la
+    **mesure de ligne** (`measureChars`, le nombre de caractères de
+    largeur d'une ligne de corps de texte, idéalement entre 45 et 75
+    pour la lisibilité, cf. Bringhurst) et la **largeur de l'aire
+    vivante** (`liveAreaChars`, plus large que la mesure : c'est elle
+    qui contient l'en-tête, le pied de page et les notes en marge).
+    Le bloc de texte et l'aire vivante sont alors deux rectangles
+    similaires à la page, posés sur les mêmes diagonales — la
+    proportion intérieure/extérieure est de 1:2, idem pour haut/bas.
+    Les sliders manuels sont alors désactivés (les valeurs montrées
+    sont indicatives).
+
+- **Recto-verso (duplex)** : case à cocher. Active la mise en page
+  en double page (recto à droite, verso à gauche) avec inversion
+  automatique des marges intérieures/extérieures. La page de
+  couverture (page 1) reste seule à droite dans l'aperçu, puis les
+  spreads se suivent. En aperçu, vous voyez physiquement les deux
+  pages côte à côte avec le pli au centre.
+
+- **Saut de chapitre** : trois options pour le comportement à
+  chaque titre `# H1`.
+  - *Aucun* — le titre suit le flux.
+  - *Page suivante* (`next-page`) — chaque `h1` démarre sur une
+    nouvelle page.
+  - *Recto suivant* (`next-recto`) — chaque `h1` démarre sur un
+    recto (insère une page blanche si nécessaire). Convention livre.
+
+- **Notes** : *bas de page* (par page, défaut), *en marge* (style
+  Tufte, mode dérivé requis), ou *fin de document*. Voir la section
+  *Notes* plus bas.
+
+> **💡 Aperçu visuel des marges** — Activez l'overlay de debug
+> avec le bouton **Repères** dans la toolbar, ou le raccourci
+> `Cmd/Ctrl + Shift + G`. Trois rectangles apparaissent sur
+> chaque page : le contour de la page (gris), l'aire vivante (vert)
+> et le bloc de texte (orange), plus les diagonales du canon.
+> Pratique pour voir où vos en-têtes, pieds de page et notes
+> viennent se loger. Cliquez à nouveau pour masquer.
+
+#### En-tête et pied de page \label{sec:running}
+
+Pour afficher un en-tête, un pied de page ou un numéro de page,
+deux mécanismes complémentaires :
+
+**Les deux champs Réglages** « En-tête par défaut » et « Pied de
+page par défaut » dans la carte *Page*. Ils s'appliquent à tout le
+document tant qu'un fence dans le markdown ne les remplace pas (voir
+ci-dessous). La syntaxe est la même qu'un fence : trois slots
+séparés par des `|`. Par défaut, le pied de page contient le numéro
+de page centré : ` | {page} | `.
+
+**Les fences `\`\`\`header` / `\`\`\`footer`** dans le document
+lui-même. Ils prennent effet à partir de leur position dans la
+source jusqu'à la fin du document (ou jusqu'au prochain fence du
+même type), et **remplacent** le défaut Réglages pour la bande
+correspondante. Trois slots :
+
+````markdown
+```header
+gauche | centre | droite
+```
+````
+
+Exemple : un en-tête avec le titre du document à droite, et un
+pied de page avec un numéro de page à droite et la date à gauche :
+
+````markdown
+```header
+ |  | {title}
+```
+
+```footer
+{date} |  | page {page} / {pages}
+```
+````
+
+**Variables disponibles** dans les slots :
+
+- `{page}` — numéro de page courant.
+- `{pages}` — nombre total de pages.
+- `{title}` — texte du dernier `# H1` croisé (utile pour rappeler
+  le chapitre courant en haut de page).
+- `{date}` — date du document (telle que définie dans Réglages).
+
+**Mise en forme inline** dans les slots :
+
+- `**texte**` — gras.
+- `*texte*` — italique.
+- `***texte***` — gras italique.
+
+Vous pouvez mélanger texte fixe et variables :
+`Bienvenue dans **markpage** | | {page} / {pages}`.
+
+**Typographie** des en-têtes/pieds de page : carte *Typographie* →
+*En-tête / pied de page*. Police, taille, couleur, graisse, italique
+— les défauts visent une légère grise (`#57606a`, ~9 pt) pour ne
+pas concurrencer le corps de texte.
+
+> ⚠ Limitation : un slot qui combine **à la fois** une variable
+> (`{page}`) **et** une emphase mid-slot (`Page **{page}**`) rend
+> les astérisques littéralement. Pour mettre le numéro en gras,
+> entourez **tout** le slot d'astérisques (`**{page}**`).
+
+#### Notes : bas de page, en marge, fin de document \label{sec:notes-modes}
+
+Le champ **Notes** (carte *Mise en page*) contrôle où atterrissent
+les notes Pandoc (`[^id]` + définition, voir *Notes de bas de page*
+plus loin pour la syntaxe).
+
+- *Bas de page* (`foot`, défaut) — chaque note est placée
+  **automatiquement au pied de la page** où se trouve son appel,
+  comme dans un livre imprimé. La marque dans le corps et le numéro
+  en pied de page sont générés et numérotés par paged.js.
+
+- *En marge* (`side`) — chaque note glisse dans la gouttière
+  extérieure, à la hauteur de son appel (Tufte CSS). Le numéro
+  apparaît à la fois en exposant dans le corps et en petit exposant
+  au début de la note. **Requiert le mode marges dérivé** (sinon
+  markpage ne connaît pas la largeur de la gouttière où poser la
+  note) ; en mode manuel, ce réglage retombe sur le mode *fin de
+  document*.
+
+- *Fin de document* (`end`) — toutes les notes sont rassemblées en
+  fin de document dans une section *Notes* numérotée.
+
+#### Figures en marge \label{sec:margin-figures}
+
+En mode marges dérivé (gouttière extérieure connue), vous pouvez
+placer une figure dans la marge avec la syntaxe d'attribut Pandoc :
+
+```
+![Schéma](mon-schema.png){.margin}
+```
+
+L'image s'aligne dans la gouttière extérieure (droite sur recto,
+gauche sur verso en duplex), à la hauteur du paragraphe qui la
+contient. Sa largeur est cappée à la largeur de la gouttière pour
+ne pas déborder. La classe `.margin` n'affecte que ce placement —
+vous pouvez la combiner avec une légende `![alt](url "ma
+légende"){.margin}`.
+
+#### Typographie \label{sec:typography}
+
+Carte *Typographie* — les leviers globaux et par élément.
+
 - **Polices** des titres, du corps et du code — choisies parmi un
   catalogue de ~17 polices Google Fonts (Inter, EB Garamond,
   JetBrains Mono…). Les polices sont chargées à la demande ; la
@@ -426,6 +591,7 @@ Ce que vous pouvez régler :
   sont embarquées et fonctionnent hors-ligne. *Note : l'éditeur
   lui-même garde toujours Roboto Condensed / Mono, indépendamment
   de vos choix — la cohérence de la zone de saisie ne change pas.*
+
 - **Pack assorti** — au-dessus des trois sélecteurs de police,
   une dropdown qui aligne les 4 fontes (titres / corps / code /
   fonte math) en un clic vers un pack pré-coordonné. Trois packs
@@ -435,12 +601,14 @@ Ce que vous pouvez régler :
   grand x-height pour les longs textes académiques). Si vous
   modifiez une seule des fontes individuellement, la dropdown
   passe en « Personnalisé ».
+
 - **Polices Google personnalisées** — pour une famille hors
   catalogue, copiez l'URL Google Fonts (par exemple
   `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)
   dans le champ « + Ajouter », validez. La police apparaît
   immédiatement dans les trois sélecteurs (Titres / Corps / Code)
   et peut être retirée d'un clic sur la croix de sa chip.
+
 - **Espacement** — trois ratios qui contrôlent la densité verticale
   du document :
   - *Au-dessus / en dessous des titres* (`1.6` / `0.6` par défaut) :
@@ -449,19 +617,26 @@ Ce que vous pouvez régler :
     « appartienne » à la section qui suit.
   - *Entre paragraphes* (`1.0` par défaut) : marge symétrique
     appliquée à chaque paragraphe.
-- **Titres (h1 à h4)** — pour chacun : taille, couleur, **graisse**
-  (Light / Regular / Medium / Semibold / Bold), **italique**, et
-  **trait** (border-bottom sous le titre). Si la police choisie ne
-  fournit pas la graisse ou l'italique demandée, le navigateur
-  *synthétise* un faux gras / italique, en général moins joli — la
-  solution est de choisir une police plus complète, ou d'inclure
-  le poids voulu dans votre URL Google Fonts personnalisée.
-- **Corps** — taille et couleur du texte normal, du code, et de la
-  citation (avec sa barre verticale).
-- **Numéro de page** : position, taille, couleur, italique
-- **Diagrammes Mermaid** : agrandissement max, largeur max,
-  hauteur max (cf. section *Diagrammes Mermaid* plus bas).
-- **Formules mathématiques** :
+
+- **Par élément** (titre, h1 à h4, corps, code en ligne, bloc de
+  code, citation, lien, métadonnées, formule en bloc, encadré,
+  Mermaid, tableau, légende, **en-tête / pied de page**) : pour
+  chacun, taille, couleur, **graisse** (Light / Regular / Medium /
+  Semibold / Bold), **italique**, et selon le type une **bordure**,
+  un **fond**, des **marges au-dessus / en-dessous**. Si la police
+  choisie ne fournit pas la graisse ou l'italique demandée, le
+  navigateur *synthétise* un faux gras / italique, en général moins
+  joli — la solution est de choisir une police plus complète, ou
+  d'inclure le poids voulu dans votre URL Google Fonts personnalisée.
+
+- **Justification** du texte et **interligne** dans la sous-carte
+  *Corps*.
+
+- **Diagrammes Mermaid** (carte *Contenu*) : agrandissement max,
+  largeur max, hauteur max (cf. section *Diagrammes Mermaid* plus
+  bas).
+
+- **Formules mathématiques** (carte *Contenu*) :
   - *Police des formules* — cinq fontes math au choix : NewComputerModern
     (défaut, serif TeX), Fira Math (sans-serif, idéal avec Roboto / Fira),
     STIX 2 ou Asana (serifs modernes), ou la fonte TeX classique.
@@ -741,7 +916,14 @@ L'identifiant `id` peut être un nombre, un mot, ou un libellé court —
 il sert seulement à relier l'appel à sa définition, et n'apparaît
 nulle part dans le rendu. Les notes sont **numérotées
 automatiquement** dans l'ordre où elles apparaissent dans le texte
-(pas dans l'ordre des définitions), et regroupées en fin de document.
+(pas dans l'ordre des définitions).
+
+**Le placement** dépend du réglage *Notes* (carte *Mise en page*) :
+*bas de page* (défaut, chaque note en pied de la page où se trouve
+son appel), *en marge* (gouttière extérieure, à la hauteur de
+l'appel — style Tufte), ou *fin de document*. Voir la section
+*Notes : bas de page, en marge, fin de document* plus haut pour le
+détail des trois modes.
 
 À l'intérieur d'une note vous pouvez utiliser **`gras`**, *italique*,
 `code inline`, des liens, ou même `$math$`. Une même note peut être
