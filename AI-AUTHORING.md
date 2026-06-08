@@ -675,20 +675,162 @@ very top of your source if you want every page to carry the title;
 write `# Chapter N` at chapter boundaries to swap the running title
 per chapter. Sub-headings (`## section`) do not update `{title}`.
 
-**What's NOT supported yet** (planned, see SPEC §26.10):
+**Inline emphasis inside slots**: `**bold**`, `*italic*`,
+`***both***` work as expected; markpage extracts them at fence-parse
+time. **Whole-slot wrapping** (`**{page}**`) sets `font-weight: bold`
+on the @margin box so a single counter / variable is bold. **Mid-slot
+emphasis** (`Welcome to **markpage**`) uses paged.js's
+`position: running()` + `content: element()` mechanism: the slot is
+parsed as inline markdown into an HTML fragment, injected as a
+hidden source, and piped to the matching margin box. The only
+limitation: a slot that mixes **both** a `{var}` substitution **and**
+mid-slot emphasis renders the asterisks literally — wrap the whole
+slot if you need a bold counter, or split the line.
 
-- `header even` / `header odd` — recto/verso selectors. Need duplex
-  mode (Phase 3).
-- Inline markdown (`**bold**`, `*italic*`, `[link]()`, images) inside
-  slots — CSS `content` only accepts strings and counters, and the
-  CSS GCPM `running()` mechanism isn't usable in paged.js 0.4. Hors v1
-  pratique.
+**Default header / footer via Settings**: an author who doesn't write
+any fence can still get a header / footer by filling the *En-tête par
+défaut* / *Pied de page par défaut* fields in Réglages → Page. Same
+syntax as a fence body. These act as a "section 0" injected at the
+top of the document — overridden by any in-doc fence per the cascade
+above. The bundled default is ` | {page} | ` (centered page counter).
+
+**Recto / verso headers in duplex** (`header :left` / `header :right`
+selectors): not implemented as explicit selectors yet. The auto-swap
+of the three slots between recto and verso (inner ↔ outer) happens
+automatically when `settings.duplex` is on — see *Duplex and chapter
+breaks* below. For different recto / verso *content*, you'd need
+chapter-break sectioning today (one fence per chapter, with the
+right side mapped to the right slot manually).
 
 **Typical use**: a fixed page header showing the document title at top-
 left and a page counter at top-right; a footer with the date or a
 copyright line. Drop one ` ```header ` and one ` ```footer ` near the
 top of your source. Add more fences at chapter boundaries to swap
 the running content per section.
+
+---
+
+## Page layout, margins, presets
+
+The whole page geometry (margin sizes, body width, header/footer
+placement, gutter for marginalia) is controlled from Réglages →
+Page → *Mise en page*. The author doesn't have to set this from the
+markdown — but knowing which combination of levers maps to which
+output helps explain why a doc looks the way it does.
+
+**Manual mode** (`marginMode: 'manual'`, default): four mm sliders
+(top / bottom / left / right) drive the @page margin directly.
+Predictable, no canon involved.
+
+**Derived mode** (`marginMode: 'derived'`): the page margins are
+computed from the Van de Graaf book canon. The author sets:
+
+- `measureChars` — width of a single body line, in characters of
+  the body font (Bringhurst's readable range is 45 – 75).
+- `liveAreaChars` — width of the "live area" rectangle that holds
+  the body PLUS the header / footer / margin notes (always strictly
+  wider than `measureChars`).
+
+markpage then derives two nested rectangles (text block ⊂ live area)
+similar to the page, on the same diagonals, with the canonical 1:2
+inner / outer and top / bottom ratios. The @page margins become
+asymmetric (vertical = text-block, horizontal = live-area), so the
+`@top-*` / `@bottom-*` margin boxes naturally land inside the
+live-area bands rather than the canonical blank zone.
+
+**Layout presets** bundle the levers above into one-click choices:
+
+- *Note technique* — derived, ~70 ch measure, simplex, footnotes.
+- *Rapport* — derived, ~66 ch, simplex (sober default).
+- *Article* — derived, ~68 ch, simplex, end-of-doc notes.
+- *Livre* — derived, ~60 ch, **duplex**, chapter on next-recto,
+  footnotes.
+- *Édition critique* — wide derived margins, ~52 ch, duplex,
+  next-recto, **margin notes** (Tufte).
+
+Tweaking any single lever after picking a preset flips the dropdown
+to "Custom" — the preset is just a starting point.
+
+## Duplex and chapter breaks
+
+**Duplex** (`settings.duplex: true`): two-page layout with the cover
+alone on the right of row 1, then verso / recto spreads. Inner /
+outer margins swap automatically between recto (@page :right) and
+verso (@page :left). In the on-screen preview the pages physically
+touch at the spine via CSS grid `justify-self: end/start`.
+
+In duplex, the three slots of a header / footer fence are interpreted
+as **inner | center | outer** rather than left | center | right —
+so the same fence flips its left ↔ right slots on the verso side
+automatically. Authors writing a duplex doc should think in terms of
+inner / outer when placing the page counter (typically outer).
+
+**Chapter break** (`settings.chapterBreak`): three options for the
+behaviour of each `# H1`:
+
+- `'none'` — h1 follows the flow.
+- `'next-page'` — every h1 starts on a new page (`break-before: page`).
+- `'next-recto'` — every h1 starts on a recto (`break-before: right`).
+  In simplex this degenerates to next-page automatically.
+
+Use `next-recto` for printed books, `next-page` for technical reports
+where you want chapters to start on a fresh page regardless of side.
+
+## Notes placement: foot of page, margin, end of document
+
+The Pandoc footnote syntax (`[^id]` + `[^id]: definition`) is
+unchanged. What CHANGES with the *Notes* setting (Réglages → Page →
+*Mise en page* → Notes) is **where each note actually lands**:
+
+- `'foot'` (default) — each note is placed at the **foot of the page
+  where its anchor lives**. markpage emits `float: footnote` on the
+  inline `<span class="sidenote">` carrying the note body; paged.js's
+  footnote handler moves it into the per-page
+  `.pagedjs_footnote_area` and auto-generates the in-body call
+  marker.
+
+- `'side'` — each note slides into the **outer gutter** at the height
+  of its anchor (Tufte CSS approach). The body anchor stays visible
+  as a superscript AND the note body shows the same number as a
+  small superscript prefix. **Requires `marginMode: 'derived'`** —
+  markpage needs to know the gutter width to position the note. In
+  manual mode this setting silently falls back to `'end'`.
+
+- `'end'` — all notes are gathered at the end of the document in a
+  numbered *Notes* section. The classical Markdown rendering.
+
+Author guidance: most documents use `'foot'`. Reserve `'side'` for
+Tufte-style essays or critical editions where prose density is low
+and gutter width is generous (see the *Édition critique* preset).
+`'end'` is for academic articles where journal style mandates
+endnotes.
+
+## Margin figures
+
+Pandoc-style attribute on an image: `![alt](url){.margin}` drops
+the image into the **outer gutter** at the height of the paragraph
+that holds it (same anchor as the `notes.position: 'side'`
+sidenotes). Capped to the gutter width so it never overflows.
+
+Like sidenotes, this **requires derived margin mode** to know the
+gutter geometry. In manual mode the `{.margin}` class is inert and
+the image renders inline.
+
+Use for small figures (diagrams, photo thumbnails, side
+illustrations) that comment on a specific paragraph without
+interrupting the body flow.
+
+## Debug-guides overlay
+
+A user-facing debug overlay toggled by the **Repères** button in the
+toolbar or the keyboard shortcut `Cmd/Ctrl + Shift + G`. When on,
+every page gets three nested outlines (page = grey, live area =
+green, text block = orange) plus the canon diagonals as SVG. Useful
+to visually inspect where headers, footers, sidenotes and margin
+figures land relative to the canonical geometry — especially when
+debugging a derived-mode layout.
+
+The overlay is purely visual; it doesn't ship in the PDF export.
 
 ---
 
@@ -1132,14 +1274,26 @@ Things to notice:
 
 ## What is NOT supported
 
-- **Raw HTML beyond what marked passes through** — no `<style>`,
-  `<script>`, no custom elements. Use the constructs above.
+- **Raw HTML in the markdown source — silently escaped.** Any
+  `<tag>` typed in the source (or pasted in, or imported from a
+  `.html` / `.docx`) is HTML-escaped by the marked renderer and
+  rendered as literal text, not as a live element. This is the
+  project's security policy (SPEC: raw HTML out of scope), and it
+  means `<script>`, `<iframe>`, `<img onerror=...>`, `<style>`,
+  inline event handlers, etc. CANNOT execute. There is no allowlist
+  — even safe-looking tags like `<sub>` / `<sup>` / `<b>` are
+  escaped. Use the dedicated constructs above (`**bold**`,
+  `[link]()`, `![image]()`, `$x_1$` for subscripts in math) instead.
 - **Manual page breaks** — pagination is handled by paged.js
   automatically. The `keep-with-next` style rules try to keep
-  headings attached to the paragraph below.
+  headings attached to the paragraph below. Use
+  `settings.chapterBreak` ('next-page' or 'next-recto') if you need
+  every `# H1` to start on a fresh page.
 - **Inline styles / classes on Markdown elements** — there is no
-  `{.classname}` or `{#id}` annotation syntax. (Captions take a
-  quoted string + `\label{key}`; sections take `\label{key}`.)
+  generic `{.classname}` or `{#id}` annotation syntax. (Exceptions:
+  captions take a quoted string + `\label{key}`; sections take
+  `\label{key}`; `![alt](url){.margin}` is recognised as the only
+  attribute for margin figures.)
 
 ---
 
