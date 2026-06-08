@@ -192,6 +192,29 @@ describe('pagedCss — running-content typography', () => {
   });
 });
 
+describe('pagedCss — letterhead signature alignment', () => {
+  it('manual mode: signature margin-left = 110 mm − page left margin (matches FR DL window recipient)', () => {
+    // Default A4 has margins.left = 35 mm → signature should be at
+    // 110 − 35 = 75 mm from the .pagedjs_page_content content edge,
+    // which equals 110 mm from the page edge — i.e. the same x as
+    // the .letterhead-recipient.letterhead-window absolute left.
+    const css = pagedCss(A4);
+    expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*75mm/);
+  });
+
+  it('derived mode: signature margin-left subtracts the inner gutter too (in-flow under page-content padding)', () => {
+    // In derived mode, .pagedjs_page_content carries a padding-left
+    // equal to the inner gutter (text-block.inner − live-area.inner).
+    // The signature, in flow inside the wrapper, must subtract THAT
+    // too to land at 110 mm from the page edge. Default canon at
+    // measureChars=66 / liveAreaChars=85 yields inner gutter ≈ 12.29
+    // mm (cf. paged-css-duplex.test.ts:67+ for the numeric trace).
+    // Expected: 110 − 35 − ~12.29 ≈ 62.7 mm.
+    const css = pagedCss({ ...A4, marginMode: 'derived' });
+    expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*62\.\d+mm/);
+  });
+});
+
 describe('pagedCss — chapterBreak', () => {
   it("emits `h1 { break-before: page }` for 'next-page'", () => {
     const css = pagedCss({ ...A4, chapterBreak: 'next-page' });

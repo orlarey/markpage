@@ -1137,11 +1137,16 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-recipient.letterhead-flow {
       margin-left: auto;
     }
-    /* Signature block — right-aligned (margin-left: auto inside its flex
-       group), with extra top margin to separate it from the closing
-       salutation, and a defensive break-inside: avoid in case the group's
-       own protection is bypassed (single-child groups still get the rule
-       via .letterhead-group).
+    /* Signature block — left edge aligned with the FR DL window
+       recipient (110 mm from the page edge, the absolute position used
+       by .letterhead-recipient.letterhead-window below). The signature
+       is in flow inside the .pagedjs_page_content wrapper, so the
+       margin-left compensates for both the @page left margin AND any
+       inner-gutter padding the derived-mode body applies on
+       .pagedjs_page_content. Extra top margin separates it from the
+       closing salutation; defensive break-inside: avoid in case the
+       group's own protection is bypassed (single-child groups still
+       get the rule via .letterhead-group).
        position: relative + flex: 0 0 auto so the block sizes itself to
        the image (when there is one) — the caption is positioned absolute
        inside this rectangle (bottom-left), see .letterhead-signature-
@@ -1150,7 +1155,14 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .letterhead-signature {
       position: relative;
       flex: 0 0 auto;
-      margin-left: 50%;
+      margin-left: ${Math.max(
+        0,
+        110 -
+          m.left -
+          (textBlockCanon !== null && liveAreaCanon !== null
+            ? Math.max(0, textBlockCanon.inner - liveAreaCanon.inner)
+            : 0),
+      )}mm;
       margin-top: 2em;
       break-inside: avoid;
     }
@@ -1164,10 +1176,10 @@ export function pagedCss(s: PdfSettings): string {
       max-height: 30mm;
     }
     /* Caption overlaid at the bottom-left of the image rectangle (the
-       whole signature block sits at 50 % from the left margin via the
-       .letterhead-signature rule above — same horizontal anchor as the
-       in-flow recipient — so the caption inherits that horizontal
-       offset and only needs left: 0 inside the wrapper).
+       whole signature block is anchored at the same x as the FR DL
+       window recipient via the .letterhead-signature rule above — so
+       the caption inherits that horizontal offset and only needs
+       left: 0 inside the wrapper).
        white-space: nowrap stops narrow signatures from word-wrapping
        each line — explicit <br> between caption lines is preserved.
        The renderer only emits .letterhead-signature-caption when there
