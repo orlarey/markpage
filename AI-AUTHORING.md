@@ -1275,7 +1275,7 @@ Things to notice:
 ## What is NOT supported
 
 - **Raw HTML in the markdown source — silently escaped.** Any
-  `<tag>` typed in the source (or pasted in, or imported from a
+  `<tag>` typed inline in prose (or pasted in, or imported from a
   `.html` / `.docx`) is HTML-escaped by the marked renderer and
   rendered as literal text, not as a live element. This is the
   project's security policy (SPEC: raw HTML out of scope), and it
@@ -1284,6 +1284,12 @@ Things to notice:
   — even safe-looking tags like `<sub>` / `<sup>` / `<b>` are
   escaped. Use the dedicated constructs above (`**bold**`,
   `[link]()`, `![image]()`, `$x_1$` for subscripts in math) instead.
+  Note: a fenced ` ```html ` code block IS allowed (and the proper
+  way to *show* HTML in documentation) — its content goes through
+  the code renderer, gets syntax-highlighted and emitted as text
+  inside `<pre><code class="language-html">`. Only inline / block
+  raw HTML in the prose flow is the attack surface that gets
+  escaped.
 - **Manual page breaks** — pagination is handled by paged.js
   automatically. The `keep-with-next` style rules try to keep
   headings attached to the paragraph below. Use
