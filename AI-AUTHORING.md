@@ -327,6 +327,17 @@ sequenceDiagram
 > does NOT accept Unicode `→` / `←`. Do not generate `-→`, `→`, or
 > `⇒` inside a Mermaid fence.
 
+**Multi-line labels**: use `<br>` to break a node label across
+several lines (works in flowcharts and class diagrams). Both
+unquoted (`A[Line 1<br>Line 2]`) and quoted (`A["Line 1<br>Line 2"]`)
+forms are accepted; `<br/>` and `<br>` are equivalent. markpage
+post-processes the rendered SVG to self-close void tags so the
+browser's strict XML parser doesn't reject the diagram.
+
+```
+A[First line<br>Second line] --> B[Single line]
+```
+
 ---
 
 ## Faust block-diagram algebra (bda)

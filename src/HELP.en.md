@@ -1665,6 +1665,11 @@ flowchart LR
 The diagram is rendered as **SVG**, both in the preview **and** in
 the PDF (vector quality, no pixelation when printed).
 
+> 💡 **Multi-line labels**: use `<br>` to break a node label across
+> several lines. Both unquoted (`A[Line 1<br>Line 2]`) and quoted
+> (`A["Line 1<br>Line 2"]`) forms work, in flowcharts as well as in
+> class diagrams. `<br/>` and `<br>` are equivalent.
+
 #### A few examples
 
 **Sequence diagram** (exchange between two actors):

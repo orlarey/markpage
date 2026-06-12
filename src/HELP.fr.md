@@ -1724,6 +1724,12 @@ flowchart LR
 Le diagramme est rendu en **SVG**, dans l'aperçu **et** dans le PDF
 (qualité vectorielle, sans pixellisation à l'impression).
 
+> 💡 **Étiquettes multi-lignes** : utilisez `<br>` pour casser une
+> étiquette de nœud sur plusieurs lignes. Les deux formes
+> `A[Ligne 1<br>Ligne 2]` (sans guillemets) et `A["Ligne 1<br>Ligne 2"]`
+> (avec guillemets) fonctionnent, dans les flowcharts comme dans les
+> diagrammes de classes. `<br/>` et `<br>` sont équivalents.
+
 #### Quelques exemples
 
 **Diagramme de séquence** (échange entre deux acteurs) :
