@@ -389,6 +389,16 @@ async function bootstrap(): Promise<void> {
   // render must not overwrite a more recent one.
   let previewReqId = 0;
 
+  // Presentation mode: a fullscreen overlay laid over the existing
+  // paginated preview. We reuse the same paged.js render — no separate
+  // DOM, no re-pagination — and just show one `.pagedjs_page` at a time,
+  // scaled to fill the screen, navigated with the keyboard. `returnMode`
+  // remembers whether we came from the editor or the preview so we can
+  // restore it on exit. See enterPresentation() / exitPresentation() below.
+  let presenting = false;
+  let slideIndex = 0;
+  let returnMode: 'editor' | 'preview' = 'editor';
+
   // Builds the rendered DOM subtree (Markdown + post-processing) and
   // hands it to paged.js. Called only when entering preview mode (or on
   // settings change while in preview); never during typing.
@@ -492,6 +502,9 @@ async function bootstrap(): Promise<void> {
   // tab so markpage stays put.
   previewEl.addEventListener('click', (e) => {
     if (viewMode !== 'preview') return;
+    // While presenting, clicks advance the slideshow (handled by
+    // onPresentClick); don't bounce back to the editor.
+    if (presenting) return;
     const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
       'a[href]',
     );
@@ -504,6 +517,138 @@ async function bootstrap(): Promise<void> {
     }
     const anchor = previewClickAnchor(e, previewEl);
     if (anchor) enterEditor(anchor);
+  });
+
+  // ---- Presentation mode -------------------------------------------------
+
+  // Lay out the current slide: reveal only its page (via `.is-current`)
+  // and scale it to fill the viewport while keeping its aspect ratio.
+  // We read offsetWidth/Height — paged.js's fixed layout size in px,
+  // unaffected by our own transform — so the ratio stays correct and the
+  // computation is stable across repeated calls (e.g. on resize).
+  const renderSlide = (): void => {
+    const pages = Array.from(
+      previewEl.querySelectorAll<HTMLElement>('.pagedjs_page'),
+    );
+    if (pages.length === 0) return;
+    slideIndex = Math.max(0, Math.min(slideIndex, pages.length - 1));
+    pages.forEach((p, i) =>
+      p.classList.toggle('is-current', i === slideIndex),
+    );
+    const page = pages[slideIndex];
+    if (!page) return;
+    const pw = page.offsetWidth;
+    const ph = page.offsetHeight;
+    if (pw === 0 || ph === 0) return;
+    const scale = Math.min(window.innerWidth / pw, window.innerHeight / ph);
+    previewEl.style.setProperty('--present-scale', String(scale));
+  };
+
+  const gotoSlide = (i: number): void => {
+    slideIndex = i;
+    renderSlide();
+  };
+
+  // Keyboard nav, live only while presenting (capture phase so it wins
+  // over the editor / app shortcuts). Advance: → Space PageDown n.
+  // Back: ← PageUp p. Home/End jump to the ends. Esc is left to the
+  // browser, which exits fullscreen → fullscreenchange → exitPresentation.
+  const onPresentKeydown = (e: KeyboardEvent): void => {
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'PageDown':
+      case ' ':
+      case 'n':
+        e.preventDefault();
+        gotoSlide(slideIndex + 1);
+        break;
+      case 'ArrowLeft':
+      case 'PageUp':
+      case 'p':
+        e.preventDefault();
+        gotoSlide(slideIndex - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        gotoSlide(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        gotoSlide(Number.MAX_SAFE_INTEGER);
+        break;
+    }
+  };
+
+  // Click on the slide advances — except on a real hyperlink, so in-slide
+  // links still work.
+  const onPresentClick = (e: MouseEvent): void => {
+    if ((e.target as HTMLElement | null)?.closest('a[href]')) return;
+    gotoSlide(slideIndex + 1);
+  };
+
+  const onPresentResize = (): void => {
+    if (presenting) renderSlide();
+  };
+
+  // Tear down the presentation overlay and restore the mode we came from.
+  // Idempotent and the single exit path — reached from Esc / OS chrome /
+  // our own exitFullscreen, all funnelled here via fullscreenchange.
+  const exitPresentation = (): void => {
+    if (!presenting) return;
+    presenting = false;
+    window.removeEventListener('keydown', onPresentKeydown, true);
+    previewEl.removeEventListener('click', onPresentClick);
+    window.removeEventListener('resize', onPresentResize);
+    previewEl.classList.remove('presentation');
+    previewEl.style.removeProperty('--present-scale');
+    previewEl
+      .querySelectorAll('.pagedjs_page.is-current')
+      .forEach((p) => p.classList.remove('is-current'));
+    if (document.fullscreenElement) void document.exitFullscreen();
+    if (returnMode === 'editor') enterEditor(null);
+  };
+
+  // Enter fullscreen presentation. We reuse the preview render, so we
+  // first force preview mode (paginating if stale). requestFullscreen()
+  // MUST be called synchronously within the user gesture — before any
+  // await — or the browser rejects it; pagination, if needed, runs
+  // alongside. The `.presentation` class is added only AFTER pagination:
+  // it hides all but the current page (display:none), and paged.js can't
+  // measure hidden pages — applying it earlier collapses the layout to a
+  // single empty page.
+  const enterPresentation = async (): Promise<void> => {
+    if (presenting) return;
+    returnMode = viewMode;
+    setViewMode('preview'); // sync: makes #preview-pane visible
+    const fsRequest = previewEl.requestFullscreen().catch((err) => {
+      console.error('Fullscreen request failed', err);
+      return 'denied' as const;
+    });
+    if (dirty) {
+      try {
+        await updatePreview(editor.getValue());
+      } catch (err) {
+        console.error('Preview render failed', err);
+      }
+    }
+    const fsResult = await fsRequest;
+    if (fsResult === 'denied') {
+      if (returnMode === 'editor') enterEditor(null);
+      return;
+    }
+    presenting = true;
+    slideIndex = 0;
+    previewEl.classList.add('presentation');
+    window.addEventListener('keydown', onPresentKeydown, true);
+    previewEl.addEventListener('click', onPresentClick);
+    window.addEventListener('resize', onPresentResize);
+    renderSlide();
+  };
+
+  // Single exit trigger: anything that drops us out of fullscreen (Esc,
+  // OS chrome, our own exitFullscreen) lands here.
+  document.addEventListener('fullscreenchange', () => {
+    if (presenting && !document.fullscreenElement) exitPresentation();
   });
 
   // Flushes the pending autosave: if the current editor content
@@ -1156,6 +1301,9 @@ async function bootstrap(): Promise<void> {
       },
       onSettings: triggerSettings,
       onTogglePreview: toggleView,
+      onPresent: () => {
+        void enterPresentation();
+      },
       onToggleGuides: triggerGuides,
     });
   };
@@ -1175,6 +1323,10 @@ async function bootstrap(): Promise<void> {
       if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         triggerGuides();
+      } else if (e.key === 'Enter') {
+        // Cmd/Ctrl+Shift+Enter: start the fullscreen presentation.
+        e.preventDefault();
+        void enterPresentation();
       }
       return;
     }

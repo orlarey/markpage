@@ -215,6 +215,38 @@ body,
   margin: 0 auto 24px;
 }
 
+/* Presentation mode (toolbar [Présenter] + Cmd/Ctrl+Shift+Enter). The
+   same paged.js render is reused: main.ts puts the pane into native
+   fullscreen, adds `.presentation`, and tags the visible page
+   `.is-current`. Everything but that one page is hidden; the page is
+   centred on black and scaled (via the --present-scale var main.ts
+   computes) to fill the viewport while keeping its aspect ratio — a
+   portrait A4 ends up letterboxed left/right, a 16:9 slide nearly
+   edge-to-edge. */
+#preview-pane.presentation {
+  background: #000;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Let the flex pane centre the page directly, ignoring the paged.js
+   wrapper's own block layout. */
+#preview-pane.presentation .pagedjs_pages {
+  display: contents;
+}
+#preview-pane.presentation .pagedjs_page {
+  display: none;
+  margin: 0;
+  box-shadow: none;
+}
+#preview-pane.presentation .pagedjs_page.is-current {
+  display: block;
+  transform: scale(var(--present-scale, 1));
+  transform-origin: center center;
+}
+
 /* Debug-guides overlay (toolbar button + Cmd/Ctrl+Shift+G). Toggled
    by the `.debug-layout` class on #preview-pane. Shows three nested
    rectangles + the page diagonals:

@@ -32,6 +32,10 @@ export interface ToolbarHandlers {
   onExport(anchor: HTMLElement): void;
   onSettings(): void;
   onTogglePreview(): void;
+  // Click on [Présenter]. One-shot action — enters the fullscreen
+  // presentation mode; not a toggle (exit is driven by Esc /
+  // fullscreenchange), so the button carries no aria-pressed state.
+  onPresent(): void;
   // Toggles the typographic-guides overlay (debug). The caller flips
   // the .debug-layout class on #preview-pane and is responsible for
   // reflecting the new state back via setGuidesPressed().
@@ -95,6 +99,16 @@ export function mountToolbar(
     handlers.initialViewMode === 'preview' ? 'true' : 'false',
   );
   previewBtn.addEventListener('click', () => handlers.onTogglePreview());
+
+  // [Présenter] — one-shot: enters fullscreen presentation showing one
+  // page at a time. Sits next to [Aperçu] since it presents the same
+  // paginated render. No aria-pressed (exit isn't button-driven).
+  const presentBtn = document.createElement('button');
+  presentBtn.type = 'button';
+  presentBtn.className = 'present-toggle';
+  presentBtn.textContent = t('toolbar.present');
+  presentBtn.title = t('toolbar.present-title');
+  presentBtn.addEventListener('click', () => handlers.onPresent());
 
   // [Guides] — debug overlay button. Lives next to the preview toggle
   // since it only affects the preview pane. Initial state is "off"
@@ -189,7 +203,7 @@ export function mountToolbar(
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(previewBtn, guidesBtn, exportBtn, settingsBtn);
+  right.append(previewBtn, presentBtn, guidesBtn, exportBtn, settingsBtn);
 
   parent.append(left, center, right);
 

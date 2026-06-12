@@ -27,6 +27,9 @@ const FR = {
   'toolbar.preview': 'Aperçu',
   'toolbar.preview-title':
     'Basculer entre éditeur et aperçu (Ctrl+Enter / Cmd+Enter)',
+  'toolbar.present': 'Présenter',
+  'toolbar.present-title':
+    'Lancer la présentation plein écran (Ctrl+Maj+Entrée / Cmd+Maj+Entrée)',
   'toolbar.guides': 'Guides',
   'toolbar.guides-title':
     'Afficher les guides typographiques sur l’aperçu : zone imprimable, live area, diagonales du canon (Cmd/Ctrl+Maj+G)',
@@ -306,6 +309,9 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.preview': 'Preview',
   'toolbar.preview-title':
     'Toggle between editor and preview (Ctrl+Enter / Cmd+Enter)',
+  'toolbar.present': 'Present',
+  'toolbar.present-title':
+    'Start the fullscreen presentation (Ctrl+Shift+Enter / Cmd+Shift+Enter)',
   'toolbar.guides': 'Guides',
   'toolbar.guides-title':
     'Toggle typographic guides on the preview: page area, live area, Van de Graaf diagonals (Cmd/Ctrl+Shift+G)',
