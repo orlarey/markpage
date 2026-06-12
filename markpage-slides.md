@@ -183,7 +183,8 @@ _,_ <: !,_,_,!
 ## Diagrammes Mermaid
 
 Flowcharts, séquences, classes — décrits avec quelques lignes, rendus
-en SVG.
+en SVG. Les étiquettes acceptent `<br>` pour casser sur plusieurs
+lignes.
 
 ````demo
 ```mermaid
@@ -192,6 +193,15 @@ sequenceDiagram
   participant S as Server
   U->>S: GET /article/42
   S-->>U: 200 OK + HTML
+```
+````
+
+````demo
+```mermaid
+flowchart LR
+  A[Source<br>Markdown] --> B[Marked<br>+ extensions]
+  B --> C[Paged.js<br>+ MathJax]
+  C --> D[PDF<br>vectoriel]
 ```
 ````
 
@@ -268,7 +278,9 @@ Cette action est irréversible. Faites une sauvegarde d'abord.
 ## Notes de bas de page
 
 Référencez avec `[^id]`, définissez ailleurs. Numéros automatiques
-dans l'ordre d'apparition, regroupées en fin de doc.
+dans l'ordre d'apparition. **Placement par défaut** : au pied de la
+page où se trouve l'appel (mode `foot`). Réglage *Notes* pour basculer
+en mode `side` (notes en marge, Tufte) ou `end` (fin de document).
 
 Quicksort tourne en $O(n \log n)$ en moyenne[^avg], mais dégrade en
 $O(n^2)$ sur des entrées déjà triées sans pivot aléatoire[^rand].
@@ -276,6 +288,70 @@ $O(n^2)$ sur des entrées déjà triées sans pivot aléatoire[^rand].
 [^avg]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal.
 [^rand]: Sedgewick a proposé un shuffle préalable. Temps espéré
     linéaire.
+
+## Notes en marge et figures en marge
+
+En mode marges dérivé (canon Van de Graaf), les notes de bas de page
+peuvent glisser dans la **gouttière extérieure** à la hauteur de
+leur appel — style Tufte CSS. Idem pour les images marquées
+`{.margin}` : elles s'alignent dans la même gouttière.
+
+````demo
+Le théorème central limite[^tcl] généralise la loi des grands nombres.
+
+![Loi normale](https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Normal_Distribution_PDF.svg/220px-Normal_Distribution_PDF.svg.png){.margin}
+
+[^tcl]: Énoncé de De Moivre-Laplace pour le cas binomial, généralisé
+    par Lyapunov puis Lindeberg.
+````
+
+## En-tête et pied de page
+
+Un fence ` ```header ` ou ` ```footer ` remplit le haut/bas de chaque
+page avec trois slots `gauche | centre | droite`. Variables `{page}`,
+`{pages}`, `{title}`, `{date}`. Emphase inline `**gras**` et
+`*italique*` acceptée.
+
+````demo
+```header
+*Brouillon* | | {title}
+```
+
+```footer
+© Markpage SAS | | **{page}** / {pages}
+```
+````
+
+## Lettres, devis, factures
+
+Trois fences spécifiques pour la correspondance — `sender` (haut
+gauche), `recipient` (positionné fenêtre DL par défaut) et
+`signature` (alignée à droite, bord aligné sur le destinataire).
+
+````demo
+```sender
+**Cabinet Dupont & Associés**
+12 rue de la Paix
+75002 Paris
+contact@dupont-asso.fr
+```
+
+```recipient
+Société Acme SARL
+Service achats
+8 boulevard Voltaire
+75011 Paris
+```
+
+Madame, Monsieur,
+
+Nous accusons réception de votre commande n° 4257…
+
+```signature
+**Marie Dupont**
+*Directrice associée*
+```
+````
 
 ## Citations bibliographiques
 

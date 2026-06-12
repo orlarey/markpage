@@ -320,21 +320,88 @@ sorting routine of \ref{alg:bubble} runs once at startup.
     id: 'header-footer',
     title: 'Running page header and footer',
     description:
-      'A ```header / ```footer fence fills the top / bottom band of every page with up to three slots (`left | center | right`). Substitutions `{page}`, `{pages}`, `{date}` resolve per page. Use it for a recurring document title, page counter, copyright line, or rendering date.',
+      'A ```header / ```footer fence fills the top / bottom band of every page with up to three slots (`left | center | right`). Substitutions `{page}`, `{pages}`, `{title}`, `{date}` resolve per page. Inline emphasis `**bold**` and `*italic*` works inside slots — handy for a bold page counter or an italic chapter title.',
     sourceLang: 'markdown',
     source: `## A document with running content
 
 \`\`\`header
-Quarterly report — Q1 | | Page {page} / {pages}
+*Brouillon* | | {title}
 \`\`\`
 
 \`\`\`footer
-| © Acme Industries 2026 | {date}
+© Acme Industries 2026 | | **{page}** / {pages}
 \`\`\`
 
-Every page of this document carries the report title at the top-left
-and a page counter at the top-right. The footer shows the copyright
-in the center and the render date on the right.
+Every page carries the document title (auto-resolved from the most
+recent \`# H1\`) at the top-right and a bold page counter at the
+bottom-right. The footer also shows the copyright line on the left.
+`,
+  },
+  {
+    id: 'letterhead',
+    title: 'Letters, quotes, invoices',
+    description:
+      'Three dedicated fences for correspondence: ```sender (top-left), ```recipient (DL-window positioned by default — calibrated for the FR envelope window — `flow` for a right-column flex layout), ```signature (right-aligned at the end, with its left edge aligned on the recipient column).',
+    sourceLang: 'markdown',
+    source: `## A short business letter
+
+\`\`\`sender
+**Cabinet Dupont & Associés**
+12 rue de la Paix
+75002 Paris
+contact@dupont-asso.fr
+\`\`\`
+
+\`\`\`recipient
+Acme SARL — Purchasing
+8 Voltaire Blvd
+75011 Paris
+\`\`\`
+
+Dear Sir or Madam,
+
+We acknowledge receipt of your purchase order n° 4257 for the
+upcoming quarter. We will deliver the goods by the end of the month
+as per the agreed terms.
+
+\`\`\`signature
+**Marie Dupont**
+*Managing Partner*
+\`\`\`
+`,
+  },
+  {
+    id: 'sidenotes',
+    title: 'Tufte sidenotes (notes in the margin)',
+    description:
+      'Switch the *Notes* setting from `foot` to `side` to slide every footnote into the outer gutter at the height of its anchor, à la Tufte CSS. The body anchor stays as a superscript and the note repeats its number at the start. Requires derived margin mode so markpage knows the gutter geometry.',
+    sourceLang: 'markdown',
+    source: `## A side note in the margin
+
+The central limit theorem[^clt] generalises the law of large numbers.
+Under the *Édition critique* preset, the note slides into the outer
+gutter at this exact line and shows its number both inline and at the
+start of the marginal note.
+
+[^clt]: De Moivre-Laplace for the binomial case, generalised by
+    Lyapunov then Lindeberg.
+`,
+  },
+  {
+    id: 'margin-figures',
+    title: 'Figures in the margin',
+    description:
+      'A Pandoc-style attribute `{.margin}` on an image drops it into the outer gutter at the height of its host paragraph — same anchor as Tufte sidenotes. Cap to the gutter width. Combines with derived margin mode so the gutter has a known geometry.',
+    sourceLang: 'markdown',
+    source: `## A figure in the margin
+
+The normal distribution is the canonical bell curve.
+
+![Normal PDF](https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Normal_Distribution_PDF.svg/220px-Normal_Distribution_PDF.svg.png){.margin}
+
+It shows up everywhere — in measurement errors, in heights and IQ
+scores, in financial returns over short horizons. The image to the
+right sits in the outer gutter, anchored at this paragraph's height.
 `,
   },
   {
@@ -362,7 +429,7 @@ buffer doubles the wait before a sample reaches the output.
     id: 'mermaid',
     title: 'Mermaid diagrams, SVG-crisp',
     description:
-      'Flowcharts, sequence diagrams, class diagrams, gantt charts, mindmaps — describe with a few lines of text, render as SVG, print without pixelation.',
+      'Flowcharts, sequence diagrams, class diagrams, gantt charts, mindmaps — describe with a few lines of text, render as SVG, print without pixelation. Node labels accept `<br>` for line breaks.',
     sourceLang: 'mermaid',
     source: `## Request lifecycle
 
@@ -377,6 +444,15 @@ sequenceDiagram
     S->>DB: SELECT name FROM authors WHERE id = ?
     DB-->>S: { name: "..." }
     S-->>U: 200 OK + HTML
+\`\`\`
+
+## Multi-line labels with \`<br>\`
+
+\`\`\`mermaid
+flowchart LR
+  A[Source<br>Markdown] --> B[Marked<br>+ extensions]
+  B --> C[Paged.js<br>+ MathJax]
+  C --> D[PDF<br>vectoriel]
 \`\`\`
 `,
   },
