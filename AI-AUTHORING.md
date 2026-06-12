@@ -59,13 +59,21 @@ the source readable, greppable, and copy-pasteable.
 
 | Prefer | Over | Prefer | Over |
 | :----- | :--- | :----- | :--- |
-| `α β γ` | `\alpha \beta \gamma` | `→ ←` | `\to \leftarrow` |
+| `α β γ ρ` | `\alpha \beta \gamma \rho` | `→ ←` | `\to \leftarrow` |
 | `Γ Δ Σ` | `\Gamma \Delta \Sigma` | `↦ ⇒ ⇔` | `\mapsto \Rightarrow \Leftrightarrow` |
 | `∀ ∃` | `\forall \exists` | `⊢ ⊨` | `\vdash \models` |
-| `∈ ∉` | `\in \notin` | `⟦ ⟧` | `\llbracket \rrbracket` |
+| `∈ ∉` | `\in \notin` | `⟦ ⟧` (semantic brackets) | `\llbracket \rrbracket`, `\sem{…}` |
 | `⊆ ⊕ ⊗` | `\subseteq \oplus \otimes` | `≤ ≥ ≠` | `\le \ge \neq` |
 | `ℕ ℝ ℤ ℚ ℂ` | `\mathbb{N}` etc. | `x₁ y₂ aₙ` | `x_1 y_2 a_n` |
 | `∞ ∂ ∇` | `\infty \partial \nabla` | `√ ∑ ∏ ∫` | `\sqrt \sum \prod \int` standalone |
+
+**Semantic brackets in particular** — denotational semantics, type-system
+papers, and language-theory texts often use `⟦…⟧` (Oxford brackets, U+27E6 /
+U+27E7) for the meaning function. Write them directly: `$⟦t⟧_ρ$`. The AI
+must NOT invent a `\sem{…}` macro (it's not part of stock MathJax) nor write
+`\llbracket t \rrbracket_\rho` (longer and still less readable). When the
+editor is open interactively, typing `[[` and `]]` triggers the ligature and
+produces `⟦` / `⟧` for you.
 
 This rule applies **inside `$ … $` / `$$ … $$` and inside every
 rich fence** (`inference`, `category`, `adt`, `math`). MathJax
@@ -134,6 +142,21 @@ Full LaTeX math syntax — `\frac`, `\sqrt`, `\sum`, `\int`,
 `\begin{matrix}`, `\begin{cases}`, `\mathbb{N}`, `\mathcal{O}`, etc.
 You may also write Unicode characters directly (α, ℕ, ⊢, ∀) in math
 mode; MathJax accepts them.
+
+**No user preamble.** markpage does not load a per-document TeX
+preamble — only what stock MathJax (`AllPackages`) defines is
+available. The AI must NOT use custom macros it has seen in
+papers but that aren't in MathJax: `\sem{…}`, `\denote{…}`,
+`\powerset{…}`, `\bigsem`, `\Subst`, etc. all silently render as
+red error blocks. Two options:
+
+- **Preferred** — use the Unicode equivalent from the "Prefer
+  Unicode" table above (`⟦…⟧` for semantic brackets, `𝒫(…)` for
+  powerset, etc.). Compact and readable.
+- **Fallback** — if you really need a one-off custom macro, define
+  it inline at the top of the math block with `\newcommand`, e.g.
+  ` ```math \newcommand{\sem}[1]{\llbracket #1 \rrbracket} … ` ``.
+  Verbose; the Unicode form is almost always cleaner.
 
 ---
 
