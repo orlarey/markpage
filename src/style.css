@@ -227,24 +227,28 @@ body,
   background: #000;
   padding: 0;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative; /* positioning context for the absolute pages */
 }
-/* Let the flex pane centre the page directly, ignoring the paged.js
-   wrapper's own block layout. */
-#preview-pane.presentation .pagedjs_pages {
-  display: contents;
-}
+/* Show only the current page, but keep EVERY page in the document flow so
+   paged.js's page counters survive — hiding pages with `display:none`
+   (or collapsing `.pagedjs_pages` with `display:contents`) drops the
+   `counter-increment: page` / `counter-reset: pages N` paged.js relies on,
+   which makes the footer read "1 of 0". Instead the pages are stacked
+   absolutely at the centre and hidden with `visibility`, which keeps their
+   boxes (and their counter contributions) alive. The current page is the
+   only visible one, scaled to fill the viewport. */
 #preview-pane.presentation .pagedjs_page {
-  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   margin: 0;
   box-shadow: none;
+  visibility: hidden;
+  transform: translate(-50%, -50%);
 }
 #preview-pane.presentation .pagedjs_page.is-current {
-  display: block;
-  transform: scale(var(--present-scale, 1));
-  transform-origin: center center;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(var(--present-scale, 1));
 }
 
 /* Debug-guides overlay (toolbar button + Cmd/Ctrl+Shift+G). Toggled
