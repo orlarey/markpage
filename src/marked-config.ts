@@ -553,6 +553,35 @@ marked.use({
       },
       renderer(token) {
         const t = token as unknown as AdmonitionToken;
+        // `::: columns` is a layout container, not a callout: split the
+        // body into columns at top-level `---` (`hr`) separators and lay
+        // them out in a CSS grid (`.columns-block` rule in pagedCss).
+        // N separator-delimited groups → N equal columns; no `---` → a
+        // single column (harmless). Empty groups (a stray leading /
+        // trailing `---`) are dropped so the count stays intuitive.
+        if (t.klass === 'columns') {
+          const groups: Tokens.Generic[][] = [];
+          let current: Tokens.Generic[] = [];
+          groups.push(current);
+          for (const tok of t.tokens) {
+            if (tok.type === 'hr') {
+              current = [];
+              groups.push(current);
+            } else {
+              current.push(tok);
+            }
+          }
+          const filled = groups.filter((g) =>
+            g.some((tk) => tk.type !== 'space'),
+          );
+          const cols = (filled.length ? filled : [[]])
+            .map((toks) => `<div class="column">${this.parser.parse(toks)}</div>`)
+            .join('');
+          return injectSource(
+            `<div class="columns-block" style="--columns-count:${Math.max(filled.length, 1)}">${cols}</div>\n`,
+            t.raw,
+          );
+        }
         const klass = escapeHtml(t.klass);
         const defaultLabel = ADMONITION_LABELS[t.klass];
         let titleHtml = '';

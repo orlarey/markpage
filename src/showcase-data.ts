@@ -107,6 +107,27 @@ See the linked issue for the root cause.
 `,
   },
   {
+    id: 'columns',
+    title: 'Side-by-side columns',
+    description:
+      'Wrap content in a `::: columns` fenced div and split it with `---` to lay it out in equal columns — handy on a slide for a before/after or a text-and-figure split. Two `---` give three columns, and so on. Works in both paged and slides modes.',
+    sourceLang: 'markdown',
+    source: `::: columns
+**Before**
+
+- slow
+- verbose
+
+---
+
+**After**
+
+- fast
+- concise
+:::
+`,
+  },
+  {
     id: 'tables',
     title: 'Dense tables straight from CSV',
     description:

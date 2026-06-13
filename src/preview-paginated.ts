@@ -1244,6 +1244,22 @@ export function pagedCss(s: PdfSettings): string {
       object-fit: contain;
     }
 
+    /* Two-column (or N-column) container from a ::: columns block with ---
+       separators (see the admonition renderer). Equal-width columns via
+       grid; minmax(0,1fr) lets listings / long words wrap instead of
+       overflowing their column. Works the same in slides and A4. The
+       break-inside:avoid that keeps the block on one page lives unscoped
+       below — paged.js can't parse :where() in break-rule selectors. */
+    ${SCOPE} .columns-block {
+      display: grid;
+      grid-template-columns: repeat(var(--columns-count, 2), minmax(0, 1fr));
+      gap: 0.6em 2em;
+      align-items: start;
+      margin: 0.6em 0;
+    }
+    ${SCOPE} .columns-block > .column > :first-child { margin-top: 0; }
+    ${SCOPE} .columns-block > .column > :last-child { margin-bottom: 0; }
+
     /* Fragmentation policy — left unscoped on purpose. paged.js's
        break-rule processor naively splits the selector list by comma
        before calling querySelectorAll, which corrupts CSS pseudo-class
@@ -1267,6 +1283,9 @@ export function pagedCss(s: PdfSettings): string {
        they don't, the user's prose is what should split, not the
        boxed wrapper — keeping the colored bar and title together. */
     .admonition { break-inside: avoid; }
+    /* Keep a ::: columns block whole on one page (unscoped, like the
+       rules above — paged.js corrupts :where() in break selectors). */
+    .columns-block { break-inside: avoid; }
     p, li { orphans: 3; widows: 3; }
   `;
 }

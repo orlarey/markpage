@@ -1154,6 +1154,35 @@ neutre — utile pour vos propres conventions.
 L'intérieur d'un encadré est du Markdown comme le reste : texte mis
 en forme, listes, formules, voire des tableaux.
 
+### Colonnes \label{sec:columns}
+
+Pour disposer du contenu **côte à côte**, utilisez un *fenced div*
+`::: columns` et séparez les colonnes par une ligne `---`. Chaque
+segment devient une colonne de largeur égale — pratique sur une slide
+pour un avant/après ou un découpage texte-et-figure.
+
+```
+::: columns
+**Avant**
+
+- lent
+- verbeux
+
+---
+
+**Après**
+
+- rapide
+- concis
+:::
+```
+
+Deux `---` donnent trois colonnes, et ainsi de suite. Chaque colonne
+est du Markdown normal (texte, listes, images, formules…). Cela
+fonctionne en mode paginé comme en mode slides ; le bloc reste sur une
+seule page, donc gardez-le assez court pour tenir (sur une slide c'est
+automatique). À l'export LaTeX, les colonnes sont empilées.
+
 ### Graphiques \label{sec:charts}
 
 Pour tracer une courbe ou un diagramme à partir de données, utilisez

@@ -1110,6 +1110,35 @@ useful for your own conventions.
 The inside of a callout is Markdown like the rest: formatted text,
 lists, formulas, even tables.
 
+### Columns \label{sec:columns}
+
+To lay content out **side by side**, use a `::: columns` fenced div
+and separate the columns with a `---` line. Each segment becomes an
+equal-width column — handy on a slide for a before/after or a
+text-and-figure split.
+
+```
+::: columns
+**Before**
+
+- slow
+- verbose
+
+---
+
+**After**
+
+- fast
+- concise
+:::
+```
+
+Two `---` give three columns, and so on. Each column is ordinary
+Markdown (text, lists, images, formulas…). It works in both paged
+and slides modes; the block stays on a single page, so keep it short
+enough to fit (on a slide that's automatic). At LaTeX export the
+columns degrade to stacked content.
+
 ### Charts \label{sec:charts}
 
 To draw a curve or chart from data, use a `chart` *fenced block*:

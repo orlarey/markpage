@@ -626,6 +626,13 @@ const ADMONITION_MAP: Record<string, AdmonitionMapping> = {
  * How: Look up `ADMONITION_MAP[klass]`, dispatch to amsthm env or tcolorbox.
  */
 function renderAdmonition(tok: AdmonitionLikeToken, ctx: Ctx): string {
+  // `::: columns` is a layout container, not a callout, and has no
+  // two-column analogue in v1 — degrade to the column groups stacked
+  // vertically. Its `---` separators (hr tokens) render as \hrulefill
+  // dividers between groups, which reads fine; all content is preserved.
+  if (tok.klass.toLowerCase() === 'columns') {
+    return `${renderBlocks(tok.tokens, ctx).trimEnd()}\n\n`;
+  }
   const mapping = ADMONITION_MAP[tok.klass.toLowerCase()];
   // Render the body once — used inside both environment variants.
   const body = renderBlocks(tok.tokens, ctx).trimEnd();
