@@ -156,7 +156,60 @@ let inEndnotesRender = false;
 //     outer block. If a user needs that we'll add the multi-colon
 //     fence (`::::` opens, `:::` inside is fine) later.
 const ADMONITION_RE =
-  /^:::[ \t]+([A-Za-z][\w-]*)(?:[ \t]+\[([^\]\n]+)\])?[ \t]*\n([\s\S]+?)\n:::[ \t]*(?=\n|$)/;
+  /^:::[ \t]+([A-Za-z][\w+-]*)(?:[ \t]+\[([^\]\n]+)\])?[ \t]*\n([\s\S]+?)\n:::[ \t]*(?=\n|$)/;
+
+// ---- `::: toc+` (augmented table of contents) -------------------------
+// Build the TOC HTML from the block body: a (possibly nested) list whose
+// nesting maps to heading depth. Each item is "title — intention"; only the
+// title survives the render (intentions are draft-only — TOC-PLUS-SPEC §4).
+// Each entry carries its raw title in `data-toc-title`; the actual href is
+// wired later by linkTocPlus() (preview-paginated.ts), which resolves titles
+// to real heading ids — so an unresolved entry becomes a visible hole
+// (the "render as checksum" of TOC-PLUS-SPEC §5).
+interface TocEntry {
+  level: number;
+  title: string;
+}
+
+function renderTocPlus(bodyTokens: Tokens.Generic[]): string {
+  const list = bodyTokens.find((t) => t.type === 'list') as
+    | Tokens.List
+    | undefined;
+  const entries: TocEntry[] = [];
+  if (list) walkTocList(list, 1, entries);
+  if (entries.length === 0) return '<nav class="toc-plus"></nav>\n';
+  const items = entries
+    .map(
+      (e) =>
+        `<li class="toc-entry toc-level-${e.level}"><a data-toc-title="${escapeHtml(e.title)}">${escapeHtml(e.title)}</a></li>`,
+    )
+    .join('');
+  return `<nav class="toc-plus"><ul>${items}</ul></nav>\n`;
+}
+
+function walkTocList(list: Tokens.List, level: number, out: TocEntry[]): void {
+  for (const item of list.items) {
+    const lead = item.tokens.find(
+      (t) => t.type === 'text' || t.type === 'paragraph',
+    ) as { text?: string } | undefined;
+    const title = cleanTocTitle(lead?.text ?? '');
+    if (title !== '') out.push({ level, title });
+    const sub = item.tokens.find((t) => t.type === 'list') as
+      | Tokens.List
+      | undefined;
+    if (sub) walkTocList(sub, level + 1, out);
+  }
+}
+
+// Title = the part before the first spaced em/en dash; strip emphasis /
+// code markers and any `\label{}` so the rendered entry is clean text.
+function cleanTocTitle(raw: string): string {
+  const head = raw.split(/\s+[—–]\s+/)[0] ?? raw;
+  return head
+    .replace(/\\label\{[^}\n]*\}/g, '')
+    .replace(/[*`_]/g, '')
+    .trim();
+}
 
 // Only matches `$$` that's the very first thing on its line (no leading
 // whitespace) and a closing `$$` that's also alone on its line.
@@ -553,6 +606,14 @@ marked.use({
       },
       renderer(token) {
         const t = token as unknown as AdmonitionToken;
+        // `::: toc+` is an augmented table of contents: the body is a
+        // (possibly nested) list of "title — intention" entries. We render
+        // a plain TOC (titles only; intentions are a draft concern, dropped
+        // here — TOC-PLUS-SPEC §4). hrefs are wired later by linkTocPlus()
+        // in preview-paginated.ts, which matches titles to real headings.
+        if (t.klass === 'toc+') {
+          return injectSource(renderTocPlus(t.tokens), t.raw);
+        }
         // `::: columns` is a layout container, not a callout: split the
         // body into columns at top-level `---` (`hr`) separators and lay
         // them out in a CSS grid (`.columns-block` rule in pagedCss).

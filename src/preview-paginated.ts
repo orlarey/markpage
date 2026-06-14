@@ -154,6 +154,10 @@ export async function paginate(
   // the same instance breaks. We create a fresh one per render, which is
   // cheap.
   const previewer = new Previewer();
+  // Wire up any `::: toc+` block: ensure every heading has an id, then
+  // resolve each TOC entry's href to its matching heading by title
+  // (TOC-PLUS-SPEC §5). Unmatched entries are flagged, not linked.
+  linkTocPlus(source);
   // In slides mode, group runs of adjacent figures into a flex row so
   // they sit side-by-side on a slide instead of forcing one per slide.
   groupAdjacentFiguresForSlides(source, settings);
@@ -756,6 +760,58 @@ export function keepLabelsWithNext(root: HTMLElement, inSlidesMode = false): voi
 }
 
 /**
+ * Purpose: Wire a `::: toc+` block (TOC-PLUS-SPEC §5) to the document.
+ * How: give every heading an id (keeping any `\label`-derived one), build
+ *   a title-slug → id map, then point each TOC entry's `<a>` at the heading
+ *   whose title matches. The match is by normalised title (accents folded,
+ *   any leading "1.2 " section number stripped), so a numbered heading still
+ *   matches an unnumbered plan entry. An entry with no match is flagged
+ *   `.toc-missing` and left unlinked — the "render as checksum" hole.
+ *   No-op when the document has no `::: toc+`.
+ */
+function linkTocPlus(root: HTMLElement): void {
+  const navs = root.querySelectorAll<HTMLElement>('nav.toc-plus');
+  if (navs.length === 0) return;
+  const byTitle = new Map<string, string>();
+  root
+    .querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
+    .forEach((h) => {
+      const slug = sectionSlug(h.textContent ?? '');
+      if (slug === '') return;
+      if (h.id === '') h.id = `sec-${slug}`;
+      if (!byTitle.has(slug)) byTitle.set(slug, h.id);
+    });
+  navs.forEach((nav) => {
+    nav.querySelectorAll<HTMLAnchorElement>('a[data-toc-title]').forEach((a) => {
+      const id = byTitle.get(sectionSlug(a.dataset['tocTitle'] ?? ''));
+      if (id !== undefined) {
+        a.setAttribute('href', `#${id}`);
+        a.classList.remove('toc-missing');
+      } else {
+        a.removeAttribute('href');
+        a.classList.add('toc-missing');
+      }
+    });
+  });
+}
+
+/**
+ * Purpose: Normalise a heading / TOC title to a comparison + anchor slug.
+ * How: drop `\label{}`, strip a leading section number ("1.", "2.3 "), fold
+ *   accents, lowercase, collapse non-alphanumerics to single hyphens.
+ */
+function sectionSlug(text: string): string {
+  return text
+    .replace(/\\label\{[^}\n]*\}/g, ' ')
+    .replace(/^\s*\d+(?:\.\d+)*\.?\s+/, '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
  * Purpose: Decide whether an element acts as a "label" for the next block.
  * How: True for h1–h4, or a `<p>` directly preceding a presentable block.
  */
@@ -1259,6 +1315,28 @@ export function pagedCss(s: PdfSettings): string {
     }
     ${SCOPE} .columns-block > .column > :first-child { margin-top: 0; }
     ${SCOPE} .columns-block > .column > :last-child { margin-bottom: 0; }
+
+    /* Augmented table of contents (::: toc+). Phase 1: renders as a plain
+       clickable TOC — titles only, indented by level. Page numbers and the
+       draft view (intentions shown) arrive in later phases (TOC-PLUS-SPEC
+       §4, §6). An entry whose title matches no heading is struck through
+       (.toc-missing) — the visible "checksum" hole of §5. */
+    ${SCOPE} nav.toc-plus { margin: 0.8em 0; }
+    ${SCOPE} nav.toc-plus ul { list-style: none; margin: 0; padding: 0; }
+    ${SCOPE} nav.toc-plus .toc-entry { margin: 0.15em 0; line-height: 1.3; }
+    ${SCOPE} nav.toc-plus .toc-level-2 { padding-left: 1.6em; }
+    ${SCOPE} nav.toc-plus .toc-level-3 { padding-left: 3.2em; }
+    ${SCOPE} nav.toc-plus .toc-level-4 { padding-left: 4.8em; }
+    /* Resolved entries render as the theme's links (clickable on screen);
+       the clean print TOC — black, leaders, page numbers — is Phase 2.
+       A missing entry must read as broken regardless of the link colour,
+       which is set by an id rule (#preview-pane a) we can't outrank from a
+       :where() scope — hence !important on this error-state marker. */
+    ${SCOPE} nav.toc-plus a.toc-missing {
+      color: #b00020 !important;
+      text-decoration: line-through !important;
+      cursor: default;
+    }
 
     /* Fragmentation policy — left unscoped on purpose. paged.js's
        break-rule processor naively splits the selector list by comma
