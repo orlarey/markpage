@@ -868,6 +868,13 @@ export function pagedCss(s: PdfSettings): string {
   // modal, the toolbar, etc. `:where(...)` keeps specificity at zero
   // so the rules can still be overridden by component CSS.
   const SCOPE = ':where(#preview-pane, #markpage-print-target)';
+  // The `::: toc+` rules must out-rank the id-scoped link colour
+  // (`#preview-pane a` in style.css), so they use `:is(...)` — same two
+  // roots, but id-level specificity — instead of the zero-specificity
+  // `:where(...)`. NOTE: the page-number rule (target-counter) can't use
+  // :is()/:where(): paged.js's TargetCounters handler splits the selector
+  // on ":", which corrupts those functions — it uses a bare id list.
+  const TOC = ':is(#preview-pane, #markpage-print-target)';
   // §9.6 — when `marginMode === 'derived'`, the four margins come from
   // the Van de Graaf canon: text block similar to the page, corners on
   // the construction diagonals, ratios inner:outer = 1:2 and top:bottom
@@ -1316,27 +1323,50 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .columns-block > .column > :first-child { margin-top: 0; }
     ${SCOPE} .columns-block > .column > :last-child { margin-bottom: 0; }
 
-    /* Augmented table of contents (::: toc+). Phase 1: renders as a plain
-       clickable TOC — titles only, indented by level. Page numbers and the
-       draft view (intentions shown) arrive in later phases (TOC-PLUS-SPEC
-       §4, §6). An entry whose title matches no heading is struck through
-       (.toc-missing) — the visible "checksum" hole of §5. */
-    ${SCOPE} nav.toc-plus { margin: 0.8em 0; }
-    ${SCOPE} nav.toc-plus ul { list-style: none; margin: 0; padding: 0; }
-    ${SCOPE} nav.toc-plus .toc-entry { margin: 0.15em 0; line-height: 1.3; }
-    ${SCOPE} nav.toc-plus .toc-level-2 { padding-left: 1.6em; }
-    ${SCOPE} nav.toc-plus .toc-level-3 { padding-left: 3.2em; }
-    ${SCOPE} nav.toc-plus .toc-level-4 { padding-left: 4.8em; }
-    /* Resolved entries render as the theme's links (clickable on screen);
-       the clean print TOC — black, leaders, page numbers — is Phase 2.
-       A missing entry must read as broken regardless of the link colour,
-       which is set by an id rule (#preview-pane a) we can't outrank from a
-       :where() scope — hence !important on this error-state marker. */
-    ${SCOPE} nav.toc-plus a.toc-missing {
-      color: #b00020 !important;
-      text-decoration: line-through !important;
+    /* Augmented table of contents (::: toc+). Renders as a clean TOC —
+       titles only (intentions are draft-only, dropped at render), indented
+       by level, with dotted leaders and the target section's page number
+       (TOC-PLUS-SPEC §4, §6). An entry whose title matches no heading is
+       struck through (.toc-missing) — the visible "checksum" hole of §5. */
+    ${TOC} nav.toc-plus { margin: 0.8em 0; }
+    ${TOC} nav.toc-plus ul { list-style: none; margin: 0; padding: 0; }
+    ${TOC} nav.toc-plus .toc-entry { margin: 0.15em 0; line-height: 1.3; }
+    ${TOC} nav.toc-plus .toc-level-2 { padding-left: 1.6em; }
+    ${TOC} nav.toc-plus .toc-level-3 { padding-left: 3.2em; }
+    ${TOC} nav.toc-plus .toc-level-4 { padding-left: 4.8em; }
+    /* Each entry is a flex row: title — dotted leader — page number. */
+    ${TOC} nav.toc-plus .toc-entry a {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5em;
+      color: inherit;
+      text-decoration: none;
+    }
+    ${TOC} nav.toc-plus .toc-title { flex: 0 1 auto; }
+    ${TOC} nav.toc-plus .toc-dots {
+      flex: 1 1 auto;
+      align-self: center;
+      min-width: 1.5em;
+      border-bottom: 1px dotted currentColor;
+      opacity: 0.4;
+    }
+    /* Page number: paged.js resolves the target section's page via
+       target-counter. UNSCOPED on purpose — paged.js's TargetCounters
+       handler runs querySelectorAll from inside .pagedjs_pages, so any
+       ancestor scope (#preview-pane / its rewritten [data-id=…]) matches
+       nothing. nav.toc-plus only exists in the render targets anyway. */
+    nav.toc-plus .toc-entry a[href]::after {
+      content: target-counter(attr(href), page);
+      flex: 0 0 auto;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Unmatched entry: broken-looking, no leader / page number. */
+    ${TOC} nav.toc-plus a.toc-missing {
+      color: #b00020;
+      text-decoration: line-through;
       cursor: default;
     }
+    ${TOC} nav.toc-plus a.toc-missing .toc-dots { display: none; }
 
     /* Fragmentation policy — left unscoped on purpose. paged.js's
        break-rule processor naively splits the selector list by comma

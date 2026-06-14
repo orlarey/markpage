@@ -179,10 +179,10 @@ function renderTocPlus(bodyTokens: Tokens.Generic[]): string {
   if (list) walkTocList(list, 1, entries);
   if (entries.length === 0) return '<nav class="toc-plus"></nav>\n';
   const items = entries
-    .map(
-      (e) =>
-        `<li class="toc-entry toc-level-${e.level}"><a data-toc-title="${escapeHtml(e.title)}">${escapeHtml(e.title)}</a></li>`,
-    )
+    .map((e) => {
+      const t = escapeHtml(e.title);
+      return `<li class="toc-entry toc-level-${e.level}"><a data-toc-title="${t}"><span class="toc-title">${t}</span><span class="toc-dots" aria-hidden="true"></span></a></li>`;
+    })
     .join('');
   return `<nav class="toc-plus"><ul>${items}</ul></nav>\n`;
 }
