@@ -202,6 +202,88 @@ const INLINE_IMAGE_RE = /!\[([^\]\n]*)\]\(\s*([^)\s]+)(?:\s+"[^"\n]*")?\s*\)/g;
 // don't use it).
 const REF_DEF_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:\s*(\S+)(?:\s+"[^"\n]*")?\s*$/gm;
 
+// Fenced blocks whose body is rendered as Markdown — so a `![](path)` inside
+// them IS a real resource reference and must be collected / rewritten like any
+// other. `demo` re-renders its body (source + output); the letterhead fences
+// render inline images via `formatInline`. Every other fence (language code,
+// `csv`, `mermaid`, `math`, …) plus `header` / `footer` (text-only today) is
+// OPAQUE: its body is literal and must be ignored by the scanner and left
+// untouched by the rewriter. NOTE: if `header` / `footer` ever render a logo
+// image, add them here so their refs start counting.
+const TRANSPARENT_FENCES = new Set(['demo', 'sender', 'recipient', 'signature']);
+
+type CodeRange = readonly [number, number];
+
+/**
+ * Purpose: Offset ranges of *opaque* code in `source` — regions where a
+ *   `![](…)` / `[ref]: …` is literal text, not a resource reference.
+ * How: Scan fenced blocks line by line, length-aware (a run of N backticks /
+ *   tildes closes on ≥ N of the same char — so a 4-backtick fence can contain
+ *   3-backtick examples). A fence whose info-string language is in
+ *   `TRANSPARENT_FENCES` is NOT masked (its body renders). Then add inline
+ *   code spans. Limitation: a code fence nested inside a transparent `demo`
+ *   stays live — rare, acceptable.
+ */
+export function opaqueCodeRanges(source: string): CodeRange[] {
+  const ranges: CodeRange[] = [];
+  let offset = 0;
+  let open: { char: string; len: number; start: number; transparent: boolean } | null =
+    null;
+  for (const line of source.split('\n')) {
+    const start = offset;
+    offset += line.length + 1; // account for the '\n' consumed by split
+    if (open === null) {
+      const m = /^[ \t]{0,3}(`{3,}|~{3,})[ \t]*([^\s`~]*)/.exec(line);
+      if (m) {
+        const fence = m[1];
+        open = {
+          char: fence[0],
+          len: fence.length,
+          start,
+          transparent: TRANSPARENT_FENCES.has((m[2] ?? '').toLowerCase()),
+        };
+      }
+    } else {
+      const m = /^[ \t]{0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
+      if (m && m[1][0] === open.char && m[1].length >= open.len) {
+        if (!open.transparent) ranges.push([open.start, offset]);
+        open = null;
+      }
+    }
+  }
+  if (open !== null && !open.transparent) ranges.push([open.start, source.length]);
+  // Inline code spans (a run of N backticks closing on an identical run);
+  // content excludes backticks / newlines — covers `code` / ``co``.
+  for (const m of source.matchAll(/(`+)[^`\n]+?\1/g)) {
+    const idx = m.index ?? 0;
+    if (!inCodeRange(idx, ranges)) ranges.push([idx, idx + m[0].length]);
+  }
+  return ranges;
+}
+
+function inCodeRange(index: number, ranges: CodeRange[]): boolean {
+  return ranges.some(([s, e]) => index >= s && index < e);
+}
+
+/**
+ * Purpose: `replaceAll(regex, replacer)` but matches inside opaque code are
+ *   left untouched. Ranges are recomputed on the passed text, so chaining
+ *   passes (each over the previous result) stays correct as offsets shift.
+ */
+function replaceOutsideCode(
+  text: string,
+  regex: RegExp,
+  replacer: (match: string, ...groups: string[]) => string,
+): string {
+  const ranges = opaqueCodeRanges(text);
+  return text.replaceAll(regex, (...args: unknown[]) => {
+    const match = args[0] as string;
+    const offset = args[args.length - 2] as number;
+    if (inCodeRange(offset, ranges)) return match;
+    return replacer(match, ...(args.slice(1, -2) as string[]));
+  });
+}
+
 /**
  * Purpose: Walk a markdown source and return every external path it
  *   references (inline + reference-style image), deduplicated.
@@ -215,12 +297,15 @@ const REF_DEF_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:\s*(\S+)(?:\s+"[^"\n]*")?\s*$/gm;
  *   regex-level matching, so the precision is consistent.
  */
 export function extractExternalRefs(source: string): string[] {
+  const ranges = opaqueCodeRanges(source);
   const seen = new Set<string>();
   for (const m of source.matchAll(INLINE_IMAGE_RE)) {
+    if (inCodeRange(m.index ?? 0, ranges)) continue;
     const url = m[2];
     if (isExternalRef(url)) seen.add(url);
   }
   for (const m of source.matchAll(REF_DEF_RE)) {
+    if (inCodeRange(m.index ?? 0, ranges)) continue;
     const url = m[2];
     if (isExternalRef(url)) seen.add(url);
   }
@@ -240,12 +325,12 @@ export function rewriteExternalRefs(
   source: string,
   resolver: (path: string) => string | null,
 ): string {
-  let out = source.replaceAll(INLINE_IMAGE_RE, (match, alt: string, url: string) => {
+  let out = replaceOutsideCode(source, INLINE_IMAGE_RE, (match, alt, url) => {
     if (!isExternalRef(url)) return match;
     const replacement = resolver(url);
     return replacement === null ? match : `![${alt}](${replacement})`;
   });
-  out = out.replaceAll(REF_DEF_RE, (match, label: string, url: string) => {
+  out = replaceOutsideCode(out, REF_DEF_RE, (match, label, url) => {
     if (!isExternalRef(url)) return match;
     const replacement = resolver(url);
     return replacement === null ? match : `[${label}]: ${replacement}`;

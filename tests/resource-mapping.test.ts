@@ -100,6 +100,44 @@ describe('extractExternalRefs', () => {
     const md = '![alt](images/foo.png "Caption text")';
     expect(extractExternalRefs(md)).toEqual(['images/foo.png']);
   });
+
+  it('ignores refs inside a fenced code block', () => {
+    const md = [
+      'Real ![](images/real.png).',
+      '',
+      '```',
+      'Example: ![](assets/schema.png)',
+      '[logo]: assets/in-code.svg',
+      '```',
+    ].join('\n');
+    expect(extractExternalRefs(md)).toEqual(['images/real.png']);
+  });
+
+  it('ignores refs inside a 4-backtick fence wrapping a 3-backtick example', () => {
+    const md = [
+      '````',
+      '```',
+      '![](assets/nested.png)',
+      '```',
+      '````',
+    ].join('\n');
+    expect(extractExternalRefs(md)).toEqual([]);
+  });
+
+  it('ignores refs inside an inline code span', () => {
+    const md = 'Write `![](assets/inline.png)` then ![](images/real.png).';
+    expect(extractExternalRefs(md)).toEqual(['images/real.png']);
+  });
+
+  it('KEEPS refs inside a transparent demo fence (it renders)', () => {
+    const md = ['```demo', '![](assets/in-demo.png)', '```'].join('\n');
+    expect(extractExternalRefs(md)).toEqual(['assets/in-demo.png']);
+  });
+
+  it('KEEPS refs inside a letterhead signature fence (renders images)', () => {
+    const md = ['```signature', '![](assets/sign.png)', '```'].join('\n');
+    expect(extractExternalRefs(md)).toEqual(['assets/sign.png']);
+  });
 });
 
 describe('rewriteExternalRefs', () => {
@@ -128,6 +166,25 @@ describe('rewriteExternalRefs', () => {
     const out = rewriteExternalRefs(md, () => 'blob:X');
     // Title is dropped (we only keep alt + URL), but alt survives.
     expect(out).toBe('![Mon image](blob:X)');
+  });
+
+  it('does not rewrite refs inside a fenced code block', () => {
+    const md = [
+      '![](images/real.png)',
+      '```',
+      '![](images/in-code.png)',
+      '```',
+    ].join('\n');
+    const out = rewriteExternalRefs(md, () => 'X');
+    expect(out).toBe(
+      ['![](X)', '```', '![](images/in-code.png)', '```'].join('\n'),
+    );
+  });
+
+  it('does rewrite refs inside a transparent demo fence', () => {
+    const md = ['```demo', '![](images/in-demo.png)', '```'].join('\n');
+    const out = rewriteExternalRefs(md, () => 'X');
+    expect(out).toBe(['```demo', '![](X)', '```'].join('\n'));
   });
 });
 
