@@ -32,6 +32,8 @@ further down.
 | Dense table (>3 cols or >5 rows)      | ` ```csv ` / ` ```tsv `            |
 | Compact 2-3 column table              | pipe table                         |
 | Note, warning, theorem, definition, … | `::: class` callout                |
+| Side-by-side content (2+ columns)     | `::: columns` (split by `---`)     |
+| Table of contents + document plan     | `::: toc+`                         |
 | Term + gloss pairs                    | Pandoc definition list             |
 | Bibliographic citation                | `[@key]`                           |
 | Footnote / parenthetical aside        | `[^id]`                            |
@@ -528,6 +530,65 @@ they stay attention-grabbing. Concretely:
   follows; wrapping it in `::: caution` is double-marking.
 - Every paragraph that mentions a caveat — only the strongest one
   or two per document deserve the visual weight.
+
+---
+
+## Side-by-side columns (`::: columns`)
+
+Lay content out in equal-width columns: a `::: columns` block split by
+`---` lines. Each segment becomes one column; two `---` give three
+columns, and so on. Each column is full Markdown (text, lists, images,
+math). Good for a before/after or a text-and-figure split, especially on
+a slide.
+
+```
+::: columns
+**Before**
+
+- slow
+- verbose
+
+---
+
+**After**
+
+- fast
+- concise
+:::
+```
+
+The block stays on a single page (it does not fragment), so keep it short
+enough to fit — automatic on a slide, a constraint to respect in a long
+paged document. At LaTeX export the columns degrade to stacked content.
+
+---
+
+## Table of contents + plan (`::: toc+`)
+
+A `::: toc+` block is the document's **plan and its table of contents in
+one**. Write it *first*: a (possibly nested) list of `**Title** —
+intention` entries, where the list nesting maps to heading depth. You
+author and refine this plan — with the AI — before the body exists, and it
+doubles as a spec you can later check the content against.
+
+```
+::: toc+
+- **Introduction** — state the problem and the goals.
+- **Method** — describe the approach.
+  - **Data** — the sources.
+- **Results** — what we observe.
+:::
+```
+
+At render it collapses to a clean table of contents: titles only (the
+intentions are dropped), with dotted leaders and page numbers. Entries are
+matched to headings **by title** — robust to leading section numbers
+(`## 1. Method` ↔ "Method") and accents. An entry that matches no heading
+is struck through, so the rendered TOC doubles as a consistency check
+between plan and content (write the plan first, then keep them in sync).
+
+Page numbers only differ when sections land on different pages (a long
+document, or `slides: true`).
 
 ---
 
