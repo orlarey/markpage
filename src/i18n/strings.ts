@@ -88,6 +88,11 @@ const FR = {
   'onedrive.failed': 'Échec OneDrive : {msg}',
   'export-menu.share-link': 'Copier le lien de partage',
   'export-menu.share-email': 'Envoyer par email',
+  // ---- open… picker -------------------------------------------------
+  'open.title': 'Ouvrir un document',
+  'open.search': 'Rechercher…',
+  'open.empty': 'Aucun document',
+  'open.close': 'Fermer',
   'share.link-copied':
     'Lien de partage copié dans le presse-papier. Le destinataire ouvre le lien dans son navigateur et le document s’importe dans son éditeur.',
   'share.link-shown': 'Lien de partage : {url}',
@@ -377,6 +382,10 @@ const EN: Record<keyof typeof FR, string> = {
   'onedrive.failed': 'OneDrive upload failed: {msg}',
   'export-menu.share-link': 'Copy share link',
   'export-menu.share-email': 'Send by email',
+  'open.title': 'Open a document',
+  'open.search': 'Search…',
+  'open.empty': 'No document',
+  'open.close': 'Close',
   'share.link-copied':
     'Share link copied to clipboard. The recipient opens the link in their browser and the document is imported into their editor.',
   'share.link-shown': 'Share link: {url}',

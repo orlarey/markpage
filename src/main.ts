@@ -88,6 +88,7 @@ import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
 import { openDocMenu } from './ui/doc-menu';
+import { openOpenModal } from './ui/open-modal';
 import { openExportMenu } from './ui/export-menu';
 import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
@@ -936,9 +937,19 @@ async function bootstrap(): Promise<void> {
       });
   };
 
+  // Open… picker (Cmd/Ctrl+O). A pure selector — pick a doc to edit.
+  const triggerOpenModal = async (): Promise<void> => {
+    openOpenModal({
+      docs: await listDocs(),
+      currentUuid: currentDoc.uuid,
+      onOpen: (uuid) => {
+        void switchToDoc(uuid);
+      },
+    });
+  };
+
   // Import dialog: transient <input type=file>, hands the chosen
-  // file to handleImport. Shared by the toolbar [Importer] button
-  // and the Cmd/Ctrl+O shortcut.
+  // file to handleImport. Shared by the toolbar [Importer] button.
   const triggerImportDialog = (): void => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -1413,7 +1424,7 @@ async function bootstrap(): Promise<void> {
         break;
       case 'o':
         e.preventDefault();
-        triggerImportDialog();
+        void triggerOpenModal();
         break;
       case 'p':
         e.preventDefault();

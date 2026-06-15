@@ -959,6 +959,92 @@ body,
 
 /* ---- Help modal ------------------------------------------------------- */
 
+/* Open… picker (open-modal.ts) — overlay/panel mirroring the help modal. */
+.open-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.open-panel {
+  background: var(--bg);
+  border-radius: 8px;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+.open-panel header {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+.open-panel header h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.open-panel header .close {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+.open-search {
+  margin: 0.6rem 1rem 0.4rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+.open-list {
+  overflow-y: auto;
+  padding: 0 0.5rem 0.6rem;
+}
+.open-row {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.open-row:hover,
+.open-row-current {
+  background: #eef1f5;
+}
+.open-row-name {
+  flex: 1;
+}
+.open-row-dot {
+  color: var(--accent, #0969da);
+  font-size: 0.7em;
+}
+.open-row-date {
+  color: #6b7280;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.open-empty {
+  padding: 1rem;
+  color: #6b7280;
+  text-align: center;
+}
+
 .help-overlay {
   position: fixed;
   inset: 0;

@@ -329,7 +329,7 @@ function enterInlineRename(
 // "il y a 3 j", "il y a 2 sem", … Lightweight FR formatter — no
 // Intl.RelativeTimeFormat dependency, and the output is the kind of
 // loose label the dropdown needs.
-function relativeTime(mtime: number): string {
+export function relativeTime(mtime: number): string {
   const diffMs = Date.now() - mtime;
   if (diffMs < 0) return 'tout à l’heure';
   const sec = Math.floor(diffMs / 1000);
