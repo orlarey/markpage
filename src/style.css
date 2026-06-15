@@ -827,6 +827,81 @@ body,
   margin: 0.25rem 0;
 }
 
+/* ---- File menu (file-menu.ts) — mirrors the export menu ------------- */
+.file-menu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  padding: 0.25rem;
+  min-width: 15rem;
+  font: inherit;
+}
+.file-menu-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.4rem 0.7rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font: inherit;
+  color: var(--text);
+}
+.file-menu-item:hover {
+  background: var(--bg-alt);
+}
+.file-menu-label {
+  font-weight: 500;
+}
+.file-menu-hint {
+  font-size: 0.8em;
+  color: var(--muted, #6b7280);
+}
+.file-menu-sep {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0.25rem 0;
+}
+
+/* ---- Editable document title (toolbar centre, Phase 3d) ------------- */
+.doc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-content: center;
+}
+.doc-title-input {
+  font: inherit;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  min-width: 8rem;
+  max-width: 28rem;
+  color: var(--text);
+}
+.doc-title-input:hover {
+  border-color: var(--border);
+}
+.doc-title-input:focus {
+  border-color: var(--accent, #0969da);
+  outline: none;
+  background: var(--bg);
+}
+.doc-title .doc-modified-dot {
+  color: var(--accent, #0969da);
+  font-size: 0.7em;
+}
+
 /* ---- Missing-resources modal (import flow, SPEC §6.5) --------------- */
 
 .missing-resources-overlay {

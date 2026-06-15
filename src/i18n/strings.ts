@@ -42,6 +42,17 @@ const FR = {
   'toolbar.settings': 'Réglages',
   'toolbar.settings-title': 'Ouvrir le panneau de réglages (Ctrl+, / Cmd+,)',
   'toolbar.modified-title': 'Modifications non enregistrées',
+  'toolbar.file': 'Fichier',
+  'toolbar.file-title': 'Document, import, export…',
+  'toolbar.doc-name-aria': 'Nom du document',
+  // ---- file menu ----------------------------------------------------
+  'file-menu.new': 'Nouveau document',
+  'file-menu.open': 'Ouvrir…',
+  'file-menu.files': 'Fichiers…',
+  'file-menu.save': 'Enregistrer',
+  'file-menu.save-as': 'Enregistrer sous…',
+  'file-menu.revert': 'Annuler les modifications',
+  'file-menu.import': 'Importer…',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ Nouveau document',
@@ -353,6 +364,16 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.settings': 'Settings',
   'toolbar.settings-title': 'Open the settings panel (Ctrl+, / Cmd+,)',
   'toolbar.modified-title': 'Unsaved changes',
+  'toolbar.file': 'File',
+  'toolbar.file-title': 'Document, import, export…',
+  'toolbar.doc-name-aria': 'Document name',
+  'file-menu.new': 'New document',
+  'file-menu.open': 'Open…',
+  'file-menu.files': 'Files…',
+  'file-menu.save': 'Save',
+  'file-menu.save-as': 'Save As…',
+  'file-menu.revert': 'Revert changes',
+  'file-menu.import': 'Import…',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ New document',

@@ -1,11 +1,12 @@
 /********************************* toolbar.ts **********************************
  *
- * Purpose: Build the app toolbar — brand, doc trigger, import, style, help,
- *   preview-toggle, export, settings — and return a small control surface for
- *   live label / view-mode updates.
- * How: Static DOM via `document.createElement`, each button wired to one of the
- *   caller's handlers; `mountToolbar` returns `{ setViewMode, setDocName,
- *   setGuidesPressed }`.
+ * Purpose: Build the app toolbar — brand, File menu, editable doc title,
+ *   Style, Help, preview-toggle, present, guides, settings — and return a
+ *   small control surface for live label / view-mode / modified updates.
+ * How: Static DOM via `document.createElement`, each control wired to one of
+ *   the caller's handlers. The File menu consolidates the old Mon doc /
+ *   Importer / Exporter controls (Phase 3d); the document name is now an
+ *   inline-editable title.
  *
  *******************************************************************************/
 
@@ -15,54 +16,39 @@ import { makeLogo } from './logo';
 export type ViewMode = 'editor' | 'preview';
 
 /**
- * Purpose: All callbacks consumed by the toolbar's buttons, plus the initial state.
- * How: Plain interface; dropdown handlers receive the trigger element / coords to anchor on.
+ * Purpose: All callbacks consumed by the toolbar's controls, plus initial state.
  */
 export interface ToolbarHandlers {
   initialDocName: string;
   initialViewMode: ViewMode;
-  // Click on the [Mon doc ▾] button. Receives the trigger element so
-  // the caller can anchor the dropdown to it without re-querying.
-  onDocMenu(anchor: HTMLElement): void;
-  onImport(): void;
+  // Click on [File ▾]. Receives the trigger element so the caller can anchor
+  // the dropdown to it.
+  onFileMenu(anchor: HTMLElement): void;
+  // Commit a new name for the current document (inline title edit).
+  onRenameCurrent(name: string): void;
   onStyle(anchor: { x: number; y: number }): void;
   onHelp(): void;
-  // Click on [Exporter ▾]. Receives the trigger element so the
-  // dropdown anchors to it.
-  onExport(anchor: HTMLElement): void;
   onSettings(): void;
   onTogglePreview(): void;
-  // Click on [Présenter]. One-shot action — enters the fullscreen
-  // presentation mode; not a toggle (exit is driven by Esc /
-  // fullscreenchange), so the button carries no aria-pressed state.
+  // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
   onPresent(): void;
-  // Toggles the typographic-guides overlay (debug). The caller flips
-  // the .debug-layout class on #preview-pane and is responsible for
-  // reflecting the new state back via setGuidesPressed().
   onToggleGuides(): void;
 }
 
 /**
- * Purpose: Post-mount control surface — exposes the few labels that change at runtime.
- * How: Just two setters: view-mode (preview toggle aria-state) and doc-name.
+ * Purpose: Post-mount control surface — the labels/state that change at runtime.
  */
 export interface ToolbarControl {
   setViewMode(mode: ViewMode): void;
-  // Update the label shown on [Mon doc ▾] after a rename / switch /
-  // create. The trailing caret stays.
+  // Update the editable doc title after a rename / switch / create.
   setDocName(name: string): void;
-  // Update the [Guides] button's aria-pressed state after the
-  // debug overlay is toggled (button click OR keyboard shortcut).
   setGuidesPressed(pressed: boolean): void;
-  // Show / hide the "modified" dot next to the doc name when the current
-  // document has unsaved working-copy edits (Phase 2).
+  // Show / hide the "modified" dot when the current doc has unsaved edits.
   setModified(modified: boolean): void;
 }
 
 /**
- * Purpose: Build all toolbar buttons and append them under `parent`.
- * How: Mint each control sequentially, wire to the matching handler,
- *   and return setters for the post-mount mutable labels.
+ * Purpose: Build the toolbar controls and append them under `parent`.
  */
 export function mountToolbar(
   parent: HTMLElement,
@@ -70,33 +56,56 @@ export function mountToolbar(
 ): ToolbarControl {
   parent.innerHTML = '';
 
-  // [Mon doc ▾] — fused doc selector + current-name display. Click
-  // delegates to the caller, which opens the doc-menu dropdown
-  // anchored on this button.
-  const docBtn = document.createElement('button');
-  docBtn.type = 'button';
-  docBtn.className = 'menu-trigger doc-trigger';
-  docBtn.title = t('toolbar.docs-title');
-  const docLabel = document.createElement('span');
-  docLabel.className = 'doc-trigger-label';
-  docLabel.textContent = handlers.initialDocName;
-  // "Modified" dot — hidden until the doc has unsaved working-copy edits.
-  const docDot = document.createElement('span');
-  docDot.className = 'doc-modified-dot';
-  docDot.textContent = '●';
-  docDot.hidden = true;
-  docDot.title = t('toolbar.modified-title');
-  const docCaret = document.createElement('span');
-  docCaret.className = 'menu-caret';
-  docCaret.textContent = '▾';
-  docBtn.append(docDot, docLabel, docCaret);
-  docBtn.addEventListener('click', () => handlers.onDocMenu(docBtn));
+  // [File ▾] — consolidates document lifecycle + import/export. The caller
+  // opens the dropdown anchored on this button.
+  const fileBtn = document.createElement('button');
+  fileBtn.type = 'button';
+  fileBtn.className = 'menu-trigger file-trigger';
+  fileBtn.title = t('toolbar.file-title');
+  const fileLabel = document.createTextNode(t('toolbar.file'));
+  const fileCaret = document.createElement('span');
+  fileCaret.className = 'menu-caret';
+  fileCaret.textContent = '▾';
+  fileBtn.append(fileLabel, fileCaret);
+  fileBtn.addEventListener('click', () => handlers.onFileMenu(fileBtn));
 
-  const importBtn = document.createElement('button');
-  importBtn.type = 'button';
-  importBtn.textContent = t('toolbar.import');
-  importBtn.title = t('toolbar.import-title');
-  importBtn.addEventListener('click', () => handlers.onImport());
+  // Editable document title (with a "modified" dot). Enter / blur commit the
+  // rename; Escape reverts. `currentName` is the last committed value.
+  let currentName = handlers.initialDocName;
+  const titleWrap = document.createElement('div');
+  titleWrap.className = 'doc-title';
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'doc-title-input';
+  titleInput.value = currentName;
+  titleInput.setAttribute('aria-label', t('toolbar.doc-name-aria'));
+  titleInput.spellcheck = false;
+  const dot = document.createElement('span');
+  dot.className = 'doc-modified-dot';
+  dot.textContent = '●';
+  dot.hidden = true;
+  dot.title = t('toolbar.modified-title');
+  titleWrap.append(dot, titleInput);
+
+  const commitTitle = (): void => {
+    const next = titleInput.value.trim();
+    if (next === '' || next === currentName) {
+      titleInput.value = currentName; // revert empty / no-op
+      return;
+    }
+    handlers.onRenameCurrent(next);
+  };
+  titleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      titleInput.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      titleInput.value = currentName;
+      titleInput.blur();
+    }
+  });
+  titleInput.addEventListener('blur', commitTitle);
 
   const previewBtn = document.createElement('button');
   previewBtn.type = 'button';
@@ -109,9 +118,6 @@ export function mountToolbar(
   );
   previewBtn.addEventListener('click', () => handlers.onTogglePreview());
 
-  // [Présenter] — one-shot: enters fullscreen presentation showing one
-  // page at a time. Sits next to [Aperçu] since it presents the same
-  // paginated render. No aria-pressed (exit isn't button-driven).
   const presentBtn = document.createElement('button');
   presentBtn.type = 'button';
   presentBtn.className = 'present-toggle';
@@ -119,9 +125,6 @@ export function mountToolbar(
   presentBtn.title = t('toolbar.present-title');
   presentBtn.addEventListener('click', () => handlers.onPresent());
 
-  // [Guides] — debug overlay button. Lives next to the preview toggle
-  // since it only affects the preview pane. Initial state is "off"
-  // (non-persistent across reloads, as agreed in the design).
   const guidesBtn = document.createElement('button');
   guidesBtn.type = 'button';
   guidesBtn.className = 'guides-toggle';
@@ -139,8 +142,7 @@ export function mountToolbar(
   styleCaret.className = 'menu-caret';
   styleCaret.textContent = '▾';
   styleBtn.append(styleLabel, styleCaret);
-  // Don't steal focus from the editor — keeps the cursor / selection alive
-  // so the menu commands operate on the user's intended target.
+  // Don't steal focus from the editor — keeps cursor / selection alive.
   styleBtn.addEventListener('mousedown', (e) => e.preventDefault());
   styleBtn.addEventListener('click', () => {
     const rect = styleBtn.getBoundingClientRect();
@@ -154,17 +156,6 @@ export function mountToolbar(
   helpBtn.title = t('toolbar.help-title');
   helpBtn.addEventListener('click', () => handlers.onHelp());
 
-  const exportBtn = document.createElement('button');
-  exportBtn.type = 'button';
-  exportBtn.className = 'menu-trigger';
-  exportBtn.title = t('toolbar.export-title');
-  const exportLabel = document.createTextNode(t('toolbar.export'));
-  const exportCaret = document.createElement('span');
-  exportCaret.className = 'menu-caret';
-  exportCaret.textContent = '▾';
-  exportBtn.append(exportLabel, exportCaret);
-  exportBtn.addEventListener('click', () => handlers.onExport(exportBtn));
-
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
   settingsBtn.className = 'menu-trigger';
@@ -176,10 +167,7 @@ export function mountToolbar(
   settingsBtn.append(settingsLabel, settingsCaret);
   settingsBtn.addEventListener('click', () => handlers.onSettings());
 
-  // Logo wraps in an <a> linking to the showcase so the toolbar and
-  // showcase are reciprocal home buttons: showcase has a logo top-
-  // left linking to ./index.html, editor has one linking back to
-  // ./showcase.html.
+  // Logo links to the showcase (reciprocal home button).
   const logoLink = document.createElement('a');
   logoLink.href = './showcase.html';
   logoLink.className = 'markpage-logo-slot';
@@ -187,32 +175,25 @@ export function mountToolbar(
   logoLink.setAttribute('aria-label', 'Open the showcase');
   logoLink.append(makeLogo(document, 'full'));
 
-  // Version stamp — Vite swaps `__APP_VERSION__` for the
-  // package.json version at build time. Muted styling so it reads
-  // as a metadata annotation, not a control.
   const version = document.createElement('span');
   version.className = 'toolbar-version';
   version.textContent = `v${__APP_VERSION__}`;
 
-  // Logo + version are wrapped in a baseline-aligned sub-flex so
-  // their typography sits on the same line (the toolbar's own flex
-  // is `align-items: center`, which puts the small version text
-  // visually higher than the bigger logo).
   const brandSlot = document.createElement('div');
   brandSlot.className = 'toolbar-brand';
   brandSlot.append(logoLink, version);
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(brandSlot, docBtn, importBtn, styleBtn);
+  left.append(brandSlot, fileBtn, styleBtn);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
-  center.append(helpBtn);
+  center.append(titleWrap);
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(previewBtn, presentBtn, guidesBtn, exportBtn, settingsBtn);
+  right.append(helpBtn, previewBtn, presentBtn, guidesBtn, settingsBtn);
 
   parent.append(left, center, right);
 
@@ -224,13 +205,14 @@ export function mountToolbar(
       );
     },
     setDocName(name: string) {
-      docLabel.textContent = name;
+      currentName = name;
+      if (document.activeElement !== titleInput) titleInput.value = name;
     },
     setGuidesPressed(pressed: boolean) {
       guidesBtn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
     },
     setModified(modified: boolean) {
-      docDot.hidden = !modified;
+      dot.hidden = !modified;
     },
   };
 }

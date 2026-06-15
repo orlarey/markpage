@@ -87,10 +87,9 @@ import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
-import { openDocMenu } from './ui/doc-menu';
+import { openFileMenu } from './ui/file-menu';
 import { openFilesModal } from './ui/files-modal';
 import { openOpenModal } from './ui/open-modal';
-import { openExportMenu } from './ui/export-menu';
 import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
@@ -732,13 +731,6 @@ async function bootstrap(): Promise<void> {
     await renameDoc(uuid, newName);
   };
 
-  const duplicateAndSwitch = async (uuid: string): Promise<void> => {
-    if (uuid === currentDoc.uuid) await flushSave();
-    const dup = await duplicateDoc(uuid);
-    if (!dup) return;
-    await switchToDoc(dup.uuid);
-  };
-
   // Reloads a doc's content from a file picked via a transient
   // <input type=file>. Replaces the doc's content in place (same uuid,
   // same name); if the doc is the current one the editor is updated
@@ -969,6 +961,9 @@ async function bootstrap(): Promise<void> {
       onRename: (uuid, name) => renameOtherDoc(uuid, name),
       onDuplicate: async (uuid) => {
         await duplicateDoc(uuid);
+      },
+      onReload: (uuid) => {
+        void reloadDocFromFile(uuid);
       },
       onDelete: (uuid) => deleteAndAdjust(uuid),
       onRestore: async (uuid) => {
@@ -1359,46 +1354,26 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl = mountToolbar(toolbarEl, {
       initialDocName: currentDoc.name,
       initialViewMode: viewMode,
-      async onDocMenu(anchor) {
-        openDocMenu(anchor, {
-          docs: await listDocs(),
-          currentUuid: currentDoc.uuid,
-          currentModified: isModified(currentDoc),
-          onSave() {
-            void saveCurrentDoc();
-          },
-          onRevert() {
-            void revertCurrentDoc();
-          },
-          onSaveAs() {
-            void saveAsNewDoc();
-          },
-          onSelect(uuid) {
-            void switchToDoc(uuid);
-          },
-          onCreate() {
+      onFileMenu(anchor) {
+        openFileMenu(anchor, {
+          modified: isModified(currentDoc),
+          onNew: () => {
             void createNewDoc();
           },
-          onRenameCurrent: renameCurrentDoc,
-          onRenameOther: renameOtherDoc,
-          onReload(uuid) {
-            void reloadDocFromFile(uuid);
+          onOpen: () => {
+            void triggerOpenModal();
           },
-          onDuplicate(uuid) {
-            void duplicateAndSwitch(uuid);
+          onFiles: triggerFilesModal,
+          onSave: () => {
+            void saveCurrentDoc();
           },
-          onDelete(uuid) {
-            void deleteAndAdjust(uuid);
+          onSaveAs: () => {
+            void saveAsNewDoc();
           },
-        });
-      },
-      onImport: triggerImportDialog,
-      onStyle(anchor) {
-        openStyleMenu(editor.view, anchor.x, anchor.y);
-      },
-      onHelp: triggerHelp,
-      onExport(anchor) {
-        openExportMenu(anchor, {
+          onRevert: () => {
+            void revertCurrentDoc();
+          },
+          onImport: triggerImportDialog,
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
@@ -1407,6 +1382,13 @@ async function bootstrap(): Promise<void> {
           onShareEmail: triggerShareEmail,
         });
       },
+      onRenameCurrent: (name) => {
+        void renameCurrentDoc(name);
+      },
+      onStyle(anchor) {
+        openStyleMenu(editor.view, anchor.x, anchor.y);
+      },
+      onHelp: triggerHelp,
       onSettings: triggerSettings,
       onTogglePreview: toggleView,
       onPresent: () => {

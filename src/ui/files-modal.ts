@@ -26,6 +26,7 @@ export interface FilesModalOptions {
   onImport(): void;
   onRename(uuid: string, name: string): void | Promise<void>;
   onDuplicate(uuid: string): void | Promise<void>;
+  onReload(uuid: string): void;
   onDelete(uuid: string): void | Promise<void>;
   onRestore(uuid: string): void | Promise<void>;
   onPurge(uuid: string): void | Promise<void>;
@@ -155,9 +156,14 @@ export function openFilesModal(opts: FilesModalOptions): void {
     });
     const dup = button(t('doc-menu.duplicate'), 'files-row-action');
     dup.addEventListener('click', () => run(() => opts.onDuplicate(d.uuid)));
+    const reload = button(t('doc-menu.reload'), 'files-row-action');
+    reload.addEventListener('click', () => {
+      close();
+      opts.onReload(d.uuid);
+    });
     const del = button(t('doc-menu.delete'), 'files-row-action files-danger');
     del.addEventListener('click', () => run(() => opts.onDelete(d.uuid)));
-    actions.append(open, rename, dup, del);
+    actions.append(open, rename, dup, reload, del);
 
     row.append(name, date, actions);
     return row;
