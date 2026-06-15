@@ -189,8 +189,8 @@ async function runGC(): Promise<void> {
   try {
     const referenced = new Set<string>();
     // Internal `img://<sha>` refs from every doc.
-    for (const e of listDocs()) {
-      const c = loadDocContent(e);
+    for (const e of await listDocs()) {
+      const c = await loadDocContent(e);
       if (c == null) continue;
       for (const id of collectImageRefs(c)) referenced.add(id);
     }
@@ -200,7 +200,7 @@ async function runGC(): Promise<void> {
     // them is the mapping table, not an inline `img://`.
     for (const sha of mappedShas()) referenced.add(sha);
     await gcUnusedImages(referenced);
-    gcContentBlobs();
+    await gcContentBlobs();
   } catch (err) {
     console.error('GC failed', err);
   }
@@ -336,8 +336,8 @@ async function bootstrap(): Promise<void> {
   try {
     const mapping = await migrateToContentAddressed();
     if (mapping.size > 0) {
-      for (const e of listDocs()) {
-        const c = loadDocContent(e);
+      for (const e of await listDocs()) {
+        const c = await loadDocContent(e);
         if (c == null) continue;
         const rewrote = rewriteImageRefs(c, mapping);
         if (rewrote !== c) await saveDocContent(e.uuid, rewrote);
@@ -358,14 +358,14 @@ async function bootstrap(): Promise<void> {
   // points it at the new entry, and the toolbar / autosave read its
   // current value via the closure.
   let currentDoc: DocEntry =
-    resolveDocFromUrl() ??
-    resolveCurrentDoc() ??
+    (await resolveDocFromUrl()) ??
+    (await resolveCurrentDoc()) ??
     (await createDoc(t('default.help-doc-name'), helpMdForLocale(uiLocale)));
   // setCurrentDocId now also mirrors the active doc into the URL, so
   // a reload (no param) and a parallel tab (with this param) both
   // converge on the same source of truth.
-  setCurrentDocId(currentDoc.uuid);
-  const initialDoc = loadDocContent(currentDoc) ?? '';
+  await setCurrentDocId(currentDoc.uuid);
+  const initialDoc = (await loadDocContent(currentDoc)) ?? '';
 
   // Boot-time GC. Cleans up anything left over from a crash mid-save
   // or from a previous version that didn't run content GC. Fire and
@@ -670,11 +670,11 @@ async function bootstrap(): Promise<void> {
   const switchToDoc = async (uuid: string): Promise<void> => {
     if (uuid === currentDoc.uuid) return;
     await flushSave();
-    const target = listDocs().find((e) => e.uuid === uuid);
+    const target = (await listDocs()).find((e) => e.uuid === uuid);
     if (!target) return;
     currentDoc = target;
-    setCurrentDocId(target.uuid);
-    const content = loadDocContent(target) ?? '';
+    await setCurrentDocId(target.uuid);
+    const content = (await loadDocContent(target)) ?? '';
     editor.setValue(content);
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
@@ -685,26 +685,26 @@ async function bootstrap(): Promise<void> {
     await flushSave();
     const entry = await createDoc('Sans titre');
     currentDoc = entry;
-    setCurrentDocId(entry.uuid);
+    await setCurrentDocId(entry.uuid);
     editor.setValue('');
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(entry.name);
   };
 
-  const renameCurrentDoc = (newName: string): void => {
-    const updated = renameDoc(currentDoc.uuid, newName);
+  const renameCurrentDoc = async (newName: string): Promise<void> => {
+    const updated = await renameDoc(currentDoc.uuid, newName);
     if (!updated) return;
     currentDoc = updated;
     toolbarCtrl.setDocName(updated.name);
   };
 
-  const renameOtherDoc = (uuid: string, newName: string): void => {
+  const renameOtherDoc = async (uuid: string, newName: string): Promise<void> => {
     if (uuid === currentDoc.uuid) {
-      renameCurrentDoc(newName);
+      await renameCurrentDoc(newName);
       return;
     }
-    renameDoc(uuid, newName);
+    await renameDoc(uuid, newName);
   };
 
   const duplicateAndSwitch = async (uuid: string): Promise<void> => {
@@ -761,21 +761,21 @@ async function bootstrap(): Promise<void> {
   // becomes empty.
   const deleteAndAdjust = async (uuid: string): Promise<void> => {
     const wasCurrent = uuid === currentDoc.uuid;
-    deleteDoc(uuid);
+    await deleteDoc(uuid);
     if (!wasCurrent) {
         return;
     }
-    const remaining = listDocs();
+    const remaining = await listDocs();
     if (remaining.length === 0) {
       const fresh = await createDoc('Sans titre');
       currentDoc = fresh;
-      setCurrentDocId(fresh.uuid);
+      await setCurrentDocId(fresh.uuid);
       editor.setValue('');
     } else {
       const next = remaining[0];
       currentDoc = next;
-      setCurrentDocId(next.uuid);
-      editor.setValue(loadDocContent(next) ?? '');
+      await setCurrentDocId(next.uuid);
+      editor.setValue((await loadDocContent(next)) ?? '');
     }
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
@@ -864,7 +864,7 @@ async function bootstrap(): Promise<void> {
         const desired = baseName.trim() === '' ? 'Document importé' : baseName;
         const entry = await createDoc(desired, cleaned);
         currentDoc = entry;
-        setCurrentDocId(entry.uuid);
+        await setCurrentDocId(entry.uuid);
         editor.setValue(cleaned);
         // Stay in editor mode after import — the user typically wants
         // to see the markdown they just opened. The preview is dirty
@@ -1261,9 +1261,9 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl = mountToolbar(toolbarEl, {
       initialDocName: currentDoc.name,
       initialViewMode: viewMode,
-      onDocMenu(anchor) {
+      async onDocMenu(anchor) {
         openDocMenu(anchor, {
-          docs: listDocs(),
+          docs: await listDocs(),
           currentUuid: currentDoc.uuid,
           onSelect(uuid) {
             void switchToDoc(uuid);

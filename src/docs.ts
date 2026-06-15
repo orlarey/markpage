@@ -6,6 +6,13 @@
  *   `markpage:blobs:<sha>`, `markpage:current-doc`); the `doc` URL
  *   query param can pin a doc per-tab. See SPEC §19.
  *
+ *   NOTE (Phase 1, file-management refactor): the public API is async even
+ *   though the current backing store is synchronous localStorage. This is
+ *   deliberate "branch by abstraction" — the signatures already match the
+ *   coming OPFS backing (fully async), so swapping the store later touches
+ *   only the bodies here, not the call sites. The internal helpers stay
+ *   sync for now (they'll be rewritten when the OPFS store lands).
+ *
  *******************************************************************************/
 
 // On-disk schema (localStorage):
@@ -81,7 +88,7 @@ function isDocEntry(x: unknown): x is DocEntry {
  * Purpose: Snapshot of the index sorted by mtime descending.
  * How: Read, shallow copy, sort by `b.mtime - a.mtime`.
  */
-export function listDocs(): DocEntry[] {
+export async function listDocs(): Promise<DocEntry[]> {
   return readIndex().slice().sort((a, b) => b.mtime - a.mtime);
 }
 
@@ -135,7 +142,7 @@ const URL_PARAM = 'doc';
  * Purpose: Read the persisted current-doc uuid (or null).
  * How: `localStorage.getItem(KEY_CURRENT)`.
  */
-export function getCurrentDocId(): string | null {
+export async function getCurrentDocId(): Promise<string | null> {
   return localStorage.getItem(KEY_CURRENT);
 }
 
@@ -144,7 +151,7 @@ export function getCurrentDocId(): string | null {
  * How: Set `KEY_CURRENT`, then `history.replaceState` with `?doc=<uuid>`
  *   so reloads, shares and parallel tabs each pin their own doc.
  */
-export function setCurrentDocId(uuid: string): void {
+export async function setCurrentDocId(uuid: string): Promise<void> {
   localStorage.setItem(KEY_CURRENT, uuid);
   if (
     typeof globalThis.history !== 'undefined' &&
@@ -162,7 +169,7 @@ export function setCurrentDocId(uuid: string): void {
  * Purpose: Resolve a doc from the `?doc=<uuid>` URL parameter, if any.
  * How: Parse `location.href`, look up the index, return the match or null.
  */
-export function resolveDocFromUrl(): DocEntry | null {
+export async function resolveDocFromUrl(): Promise<DocEntry | null> {
   if (typeof globalThis.location === 'undefined') return null;
   const id = new URL(globalThis.location.href).searchParams.get(URL_PARAM);
   if (!id) return null;
@@ -174,14 +181,14 @@ export function resolveDocFromUrl(): DocEntry | null {
  * How: Prefer the persisted current-doc; fall back to the freshest entry;
  *   null only when the index is empty.
  */
-export function resolveCurrentDoc(): DocEntry | null {
+export async function resolveCurrentDoc(): Promise<DocEntry | null> {
   const index = readIndex();
   if (index.length === 0) return null;
-  const id = getCurrentDocId();
+  const id = await getCurrentDocId();
   const direct = id ? index.find((e) => e.uuid === id) : null;
   if (direct) return direct;
   // No (or stale) current-doc → pick the freshest entry.
-  const sorted = listDocs();
+  const sorted = await listDocs();
   return sorted[0] ?? null;
 }
 
@@ -189,7 +196,7 @@ export function resolveCurrentDoc(): DocEntry | null {
  * Purpose: Load the markdown body for a doc entry.
  * How: `readBlob(entry.contentSha)`; null on missing/GC-ed blob.
  */
-export function loadDocContent(entry: DocEntry): string | null {
+export async function loadDocContent(entry: DocEntry): Promise<string | null> {
   return readBlob(entry.contentSha);
 }
 
@@ -262,7 +269,10 @@ export async function createDoc(
  * Purpose: Rename a doc; reject empty names and unknown uuids.
  * How: Patch the index entry's `name`, leave `mtime` and `contentSha` alone.
  */
-export function renameDoc(uuid: string, newName: string): DocEntry | null {
+export async function renameDoc(
+  uuid: string,
+  newName: string,
+): Promise<DocEntry | null> {
   const trimmed = newName.trim();
   if (trimmed === '') return null;
   const index = readIndex();
@@ -278,10 +288,10 @@ export function renameDoc(uuid: string, newName: string): DocEntry | null {
  * Purpose: Remove a doc from the index (blob GC is separate).
  * How: Filter the index; also drop `KEY_CURRENT` when it pointed at the deleted doc.
  */
-export function deleteDoc(uuid: string): void {
+export async function deleteDoc(uuid: string): Promise<void> {
   const index = readIndex().filter((e) => e.uuid !== uuid);
   writeIndex(index);
-  if (getCurrentDocId() === uuid) {
+  if ((await getCurrentDocId()) === uuid) {
     localStorage.removeItem(KEY_CURRENT);
   }
 }
@@ -325,7 +335,7 @@ export async function migrateLegacyDocIfNeeded(): Promise<void> {
   const baseName = filename.replace(/\.(pdf|md)$/i, '').trim();
   const name = baseName === '' ? 'Mon document' : baseName;
   const entry = await createDoc(name, legacy);
-  setCurrentDocId(entry.uuid);
+  await setCurrentDocId(entry.uuid);
   // Drop the legacy keys so we don't run the migration twice.
   localStorage.removeItem(KEY_LEGACY_DOC);
   localStorage.removeItem(KEY_LEGACY_FILENAME);
@@ -335,7 +345,7 @@ export async function migrateLegacyDocIfNeeded(): Promise<void> {
  * Purpose: Set of SHAs currently referenced by at least one doc.
  * How: Map the index entries to their `contentSha`. Used by the GC pass.
  */
-export function referencedContentShas(): Set<string> {
+function referencedContentShas(): Set<string> {
   return new Set(readIndex().map((e) => e.contentSha));
 }
 
@@ -343,7 +353,7 @@ export function referencedContentShas(): Set<string> {
  * Purpose: List every SHA backed by a `markpage:blobs:` localStorage entry.
  * How: Linear walk over `localStorage` keys with the blob prefix.
  */
-export function allBlobShas(): string[] {
+function allBlobShas(): string[] {
   const out: string[] = [];
   for (let i = 0; i < localStorage.length; i += 1) {
     const k = localStorage.key(i);
@@ -355,24 +365,16 @@ export function allBlobShas(): string[] {
 }
 
 /**
- * Purpose: Delete the content blob stored under a SHA.
- * How: `localStorage.removeItem(blobKey(sha))`.
- */
-export function deleteBlob(sha: string): void {
-  localStorage.removeItem(blobKey(sha));
-}
-
-/**
  * Purpose: Drop every content blob whose SHA isn't referenced anymore.
  * How: Iterate `allBlobShas`, delete the ones missing from
  *   `referencedContentShas`, return the count removed.
  */
-export function gcContentBlobs(): number {
+export async function gcContentBlobs(): Promise<number> {
   const referenced = referencedContentShas();
   let removed = 0;
   for (const sha of allBlobShas()) {
     if (referenced.has(sha)) continue;
-    deleteBlob(sha);
+    localStorage.removeItem(blobKey(sha));
     removed += 1;
   }
   return removed;
