@@ -100,6 +100,7 @@ import {
   gcContentBlobs,
   isModified,
   listDocs,
+  listTrash,
   loadCommittedContent,
   loadDocContent,
   migrateLegacyDocIfNeeded,
@@ -194,8 +195,10 @@ function downloadTextFile(
 async function runGC(): Promise<void> {
   try {
     const referenced = new Set<string>();
-    // Internal `img://<sha>` refs from every doc.
-    for (const e of await listDocs()) {
+    // Internal `img://<sha>` refs from every doc — active AND trashed, so
+    // trashing a doc (then a GC sweep) never reaps the images it still needs
+    // for a later restore.
+    for (const e of [...(await listDocs()), ...(await listTrash())]) {
       const c = await loadDocContent(e);
       if (c == null) continue;
       for (const id of collectImageRefs(c)) referenced.add(id);

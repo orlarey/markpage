@@ -42,6 +42,9 @@ export interface DocEntry {
   // The auto-persisted working copy's fingerprint, present only while the doc
   // has unsaved edits. `contentSha` is never touched until an explicit Save.
   dirtySha?: string;
+  // Soft-delete timestamp (Phase 3 trash). Present ⇒ the doc is in the
+  // Trash: hidden from listDocs, restorable, kept on disk until purged.
+  deletedAt?: number;
 }
 
 interface Library {
@@ -56,6 +59,13 @@ const draftPath = (uuid: string): string => `${uuid}/draft.md`;
 function clearDirty(e: DocEntry): DocEntry {
   const copy = { ...e };
   delete copy.dirtySha;
+  return copy;
+}
+
+/** A copy of `e` with no `deletedAt` (i.e. restored out of the Trash). */
+function clearDeleted(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.deletedAt;
   return copy;
 }
 
@@ -75,7 +85,8 @@ function isDocEntry(x: unknown): x is DocEntry {
     typeof e.name === 'string' &&
     typeof e.mtime === 'number' &&
     typeof e.contentSha === 'string' &&
-    (e.dirtySha === undefined || typeof e.dirtySha === 'string')
+    (e.dirtySha === undefined || typeof e.dirtySha === 'string') &&
+    (e.deletedAt === undefined || typeof e.deletedAt === 'number')
   );
 }
 
@@ -230,12 +241,23 @@ async function legacyCreateDoc(
 //  Public API (async; OPFS when available, else legacy localStorage)
 // =======================================================================
 
-/** Snapshot of the index sorted by mtime descending. */
+/** The full index for the active backend (includes trashed docs). */
+async function rawDocs(): Promise<DocEntry[]> {
+  return opfsAvailable() ? (await loadLibrary()).docs : legacyReadIndex();
+}
+
+/** Active (non-trashed) documents, sorted by mtime descending. */
 export async function listDocs(): Promise<DocEntry[]> {
-  const docs = opfsAvailable()
-    ? (await loadLibrary()).docs
-    : legacyReadIndex();
-  return docs.slice().sort((a, b) => b.mtime - a.mtime);
+  return (await rawDocs())
+    .filter((e) => e.deletedAt == null)
+    .sort((a, b) => b.mtime - a.mtime);
+}
+
+/** Trashed documents, most-recently-deleted first. */
+export async function listTrash(): Promise<DocEntry[]> {
+  return (await rawDocs())
+    .filter((e) => e.deletedAt != null)
+    .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 }
 
 /** Read the persisted current-doc uuid (or null). */
@@ -260,8 +282,9 @@ export async function setCurrentDocId(uuid: string): Promise<void> {
 export async function resolveDocFromUrl(): Promise<DocEntry | null> {
   const id = urlDocId();
   if (!id) return null;
-  const docs = opfsAvailable() ? (await loadLibrary()).docs : legacyReadIndex();
-  return docs.find((e) => e.uuid === id) ?? null;
+  return (
+    (await rawDocs()).find((e) => e.uuid === id && e.deletedAt == null) ?? null
+  );
 }
 
 /**
@@ -270,12 +293,11 @@ export async function resolveDocFromUrl(): Promise<DocEntry | null> {
  *   null only when the store is empty.
  */
 export async function resolveCurrentDoc(): Promise<DocEntry | null> {
-  const docs = opfsAvailable() ? (await loadLibrary()).docs : legacyReadIndex();
+  const docs = await listDocs(); // active only, mtime desc
   if (docs.length === 0) return null;
   const id = await getCurrentDocId();
   const direct = id ? docs.find((e) => e.uuid === id) : null;
-  if (direct) return direct;
-  return docs.slice().sort((a, b) => b.mtime - a.mtime)[0] ?? null;
+  return direct ?? docs[0] ?? null;
 }
 
 /**
@@ -479,6 +501,46 @@ export async function renameDoc(
 
 /** Remove a doc (and, on OPFS, its bundle). */
 export async function deleteDoc(uuid: string): Promise<void> {
+  const now = Date.now();
+  if (!opfsAvailable()) {
+    const index = legacyReadIndex();
+    const i = index.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return;
+    index[i] = { ...index[i], deletedAt: now };
+    legacyWriteIndex(index);
+    if (localStorage.getItem(KEY_CURRENT) === uuid) {
+      localStorage.removeItem(KEY_CURRENT);
+    }
+    return;
+  }
+  const lib = await loadLibrary();
+  const i = lib.docs.findIndex((e) => e.uuid === uuid);
+  if (i < 0) return;
+  lib.docs[i] = { ...lib.docs[i], deletedAt: now };
+  if (lib.currentDoc === uuid) lib.currentDoc = null;
+  await saveLibrary(lib);
+}
+
+/** Restore a doc out of the Trash. */
+export async function restoreDoc(uuid: string): Promise<DocEntry | null> {
+  if (!opfsAvailable()) {
+    const index = legacyReadIndex();
+    const i = index.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return null;
+    index[i] = clearDeleted(index[i]);
+    legacyWriteIndex(index);
+    return index[i];
+  }
+  const lib = await loadLibrary();
+  const i = lib.docs.findIndex((e) => e.uuid === uuid);
+  if (i < 0) return null;
+  lib.docs[i] = clearDeleted(lib.docs[i]);
+  await saveLibrary(lib);
+  return lib.docs[i];
+}
+
+/** Permanently delete a doc and its bundle (no undo). */
+export async function purgeDoc(uuid: string): Promise<void> {
   if (!opfsAvailable()) {
     legacyWriteIndex(legacyReadIndex().filter((e) => e.uuid !== uuid));
     if (localStorage.getItem(KEY_CURRENT) === uuid) {
@@ -491,6 +553,13 @@ export async function deleteDoc(uuid: string): Promise<void> {
   if (lib.currentDoc === uuid) lib.currentDoc = null;
   await saveLibrary(lib);
   await deleteEntry(uuid, true);
+}
+
+/** Permanently delete every trashed doc. */
+export async function emptyTrash(): Promise<void> {
+  for (const e of await listTrash()) {
+    await purgeDoc(e.uuid);
+  }
 }
 
 /** Duplicate a doc into a fresh bundle ("Copie de …"). */
