@@ -1,12 +1,23 @@
 /********************************* image-store.ts ******************************
  *
- * Purpose: Thin IndexedDB wrapper for image blobs keyed by SHA-256 hex.
- *   Two docs sharing an image automatically share a single store entry.
- * How: Single shared DB connection (`openDb`); CRUD helpers each wrap one
- *   IDB transaction in a Promise. UUID-keyed legacy entries coexist via
- *   `migrateToContentAddressed`.
+ * Purpose: Image blob store keyed by SHA-256 hex. Two docs sharing an image
+ *   automatically share a single entry (content-addressed dedup).
+ * How: The canonical store is OPFS (`library/.store/<sha>`, see opfs.ts). The
+ *   legacy IndexedDB store is kept as a read fallback and as the migration
+ *   source — `migrateImagesToOpfs()` copies it into OPFS at boot (and maps any
+ *   legacy UUID keys to their SHA). On browsers without OPFS we transparently
+ *   fall back to IndexedDB, so nothing breaks.
  *
  *******************************************************************************/
+
+import {
+  opfsAvailable,
+  storeDeleteBlob,
+  storeHasBlob,
+  storeListShas,
+  storeReadBlob,
+  storeWriteBlob,
+} from './opfs';
 
 const DB_NAME = 'markpage';
 const STORE_NAME = 'images';
@@ -35,6 +46,8 @@ export async function sha256Hex(blob: Blob): Promise<string> {
   return hex;
 }
 
+// ---- legacy IndexedDB store (read fallback + migration source) ---------
+
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 /**
@@ -49,32 +62,22 @@ function openDb(): Promise<IDBDatabase> {
       req.result.createObjectStore(STORE_NAME);
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () =>
-      reject(req.error ?? new Error('IndexedDB open failed'));
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB open failed'));
   });
   return dbPromise;
 }
 
-/**
- * Purpose: Store `blob` under `id` in the images store.
- * How: One readwrite transaction with a single `put`; resolves on `oncomplete`.
- */
-export async function putImage(id: string, blob: Blob): Promise<void> {
+async function idbPut(id: string, blob: Blob): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(blob, id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () =>
-      reject(tx.error ?? new Error('IndexedDB put failed'));
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB put failed'));
   });
 }
 
-/**
- * Purpose: Fetch the blob stored under `id`, or `undefined` if missing.
- * How: Readonly `get` request wrapped in a Promise.
- */
-export async function getImage(id: string): Promise<Blob | undefined> {
+async function idbGet(id: string): Promise<Blob | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const req = db
@@ -82,31 +85,21 @@ export async function getImage(id: string): Promise<Blob | undefined> {
       .objectStore(STORE_NAME)
       .get(id);
     req.onsuccess = () => resolve(req.result as Blob | undefined);
-    req.onerror = () =>
-      reject(req.error ?? new Error('IndexedDB get failed'));
+    req.onerror = () => reject(req.error ?? new Error('IndexedDB get failed'));
   });
 }
 
-/**
- * Purpose: Remove the entry stored under `id`.
- * How: Readwrite transaction with a single `delete`; resolves on `oncomplete`.
- */
-export async function deleteImage(id: string): Promise<void> {
+async function idbDelete(id: string): Promise<void> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () =>
-      reject(tx.error ?? new Error('IndexedDB delete failed'));
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB delete failed'));
   });
 }
 
-/**
- * Purpose: List every key currently in the images store.
- * How: Readonly `getAllKeys` request wrapped in a Promise.
- */
-export async function getAllIds(): Promise<string[]> {
+async function idbGetAllIds(): Promise<string[]> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const req = db
@@ -117,6 +110,52 @@ export async function getAllIds(): Promise<string[]> {
     req.onerror = () =>
       reject(req.error ?? new Error('IndexedDB getAllKeys failed'));
   });
+}
+
+// ---- public store API (OPFS canonical, IDB fallback) -------------------
+
+/**
+ * Purpose: Store `blob` under `id`. `id` is always a SHA in current code.
+ * How: OPFS when available, else legacy IndexedDB.
+ */
+export async function putImage(id: string, blob: Blob): Promise<void> {
+  if (opfsAvailable()) {
+    await storeWriteBlob(id, blob);
+  } else {
+    await idbPut(id, blob);
+  }
+}
+
+/**
+ * Purpose: Fetch the blob stored under `id`, or `undefined` if missing.
+ * How: OPFS first; on a miss (e.g. not migrated yet) fall back to IndexedDB.
+ */
+export async function getImage(id: string): Promise<Blob | undefined> {
+  if (opfsAvailable()) {
+    return (await storeReadBlob(id)) ?? (await idbGet(id));
+  }
+  return idbGet(id);
+}
+
+/**
+ * Purpose: Remove the entry stored under `id` from every backing store.
+ * How: Delete from OPFS and IndexedDB (idempotent on both).
+ */
+export async function deleteImage(id: string): Promise<void> {
+  if (opfsAvailable()) await storeDeleteBlob(id);
+  await idbDelete(id);
+}
+
+/**
+ * Purpose: List every blob id known to the store.
+ * How: Union of OPFS pool SHAs and legacy IndexedDB keys, so GC considers
+ *   both and reaps unreferenced entries wherever they live.
+ */
+export async function getAllIds(): Promise<string[]> {
+  const idb = await idbGetAllIds().catch(() => [] as string[]);
+  if (!opfsAvailable()) return idb;
+  const opfs = await storeListShas().catch(() => [] as string[]);
+  return [...new Set([...opfs, ...idb])];
 }
 
 /**
@@ -131,26 +170,25 @@ export async function putBlobBySha(blob: Blob): Promise<string> {
 }
 
 /**
- * Purpose: Migrate legacy UUID-keyed entries to SHA-keyed ones.
- * How: Walk every id; for non-SHA keys, hash the blob, rewrite under the
- *   SHA, delete the old key, and accumulate a `{ uuid → sha }` map.
+ * Purpose: Migrate the legacy IndexedDB blobs into the OPFS pool, and map any
+ *   legacy UUID-keyed entries to their SHA (for rewriting doc refs).
+ * How: Walk every IDB key; copy its blob into OPFS under its SHA (UUID keys
+ *   are hashed to their SHA, and recorded in the returned `{uuid → sha}` map).
+ *   IndexedDB is left intact — it stays as a read fallback / safety net until
+ *   the cleanup window (SPEC §10). Idempotent: skips blobs already in OPFS.
+ *   No-op (empty map) when OPFS is unavailable.
  */
-export async function migrateToContentAddressed(): Promise<Map<string, string>> {
-  const ids = await getAllIds();
+export async function migrateImagesToOpfs(): Promise<Map<string, string>> {
+  if (!opfsAvailable()) return new Map();
+  const ids = await idbGetAllIds().catch(() => [] as string[]);
   const mapping = new Map<string, string>();
   for (const id of ids) {
-    if (isSha(id)) continue;
-    const blob = await getImage(id);
-    if (!blob) {
-      // Stale key with no value — drop it.
-      await deleteImage(id);
-      continue;
-    }
-    const sha = await sha256Hex(blob);
-    mapping.set(id, sha);
-    const already = await getImage(sha);
-    if (!already) await putImage(sha, blob);
-    await deleteImage(id);
+    const blob = await idbGet(id);
+    if (!blob) continue;
+    const sha = isSha(id) ? id : await sha256Hex(blob);
+    if (!isSha(id)) mapping.set(id, sha);
+    if (!(await storeHasBlob(sha))) await storeWriteBlob(sha, blob);
+    // Keep the IDB entry as a fallback — do not delete here.
   }
   return mapping;
 }

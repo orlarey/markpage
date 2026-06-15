@@ -81,7 +81,8 @@ import {
   refifyImageUrls,
   rewriteImageRefs,
 } from './image';
-import { migrateToContentAddressed } from './image-store';
+import { migrateImagesToOpfs } from './image-store';
+import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
@@ -332,9 +333,12 @@ async function bootstrap(): Promise<void> {
   //     references follow.
   //  3. If step 2 produced any rewrites, patch each doc's content in
   //     place (saveDocContent re-hashes and updates the index).
+  // Ask the browser to make OPFS storage persistent (anti-eviction).
+  // Best-effort, fire-and-forget — never blocks boot.
+  void requestPersistentStorage();
   await migrateLegacyDocIfNeeded();
   try {
-    const mapping = await migrateToContentAddressed();
+    const mapping = await migrateImagesToOpfs();
     if (mapping.size > 0) {
       for (const e of await listDocs()) {
         const c = await loadDocContent(e);
