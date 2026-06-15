@@ -1353,9 +1353,14 @@ function renderInlineToken(tok: Tokens.Generic, ctx: Ctx): string {
  */
 function renderImageToken(tok: Tokens.Image, ctx: Ctx): string {
   const href = tok.href;
-  const m = /^img:\/\/([a-f0-9]+)$/.exec(href);
+  // Either the legacy `img://<sha>` scheme or the new `assets/<sha>.<ext>`
+  // bundle path — both resolve to the same SHA-keyed blob.
+  const m = /^(?:img:\/\/([a-f0-9-]+)|assets\/([a-f0-9]{64})\.[A-Za-z0-9]+)$/.exec(
+    href,
+  );
   if (m) {
-    const path = ctx.imageBySha.get(m[1]);
+    const sha = m[1] ?? m[2];
+    const path = sha ? ctx.imageBySha.get(sha) : undefined;
     if (path) return includegraphics(path);
     // Pre-load failed (blob missing). Italic placeholder so the .tex
     // still compiles.

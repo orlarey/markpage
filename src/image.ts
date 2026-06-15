@@ -29,7 +29,30 @@ const URL_SCHEME = 'img://';
 // only inside a regex literal. Keeping the patterns as plain strings avoids
 // the noisy `\\/`.
 const URL_RE_PATTERN = 'img://([a-f0-9-]+)';
+// Image refs come in two forms: the legacy custom scheme `img://<sha>` and the
+// new relative bundle path `assets/<sha>.<ext>` (Phase 1 file-management). Both
+// resolve to the same SHA-keyed blob; this matches either, capturing the SHA in
+// group 1 (img://) or group 2 (assets/). New inserts use the assets/ form;
+// img:// stays recognised for backward compatibility.
+const REF_RE_PATTERN =
+  'img://([a-f0-9-]+)|assets/([a-f0-9]{64})\\.[A-Za-z0-9]+';
 const DATA_URL_RE_PATTERN = 'data:image/[^;,]+;base64,[A-Za-z0-9+/=]+';
+
+/** File extension for an image MIME type (defaults to png). */
+function extForMime(mime: string): string {
+  switch (mime) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    case 'image/svg+xml':
+      return 'svg';
+    default:
+      return 'png';
+  }
+}
 
 // Cache of object URLs handed out to the preview, keyed by the same id we
 // use in IndexedDB. Lets us re-use URLs across renders without recreating
@@ -119,6 +142,7 @@ async function insertImageAtCursor(
   blob: Blob,
 ): Promise<void> {
   const id = await putBlobBySha(blob);
+  const ext = extForMime(blob.type);
 
   const { state } = view;
   const range = state.selection.main;
@@ -127,7 +151,7 @@ async function insertImageAtCursor(
   const after = state.doc.sliceString(range.to, line.to);
   const prefix = before.trim() === '' ? '' : '\n\n';
   const suffix = after.trim() === '' ? '' : '\n\n';
-  const insert = `${prefix}![](${URL_SCHEME}${id})${suffix}`;
+  const insert = `${prefix}![](assets/${id}.${ext})${suffix}`;
   // Caret lands inside the alt-text brackets so the user can type a label.
   const altPos = range.from + prefix.length + 2;
 
@@ -291,13 +315,15 @@ export function pickAndInsertImage(view: EditorView): void {
 // ---- ref resolution ---------------------------------------------------
 
 /**
- * Purpose: Collect every `img://<id>` token's id from a markdown source.
- * How: Global regex match using `URL_RE_PATTERN`; ids deduped via `Set`.
+ * Purpose: Collect every image-ref SHA from a markdown source.
+ * How: Global match using `REF_RE_PATTERN` (both `img://<sha>` and
+ *   `assets/<sha>.<ext>`); SHA is group 1 or 2; deduped via `Set`.
  */
 function collectRefIds(text: string): Set<string> {
   const ids = new Set<string>();
-  for (const m of text.matchAll(new RegExp(URL_RE_PATTERN, 'g'))) {
-    ids.add(m[1]);
+  for (const m of text.matchAll(new RegExp(REF_RE_PATTERN, 'g'))) {
+    const id = m[1] ?? m[2];
+    if (id) ids.add(id);
   }
   return ids;
 }
@@ -337,10 +363,13 @@ export async function expandRefsToBlobUrls(text: string): Promise<string> {
       if (blob) blobUrlCache.set(sha, URL.createObjectURL(blob));
     }),
   );
-  // Step A: img://<sha> substitution.
+  // Step A: img://<sha> and assets/<sha>.<ext> substitution.
   let out = text.replaceAll(
-    new RegExp(URL_RE_PATTERN, 'g'),
-    (full, id: string) => blobUrlCache.get(id) ?? full,
+    new RegExp(REF_RE_PATTERN, 'g'),
+    (full, g1: string | undefined, g2: string | undefined) => {
+      const id = g1 ?? g2;
+      return (id ? blobUrlCache.get(id) : undefined) ?? full;
+    },
   );
   // Step B: external path substitution via the mapping.
   if (externalPaths.length > 0) {
@@ -375,8 +404,11 @@ export async function expandRefsToDataUrls(text: string): Promise<string> {
     }),
   );
   return text.replaceAll(
-    new RegExp(URL_RE_PATTERN, 'g'),
-    (full, id: string) => map.get(id) ?? full,
+    new RegExp(REF_RE_PATTERN, 'g'),
+    (full, g1: string | undefined, g2: string | undefined) => {
+      const id = g1 ?? g2;
+      return (id ? map.get(id) : undefined) ?? full;
+    },
   );
 }
 
