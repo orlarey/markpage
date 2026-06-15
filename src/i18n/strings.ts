@@ -41,6 +41,7 @@ const FR = {
   'toolbar.export-title': 'Exporter le document (Markdown ou PDF)',
   'toolbar.settings': 'Réglages',
   'toolbar.settings-title': 'Ouvrir le panneau de réglages (Ctrl+, / Cmd+,)',
+  'toolbar.modified-title': 'Modifications non enregistrées',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ Nouveau document',
@@ -50,6 +51,12 @@ const FR = {
   'doc-menu.duplicate': 'Dupliquer',
   'doc-menu.delete': 'Supprimer',
   'doc-menu.delete-confirm': 'Supprimer « {name} » ?',
+  'doc-menu.save': 'Enregistrer',
+  'doc-menu.save-title': 'Enregistrer les modifications (Ctrl+S / Cmd+S)',
+  'doc-menu.save-as': 'Enregistrer sous…',
+  'doc-menu.revert': 'Annuler les modifications',
+  'doc-menu.revert-confirm':
+    'Annuler les modifications non enregistrées et revenir à la dernière version enregistrée ?',
 
   // ---- profile menu -------------------------------------------------
   'profile-menu.new': '+ Nouveau profil',
@@ -323,6 +330,7 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.export-title': 'Export the document (Markdown or PDF)',
   'toolbar.settings': 'Settings',
   'toolbar.settings-title': 'Open the settings panel (Ctrl+, / Cmd+,)',
+  'toolbar.modified-title': 'Unsaved changes',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ New document',
@@ -332,6 +340,12 @@ const EN: Record<keyof typeof FR, string> = {
   'doc-menu.duplicate': 'Duplicate',
   'doc-menu.delete': 'Delete',
   'doc-menu.delete-confirm': 'Delete “{name}”?',
+  'doc-menu.save': 'Save',
+  'doc-menu.save-title': 'Save changes (Ctrl+S / Cmd+S)',
+  'doc-menu.save-as': 'Save As…',
+  'doc-menu.revert': 'Discard changes',
+  'doc-menu.revert-confirm':
+    'Discard unsaved changes and return to the last saved version?',
 
   // ---- profile menu -------------------------------------------------
   'profile-menu.new': '+ New profile',

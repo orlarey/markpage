@@ -478,6 +478,22 @@ body,
   font-weight: 500;
 }
 
+/* "Modified" dot before the doc name — unsaved working copy (Phase 2). */
+#toolbar button.doc-trigger .doc-modified-dot {
+  color: var(--accent);
+  font-size: 0.7em;
+  line-height: 1;
+  margin-right: 0.35em;
+}
+
+/* Working-copy actions row in the doc menu (Save / Save As / Revert). */
+.doc-menu-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.1rem 0.2rem 0.3rem;
+}
+
 .doc-menu {
   position: fixed;
   z-index: 200;

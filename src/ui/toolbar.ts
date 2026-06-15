@@ -54,6 +54,9 @@ export interface ToolbarControl {
   // Update the [Guides] button's aria-pressed state after the
   // debug overlay is toggled (button click OR keyboard shortcut).
   setGuidesPressed(pressed: boolean): void;
+  // Show / hide the "modified" dot next to the doc name when the current
+  // document has unsaved working-copy edits (Phase 2).
+  setModified(modified: boolean): void;
 }
 
 /**
@@ -77,10 +80,16 @@ export function mountToolbar(
   const docLabel = document.createElement('span');
   docLabel.className = 'doc-trigger-label';
   docLabel.textContent = handlers.initialDocName;
+  // "Modified" dot — hidden until the doc has unsaved working-copy edits.
+  const docDot = document.createElement('span');
+  docDot.className = 'doc-modified-dot';
+  docDot.textContent = '●';
+  docDot.hidden = true;
+  docDot.title = t('toolbar.modified-title');
   const docCaret = document.createElement('span');
   docCaret.className = 'menu-caret';
   docCaret.textContent = '▾';
-  docBtn.append(docLabel, docCaret);
+  docBtn.append(docDot, docLabel, docCaret);
   docBtn.addEventListener('click', () => handlers.onDocMenu(docBtn));
 
   const importBtn = document.createElement('button');
@@ -219,6 +228,9 @@ export function mountToolbar(
     },
     setGuidesPressed(pressed: boolean) {
       guidesBtn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    },
+    setModified(modified: boolean) {
+      docDot.hidden = !modified;
     },
   };
 }

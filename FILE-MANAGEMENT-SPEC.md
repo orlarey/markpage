@@ -374,7 +374,10 @@ elle, est dans le périmètre — \ref{sec:disk}), partage collaboratif.
    relatives `assets/<sha>.<ext>` (sha-nommées ; noms lisibles différés ;
    `img://` reconnu en rétro-compat), API docs async + repli localStorage.
 2. **Copie de travail** — `committed`/`dirty`, Save / Save As / Revert,
-   indicateur « modifié ».
+   indicateur « modifié ». **✅ Fait (v0.22.0).** `DocEntry.dirtySha` +
+   `<uuid>/draft.md` ; autosave → draft (le validé reste intact) ; Save = commit
+   (`Cmd/Ctrl+S`), Revert, Save As (option a) ; pastille `●` sur le titre ;
+   Save/Save As/Revert provisoirement dans le doc-menu (→ menu File en Phase 3).
 3. **Surfaces** — menu `File` remanié, `Open…` (sélecteur), `Files…`
    (gestionnaire) + corbeille, `Manage assets…` en raccourci.
 4. **Interop disque** — Open from disk / Link to a folder / Save to disk

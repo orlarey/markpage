@@ -37,7 +37,11 @@ export interface DocEntry {
   uuid: string;
   name: string;
   mtime: number;
+  // The committed (saved) content fingerprint.
   contentSha: string;
+  // The auto-persisted working copy's fingerprint, present only while the doc
+  // has unsaved edits. `contentSha` is never touched until an explicit Save.
+  dirtySha?: string;
 }
 
 interface Library {
@@ -46,6 +50,19 @@ interface Library {
 }
 
 const bundlePath = (uuid: string): string => `${uuid}/content.md`;
+const draftPath = (uuid: string): string => `${uuid}/draft.md`;
+
+/** A copy of `e` with no `dirtySha` (i.e. a clean / committed entry). */
+function clearDirty(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.dirtySha;
+  return copy;
+}
+
+/** Whether a doc has unsaved working-copy edits. */
+export function isModified(entry: DocEntry): boolean {
+  return entry.dirtySha != null && entry.dirtySha !== entry.contentSha;
+}
 
 /**
  * Purpose: Runtime guard checking that an unknown value is a `DocEntry`.
@@ -57,7 +74,8 @@ function isDocEntry(x: unknown): x is DocEntry {
     typeof e.uuid === 'string' &&
     typeof e.name === 'string' &&
     typeof e.mtime === 'number' &&
-    typeof e.contentSha === 'string'
+    typeof e.contentSha === 'string' &&
+    (e.dirtySha === undefined || typeof e.dirtySha === 'string')
   );
 }
 
@@ -142,6 +160,10 @@ async function migrateFromLocalStorage(): Promise<Library> {
   for (const e of legacyReadIndex()) {
     const content = legacyReadBlob(e.contentSha) ?? '';
     await writeTextFile(bundlePath(e.uuid), content);
+    if (e.dirtySha) {
+      const draft = legacyReadBlob(e.dirtySha);
+      if (draft != null) await writeTextFile(draftPath(e.uuid), draft);
+    }
     docs.push({ ...e });
   }
   const currentDoc = localStorage.getItem(KEY_CURRENT);
@@ -256,10 +278,122 @@ export async function resolveCurrentDoc(): Promise<DocEntry | null> {
   return docs.slice().sort((a, b) => b.mtime - a.mtime)[0] ?? null;
 }
 
-/** Load the markdown body for a doc entry. */
+/**
+ * Load the working copy of a doc — the draft if one exists (so reopening
+ * resumes unsaved edits), else the committed content.
+ */
 export async function loadDocContent(entry: DocEntry): Promise<string | null> {
+  if (!opfsAvailable()) {
+    return legacyReadBlob(entry.dirtySha ?? entry.contentSha);
+  }
+  if (entry.dirtySha) {
+    return (
+      (await readTextFile(draftPath(entry.uuid))) ??
+      (await readTextFile(bundlePath(entry.uuid))) ??
+      null
+    );
+  }
+  return (await readTextFile(bundlePath(entry.uuid))) ?? null;
+}
+
+/** Load the committed (saved) content, ignoring any draft. */
+export async function loadCommittedContent(
+  entry: DocEntry,
+): Promise<string | null> {
   if (!opfsAvailable()) return legacyReadBlob(entry.contentSha);
   return (await readTextFile(bundlePath(entry.uuid))) ?? null;
+}
+
+/**
+ * Auto-persist the working copy (autosave). Writes the draft and stamps
+ * `dirtySha`; if the content matches the committed version, the draft is
+ * dropped instead (back to clean). Never touches the committed content.
+ */
+export async function saveDraft(
+  uuid: string,
+  content: string,
+): Promise<DocEntry> {
+  const sha = await hashContent(content);
+  if (!opfsAvailable()) {
+    const index = legacyReadIndex();
+    const i = index.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`saveDraft: unknown uuid ${uuid}`);
+    const updated =
+      sha === index[i].contentSha
+        ? clearDirty(index[i])
+        : ((): DocEntry => {
+            legacyWriteBlob(sha, content);
+            return { ...index[i], dirtySha: sha };
+          })();
+    index[i] = updated;
+    legacyWriteIndex(index);
+    return updated;
+  }
+  const lib = await loadLibrary();
+  const i = lib.docs.findIndex((e) => e.uuid === uuid);
+  if (i < 0) throw new Error(`saveDraft: unknown uuid ${uuid}`);
+  if (sha === lib.docs[i].contentSha) {
+    await deleteEntry(draftPath(uuid));
+    lib.docs[i] = clearDirty(lib.docs[i]);
+  } else {
+    await writeTextFile(draftPath(uuid), content);
+    lib.docs[i] = { ...lib.docs[i], dirtySha: sha };
+  }
+  await saveLibrary(lib);
+  return lib.docs[i];
+}
+
+/** Commit the working copy: the draft becomes the new committed content (Save). */
+export async function commitDoc(uuid: string): Promise<DocEntry> {
+  if (!opfsAvailable()) {
+    const index = legacyReadIndex();
+    const i = index.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`commitDoc: unknown uuid ${uuid}`);
+    if (!index[i].dirtySha) return index[i];
+    const updated = clearDirty({
+      ...index[i],
+      contentSha: index[i].dirtySha,
+      mtime: Date.now(),
+    });
+    index[i] = updated;
+    legacyWriteIndex(index);
+    return updated;
+  }
+  const lib = await loadLibrary();
+  const i = lib.docs.findIndex((e) => e.uuid === uuid);
+  if (i < 0) throw new Error(`commitDoc: unknown uuid ${uuid}`);
+  const entry = lib.docs[i];
+  if (!entry.dirtySha) return entry;
+  const draft = (await readTextFile(draftPath(uuid))) ?? '';
+  await writeTextFile(bundlePath(uuid), draft);
+  await deleteEntry(draftPath(uuid));
+  const updated = clearDirty({
+    ...entry,
+    contentSha: entry.dirtySha,
+    mtime: Date.now(),
+  });
+  lib.docs[i] = updated;
+  await saveLibrary(lib);
+  return updated;
+}
+
+/** Discard the working copy, returning to the committed content (Revert). */
+export async function revertDoc(uuid: string): Promise<DocEntry> {
+  if (!opfsAvailable()) {
+    const index = legacyReadIndex();
+    const i = index.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`revertDoc: unknown uuid ${uuid}`);
+    index[i] = clearDirty(index[i]);
+    legacyWriteIndex(index);
+    return index[i];
+  }
+  const lib = await loadLibrary();
+  const i = lib.docs.findIndex((e) => e.uuid === uuid);
+  if (i < 0) throw new Error(`revertDoc: unknown uuid ${uuid}`);
+  await deleteEntry(draftPath(uuid));
+  lib.docs[i] = clearDirty(lib.docs[i]);
+  await saveLibrary(lib);
+  return lib.docs[i];
 }
 
 /**

@@ -19,6 +19,12 @@ const MENU_ID = 'doc-menu';
 export interface DocMenuOptions {
   docs: DocEntry[];
   currentUuid: string;
+  // Whether the current doc has unsaved working-copy edits (Phase 2). Gates
+  // the Save / Revert entries.
+  currentModified: boolean;
+  onSave(): void;
+  onSaveAs(): void;
+  onRevert(): void;
   onSelect(uuid: string): void;
   onCreate(): void;
   onRenameCurrent(name: string): void;
@@ -107,6 +113,36 @@ export function openDocMenu(
     });
     row.append(reloadBtn);
     menu.append(row);
+
+    // Working-copy actions (Phase 2): Save / Save As / Revert. Save and
+    // Revert are only meaningful when there are unsaved edits. (These move
+    // into the File menu in Phase 3.)
+    const actions = document.createElement('div');
+    actions.className = 'doc-menu-save-actions';
+    if (opts.currentModified) {
+      const saveBtn = actionBtn(t('doc-menu.save'), () => {
+        opts.onSave();
+        close();
+      });
+      saveBtn.title = t('doc-menu.save-title');
+      actions.append(saveBtn);
+    }
+    const saveAsBtn = actionBtn(t('doc-menu.save-as'), () => {
+      opts.onSaveAs();
+      close();
+    });
+    actions.append(saveAsBtn);
+    if (opts.currentModified) {
+      const revertBtn = actionBtn(t('doc-menu.revert'), () => {
+        if (globalThis.confirm(t('doc-menu.revert-confirm'))) {
+          opts.onRevert();
+          close();
+        }
+      });
+      actions.append(revertBtn);
+    }
+    menu.append(actions);
+
     // Focus + select the input when the menu opens so the user can
     // start typing immediately to rename.
     setTimeout(() => {

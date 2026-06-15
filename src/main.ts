@@ -93,17 +93,22 @@ import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
 import {
+  commitDoc,
   createDoc,
   deleteDoc,
   duplicateDoc,
   gcContentBlobs,
+  isModified,
   listDocs,
+  loadCommittedContent,
   loadDocContent,
   migrateLegacyDocIfNeeded,
   renameDoc,
   resolveCurrentDoc,
   resolveDocFromUrl,
+  revertDoc,
   saveDocContent,
+  saveDraft,
   setCurrentDocId,
   type DocEntry,
 } from './docs';
@@ -430,17 +435,22 @@ async function bootstrap(): Promise<void> {
     dirty = false;
   };
 
-  const debouncedSave = debounce((source: string) => {
+  // Autosave writes the *working copy* (draft), never the committed content
+  // — the committed version stays the "version de départ" until an explicit
+  // Save (Phase 2 working-copy model, SPEC §6). The uuid is captured at edit
+  // time so a debounced save can't land on a doc switched-to meanwhile.
+  const debouncedSaveDraft = debounce((uuid: string, source: string) => {
     void (async () => {
       try {
-        await saveDocContent(currentDoc.uuid, source);
-        // No image-GC here: a cut-paste cycle would otherwise drop
-        // the blob between the cut (autosave with no ref) and the
-        // paste, and the same race fires on cut → Ctrl-Z. Session
-        // orphans accumulate in IDB until the next boot, where
-        // runGC() (called at the start of bootstrap) reaps them.
+        const updated = await saveDraft(uuid, source);
+        // No image-GC here: a cut-paste cycle would otherwise drop the blob
+        // between the cut and the paste; orphans are reaped by runGC at boot.
+        if (currentDoc.uuid === uuid) {
+          currentDoc = updated;
+          toolbarCtrl.setModified(isModified(updated));
+        }
       } catch (err) {
-        console.error('Autosave failed', err);
+        console.error('Autosave (draft) failed', err);
       }
     })();
   }, 200);
@@ -448,10 +458,10 @@ async function bootstrap(): Promise<void> {
   applyPreviewStyles(state.settings);
 
   const editor = createEditor(editorEl, initialDoc, (doc) => {
-    // Edits only mark the preview dirty; we re-paginate on the next
-    // toggle into preview mode. No work happens during typing.
+    // Edits mark the preview dirty (re-paginate on next toggle) and
+    // auto-persist the working copy.
     dirty = true;
-    debouncedSave(doc);
+    debouncedSaveDraft(currentDoc.uuid, doc);
   });
 
   attachStyleContextMenu(editor.view.dom, editor.view);
@@ -655,13 +665,14 @@ async function bootstrap(): Promise<void> {
     if (presenting && !document.fullscreenElement) exitPresentation();
   });
 
-  // Flushes the pending autosave: if the current editor content
-  // differs from the saved blob (because the debounce hasn't fired
-  // yet), persist it now. Called before any operation that swaps the
-  // current doc, so we never lose unsaved keystrokes.
+  // Flushes the pending autosave to the *working copy* (draft) if the
+  // debounce hasn't fired yet. Called before any operation that swaps the
+  // current doc, so unsaved keystrokes persist as the outgoing doc's draft
+  // (never committed).
   const flushSave = async (): Promise<void> => {
     try {
-      await saveDocContent(currentDoc.uuid, editor.getValue());
+      const updated = await saveDraft(currentDoc.uuid, editor.getValue());
+      if (currentDoc.uuid === updated.uuid) currentDoc = updated;
     } catch (err) {
       console.error('Flush save failed', err);
     }
@@ -683,6 +694,7 @@ async function bootstrap(): Promise<void> {
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(target.name);
+    toolbarCtrl.setModified(isModified(target));
   };
 
   const createNewDoc = async (): Promise<void> => {
@@ -693,6 +705,7 @@ async function bootstrap(): Promise<void> {
     editor.setValue('');
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setModified(false);
     toolbarCtrl.setDocName(entry.name);
   };
 
@@ -750,6 +763,7 @@ async function bootstrap(): Promise<void> {
         editor.setValue(cleaned);
         dirty = true;
         if (viewMode === 'preview') setViewMode('editor');
+        toolbarCtrl.setModified(false);
       } else {
         await switchToDoc(uuid);
       }
@@ -784,6 +798,41 @@ async function bootstrap(): Promise<void> {
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(currentDoc.name);
+    toolbarCtrl.setModified(isModified(currentDoc));
+  };
+
+  // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
+
+  // Save: commit the working copy (draft → committed version).
+  const saveCurrentDoc = async (): Promise<void> => {
+    await flushSave(); // ensure the latest keystrokes are in the draft first
+    currentDoc = await commitDoc(currentDoc.uuid);
+    toolbarCtrl.setModified(false);
+  };
+
+  // Revert: discard the working copy and reload the committed content.
+  const revertCurrentDoc = async (): Promise<void> => {
+    if (!isModified(currentDoc)) return;
+    currentDoc = await revertDoc(currentDoc.uuid);
+    editor.setValue((await loadCommittedContent(currentDoc)) ?? '');
+    dirty = true;
+    if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setModified(false);
+  };
+
+  // Save As (option a): branch the current working content into a new doc;
+  // the original reverts to its committed version; we switch to editing B.
+  const saveAsNewDoc = async (): Promise<void> => {
+    const content = editor.getValue();
+    const origUuid = currentDoc.uuid;
+    const created = await createDoc(currentDoc.name, content);
+    await revertDoc(origUuid); // original drops its pending draft → clean
+    currentDoc = created;
+    await setCurrentDocId(created.uuid);
+    // The editor already shows `content`; just retarget to the new doc.
+    if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setDocName(created.name);
+    toolbarCtrl.setModified(false);
   };
 
   const handleSettingsChange = (s: PdfSettings) => {
@@ -1269,6 +1318,16 @@ async function bootstrap(): Promise<void> {
         openDocMenu(anchor, {
           docs: await listDocs(),
           currentUuid: currentDoc.uuid,
+          currentModified: isModified(currentDoc),
+          onSave() {
+            void saveCurrentDoc();
+          },
+          onRevert() {
+            void revertCurrentDoc();
+          },
+          onSaveAs() {
+            void saveAsNewDoc();
+          },
           onSelect(uuid) {
             void switchToDoc(uuid);
           },
@@ -1344,8 +1403,10 @@ async function bootstrap(): Promise<void> {
     }
     switch (e.key.toLowerCase()) {
       case 's':
+        // Cmd/Ctrl+S commits the working copy (Save). Markdown export keeps
+        // its place in the Exporter menu; PDF export stays on Cmd/Ctrl+P.
         e.preventDefault();
-        triggerSave();
+        void saveCurrentDoc();
         break;
       case 'o':
         e.preventDefault();
@@ -1364,6 +1425,9 @@ async function bootstrap(): Promise<void> {
   globalThis.addEventListener('keydown', onAppKeydown);
 
   renderToolbar();
+  // Reflect any resumed working copy (a draft persisted from a previous
+  // session) in the "modified" indicator straight away.
+  toolbarCtrl.setModified(isModified(currentDoc));
 
   // When the UI language changes (typically from the Réglages
   // popup's "Langue de l'interface" select), rebuild the toolbar so
