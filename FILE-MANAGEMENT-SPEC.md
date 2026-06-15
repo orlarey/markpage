@@ -380,6 +380,12 @@ elle, est dans le périmètre — \ref{sec:disk}), partage collaboratif.
    Save/Save As/Revert provisoirement dans le doc-menu (→ menu File en Phase 3).
 3. **Surfaces** — menu `File` remanié, `Open…` (sélecteur), `Files…`
    (gestionnaire) + corbeille, `Manage assets…` en raccourci.
+   **✅ Fait (v0.23.0).** Toolbar consolidée : `File ▾` + titre de doc éditable
+   (remplace Mon doc / Importer / Exporter) ; `Open…` (`Cmd/Ctrl+O`) ; `Files…`
+   (`Cmd/Ctrl+Shift+O`) gérant documents + **corbeille** (soft-delete /
+   restaurer / supprimer définitivement / vider) ; le GC préserve les docs
+   trashés. **Différés** : dossiers/hiérarchie et la **vue assets d'un doc**
+   (`Manage assets…`).
 4. **Interop disque** — Open from disk / Link to a folder / Save to disk
    (Chromium), badge externe.
 5. **Échange** — Import/Export bundle, partage par bundle.
