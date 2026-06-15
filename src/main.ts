@@ -88,6 +88,7 @@ import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
 import { openDocMenu } from './ui/doc-menu';
+import { openFilesModal } from './ui/files-modal';
 import { openOpenModal } from './ui/open-modal';
 import { openExportMenu } from './ui/export-menu';
 import { redo, undo } from '@codemirror/commands';
@@ -98,6 +99,7 @@ import {
   createDoc,
   deleteDoc,
   duplicateDoc,
+  emptyTrash,
   gcContentBlobs,
   isModified,
   listDocs,
@@ -105,9 +107,11 @@ import {
   loadCommittedContent,
   loadDocContent,
   migrateLegacyDocIfNeeded,
+  purgeDoc,
   renameDoc,
   resolveCurrentDoc,
   resolveDocFromUrl,
+  restoreDoc,
   revertDoc,
   saveDocContent,
   saveDraft,
@@ -948,6 +952,33 @@ async function bootstrap(): Promise<void> {
     });
   };
 
+  // Files… manager (documents + Trash). Opened via Cmd/Ctrl+Shift+O until the
+  // File menu (Phase 3d) gives it a visible entry.
+  const triggerFilesModal = (): void => {
+    openFilesModal({
+      loadDocs: () => listDocs(),
+      loadTrash: () => listTrash(),
+      currentUuid: currentDoc.uuid,
+      onOpen: (uuid) => {
+        void switchToDoc(uuid);
+      },
+      onNew: () => {
+        void createNewDoc();
+      },
+      onImport: triggerImportDialog,
+      onRename: (uuid, name) => renameOtherDoc(uuid, name),
+      onDuplicate: async (uuid) => {
+        await duplicateDoc(uuid);
+      },
+      onDelete: (uuid) => deleteAndAdjust(uuid),
+      onRestore: async (uuid) => {
+        await restoreDoc(uuid);
+      },
+      onPurge: (uuid) => purgeDoc(uuid),
+      onEmptyTrash: () => emptyTrash(),
+    });
+  };
+
   // Import dialog: transient <input type=file>, hands the chosen
   // file to handleImport. Shared by the toolbar [Importer] button.
   const triggerImportDialog = (): void => {
@@ -1400,6 +1431,10 @@ async function bootstrap(): Promise<void> {
       if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         triggerGuides();
+      } else if (e.key.toLowerCase() === 'o') {
+        // Cmd/Ctrl+Shift+O: open the Files… manager (temp until Phase 3d).
+        e.preventDefault();
+        triggerFilesModal();
       } else if (e.key === 'Enter') {
         // Cmd/Ctrl+Shift+Enter: start the fullscreen presentation.
         e.preventDefault();
