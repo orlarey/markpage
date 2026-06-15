@@ -120,3 +120,56 @@ export async function requestPersistentStorage(): Promise<void> {
     /* best effort */
   }
 }
+
+// ---- generic path-based file helpers (relative to library/) ------------
+// Paths are "/"-separated and relative to the library root, e.g.
+// `index.json` or `<uuid>/content.md`. Used by the docs store (bundles).
+
+/** Walk `library/` down the given directory parts, optionally creating them. */
+async function dirFor(parts: string[], create: boolean): Promise<FileSystemDirectoryHandle> {
+  let dir = await libraryRoot();
+  for (const part of parts) {
+    dir = await dir.getDirectoryHandle(part, { create });
+  }
+  return dir;
+}
+
+/** Split `a/b/c.md` into ([`a`,`b`], `c.md`). */
+function splitPath(path: string): { parts: string[]; name: string } {
+  const segs = path.split('/').filter((s) => s !== '');
+  const name = segs.pop() ?? '';
+  return { parts: segs, name };
+}
+
+/** Read a text file under `library/`, or `undefined` if absent. */
+export async function readTextFile(path: string): Promise<string | undefined> {
+  const { parts, name } = splitPath(path);
+  try {
+    const dir = await dirFor(parts, false);
+    const fh = await dir.getFileHandle(name);
+    return await (await fh.getFile()).text();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Write a text file under `library/`, creating parent directories. */
+export async function writeTextFile(path: string, text: string): Promise<void> {
+  const { parts, name } = splitPath(path);
+  const dir = await dirFor(parts, true);
+  const fh = await dir.getFileHandle(name, { create: true });
+  const w = await fh.createWritable();
+  await w.write(text);
+  await w.close();
+}
+
+/** Delete a file or directory under `library/` (recursive for dirs). */
+export async function deleteEntry(path: string, recursive = false): Promise<void> {
+  const { parts, name } = splitPath(path);
+  try {
+    const dir = await dirFor(parts, false);
+    await dir.removeEntry(name, { recursive });
+  } catch {
+    /* already gone */
+  }
+}
