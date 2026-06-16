@@ -39,7 +39,7 @@ const REF_RE_PATTERN =
 const DATA_URL_RE_PATTERN = 'data:image/[^;,]+;base64,[A-Za-z0-9+/=]+';
 
 /** File extension for an image MIME type (defaults to png). */
-function extForMime(mime: string): string {
+export function extForMime(mime: string): string {
   switch (mime) {
     case 'image/jpeg':
       return 'jpg';
