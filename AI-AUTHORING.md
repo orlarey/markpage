@@ -389,16 +389,23 @@ second input is fed back from its own output through the identity
 wire `_` (the `~` operator inserts a one-sample delay on the
 feedback path). Result: `y[n] = 1 + y[n−1]`, a counter.
 
-Operators (highest precedence first — `~` binds tightest, `:>`
-loosest):
+Operators, **highest precedence first** — `~` binds tightest,
+`<:`/`:>` loosest. The **Prio** column is the binding level
+(higher number = binds tighter):
 
-| Op   | Name       | Meaning                                       |
-| :--- | :--------- | :-------------------------------------------- |
-| `~`  | recursion  | `A ~ B` — feedback loop, `B` mirrored         |
-| `,`  | parallel   | side-by-side, arities add                     |
-| `:`  | sequential | outputs of left feed inputs of right          |
-| `<:` | split      | one output fans out to many inputs (modulo)   |
-| `:>` | merge      | many outputs sum into fewer inputs (modulo)   |
+| Op   | Prio | Name       | Meaning                                     |
+| :--- | :--: | :--------- | :------------------------------------------ |
+| `~`  | 4    | recursion  | `A ~ B` — feedback loop, `B` mirrored       |
+| `,`  | 3    | parallel   | side-by-side, arities add                   |
+| `:`  | 2    | sequential | outputs of left feed inputs of right        |
+| `<:` | 1    | split      | one output fans out to many inputs (modulo) |
+| `:>` | 1    | merge      | many outputs sum into fewer inputs (modulo) |
+
+**Precedence trap (parallel vs sequential).** `,` binds *tighter*
+than `:`, so `A : B , C : D` parses as `A : (B , C) : D` — **not**
+two parallel chains. To place sequences side by side you **must**
+parenthesise each one: write `(A : B) , (C : D)`. This catches AI
+authors constantly; when in doubt, add the parentheses.
 
 Primitives: numbers (`0`, `1.5`), identity `_`, cut `!`,
 arithmetic (`+`, `-`, `*`, `/`), comparisons (`<`, `>`, `==`,
