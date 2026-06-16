@@ -45,9 +45,9 @@ const FR = {
   'toolbar.file': 'Fichier',
   'toolbar.file-title': 'Document, import, export…',
   'toolbar.doc-name-aria': 'Nom du document',
-  'toolbar.linked-title': 'Lié à un dossier sur le disque',
-  'toolbar.disk-changed-title':
-    'Modifié sur le disque — cliquer pour recharger',
+  'toolbar.linked-title': 'Lié et synchronisé avec le disque',
+  'toolbar.conflict-title':
+    'Conflit : modifié des deux côtés — cliquer pour résoudre',
   // ---- file menu ----------------------------------------------------
   'file-menu.new': 'Nouveau document',
   'file-menu.open': 'Ouvrir…',
@@ -71,6 +71,8 @@ const FR = {
     'Ce document a des modifications non enregistrées. Les remplacer par la version du disque ?',
   'disk.adopt-confirm':
     'Remplacer le contenu du document courant par celui de « {name} » ?',
+  'conflict.keep-mine': 'Garder ma version (écrase le disque)',
+  'conflict.take-disk': 'Prendre le disque (écrase mes modifs)',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ Nouveau document',
@@ -385,8 +387,8 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.file': 'File',
   'toolbar.file-title': 'Document, import, export…',
   'toolbar.doc-name-aria': 'Document name',
-  'toolbar.linked-title': 'Linked to a folder on disk',
-  'toolbar.disk-changed-title': 'Changed on disk — click to reload',
+  'toolbar.linked-title': 'Linked and synced with disk',
+  'toolbar.conflict-title': 'Conflict: edited on both sides — click to resolve',
   'file-menu.new': 'New document',
   'file-menu.open': 'Open…',
   'file-menu.files': 'Files…',
@@ -408,6 +410,8 @@ const EN: Record<keyof typeof FR, string> = {
     'This document has unsaved changes. Replace them with the version on disk?',
   'disk.adopt-confirm':
     'Replace the current document’s content with that of “{name}”?',
+  'conflict.keep-mine': 'Keep my version (overwrite disk)',
+  'conflict.take-disk': 'Take the disk version (discard my edits)',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ New document',

@@ -400,11 +400,17 @@ elle, est dans le périmètre — \ref{sec:disk}), partage collaboratif.
    unique** via `FileSystemFileHandle` — adopte le contenu si le fichier est
    non vide, le publie s'il est vide) ; `Open from disk…` **lie désormais
    automatiquement** le fichier ouvert (le picker fournit un handle durable,
-   contrairement à l'`<input>` d'import) ; **détection de divergence C-lite** :
-   on mémorise le `lastModified` comme base de sync et on poll (focus /
-   visibilité / intervalle, query-only sur la permission), le badge devient un
-   bouton ↻ clignotant qui **tire le disque en un clic** ; pull garde-fou si
-   modifs locales non enregistrées. **Différé (périmètre C)** : fusion auto
-   3-voies des divergences (« façon git »), noms d'assets lisibles, observation
-   temps réel (vrai file-watching, absent de l'API).
+   contrairement à l'`<input>` d'import).
+   **Sync bidirectionnel auto (v0.26.0)** : un fichier lié est tenu synchronisé
+   dans les deux sens. On mémorise le `lastModified` comme base de sync et on
+   poll (~2 s, focus / visibilité, query-only sur la permission). Table de
+   vérité — disque changé & markpage propre → **auto-pull en place** (reste en
+   vue éditeur / aperçu / présentation, position & numéro de slide restaurés
+   best-effort) ; markpage modifié & disque inchangé → **push sur Save** ;
+   **les deux** divergent → **conflit** : l'auto-sync s'arrête, badge **⛓️‍💥**
+   rouge clignotant, clic → menu *Garder ma version (push)* / *Prendre le
+   disque (pull)*. `Reload from disk…` reste un pull manuel ; permission RW
+   re-demandée au premier geste après un reload d'onglet. **Différé (périmètre
+   C+)** : fusion auto 3-voies / vue diff des conflits, noms d'assets lisibles,
+   vrai file-watching temps réel (absent de l'API).
 5. **Échange** — Import/Export bundle, partage par bundle.

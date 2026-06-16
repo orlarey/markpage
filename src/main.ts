@@ -87,6 +87,7 @@ import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
+import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
 import { openFilesModal } from './ui/files-modal';
 import { openOpenModal } from './ui/open-modal';
@@ -727,8 +728,8 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
     toolbarCtrl.setLinked(isLinked(target));
-    toolbarCtrl.setDiskChanged(false);
-    void checkDiskDivergence();
+    toolbarCtrl.setConflict(false);
+    void checkSync();
   };
 
   const createNewDoc = async (): Promise<void> => {
@@ -889,15 +890,50 @@ async function bootstrap(): Promise<void> {
       ? readFileHandle(handle as FileSystemFileHandle)
       : readBundleFromDir(handle as FileSystemDirectoryHandle);
 
-  // Record the current disk mtime as the synced baseline and clear any "disk
-  // changed" badge — called after every push/pull/link.
+  // Record the current disk mtime as the synced baseline and clear the conflict
+  // badge — called after every push/pull/link (i.e. whenever sides realign).
   const markSynced = async (
     entry: DocEntry,
     handle: LinkedHandle,
   ): Promise<void> => {
     const mtime = await diskMtimeOf(entry, handle);
     if (mtime != null) await saveSyncedMtime(entry.uuid, mtime);
-    if (entry.uuid === currentDoc.uuid) toolbarCtrl.setDiskChanged(false);
+    if (entry.uuid === currentDoc.uuid) toolbarCtrl.setConflict(false);
+  };
+
+  // Replace the current doc's content with `content` from disk, as a *clean
+  // commit* (draft → commit, so no leftover "modified" state), while staying in
+  // whatever view the user is in — editor, preview, or fullscreen presentation
+  // — and restoring their scroll position / slide index best-effort. This is
+  // the shared body of auto-pull, manual Reload, and conflict "take the disk".
+  const applyDiskContent = async (content: string): Promise<void> => {
+    await saveDraft(currentDoc.uuid, content);
+    currentDoc = await commitDoc(currentDoc.uuid);
+    editor.setValue(content);
+    toolbarCtrl.setModified(false);
+    dirty = true;
+    if (presenting) {
+      // paged.js can't measure the hidden (display:none) non-current pages, so
+      // drop `.presentation` for the re-paginate, then restore it + the slide.
+      previewEl.style.visibility = 'hidden';
+      previewEl.classList.remove('presentation');
+      try {
+        await updatePreview(content);
+      } finally {
+        previewEl.classList.add('presentation');
+        renderSlide(); // slideIndex preserved (clamped if pages shrank)
+        previewEl.style.visibility = '';
+      }
+    } else if (viewMode === 'preview') {
+      const anchor = currentPreviewAnchor(previewEl);
+      previewEl.style.visibility = 'hidden';
+      try {
+        await updatePreview(content);
+        if (anchor) applyAnchorToPreview(previewEl, anchor);
+      } finally {
+        previewEl.style.visibility = '';
+      }
+    }
   };
 
   // Push the linked doc's committed content to disk, then refresh the baseline
@@ -979,13 +1015,8 @@ async function bootstrap(): Promise<void> {
         ) {
           return;
         }
-        // Adopt = a clean commit of the file's content (draft → commit).
-        await saveDraft(currentDoc.uuid, diskText);
-        currentDoc = await commitDoc(currentDoc.uuid);
-        editor.setValue(diskText);
-        dirty = true;
-        if (viewMode === 'preview') setViewMode('editor');
-        toolbarCtrl.setModified(false);
+        // Adopt = a clean commit of the file's content, staying in view.
+        await applyDiskContent(diskText);
       }
       await saveHandle(currentDoc.uuid, fh);
       const updated = await setDocLink(currentDoc.uuid, fh.name, 'file');
@@ -998,12 +1029,17 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  // Pull: replace the doc's content from its linked file/folder on disk. Guards
-  // against clobbering unsaved local edits.
-  const reloadFromDisk = async (): Promise<void> => {
+  // Pull: replace the doc's content from its linked file/folder on disk, in
+  // place (keeps the current view). `force` skips the unsaved-edits guard — used
+  // by conflict "take the disk", where the user has already chosen.
+  const reloadFromDisk = async (force = false): Promise<void> => {
     const handle = await loadHandle(currentDoc.uuid);
     if (!handle) return;
-    if (isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) {
+    if (
+      !force &&
+      isModified(currentDoc) &&
+      !globalThis.confirm(t('disk.reload-confirm'))
+    ) {
       return;
     }
     if (!(await ensureRwPermission(handle))) {
@@ -1012,14 +1048,7 @@ async function bootstrap(): Promise<void> {
     }
     try {
       const content = await readFromDisk(currentDoc, handle);
-      // Pull = a clean commit of the disk content: stage it as the draft, then
-      // commit so the working copy equals disk (no leftover "modified" state).
-      await saveDraft(currentDoc.uuid, content);
-      currentDoc = await commitDoc(currentDoc.uuid);
-      editor.setValue(content);
-      dirty = true;
-      if (viewMode === 'preview') setViewMode('editor');
-      toolbarCtrl.setModified(false);
+      await applyDiskContent(content);
       await markSynced(currentDoc, handle);
     } catch (err) {
       console.error('Reload from disk failed', err);
@@ -1027,19 +1056,46 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  // Background divergence check (Phase 4, C-lite): if the linked file was
-  // touched on disk since our last sync, light up the clickable "disk changed"
-  // badge. Query-only on permission — never prompts (no user gesture here).
-  const checkDiskDivergence = async (): Promise<void> => {
-    if (!isLinked(currentDoc)) return;
+  // Two-way sync poll (Phase 4). When the linked file changed on disk since our
+  // last sync: if markpage has no unsaved edits, AUTO-PULL it in place; if it
+  // does (both sides diverged), flag a CONFLICT (the ⛓️‍💥 badge). Query-only on
+  // permission — never prompts (no user gesture here). `syncing` guards against
+  // overlapping auto-pulls. Push stays explicit (Save), so it isn't here.
+  let syncing = false;
+  const checkSync = async (): Promise<void> => {
+    if (syncing || !isLinked(currentDoc)) return;
     const handle = await loadHandle(currentDoc.uuid);
     if (!handle || !(await queryRwGranted(handle))) return;
     const [mtime, baseline] = await Promise.all([
       diskMtimeOf(currentDoc, handle),
       loadSyncedMtime(currentDoc.uuid),
     ]);
-    if (mtime == null || baseline == null) return;
-    toolbarCtrl.setDiskChanged(mtime > baseline);
+    if (mtime == null || baseline == null || mtime <= baseline) return;
+    if (isModified(currentDoc)) {
+      toolbarCtrl.setConflict(true);
+      return;
+    }
+    syncing = true;
+    try {
+      const content = await readFromDisk(currentDoc, handle);
+      // The user may have started typing during the async read — re-check.
+      if (isModified(currentDoc)) {
+        toolbarCtrl.setConflict(true);
+        return;
+      }
+      await applyDiskContent(content);
+      await markSynced(currentDoc, handle);
+    } catch (err) {
+      console.error('Auto-pull failed', err);
+    } finally {
+      syncing = false;
+    }
+  };
+
+  // Conflict resolution — "take the disk" = a forced pull (discard local edits).
+  // "Keep mine" is just Save (commit + push), wired at the call site.
+  const takeDiskVersion = (): void => {
+    void reloadFromDisk(true);
   };
 
   // Drop the disk link (the folder on disk is left untouched).
@@ -1631,8 +1687,13 @@ async function bootstrap(): Promise<void> {
         void enterPresentation();
       },
       onToggleGuides: triggerGuides,
-      onPullFromDisk: () => {
-        void reloadFromDisk();
+      onResolveConflict: (anchor) => {
+        openConflictMenu(anchor, {
+          onKeepMine: () => {
+            void saveCurrentDoc(); // commit + push my version, clears conflict
+          },
+          onTakeDisk: takeDiskVersion,
+        });
       },
     });
   };
@@ -1699,18 +1760,18 @@ async function bootstrap(): Promise<void> {
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
   toolbarCtrl.setLinked(isLinked(currentDoc));
-  void checkDiskDivergence();
+  void checkSync();
 
-  // Background divergence polling (Phase 4, C-lite). The File System Access API
-  // has no file-watching, so we poll the linked content.md's mtime when the tab
-  // is visible — on focus / visibility change (immediate when the user returns
-  // after editing the file externally) plus a light interval as a backstop.
-  const pollDivergence = (): void => {
-    if (document.visibilityState === 'visible') void checkDiskDivergence();
+  // Two-way sync polling (Phase 4). The File System Access API has no
+  // file-watching, so we poll the linked file's mtime when the tab is visible —
+  // on focus / visibility change (immediate when the user returns after editing
+  // the file externally) plus a ~2s interval for a near-live feel side-by-side.
+  const pollSync = (): void => {
+    if (document.visibilityState === 'visible') void checkSync();
   };
-  globalThis.addEventListener('focus', pollDivergence);
-  document.addEventListener('visibilitychange', pollDivergence);
-  globalThis.setInterval(pollDivergence, 5000);
+  globalThis.addEventListener('focus', pollSync);
+  document.addEventListener('visibilitychange', pollSync);
+  globalThis.setInterval(pollSync, 2000);
 
   // When the UI language changes (typically from the Réglages
   // popup's "Langue de l'interface" select), rebuild the toolbar so
@@ -1720,7 +1781,7 @@ async function bootstrap(): Promise<void> {
     renderToolbar();
     toolbarCtrl.setModified(isModified(currentDoc));
     toolbarCtrl.setLinked(isLinked(currentDoc));
-    void checkDiskDivergence();
+    void checkSync();
   });
 
   // If we just returned from the OneDrive OAuth flow with a pending
