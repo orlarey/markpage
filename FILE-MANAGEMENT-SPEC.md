@@ -395,7 +395,16 @@ elle, est dans le périmètre — \ref{sec:disk}), partage collaboratif.
    `Reload from disk…` (pull = commit propre du contenu disque), `Unlink`.
    Handle `FileSystemDirectoryHandle` persisté en IndexedDB (`markpage-fs`),
    permission RW re-demandée au premier Save/Reload après un reload d'onglet ;
-   badge « externe » `⟂` sur le titre et dans `Files…`. **Différé (périmètre
-   C)** : détection/fusion auto des divergences disque↔biblio (« façon git »),
-   lien vers un fichier unique, noms d'assets lisibles, observation temps réel.
+   badge « lié » 🔗 sur le titre et dans `Files…`.
+   **Étendu (v0.25.0)** : `Link to a file…` (lien vers un **fichier `.md`
+   unique** via `FileSystemFileHandle` — adopte le contenu si le fichier est
+   non vide, le publie s'il est vide) ; `Open from disk…` **lie désormais
+   automatiquement** le fichier ouvert (le picker fournit un handle durable,
+   contrairement à l'`<input>` d'import) ; **détection de divergence C-lite** :
+   on mémorise le `lastModified` comme base de sync et on poll (focus /
+   visibilité / intervalle, query-only sur la permission), le badge devient un
+   bouton ↻ clignotant qui **tire le disque en un clic** ; pull garde-fou si
+   modifs locales non enregistrées. **Différé (périmètre C)** : fusion auto
+   3-voies des divergences (« façon git »), noms d'assets lisibles, observation
+   temps réel (vrai file-watching, absent de l'API).
 5. **Échange** — Import/Export bundle, partage par bundle.

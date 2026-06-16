@@ -103,6 +103,7 @@ import {
   gcContentBlobs,
   isLinked,
   isModified,
+  linkKind,
   listDocs,
   listTrash,
   loadCommittedContent,
@@ -122,15 +123,23 @@ import {
 } from './docs';
 import {
   dirHasBundle,
+  diskContentMtime,
   ensureRwPermission,
+  fileHandleMtime,
   fsAccessAvailable,
+  type LinkedHandle,
   loadHandle,
+  loadSyncedMtime,
   pickDirectory,
-  pickMarkdownFile,
+  pickMarkdownFileHandle,
+  queryRwGranted,
   readBundleFromDir,
+  readFileHandle,
   removeHandle,
   saveHandle,
+  saveSyncedMtime,
   writeBundleToDir,
+  writeFileHandle,
 } from './disk-link';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 import {
@@ -718,6 +727,8 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
     toolbarCtrl.setLinked(isLinked(target));
+    toolbarCtrl.setDiskChanged(false);
+    void checkDiskDivergence();
   };
 
   const createNewDoc = async (): Promise<void> => {
@@ -858,7 +869,39 @@ async function bootstrap(): Promise<void> {
 
   // ---- disk link (Phase 4, File System Access — Chromium only) ----------
 
-  // Push the linked doc's committed bundle to its folder on disk.
+  // Dispatch disk I/O on the link kind: a single `.md` file handle vs a folder
+  // bundle (content.md + assets/). The cast is safe — the persisted handle type
+  // always matches the kind recorded at link time.
+  const diskMtimeOf = (entry: DocEntry, handle: LinkedHandle): Promise<number | null> =>
+    linkKind(entry) === 'file'
+      ? fileHandleMtime(handle as FileSystemFileHandle)
+      : diskContentMtime(handle as FileSystemDirectoryHandle);
+  const writeToDisk = (
+    entry: DocEntry,
+    handle: LinkedHandle,
+    content: string,
+  ): Promise<void> =>
+    linkKind(entry) === 'file'
+      ? writeFileHandle(handle as FileSystemFileHandle, content)
+      : writeBundleToDir(handle as FileSystemDirectoryHandle, content);
+  const readFromDisk = (entry: DocEntry, handle: LinkedHandle): Promise<string> =>
+    linkKind(entry) === 'file'
+      ? readFileHandle(handle as FileSystemFileHandle)
+      : readBundleFromDir(handle as FileSystemDirectoryHandle);
+
+  // Record the current disk mtime as the synced baseline and clear any "disk
+  // changed" badge — called after every push/pull/link.
+  const markSynced = async (
+    entry: DocEntry,
+    handle: LinkedHandle,
+  ): Promise<void> => {
+    const mtime = await diskMtimeOf(entry, handle);
+    if (mtime != null) await saveSyncedMtime(entry.uuid, mtime);
+    if (entry.uuid === currentDoc.uuid) toolbarCtrl.setDiskChanged(false);
+  };
+
+  // Push the linked doc's committed content to disk, then refresh the baseline
+  // (so our own write doesn't read back as an external divergence).
   const pushToDisk = async (): Promise<void> => {
     const handle = await loadHandle(currentDoc.uuid);
     if (!handle) return;
@@ -867,13 +910,25 @@ async function bootstrap(): Promise<void> {
       return;
     }
     const content = (await loadCommittedContent(currentDoc)) ?? '';
-    await writeBundleToDir(handle, content);
+    await writeToDisk(currentDoc, handle, content);
+    await markSynced(currentDoc, handle);
   };
 
-  // Open a .md from disk → import as a new library doc (one-shot; not linked).
+  // Open a .md from disk → import as a new library doc, then auto-link it to
+  // the file it came from (the picker hands us a durable handle, unlike the
+  // classic <input> import). If the user declines write access, the doc stays
+  // imported but unlinked.
   const openFromDisk = async (): Promise<void> => {
-    const file = await pickMarkdownFile();
-    if (file) handleImport(file);
+    const fh = await pickMarkdownFileHandle();
+    if (!fh) return;
+    const entry = await handleImport(await fh.getFile());
+    if (!entry) return;
+    if (!(await ensureRwPermission(fh))) return; // imported, just not linked
+    await saveHandle(entry.uuid, fh);
+    const updated = await setDocLink(entry.uuid, fh.name, 'file');
+    if (updated) currentDoc = updated;
+    toolbarCtrl.setLinked(true);
+    await markSynced(currentDoc, fh);
   };
 
   // Link the current doc to a folder: write its bundle there + remember it.
@@ -891,25 +946,72 @@ async function bootstrap(): Promise<void> {
         (await loadCommittedContent(currentDoc)) ?? editor.getValue();
       await writeBundleToDir(dir, content);
       await saveHandle(currentDoc.uuid, dir);
-      const updated = await setDocLink(currentDoc.uuid, dir.name);
+      const updated = await setDocLink(currentDoc.uuid, dir.name, 'folder');
       if (updated) currentDoc = updated;
       toolbarCtrl.setLinked(true);
+      await markSynced(currentDoc, dir);
     } catch (err) {
       console.error('Link to folder failed', err);
       globalThis.alert(t('disk.write-failed'));
     }
   };
 
-  // Pull: replace the doc's content from its linked folder on disk.
+  // Link the current doc to a single `.md` file on disk. An empty target is
+  // "published" (the current doc is written into it); a non-empty target is
+  // "adopted" (its content replaces the doc, guarding unsaved local edits).
+  const linkToFile = async (): Promise<void> => {
+    const fh = await pickMarkdownFileHandle();
+    if (!fh) return;
+    if (!(await ensureRwPermission(fh))) {
+      globalThis.alert(t('disk.permission-denied'));
+      return;
+    }
+    try {
+      const diskText = await readFileHandle(fh);
+      if (diskText.trim() === '') {
+        const content =
+          (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+        await writeFileHandle(fh, content);
+      } else {
+        if (
+          editor.getValue().trim() !== '' &&
+          !globalThis.confirm(t('disk.adopt-confirm', { name: fh.name }))
+        ) {
+          return;
+        }
+        // Adopt = a clean commit of the file's content (draft → commit).
+        await saveDraft(currentDoc.uuid, diskText);
+        currentDoc = await commitDoc(currentDoc.uuid);
+        editor.setValue(diskText);
+        dirty = true;
+        if (viewMode === 'preview') setViewMode('editor');
+        toolbarCtrl.setModified(false);
+      }
+      await saveHandle(currentDoc.uuid, fh);
+      const updated = await setDocLink(currentDoc.uuid, fh.name, 'file');
+      if (updated) currentDoc = updated;
+      toolbarCtrl.setLinked(true);
+      await markSynced(currentDoc, fh);
+    } catch (err) {
+      console.error('Link to file failed', err);
+      globalThis.alert(t('disk.write-failed'));
+    }
+  };
+
+  // Pull: replace the doc's content from its linked file/folder on disk. Guards
+  // against clobbering unsaved local edits.
   const reloadFromDisk = async (): Promise<void> => {
     const handle = await loadHandle(currentDoc.uuid);
     if (!handle) return;
+    if (isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) {
+      return;
+    }
     if (!(await ensureRwPermission(handle))) {
       globalThis.alert(t('disk.permission-denied'));
       return;
     }
     try {
-      const content = await readBundleFromDir(handle);
+      const content = await readFromDisk(currentDoc, handle);
       // Pull = a clean commit of the disk content: stage it as the draft, then
       // commit so the working copy equals disk (no leftover "modified" state).
       await saveDraft(currentDoc.uuid, content);
@@ -918,10 +1020,26 @@ async function bootstrap(): Promise<void> {
       dirty = true;
       if (viewMode === 'preview') setViewMode('editor');
       toolbarCtrl.setModified(false);
+      await markSynced(currentDoc, handle);
     } catch (err) {
       console.error('Reload from disk failed', err);
       globalThis.alert(t('disk.read-failed'));
     }
+  };
+
+  // Background divergence check (Phase 4, C-lite): if the linked file was
+  // touched on disk since our last sync, light up the clickable "disk changed"
+  // badge. Query-only on permission — never prompts (no user gesture here).
+  const checkDiskDivergence = async (): Promise<void> => {
+    if (!isLinked(currentDoc)) return;
+    const handle = await loadHandle(currentDoc.uuid);
+    if (!handle || !(await queryRwGranted(handle))) return;
+    const [mtime, baseline] = await Promise.all([
+      diskMtimeOf(currentDoc, handle),
+      loadSyncedMtime(currentDoc.uuid),
+    ]);
+    if (mtime == null || baseline == null) return;
+    toolbarCtrl.setDiskChanged(mtime > baseline);
   };
 
   // Drop the disk link (the folder on disk is left untouched).
@@ -984,51 +1102,54 @@ async function bootstrap(): Promise<void> {
   // never overwrites the current doc, so no confirmation is needed.
   // The new doc's name is derived from the source filename — if the
   // base name collides with an existing doc, createDoc uniques it.
-  const handleImport = (file: File): void => {
-    importFile(file)
-      .then(async ({ content, baseName }) => {
-        // Persist the outgoing doc before we switch focus — debounce
-        // may not have fired yet.
-        await flushSave();
-        // Hoist any inline data URLs into IndexedDB and replace them
-        // with short `img://<sha>` refs. Keeps the new doc readable.
-        const cleaned = await extractDataUrlsToStore(content);
-        // SPEC §6.5 — resolve external (relative-path) image references.
-        // For each path the doc points at, look up the global mapping;
-        // anything unknown is collected and we prompt the user to provide
-        // the binaries in one modal. Resolved files are persisted in the
-        // mapping (and the IDB images store, shared with img:// refs) so
-        // future imports of the same .md (or any other doc that shares a
-        // path) skip the prompt entirely.
-        const externalPaths = extractExternalRefs(cleaned);
-        const mapping = loadMapping();
-        const missing = externalPaths.filter((p) => !mapping[p]);
-        if (missing.length > 0) {
-          try {
-            await promptForMissingResources(missing);
-          } catch (cancelErr) {
-            if (cancelErr instanceof ImportCancelled) return;
-            throw cancelErr;
-          }
+  // Import a file as a new library doc; returns the created entry (or null on
+  // cancel/failure) so callers like Open-from-disk can link it afterwards.
+  const handleImport = async (file: File): Promise<DocEntry | null> => {
+    try {
+      const { content, baseName } = await importFile(file);
+      // Persist the outgoing doc before we switch focus — debounce
+      // may not have fired yet.
+      await flushSave();
+      // Hoist any inline data URLs into IndexedDB and replace them
+      // with short `img://<sha>` refs. Keeps the new doc readable.
+      const cleaned = await extractDataUrlsToStore(content);
+      // SPEC §6.5 — resolve external (relative-path) image references.
+      // For each path the doc points at, look up the global mapping;
+      // anything unknown is collected and we prompt the user to provide
+      // the binaries in one modal. Resolved files are persisted in the
+      // mapping (and the IDB images store, shared with img:// refs) so
+      // future imports of the same .md (or any other doc that shares a
+      // path) skip the prompt entirely.
+      const externalPaths = extractExternalRefs(cleaned);
+      const mapping = loadMapping();
+      const missing = externalPaths.filter((p) => !mapping[p]);
+      if (missing.length > 0) {
+        try {
+          await promptForMissingResources(missing);
+        } catch (cancelErr) {
+          if (cancelErr instanceof ImportCancelled) return null;
+          throw cancelErr;
         }
-        const desired = baseName.trim() === '' ? 'Document importé' : baseName;
-        const entry = await createDoc(desired, cleaned);
-        currentDoc = entry;
-        await setCurrentDocId(entry.uuid);
-        editor.setValue(cleaned);
-        // Stay in editor mode after import — the user typically wants
-        // to see the markdown they just opened. The preview is dirty
-        // and will repaginate on the next Cmd/Ctrl+Enter.
-        dirty = true;
-        if (viewMode === 'preview') setViewMode('editor');
-        toolbarCtrl.setDocName(entry.name);
-        toolbarCtrl.setLinked(false);
-      })
-      .catch((err: unknown) => {
-        console.error('Import failed', err);
-        const msg = err instanceof Error ? err.message : String(err);
-        globalThis.alert(t('import.failed', { msg }));
-      });
+      }
+      const desired = baseName.trim() === '' ? 'Document importé' : baseName;
+      const entry = await createDoc(desired, cleaned);
+      currentDoc = entry;
+      await setCurrentDocId(entry.uuid);
+      editor.setValue(cleaned);
+      // Stay in editor mode after import — the user typically wants
+      // to see the markdown they just opened. The preview is dirty
+      // and will repaginate on the next Cmd/Ctrl+Enter.
+      dirty = true;
+      if (viewMode === 'preview') setViewMode('editor');
+      toolbarCtrl.setDocName(entry.name);
+      toolbarCtrl.setLinked(false);
+      return entry;
+    } catch (err: unknown) {
+      console.error('Import failed', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      globalThis.alert(t('import.failed', { msg }));
+      return null;
+    }
   };
 
   // Open… picker (Cmd/Ctrl+O). A pure selector — pick a doc to edit.
@@ -1083,7 +1204,7 @@ async function bootstrap(): Promise<void> {
     input.addEventListener('change', () => {
       const file = input.files?.[0];
       input.remove();
-      if (file) handleImport(file);
+      if (file) void handleImport(file);
     });
     input.click();
   };
@@ -1460,6 +1581,9 @@ async function bootstrap(): Promise<void> {
           onOpenFromDisk: () => {
             void openFromDisk();
           },
+          onLinkFile: () => {
+            void linkToFile();
+          },
           onLinkFolder: () => {
             void linkToFolder();
           },
@@ -1507,6 +1631,9 @@ async function bootstrap(): Promise<void> {
         void enterPresentation();
       },
       onToggleGuides: triggerGuides,
+      onPullFromDisk: () => {
+        void reloadFromDisk();
+      },
     });
   };
 
@@ -1572,6 +1699,18 @@ async function bootstrap(): Promise<void> {
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
   toolbarCtrl.setLinked(isLinked(currentDoc));
+  void checkDiskDivergence();
+
+  // Background divergence polling (Phase 4, C-lite). The File System Access API
+  // has no file-watching, so we poll the linked content.md's mtime when the tab
+  // is visible — on focus / visibility change (immediate when the user returns
+  // after editing the file externally) plus a light interval as a backstop.
+  const pollDivergence = (): void => {
+    if (document.visibilityState === 'visible') void checkDiskDivergence();
+  };
+  globalThis.addEventListener('focus', pollDivergence);
+  document.addEventListener('visibilitychange', pollDivergence);
+  globalThis.setInterval(pollDivergence, 5000);
 
   // When the UI language changes (typically from the Réglages
   // popup's "Langue de l'interface" select), rebuild the toolbar so
@@ -1579,6 +1718,9 @@ async function bootstrap(): Promise<void> {
   // refreshes locally; long-lived UI elements subscribe here.
   onLanguageChange(() => {
     renderToolbar();
+    toolbarCtrl.setModified(isModified(currentDoc));
+    toolbarCtrl.setLinked(isLinked(currentDoc));
+    void checkDiskDivergence();
   });
 
   // If we just returned from the OneDrive OAuth flow with a pending

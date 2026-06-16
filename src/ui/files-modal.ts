@@ -141,7 +141,7 @@ export function openFilesModal(opts: FilesModalOptions): void {
     if (d.link) {
       const link = document.createElement('span');
       link.className = 'files-row-link';
-      link.textContent = '⟂';
+      link.textContent = '🔗';
       link.title = t('toolbar.linked-title');
       name.append(' ', link);
     }

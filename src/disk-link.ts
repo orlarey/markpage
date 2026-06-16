@@ -27,11 +27,15 @@ interface FsPickerWindow {
   showOpenFilePicker(opts?: {
     multiple?: boolean;
     types?: { description?: string; accept: Record<string, string[]> }[];
+    excludeAcceptAllOption?: boolean;
   }): Promise<FileSystemFileHandle[]>;
 }
 interface IterableDirHandle {
   values(): AsyncIterableIterator<FileSystemHandle>;
 }
+
+/** A persisted link target: a folder bundle or a single `.md` file. */
+export type LinkedHandle = FileSystemDirectoryHandle | FileSystemFileHandle;
 
 const CONTENT_FILE = 'content.md';
 const ASSETS_DIR = 'assets';
@@ -56,20 +60,28 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
   }
 }
 
-/** Prompt for a Markdown file; null if the user cancels. */
-export async function pickMarkdownFile(): Promise<File | null> {
+/** Prompt for a Markdown file handle; null if the user cancels. */
+export async function pickMarkdownFileHandle(): Promise<FileSystemFileHandle | null> {
   try {
     const [handle] = await (window as unknown as FsPickerWindow).showOpenFilePicker(
       {
+        // Group each extension under a MIME type the OS actually owns:
+        // listing `.txt` under `text/markdown` makes macOS resolve a UTType
+        // that greys out matching files in the native dialog. Keep the
+        // "All files" option so nothing is ever un-selectable.
         types: [
           {
-            description: 'Markdown',
-            accept: { 'text/markdown': ['.md', '.markdown', '.txt'] },
+            description: 'Markdown / text',
+            accept: {
+              'text/markdown': ['.md', '.markdown'],
+              'text/plain': ['.txt'],
+            },
           },
         ],
+        excludeAcceptAllOption: false,
       },
     );
-    return handle ? await handle.getFile() : null;
+    return handle ?? null;
   } catch {
     return null;
   }
@@ -77,12 +89,25 @@ export async function pickMarkdownFile(): Promise<File | null> {
 
 /** Ensure read-write permission on a persisted handle (needs a user gesture). */
 export async function ensureRwPermission(
-  handle: FileSystemDirectoryHandle,
+  handle: LinkedHandle,
 ): Promise<boolean> {
   const h = handle as unknown as FsPermissionHandle;
   const opts = { mode: 'readwrite' } as const;
   if ((await h.queryPermission(opts)) === 'granted') return true;
   return (await h.requestPermission(opts)) === 'granted';
+}
+
+/**
+ * Purpose: Whether RW access is already granted — a *query only*, never a
+ *   prompt. Used by the background divergence poller, which has no user
+ *   gesture and must stay silent when permission has lapsed (e.g. after a
+ *   tab reload, until the next Save/Reload re-grants it).
+ */
+export async function queryRwGranted(
+  handle: LinkedHandle,
+): Promise<boolean> {
+  const h = handle as unknown as FsPermissionHandle;
+  return (await h.queryPermission({ mode: 'readwrite' })) === 'granted';
 }
 
 // ---- pure bundle layout ------------------------------------------------
@@ -166,6 +191,49 @@ export async function readBundleFromDir(
   return content;
 }
 
+/**
+ * Purpose: The `content.md` file's last-modified timestamp (ms), or null if it
+ *   can't be read (missing / permission lapsed). Used as the sync baseline for
+ *   divergence detection — an external editor writing the file advances it.
+ */
+export async function diskContentMtime(
+  dir: FileSystemDirectoryHandle,
+): Promise<number | null> {
+  try {
+    return (await (await dir.getFileHandle(CONTENT_FILE)).getFile()).lastModified;
+  } catch {
+    return null;
+  }
+}
+
+// ---- single-file link I/O (no bundle / assets) -------------------------
+
+/** Overwrite a single `.md` file handle with `content`. */
+export async function writeFileHandle(
+  fh: FileSystemFileHandle,
+  content: string,
+): Promise<void> {
+  const w = await fh.createWritable();
+  await w.write(content);
+  await w.close();
+}
+
+/** Read a single `.md` file handle's text. */
+export async function readFileHandle(fh: FileSystemFileHandle): Promise<string> {
+  return (await fh.getFile()).text();
+}
+
+/** A single file handle's last-modified timestamp (ms), or null if unreadable. */
+export async function fileHandleMtime(
+  fh: FileSystemFileHandle,
+): Promise<number | null> {
+  try {
+    return (await fh.getFile()).lastModified;
+  } catch {
+    return null;
+  }
+}
+
 /** Whether `dir` already holds a bundle (a content.md). */
 export async function dirHasBundle(
   dir: FileSystemDirectoryHandle,
@@ -194,10 +262,10 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-/** Persist a directory handle for a doc (structured clone). */
+/** Persist a directory/file handle for a doc (structured clone). */
 export async function saveHandle(
   uuid: string,
-  handle: FileSystemDirectoryHandle,
+  handle: LinkedHandle,
 ): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
@@ -208,26 +276,54 @@ export async function saveHandle(
   });
 }
 
-/** Load a doc's persisted directory handle (or undefined). */
+/** Load a doc's persisted directory/file handle (or undefined). */
 export async function loadHandle(
   uuid: string,
-): Promise<FileSystemDirectoryHandle | undefined> {
+): Promise<LinkedHandle | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(uuid);
-    req.onsuccess = () =>
-      resolve(req.result as FileSystemDirectoryHandle | undefined);
+    req.onsuccess = () => resolve(req.result as LinkedHandle | undefined);
     req.onerror = () => reject(req.error ?? new Error('loadHandle failed'));
   });
 }
 
-/** Forget a doc's persisted handle. */
+/** Forget a doc's persisted handle (and its sync baseline). */
 export async function removeHandle(uuid: string): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
     tx.objectStore(STORE).delete(uuid);
+    tx.objectStore(STORE).delete(mtimeKey(uuid));
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error ?? new Error('removeHandle failed'));
+  });
+}
+
+// Sync baseline: the content.md mtime as of our last push/pull, kept next to
+// the handle in the same keyspace. Divergence = current disk mtime > baseline.
+const mtimeKey = (uuid: string): string => `mtime:${uuid}`;
+
+/** Record the content.md mtime we are now in sync with. */
+export async function saveSyncedMtime(uuid: string, mtime: number): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(mtime, mtimeKey(uuid));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error('saveSyncedMtime failed'));
+  });
+}
+
+/** The last-synced content.md mtime for a doc (or undefined). */
+export async function loadSyncedMtime(uuid: string): Promise<number | undefined> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const req = db
+      .transaction(STORE, 'readonly')
+      .objectStore(STORE)
+      .get(mtimeKey(uuid));
+    req.onsuccess = () => resolve(req.result as number | undefined);
+    req.onerror = () => reject(req.error ?? new Error('loadSyncedMtime failed'));
   });
 }

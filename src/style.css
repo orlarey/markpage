@@ -907,6 +907,18 @@ body,
   font-size: 0.85em;
   cursor: default;
 }
+/* Linked file diverged on disk: the badge becomes a clickable "pull" button. */
+.doc-link-badge.disk-changed {
+  color: var(--accent, #0969da);
+  cursor: pointer;
+  font-weight: 700;
+  animation: disk-changed-pulse 1.6s ease-in-out infinite;
+}
+@keyframes disk-changed-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
 
 /* ---- Missing-resources modal (import flow, SPEC §6.5) --------------- */
 

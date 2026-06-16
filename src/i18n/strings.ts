@@ -46,6 +46,8 @@ const FR = {
   'toolbar.file-title': 'Document, import, export…',
   'toolbar.doc-name-aria': 'Nom du document',
   'toolbar.linked-title': 'Lié à un dossier sur le disque',
+  'toolbar.disk-changed-title':
+    'Modifié sur le disque — cliquer pour recharger',
   // ---- file menu ----------------------------------------------------
   'file-menu.new': 'Nouveau document',
   'file-menu.open': 'Ouvrir…',
@@ -55,6 +57,7 @@ const FR = {
   'file-menu.revert': 'Annuler les modifications',
   'file-menu.import': 'Importer…',
   'file-menu.open-disk': 'Ouvrir depuis le disque…',
+  'file-menu.link-file': 'Lier à un fichier…',
   'file-menu.link-folder': 'Lier à un dossier…',
   'file-menu.reload-disk': 'Recharger depuis le disque…',
   'file-menu.unlink': 'Délier du disque',
@@ -64,6 +67,10 @@ const FR = {
   'disk.write-failed': 'Écriture sur le disque impossible.',
   'disk.read-failed': 'Lecture depuis le disque impossible.',
   'disk.permission-denied': 'Permission d’accès au dossier refusée.',
+  'disk.reload-confirm':
+    'Ce document a des modifications non enregistrées. Les remplacer par la version du disque ?',
+  'disk.adopt-confirm':
+    'Remplacer le contenu du document courant par celui de « {name} » ?',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ Nouveau document',
@@ -379,6 +386,7 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.file-title': 'Document, import, export…',
   'toolbar.doc-name-aria': 'Document name',
   'toolbar.linked-title': 'Linked to a folder on disk',
+  'toolbar.disk-changed-title': 'Changed on disk — click to reload',
   'file-menu.new': 'New document',
   'file-menu.open': 'Open…',
   'file-menu.files': 'Files…',
@@ -387,6 +395,7 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.revert': 'Revert changes',
   'file-menu.import': 'Import…',
   'file-menu.open-disk': 'Open from disk…',
+  'file-menu.link-file': 'Link to a file…',
   'file-menu.link-folder': 'Link to a folder…',
   'file-menu.reload-disk': 'Reload from disk…',
   'file-menu.unlink': 'Unlink from disk',
@@ -395,6 +404,10 @@ const EN: Record<keyof typeof FR, string> = {
   'disk.write-failed': 'Could not write to disk.',
   'disk.read-failed': 'Could not read from disk.',
   'disk.permission-denied': 'Folder access permission denied.',
+  'disk.reload-confirm':
+    'This document has unsaved changes. Replace them with the version on disk?',
+  'disk.adopt-confirm':
+    'Replace the current document’s content with that of “{name}”?',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ New document',

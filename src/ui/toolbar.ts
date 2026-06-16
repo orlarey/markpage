@@ -33,6 +33,8 @@ export interface ToolbarHandlers {
   // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
   onPresent(): void;
   onToggleGuides(): void;
+  // Click the "disk changed" badge → pull the linked folder (Phase 4, C-lite).
+  onPullFromDisk(): void;
 }
 
 /**
@@ -47,6 +49,8 @@ export interface ToolbarControl {
   setModified(modified: boolean): void;
   // Show / hide the "linked to disk" badge (Phase 4).
   setLinked(linked: boolean): void;
+  // Turn the link badge into a clickable "disk changed — pull" affordance.
+  setDiskChanged(changed: boolean): void;
 }
 
 /**
@@ -88,11 +92,16 @@ export function mountToolbar(
   dot.hidden = true;
   dot.title = t('toolbar.modified-title');
   // "Linked to disk" badge (Phase 4) — shown when the doc mirrors a folder.
+  // When the linked file diverges on disk it gains `.disk-changed` and becomes
+  // a one-click "pull" button (Phase 4, C-lite divergence detection).
   const linkBadge = document.createElement('span');
   linkBadge.className = 'doc-link-badge';
-  linkBadge.textContent = '⟂';
+  linkBadge.textContent = '🔗'; // linked & in sync; becomes ↻ when disk diverges
   linkBadge.hidden = true;
   linkBadge.title = t('toolbar.linked-title');
+  linkBadge.addEventListener('click', () => {
+    if (linkBadge.classList.contains('disk-changed')) handlers.onPullFromDisk();
+  });
   titleWrap.append(dot, titleInput, linkBadge);
 
   const commitTitle = (): void => {
@@ -224,6 +233,18 @@ export function mountToolbar(
     },
     setLinked(linked: boolean) {
       linkBadge.hidden = !linked;
+      if (!linked) {
+        linkBadge.classList.remove('disk-changed');
+        linkBadge.textContent = '🔗';
+        linkBadge.title = t('toolbar.linked-title');
+      }
+    },
+    setDiskChanged(changed: boolean) {
+      linkBadge.classList.toggle('disk-changed', changed);
+      linkBadge.textContent = changed ? '↻' : '🔗';
+      linkBadge.title = changed
+        ? t('toolbar.disk-changed-title')
+        : t('toolbar.linked-title');
     },
   };
 }

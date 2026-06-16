@@ -19,6 +19,7 @@ export interface FileMenuOptions {
   diskAvailable: boolean;
   linked: boolean;
   onOpenFromDisk(): void;
+  onLinkFile(): void;
   onLinkFolder(): void;
   onReloadDisk(): void;
   onUnlink(): void;
@@ -97,6 +98,7 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     menu.append(
       sep(),
       item(t('file-menu.open-disk'), '', opts.onOpenFromDisk),
+      item(t('file-menu.link-file'), '', opts.onLinkFile),
       item(t('file-menu.link-folder'), '', opts.onLinkFolder),
     );
     if (opts.linked) {

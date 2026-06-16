@@ -45,10 +45,11 @@ export interface DocEntry {
   // Soft-delete timestamp (Phase 3 trash). Present ⇒ the doc is in the
   // Trash: hidden from listDocs, restorable, kept on disk until purged.
   deletedAt?: number;
-  // Disk link (Phase 4). Present ⇒ the doc mirrors a real folder on disk;
-  // `name` is the folder's display name (the handle lives in IndexedDB,
-  // see disk-link.ts). Drives the "external" badge.
-  link?: { name: string };
+  // Disk link (Phase 4). Present ⇒ the doc mirrors a real file/folder on disk;
+  // `name` is its display name and `kind` tells a single `.md` file apart from
+  // a folder bundle (absent ⇒ 'folder', for back-compat). The handle lives in
+  // IndexedDB (see disk-link.ts). Drives the "external" badge.
+  link?: { name: string; kind?: 'file' | 'folder' };
 }
 
 interface Library {
@@ -111,12 +112,18 @@ async function patchEntry(
   return lib.docs[i];
 }
 
-/** Mark a doc as linked to a disk folder (display name). */
+/** The kind of a doc's disk link ('folder' when unset, for back-compat). */
+export function linkKind(entry: DocEntry): 'file' | 'folder' {
+  return entry.link?.kind ?? 'folder';
+}
+
+/** Mark a doc as linked to a disk file/folder (display name + kind). */
 export async function setDocLink(
   uuid: string,
   name: string,
+  kind: 'file' | 'folder',
 ): Promise<DocEntry | null> {
-  return patchEntry(uuid, (e) => ({ ...e, link: { name } }));
+  return patchEntry(uuid, (e) => ({ ...e, link: { name, kind } }));
 }
 
 /** Drop a doc's disk link. */
@@ -140,7 +147,10 @@ function isDocEntry(x: unknown): x is DocEntry {
     (e.link === undefined ||
       (typeof e.link === 'object' &&
         e.link !== null &&
-        typeof (e.link as { name?: unknown }).name === 'string'))
+        typeof (e.link as { name?: unknown }).name === 'string' &&
+        ((e.link as { kind?: unknown }).kind === undefined ||
+          (e.link as { kind?: unknown }).kind === 'file' ||
+          (e.link as { kind?: unknown }).kind === 'folder')))
   );
 }
 
