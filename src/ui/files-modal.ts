@@ -138,6 +138,13 @@ export function openFilesModal(opts: FilesModalOptions): void {
       dot.title = t('toolbar.modified-title');
       name.append(' ', dot);
     }
+    if (d.link) {
+      const link = document.createElement('span');
+      link.className = 'files-row-link';
+      link.textContent = '⟂';
+      link.title = t('toolbar.linked-title');
+      name.append(' ', link);
+    }
     const date = document.createElement('span');
     date.className = 'files-row-date';
     date.textContent = relativeTime(d.mtime);

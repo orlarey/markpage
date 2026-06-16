@@ -45,6 +45,8 @@ export interface ToolbarControl {
   setGuidesPressed(pressed: boolean): void;
   // Show / hide the "modified" dot when the current doc has unsaved edits.
   setModified(modified: boolean): void;
+  // Show / hide the "linked to disk" badge (Phase 4).
+  setLinked(linked: boolean): void;
 }
 
 /**
@@ -85,7 +87,13 @@ export function mountToolbar(
   dot.textContent = '●';
   dot.hidden = true;
   dot.title = t('toolbar.modified-title');
-  titleWrap.append(dot, titleInput);
+  // "Linked to disk" badge (Phase 4) — shown when the doc mirrors a folder.
+  const linkBadge = document.createElement('span');
+  linkBadge.className = 'doc-link-badge';
+  linkBadge.textContent = '⟂';
+  linkBadge.hidden = true;
+  linkBadge.title = t('toolbar.linked-title');
+  titleWrap.append(dot, titleInput, linkBadge);
 
   const commitTitle = (): void => {
     const next = titleInput.value.trim();
@@ -213,6 +221,9 @@ export function mountToolbar(
     },
     setModified(modified: boolean) {
       dot.hidden = !modified;
+    },
+    setLinked(linked: boolean) {
+      linkBadge.hidden = !linked;
     },
   };
 }

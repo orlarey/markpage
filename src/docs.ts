@@ -45,6 +45,10 @@ export interface DocEntry {
   // Soft-delete timestamp (Phase 3 trash). Present ⇒ the doc is in the
   // Trash: hidden from listDocs, restorable, kept on disk until purged.
   deletedAt?: number;
+  // Disk link (Phase 4). Present ⇒ the doc mirrors a real folder on disk;
+  // `name` is the folder's display name (the handle lives in IndexedDB,
+  // see disk-link.ts). Drives the "external" badge.
+  link?: { name: string };
 }
 
 interface Library {
@@ -74,6 +78,52 @@ export function isModified(entry: DocEntry): boolean {
   return entry.dirtySha != null && entry.dirtySha !== entry.contentSha;
 }
 
+/** Whether a doc is linked to a folder on disk (Phase 4). */
+export function isLinked(entry: DocEntry): boolean {
+  return entry.link != null;
+}
+
+/** A copy of `e` with no disk `link`. */
+function clearLink(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.link;
+  return copy;
+}
+
+/** Patch a doc entry in place in the active backend; returns the updated entry. */
+async function patchEntry(
+  uuid: string,
+  patch: (e: DocEntry) => DocEntry,
+): Promise<DocEntry | null> {
+  if (!opfsAvailable()) {
+    const index = legacyReadIndex();
+    const i = index.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return null;
+    index[i] = patch(index[i]);
+    legacyWriteIndex(index);
+    return index[i];
+  }
+  const lib = await loadLibrary();
+  const i = lib.docs.findIndex((e) => e.uuid === uuid);
+  if (i < 0) return null;
+  lib.docs[i] = patch(lib.docs[i]);
+  await saveLibrary(lib);
+  return lib.docs[i];
+}
+
+/** Mark a doc as linked to a disk folder (display name). */
+export async function setDocLink(
+  uuid: string,
+  name: string,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => ({ ...e, link: { name } }));
+}
+
+/** Drop a doc's disk link. */
+export async function clearDocLink(uuid: string): Promise<DocEntry | null> {
+  return patchEntry(uuid, clearLink);
+}
+
 /**
  * Purpose: Runtime guard checking that an unknown value is a `DocEntry`.
  */
@@ -86,7 +136,11 @@ function isDocEntry(x: unknown): x is DocEntry {
     typeof e.mtime === 'number' &&
     typeof e.contentSha === 'string' &&
     (e.dirtySha === undefined || typeof e.dirtySha === 'string') &&
-    (e.deletedAt === undefined || typeof e.deletedAt === 'number')
+    (e.deletedAt === undefined || typeof e.deletedAt === 'number') &&
+    (e.link === undefined ||
+      (typeof e.link === 'object' &&
+        e.link !== null &&
+        typeof (e.link as { name?: unknown }).name === 'string'))
   );
 }
 

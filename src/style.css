@@ -901,6 +901,12 @@ body,
   color: var(--accent, #0969da);
   font-size: 0.7em;
 }
+.doc-link-badge,
+.files-row-link {
+  color: var(--muted, #6b7280);
+  font-size: 0.85em;
+  cursor: default;
+}
 
 /* ---- Missing-resources modal (import flow, SPEC §6.5) --------------- */
 

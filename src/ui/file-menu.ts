@@ -14,6 +14,14 @@ const MENU_ID = 'file-menu';
 
 export interface FileMenuOptions {
   modified: boolean;
+  // Disk interop (Phase 4) — only shown when the File System Access API is
+  // available (Chromium). Reload/Unlink only when the doc is linked.
+  diskAvailable: boolean;
+  linked: boolean;
+  onOpenFromDisk(): void;
+  onLinkFolder(): void;
+  onReloadDisk(): void;
+  onUnlink(): void;
   onNew(): void;
   onOpen(): void;
   onFiles(): void;
@@ -84,8 +92,21 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('file-menu.new'), '', opts.onNew),
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
     item(t('file-menu.files'), 'Cmd/Ctrl + ⇧ + O', opts.onFiles),
-    sep(),
   );
+  if (opts.diskAvailable) {
+    menu.append(
+      sep(),
+      item(t('file-menu.open-disk'), '', opts.onOpenFromDisk),
+      item(t('file-menu.link-folder'), '', opts.onLinkFolder),
+    );
+    if (opts.linked) {
+      menu.append(
+        item(t('file-menu.reload-disk'), '', opts.onReloadDisk),
+        item(t('file-menu.unlink'), '', opts.onUnlink),
+      );
+    }
+  }
+  menu.append(sep());
   if (opts.modified) {
     menu.append(item(t('file-menu.save'), 'Cmd/Ctrl + S', opts.onSave));
   }

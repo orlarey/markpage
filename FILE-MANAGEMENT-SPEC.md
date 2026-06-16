@@ -387,5 +387,15 @@ elle, est dans le périmètre — \ref{sec:disk}), partage collaboratif.
    trashés. **Différés** : dossiers/hiérarchie et la **vue assets d'un doc**
    (`Manage assets…`).
 4. **Interop disque** — Open from disk / Link to a folder / Save to disk
-   (Chromium), badge externe.
+   (Chromium), badge externe. **✅ Fait (v0.24.0).** File System Access
+   (`fsAccessAvailable` → items masqués hors Chromium) : `Open from disk…`
+   (import one-shot d'un `.md`), `Link to a folder…` (écrit le bundle
+   `content.md` + `assets/<sha>.<ext>` dans un dossier ; confirmation
+   d'écrasement si non vide), **Save → push** vers le dossier lié,
+   `Reload from disk…` (pull = commit propre du contenu disque), `Unlink`.
+   Handle `FileSystemDirectoryHandle` persisté en IndexedDB (`markpage-fs`),
+   permission RW re-demandée au premier Save/Reload après un reload d'onglet ;
+   badge « externe » `⟂` sur le titre et dans `Files…`. **Différé (périmètre
+   C)** : détection/fusion auto des divergences disque↔biblio (« façon git »),
+   lien vers un fichier unique, noms d'assets lisibles, observation temps réel.
 5. **Échange** — Import/Export bundle, partage par bundle.

@@ -94,12 +94,14 @@ import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
 import {
+  clearDocLink,
   commitDoc,
   createDoc,
   deleteDoc,
   duplicateDoc,
   emptyTrash,
   gcContentBlobs,
+  isLinked,
   isModified,
   listDocs,
   listTrash,
@@ -115,8 +117,21 @@ import {
   saveDocContent,
   saveDraft,
   setCurrentDocId,
+  setDocLink,
   type DocEntry,
 } from './docs';
+import {
+  dirHasBundle,
+  ensureRwPermission,
+  fsAccessAvailable,
+  loadHandle,
+  pickDirectory,
+  pickMarkdownFile,
+  readBundleFromDir,
+  removeHandle,
+  saveHandle,
+  writeBundleToDir,
+} from './disk-link';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 import {
   createProfile,
@@ -702,6 +717,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
+    toolbarCtrl.setLinked(isLinked(target));
   };
 
   const createNewDoc = async (): Promise<void> => {
@@ -713,6 +729,7 @@ async function bootstrap(): Promise<void> {
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setModified(false);
+    toolbarCtrl.setLinked(false);
     toolbarCtrl.setDocName(entry.name);
   };
 
@@ -799,15 +816,18 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
+    toolbarCtrl.setLinked(isLinked(currentDoc));
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
 
-  // Save: commit the working copy (draft → committed version).
+  // Save: commit the working copy (draft → committed version). If the doc is
+  // linked to a disk folder, also push the committed bundle there.
   const saveCurrentDoc = async (): Promise<void> => {
     await flushSave(); // ensure the latest keystrokes are in the draft first
     currentDoc = await commitDoc(currentDoc.uuid);
     toolbarCtrl.setModified(false);
+    if (isLinked(currentDoc)) await pushToDisk();
   };
 
   // Revert: discard the working copy and reload the committed content.
@@ -833,6 +853,83 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(created.name);
     toolbarCtrl.setModified(false);
+    toolbarCtrl.setLinked(false);
+  };
+
+  // ---- disk link (Phase 4, File System Access — Chromium only) ----------
+
+  // Push the linked doc's committed bundle to its folder on disk.
+  const pushToDisk = async (): Promise<void> => {
+    const handle = await loadHandle(currentDoc.uuid);
+    if (!handle) return;
+    if (!(await ensureRwPermission(handle))) {
+      globalThis.alert(t('disk.permission-denied'));
+      return;
+    }
+    const content = (await loadCommittedContent(currentDoc)) ?? '';
+    await writeBundleToDir(handle, content);
+  };
+
+  // Open a .md from disk → import as a new library doc (one-shot; not linked).
+  const openFromDisk = async (): Promise<void> => {
+    const file = await pickMarkdownFile();
+    if (file) handleImport(file);
+  };
+
+  // Link the current doc to a folder: write its bundle there + remember it.
+  const linkToFolder = async (): Promise<void> => {
+    const dir = await pickDirectory();
+    if (!dir) return;
+    if (
+      (await dirHasBundle(dir)) &&
+      !globalThis.confirm(t('disk.overwrite-confirm', { name: dir.name }))
+    ) {
+      return;
+    }
+    try {
+      const content =
+        (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+      await writeBundleToDir(dir, content);
+      await saveHandle(currentDoc.uuid, dir);
+      const updated = await setDocLink(currentDoc.uuid, dir.name);
+      if (updated) currentDoc = updated;
+      toolbarCtrl.setLinked(true);
+    } catch (err) {
+      console.error('Link to folder failed', err);
+      globalThis.alert(t('disk.write-failed'));
+    }
+  };
+
+  // Pull: replace the doc's content from its linked folder on disk.
+  const reloadFromDisk = async (): Promise<void> => {
+    const handle = await loadHandle(currentDoc.uuid);
+    if (!handle) return;
+    if (!(await ensureRwPermission(handle))) {
+      globalThis.alert(t('disk.permission-denied'));
+      return;
+    }
+    try {
+      const content = await readBundleFromDir(handle);
+      // Pull = a clean commit of the disk content: stage it as the draft, then
+      // commit so the working copy equals disk (no leftover "modified" state).
+      await saveDraft(currentDoc.uuid, content);
+      currentDoc = await commitDoc(currentDoc.uuid);
+      editor.setValue(content);
+      dirty = true;
+      if (viewMode === 'preview') setViewMode('editor');
+      toolbarCtrl.setModified(false);
+    } catch (err) {
+      console.error('Reload from disk failed', err);
+      globalThis.alert(t('disk.read-failed'));
+    }
+  };
+
+  // Drop the disk link (the folder on disk is left untouched).
+  const unlinkDoc = async (): Promise<void> => {
+    await removeHandle(currentDoc.uuid);
+    const updated = await clearDocLink(currentDoc.uuid);
+    if (updated) currentDoc = updated;
+    toolbarCtrl.setLinked(false);
   };
 
   const handleSettingsChange = (s: PdfSettings) => {
@@ -925,6 +1022,7 @@ async function bootstrap(): Promise<void> {
         dirty = true;
         if (viewMode === 'preview') setViewMode('editor');
         toolbarCtrl.setDocName(entry.name);
+        toolbarCtrl.setLinked(false);
       })
       .catch((err: unknown) => {
         console.error('Import failed', err);
@@ -1357,6 +1455,20 @@ async function bootstrap(): Promise<void> {
       onFileMenu(anchor) {
         openFileMenu(anchor, {
           modified: isModified(currentDoc),
+          diskAvailable: fsAccessAvailable(),
+          linked: isLinked(currentDoc),
+          onOpenFromDisk: () => {
+            void openFromDisk();
+          },
+          onLinkFolder: () => {
+            void linkToFolder();
+          },
+          onReloadDisk: () => {
+            void reloadFromDisk();
+          },
+          onUnlink: () => {
+            void unlinkDoc();
+          },
           onNew: () => {
             void createNewDoc();
           },
@@ -1459,6 +1571,7 @@ async function bootstrap(): Promise<void> {
   // Reflect any resumed working copy (a draft persisted from a previous
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
+  toolbarCtrl.setLinked(isLinked(currentDoc));
 
   // When the UI language changes (typically from the Réglages
   // popup's "Langue de l'interface" select), rebuild the toolbar so

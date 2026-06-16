@@ -45,6 +45,7 @@ const FR = {
   'toolbar.file': 'Fichier',
   'toolbar.file-title': 'Document, import, export…',
   'toolbar.doc-name-aria': 'Nom du document',
+  'toolbar.linked-title': 'Lié à un dossier sur le disque',
   // ---- file menu ----------------------------------------------------
   'file-menu.new': 'Nouveau document',
   'file-menu.open': 'Ouvrir…',
@@ -53,6 +54,16 @@ const FR = {
   'file-menu.save-as': 'Enregistrer sous…',
   'file-menu.revert': 'Annuler les modifications',
   'file-menu.import': 'Importer…',
+  'file-menu.open-disk': 'Ouvrir depuis le disque…',
+  'file-menu.link-folder': 'Lier à un dossier…',
+  'file-menu.reload-disk': 'Recharger depuis le disque…',
+  'file-menu.unlink': 'Délier du disque',
+  // ---- disk link (Phase 4) ------------------------------------------
+  'disk.overwrite-confirm':
+    'Le dossier « {name} » contient déjà un document. L’écraser avec le document courant ?',
+  'disk.write-failed': 'Écriture sur le disque impossible.',
+  'disk.read-failed': 'Lecture depuis le disque impossible.',
+  'disk.permission-denied': 'Permission d’accès au dossier refusée.',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ Nouveau document',
@@ -367,6 +378,7 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.file': 'File',
   'toolbar.file-title': 'Document, import, export…',
   'toolbar.doc-name-aria': 'Document name',
+  'toolbar.linked-title': 'Linked to a folder on disk',
   'file-menu.new': 'New document',
   'file-menu.open': 'Open…',
   'file-menu.files': 'Files…',
@@ -374,6 +386,15 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.save-as': 'Save As…',
   'file-menu.revert': 'Revert changes',
   'file-menu.import': 'Import…',
+  'file-menu.open-disk': 'Open from disk…',
+  'file-menu.link-folder': 'Link to a folder…',
+  'file-menu.reload-disk': 'Reload from disk…',
+  'file-menu.unlink': 'Unlink from disk',
+  'disk.overwrite-confirm':
+    'The folder “{name}” already contains a document. Overwrite it with the current document?',
+  'disk.write-failed': 'Could not write to disk.',
+  'disk.read-failed': 'Could not read from disk.',
+  'disk.permission-denied': 'Folder access permission denied.',
 
   // ---- doc menu -----------------------------------------------------
   'doc-menu.new': '+ New document',
