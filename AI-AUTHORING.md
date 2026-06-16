@@ -404,14 +404,25 @@ Operators, **highest precedence first** — `~` binds tightest,
 **Precedence trap (parallel vs sequential).** `,` binds *tighter*
 than `:`, so `A : B , C : D` parses as `A : (B , C) : D` — **not**
 two parallel chains. To place sequences side by side you **must**
-parenthesise each one: write `(A : B) , (C : D)`. This catches AI
-authors constantly; when in doubt, add the parentheses.
+parenthesise each one: write `(A : B) , (C : D)`.
+
+Conversely, a bank of parallel chains feeding a shared stage needs
+**no** parens — the precedence already groups it right:
+`A,B,C,D : X,Y,Z,W :> L` parses as `((A,B,C,D) : (X,Y,Z,W)) :> L`.
+So the rule is: parenthesise when you **place sequences in
+parallel**, not when you **fan parallel chains into a stage**.
 
 Primitives: numbers (`0`, `1.5`), identity `_`, cut `!`,
 arithmetic (`+`, `-`, `*`, `/`), comparisons (`<`, `>`, `==`,
 `!=`, `<=`, `>=`), common math functions (`sin`, `cos`, `tan`,
 `exp`, `log`, `sqrt`, `abs`, …), and any quoted label
-`"my filter"` or `X[in,out]` with explicit arity.
+`"my filter"` or `X[in,out]`.
+
+A quoted label `"X"` (or a bare identifier) defaults to arity
+**(1,1)** — one input, one output. You only add the `[in,out]`
+suffix when you need a different arity: `"mixer"[4,1]`,
+`"fanout"[1,8]`. Don't sprinkle `[1,1]` everywhere — it's the
+default.
 
 The optional `delays` arg (or alias `faust`) draws a `z⁻¹` box
 on each recursion feedback wire (the implicit one-sample delay
