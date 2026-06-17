@@ -17,7 +17,7 @@ import { parse as parseCategory, typecheck as typecheckCategory } from './catego
 import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
 import { emitSvg as emitCategorySvg } from './category-svg';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
-import { renderChart } from './chart';
+import { parseChartInfo, renderChart } from './chart';
 import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
 import { renderTreeBlock } from './tree';
@@ -308,13 +308,19 @@ marked.use({
         const label = labelMatch ? (labelMatch[1] ?? '').trim() : '';
         return injectSource(renderInference(token.text, label), raw);
       }
-      // ```chart <type> "Caption" — `type` is a positional arg
-      // (bar / line / area / pie / scatter). Caption is uniform with
+      // ```chart <type> "Caption" [y-min=… y-max=… y-ref=… y-scale=log] —
+      // chart has its own quote-aware info parser (the generic one would
+      // mistake a `y-ref` label for the caption). Caption is uniform with
       // the other figure-like blocks (Figure N: …).
       if (lang === 'chart' || lang.startsWith('chart ')) {
-        const type = info.args[0] ?? '';
+        const ci = parseChartInfo(lang);
         return injectSource(
-          withCaption('figure', info.caption, renderChart(token.text, type), info.label),
+          withCaption(
+            'figure',
+            ci.caption,
+            renderChart(token.text, ci.type, ci.options),
+            ci.label,
+          ),
           raw,
         );
       }

@@ -26,6 +26,8 @@
 // (a comma between two digits with no whitespace stays as a decimal,
 // every other comma splits) — so French numbers `3,14` survive.
 
+import { extractLabel } from './refs';
+
 const VIEW_W = 640;
 const VIEW_H = 360;
 const M_LEFT = 56;
@@ -56,6 +58,205 @@ interface ParsedData {
   headers: string[];
   rows: DataRow[];
   xKind: XKind;
+}
+
+// --- Info-string options ----------------------------------------------
+
+// Optional `key=value` options after the chart type / title, e.g.
+//   ```chart line "PE" y-min=0 y-max=1 y-ref=0.25:"floor" y-scale=log
+// All optional; absent ⇒ the historical auto-scale behaviour. The only
+// subtlety is that `y-ref` labels are quoted *and* may contain spaces, so the
+// info string is tokenised quote-aware (the generic caption parser would grab
+// a y-ref label as the caption when no real caption is present).
+
+export interface YRef {
+  value: number;
+  label?: string;
+}
+
+export interface ChartOptions {
+  // `'auto'` forces free auto-scale even for bar charts (which otherwise
+  // anchor at 0); a number forces that bound; undefined ⇒ default.
+  yMin?: number | 'auto';
+  yMax?: number;
+  xMin?: number;
+  xMax?: number;
+  yRefs: YRef[];
+  yScale: 'linear' | 'log';
+}
+
+export interface ChartInfo {
+  type: string;
+  caption: string | null;
+  label: string | null;
+  options: ChartOptions;
+}
+
+const OPTION_KEYS = new Set([
+  'y-min', 'y-max', 'x-min', 'x-max', 'y-ref', 'y-scale', 'log-y',
+]);
+
+/** Empty (all-default) options. */
+function emptyOptions(): ChartOptions {
+  return { yRefs: [], yScale: 'linear' };
+}
+
+/**
+ * Purpose: Split a string on whitespace while keeping quoted spans intact.
+ * How: Walk char-by-char; inside a `"`/`'` run, whitespace is literal. Quotes
+ *   are preserved in the token so callers can tell a bare word from a caption.
+ */
+function tokenizeInfo(s: string): string[] {
+  const tokens: string[] = [];
+  let cur = '';
+  let quote: string | null = null;
+  for (const ch of s) {
+    if (quote) {
+      cur += ch;
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+    } else if (/\s/.test(ch)) {
+      if (cur !== '') {
+        tokens.push(cur);
+        cur = '';
+      }
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur !== '') tokens.push(cur);
+  return tokens;
+}
+
+/**
+ * Purpose: Split on a separator at the top level only (not inside quotes).
+ * How: Same quote-tracking walk as the tokeniser, but splitting on `sep`.
+ */
+function splitTopLevel(s: string, sep: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let quote: string | null = null;
+  for (const ch of s) {
+    if (quote) {
+      cur += ch;
+      if (ch === quote) quote = null;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      cur += ch;
+    } else if (ch === sep) {
+      out.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+/** Strip one layer of surrounding quotes, if present. */
+function unquote(s: string): string {
+  const t = s.trim();
+  if (t.length >= 2 && (t[0] === '"' || t[0] === "'") && t.at(-1) === t[0]) {
+    return t.slice(1, -1);
+  }
+  return t;
+}
+
+/**
+ * Purpose: Parse a `y-ref` value list, e.g. `0.25:"floor",1.0:"ideal"` or `3`.
+ * How: Top-level comma split, then each piece is `value` or `value:"label"`
+ *   (the colon before the first quote separates them).
+ */
+function parseYRefs(raw: string): YRef[] {
+  const out: YRef[] = [];
+  for (const piece of splitTopLevel(raw, ',')) {
+    if (piece.trim() === '') continue;
+    const colon = piece.indexOf(':');
+    const valStr = colon >= 0 ? piece.slice(0, colon) : piece;
+    const value = Number.parseFloat(valStr.trim().replace(',', '.'));
+    if (Number.isNaN(value)) continue;
+    const labelRaw = colon >= 0 ? unquote(piece.slice(colon + 1)) : '';
+    out.push(labelRaw === '' ? { value } : { value, label: labelRaw });
+  }
+  return out;
+}
+
+/** Parse an x-bound, accepting an ISO date (date axes) or a number. */
+function parseBound(raw: string): number | undefined {
+  const iso = parseIsoDate(raw);
+  if (iso !== null) return iso;
+  const n = parseNum(raw);
+  return Number.isNaN(n) ? undefined : n;
+}
+
+/** Apply one `key=value` option onto `o` (unknown keys are ignored upstream). */
+function applyOption(o: ChartOptions, key: string, value: string): void {
+  switch (key) {
+    case 'y-min':
+      o.yMin = value.trim().toLowerCase() === 'auto' ? 'auto' : parseNum(value);
+      if (o.yMin !== 'auto' && Number.isNaN(o.yMin)) delete o.yMin;
+      break;
+    case 'y-max': {
+      const n = parseNum(value);
+      if (!Number.isNaN(n)) o.yMax = n;
+      break;
+    }
+    case 'x-min':
+      o.xMin = parseBound(value);
+      break;
+    case 'x-max':
+      o.xMax = parseBound(value);
+      break;
+    case 'y-ref':
+      o.yRefs.push(...parseYRefs(value));
+      break;
+    case 'y-scale':
+      if (value.trim().toLowerCase() === 'log') o.yScale = 'log';
+      break;
+    case 'log-y':
+      o.yScale = 'log';
+      break;
+  }
+}
+
+/**
+ * Purpose: Parse a chart fence info string into type / caption / label /
+ *   options. Quote-aware so `y-ref` labels never get mistaken for the caption.
+ * How: Pull `\label{…}` out, tokenise quote-aware, then classify each token:
+ *   a known `key=value` is an option, a bare `"…"` is the caption (first wins),
+ *   the first remaining bare word is the type.
+ */
+export function parseChartInfo(lang: string): ChartInfo {
+  let body = lang.replace(/^\S+\s*/, ''); // drop the `chart` word
+  const label = extractLabel(body);
+  if (label !== null) body = body.replaceAll(/\\label\{[^}\n]+\}/g, ' ');
+
+  const options = emptyOptions();
+  let type = '';
+  let caption: string | null = null;
+  for (const tok of tokenizeInfo(body)) {
+    const eq = tok.indexOf('=');
+    const key = eq > 0 ? tok.slice(0, eq).toLowerCase() : '';
+    if (tok.toLowerCase() === 'log-y') {
+      options.yScale = 'log'; // bare flag alias for `y-scale=log`
+    } else if (eq > 0 && OPTION_KEYS.has(key)) {
+      applyOption(options, key, tok.slice(eq + 1));
+    } else if (
+      (tok.startsWith('"') && tok.endsWith('"')) ||
+      (tok.startsWith("'") && tok.endsWith("'"))
+    ) {
+      if (caption === null) {
+        const c = tok.slice(1, -1).trim();
+        caption = c === '' ? null : c;
+      }
+    } else if (type === '') {
+      type = tok;
+    }
+  }
+  return { type, caption, label, options };
 }
 
 // --- Parsing ----------------------------------------------------------
@@ -192,6 +393,27 @@ function numericTicks(min: number, max: number): number[] {
   for (let v = start; v <= max + step * 1e-6; v += step) {
     // Round to step granularity to avoid 0.30000000000000004
     out.push(Math.round(v / step) * step);
+  }
+  return out;
+}
+
+/**
+ * Purpose: Tick values for a log axis between `min` and `max` (both > 0).
+ * How: 1/2/5 × each decade that falls inside the range.
+ */
+function logTicks(min: number, max: number): number[] {
+  if (min <= 0 || max <= 0) return [];
+  const out: number[] = [];
+  let p = Math.floor(Math.log10(min));
+  const end = max * (1 + 1e-9);
+  let safety = 100;
+  while (10 ** p <= end && safety > 0) {
+    for (const m of [1, 2, 5]) {
+      const v = m * 10 ** p;
+      if (v >= min * (1 - 1e-9) && v <= end) out.push(v);
+    }
+    p += 1;
+    safety -= 1;
   }
   return out;
 }
@@ -350,11 +572,21 @@ function buildAxes(
   yMax: number,
   data: ParsedData,
   chartType: 'line' | 'bar',
+  yScale: 'linear' | 'log',
 ): { xToPx(x: number): number; yToPx(y: number): number } {
   const xToPx = (x: number): number =>
     M_LEFT + ((x - xMin) / (xMax - xMin || 1)) * PLOT_W;
-  const yToPx = (y: number): number =>
-    M_TOP + PLOT_H - ((y - yMin) / (yMax - yMin || 1)) * PLOT_H;
+  // Log y maps log10(y) linearly into the plot; linear y is the usual ratio.
+  const logY = yScale === 'log';
+  const lyMin = logY ? Math.log10(yMin) : 0;
+  const lySpan = (logY ? Math.log10(yMax) - lyMin : 0) || 1;
+  const yToPx = logY
+    ? (y: number): number =>
+        M_TOP +
+        PLOT_H -
+        ((Math.log10(Math.max(y, Number.MIN_VALUE)) - lyMin) / lySpan) * PLOT_H
+    : (y: number): number =>
+        M_TOP + PLOT_H - ((y - yMin) / (yMax - yMin || 1)) * PLOT_H;
 
   // Axis lines (left + bottom)
   parts.push(
@@ -363,7 +595,7 @@ function buildAxes(
   );
 
   // Y ticks + labels + grid
-  for (const t of numericTicks(yMin, yMax)) {
+  for (const t of logY ? logTicks(yMin, yMax) : numericTicks(yMin, yMax)) {
     const y = yToPx(t);
     parts.push(
       `<line x1="${M_LEFT}" y1="${y}" x2="${M_LEFT + PLOT_W}" y2="${y}" class="chart-grid"/>`,
@@ -520,13 +752,43 @@ function buildLegend(parts: string[], data: ParsedData): void {
 }
 
 /**
+ * Purpose: Emit horizontal dashed reference lines (`y-ref`) with optional
+ *   right-aligned labels.
+ * How: One `<line>` (+ `<text>`) per ref whose value sits within [yMin, yMax].
+ */
+function buildRefLines(
+  parts: string[],
+  refs: YRef[],
+  yToPx: (y: number) => number,
+  yMin: number,
+  yMax: number,
+): void {
+  for (const ref of refs) {
+    if (ref.value < yMin || ref.value > yMax) continue; // off-plot → skip
+    const y = yToPx(ref.value);
+    parts.push(
+      `<line x1="${M_LEFT}" y1="${y.toFixed(1)}" x2="${M_LEFT + PLOT_W}" y2="${y.toFixed(1)}" class="chart-ref"/>`,
+    );
+    if (ref.label !== undefined && ref.label !== '') {
+      parts.push(
+        `<text x="${M_LEFT + PLOT_W - 4}" y="${(y - 4).toFixed(1)}" class="chart-ref-label">${escapeXml(ref.label)}</text>`,
+      );
+    }
+  }
+}
+
+/**
  * Purpose: Public entry — turn fenced-block body + chart type into an SVG block.
  * How: Parse data, compute padded ranges (bar charts get half-slot padding +
  *   y-anchor at 0), then assemble axes / series / legend. The optional
  *   caption is wrapped externally by [src/captions.ts]; we don't render a
  *   title inside the SVG anymore.
  */
-export function renderChart(src: string, typeArg: string): string {
+export function renderChart(
+  src: string,
+  typeArg: string,
+  options: ChartOptions = emptyOptions(),
+): string {
   const data = parseChartData(src);
   if (!data || data.rows.length === 0) {
     return `<div class="chart-error">Données du graphique invalides</div>`;
@@ -545,14 +807,41 @@ export function renderChart(src: string, typeArg: string): string {
     xMin -= pad;
     xMax += pad;
   }
-  // For bars, anchor the y axis at 0 so the heights make visual sense.
-  const yRawMin = Math.min(...ys);
-  const yRawMax = Math.max(...ys);
-  const yMin = type === 'bar' ? Math.min(0, yRawMin) : yRawMin;
-  const yMax = type === 'bar' ? Math.max(0, yRawMax) : yRawMax;
+  // Explicit x bounds override the (padded) auto range.
+  if (options.xMin !== undefined) xMin = options.xMin;
+  if (options.xMax !== undefined) xMax = options.xMax;
+
+  // Y range. Reference lines participate in the auto range so they stay
+  // on-plot. Default: line auto-scales; bar anchors at 0 (so bar lengths
+  // read as proportions). `y-min=auto` opts a bar back into free scaling.
+  const yPool = [...ys, ...options.yRefs.map((r) => r.value)];
+  const yRawMin = Math.min(...yPool);
+  const yRawMax = Math.max(...yPool);
+  let yMin = type === 'bar' ? Math.min(0, yRawMin) : yRawMin;
+  let yMax = type === 'bar' ? Math.max(0, yRawMax) : yRawMax;
+  if (options.yMin === 'auto') yMin = yRawMin;
+  else if (typeof options.yMin === 'number') yMin = options.yMin;
+  if (typeof options.yMax === 'number') yMax = options.yMax;
+
+  // Log scale needs strictly-positive, ordered bounds — clamp defensively to
+  // the smallest positive datum (or 1) so a 0/negative auto-min can't break it.
+  const yScale = options.yScale;
+  if (yScale === 'log') {
+    if (yMin <= 0) {
+      const pos = yPool.filter((v) => v > 0);
+      yMin = pos.length > 0 ? Math.min(...pos) : 1;
+    }
+    if (yMax <= yMin) yMax = yMin * 10;
+  } else if (yMax === yMin) {
+    // A flat series would collapse the plot; give it a unit of breathing room.
+    yMax = yMin + 1;
+  }
 
   const parts: string[] = [];
-  const { xToPx, yToPx } = buildAxes(parts, xMin, xMax, yMin, yMax, data, type);
+  const { xToPx, yToPx } = buildAxes(
+    parts, xMin, xMax, yMin, yMax, data, type, yScale,
+  );
+  buildRefLines(parts, options.yRefs, yToPx, yMin, yMax);
   if (type === 'line') {
     buildLineSeries(parts, data, xToPx, yToPx);
   } else {

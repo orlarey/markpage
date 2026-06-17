@@ -1491,6 +1491,19 @@ body,
   fill: #222;
 }
 
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-ref {
+  stroke: #cf222e;
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+  opacity: 0.8;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-ref-label {
+  font-size: 11px;
+  fill: #cf222e;
+  text-anchor: end;
+  font-weight: 500;
+}
+
 :where(#preview-pane, #markpage-print-target, .help-body) .chart-error {
   margin: 0.8em 0;
   padding: 0.6em 0.9em;

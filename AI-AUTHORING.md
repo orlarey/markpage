@@ -455,6 +455,37 @@ optional. X axis auto-detects continuous numbers, categorical
 labels, or ISO 8601 dates (`YYYY-MM-DD`). Multiple data series
 become coloured lines or grouped bars with an automatic legend.
 
+### Scale options
+
+After the type and optional title, the info string accepts
+`key=value` options (all optional; omit for auto-scale):
+
+| Option                     | Effect                                         |
+| :------------------------- | :--------------------------------------------- |
+| `y-min=V` / `y-max=V`      | Force the Y bounds (use `.` decimals)          |
+| `x-min=V` / `x-max=V`      | Force the X bounds (number or ISO date)        |
+| `y-ref=V` or `V:"label"`   | Dashed horizontal reference line(s)            |
+| `y-scale=log` (or `log-y`) | Logarithmic Y axis                             |
+
+```chart line "Parallel efficiency" y-min=0 y-max=1 y-ref=0.25:"1/U floor"
+processors, efficiency
+1, 1.0
+2, 0.82
+4, 0.61
+8, 0.40
+```
+
+`y-ref` takes several lines at once:
+`y-ref=0.25:"floor",1.0:"ideal"`. Labels may contain spaces.
+
+**Bar charts anchor at 0 by default** (so bar lengths read as
+proportions — a 2× bar means 2× the value). Pass `y-min=auto` to
+opt a bar chart back into free auto-scaling. `line` charts always
+auto-scale unless you give explicit bounds.
+
+Use `y-scale=log` for data spanning orders of magnitude (latency
+vs buffer size, power-law scaling).
+
 ---
 
 ## CSV / TSV tables
