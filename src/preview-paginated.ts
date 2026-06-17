@@ -1093,6 +1093,21 @@ export function pagedCss(s: PdfSettings): string {
       ${styles.body.align ? `text-align: ${styles.body.align};` : ''}
     }
 
+    ${
+      styles.body.align === 'justify'
+        ? `/* When paged.js splits a justified container across a page (e.g. a
+       <ul> broken between two items, or a <blockquote> between paragraphs)
+       it tags the container data-align-last-split-element='justify' so the
+       line at the break stays justified — right for a paragraph that
+       continues, but it cascades to *complete* children sitting before the
+       break (a whole <li> ending on this page), stretching their genuine
+       last line. Reset last-line alignment on descendants that are not the
+       split element themselves; a truly-split child keeps the attribute and
+       stays justified. */
+    ${SCOPE} [data-align-last-split-element='justify'] :not([data-align-last-split-element]) { text-align-last: auto; }`
+        : ''
+    }
+
     ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
     ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} ${pagedHeadingMargin(styles.h1)} }
     ${SCOPE} h1.doc-title { font-size: ${styles.title.fontSize}pt; color: ${styles.title.color}; ${pagedUnderline(styles.title)} ${pagedHeadingExtras(styles.title)} ${pagedHeadingMargin(styles.title)} }
