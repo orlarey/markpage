@@ -29,6 +29,7 @@ further down.
 | Flowchart, sequence, state machine    | ` ```mermaid `                     |
 | Signal-flow circuit (Faust-style)     | ` ```bda `                         |
 | Data plot (line, bar)                 | ` ```chart `                       |
+| Image wall / photo gallery            | ` ```mosaic `                      |
 | Dense table (>3 cols or >5 rows)      | ` ```csv ` / ` ```tsv `            |
 | Compact 2-3 column table              | pipe table                         |
 | Note, warning, theorem, definition, … | `::: class` callout                |
@@ -485,6 +486,47 @@ auto-scale unless you give explicit bounds.
 
 Use `y-scale=log` for data spanning orders of magnitude (latency
 vs buffer size, power-law scaling).
+
+---
+
+## Image walls (mosaic)
+
+The `mosaic` fence assembles several images into a **justified
+gallery** — a gap-free rectangle where each row of *whole* images is
+scaled to fill the text width exactly (Flickr / Google Photos style).
+Plain `![]()` images can't be montaged this way; reach for `mosaic`
+when you have a wall of photos (an event, a site, a trip).
+
+One Markdown image per line in the body:
+
+````
+```mosaic "Manifestation du 1er mai"
+![](assets/a1….jpg)
+![](assets/b2….jpg)
+![](assets/c3….png)
+![](assets/d4….jpg)
+```
+````
+
+Images are **never cropped**: each cell keeps its image's exact
+aspect ratio and row heights vary so every row spans the full width.
+Refs are the usual image refs (a photo already imported into the
+document works as-is). Blank / non-image lines are ignored.
+
+Options after the optional quoted title:
+
+| Option         | Default                  | Effect                                      |
+| :------------- | :----------------------- | :------------------------------------------ |
+| `height=<pt>`  | auto (≈ 1/5 page height) | target row height — smaller ⇒ more per row  |
+| `gap=<pt>`     | `0`                      | gutter between images and between rows      |
+| `last=natural` | last row justified       | leave the last partial row at natural size  |
+
+By default the last row is justified like the others (flat bottom
+edge — a true rectangle). `last=natural` keeps it at natural height,
+useful when the final row holds a lone image that would otherwise be
+blown up. A quoted title makes it a numbered `Figure N`; `\label{}`
+lets you `\ref{}` it. A wall with no valid image renders a red error
+block.
 
 ---
 
@@ -1200,7 +1242,7 @@ Most rich blocks accept a quoted caption immediately after the
 language hint. The caption is auto-numbered per kind:
 
 - **Figure N** — for diagrams (`mermaid`, `category`, `bda`,
-  `chart`, `tree`, math display `$$ … $$`)
+  `chart`, `mosaic`, `tree`, math display `$$ … $$`)
 - **Table N** — for `csv` / `tsv` blocks and pipe tables wrapped
   in a fenced div
 - **Listing N** — for source-code fences with a caption

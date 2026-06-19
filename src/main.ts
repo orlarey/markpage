@@ -54,6 +54,7 @@ import {
   renderMathInlines,
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
+import { layoutMosaicBlocks, measurePageGeom } from './mosaic';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
@@ -456,10 +457,14 @@ async function bootstrap(): Promise<void> {
     applyPreviewMetadata(built, effectiveSettings, meta);
     annotateSourceLines(built, source);
     const preamble = meta['mathjax-preamble'] ?? '';
+    // Mosaic packing needs the text-block size; read it from the still-mounted
+    // previous render (stable across renders) before paginate() rebuilds it.
+    const mosaicGeom = measurePageGeom(previewEl);
     await Promise.all([
       renderMermaidBlocks(built),
       renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
       renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
+      layoutMosaicBlocks(built, mosaicGeom),
     ]);
     if (myReq !== previewReqId) return;
     await paginate(built, effectiveSettings, previewEl);

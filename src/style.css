@@ -1514,6 +1514,44 @@ body,
   font-size: 0.9em;
 }
 
+/* ---- Mosaic (image wall) -------------------------------------------- */
+/* Justified-rows gallery: rows of whole images that fill the content
+   width; per-image flex / size set inline by layoutMosaicBlocks(). */
+:where(#preview-pane, #markpage-print-target, .help-body) .mosaic-block {
+  margin: 0.8em 0;
+  display: flex;
+  flex-direction: column;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .mosaic-row {
+  display: flex;
+  align-items: stretch;
+  break-inside: avoid; /* a row never splits across pages */
+  overflow: hidden;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .mosaic-row-natural {
+  justify-content: flex-start;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .mosaic-item {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  min-width: 0;
+}
+/* An image that couldn't be measured (3:2 fallback) is flagged. */
+:where(#preview-pane, #markpage-print-target, .help-body) .mosaic-missing {
+  outline: 1px dashed #cf222e;
+  outline-offset: -1px;
+}
+:where(#preview-pane, #markpage-print-target, .help-body) .mosaic-error {
+  margin: 0.8em 0;
+  padding: 0.6em 0.9em;
+  border-left: 4px solid #cf222e;
+  background: #ffebe9;
+  color: #82071e;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 /* ---- Tables ---------------------------------------------------------- */
 /* Center every table horizontally on the page — typographic
    convention for both pipe-tables (marked's default <table>) and

@@ -18,6 +18,7 @@ import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
 import { emitSvg as emitCategorySvg } from './category-svg';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
 import { parseChartInfo, renderChart } from './chart';
+import { parseMosaicInfo, renderMosaic } from './mosaic';
 import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
 import { renderTreeBlock } from './tree';
@@ -320,6 +321,21 @@ marked.use({
             ci.caption,
             renderChart(token.text, ci.type, ci.options),
             ci.label,
+          ),
+          raw,
+        );
+      }
+      // ```mosaic "Caption" — image wall (justified gallery). The body is
+      // one Markdown image per line; the rows are packed in an async pass
+      // (mosaic measures intrinsic ratios). Captioned like the other figures.
+      if (lang === 'mosaic' || lang.startsWith('mosaic ')) {
+        const mi = parseMosaicInfo(lang);
+        return injectSource(
+          withCaption(
+            'figure',
+            mi.caption,
+            renderMosaic(token.text, mi.options),
+            mi.label,
           ),
           raw,
         );
