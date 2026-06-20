@@ -2112,6 +2112,125 @@ Indented outline → Unicode tree (`├──`, `└──`). Add `svg` after
 
 ---
 
+## Block gallery (rendered) \label{sec:gallery}
+
+Where the cheatsheet above shows the **syntax**, this gallery **renders**
+each block type live. It's a handy visual overview — and a test: if a
+block shows up wrong here, that's the sign of a rendering regression.
+
+### Equation
+
+```math
+e^{i\pi} + 1 = 0
+```
+
+### Inference rule
+
+```inference (MP)
+\Gamma \vdash f : A \to B; \Gamma \vdash x : A
+---
+\Gamma \vdash f\,x : B
+```
+
+### Commutative diagram
+
+```category
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+
+### Faust circuit (bda)
+
+```bda "Accumulator"
+1 : +~_
+```
+
+### Line chart
+
+```chart line "Latency by buffer" y-min=0
+buffer, ms
+64, 1.3
+128, 2.7
+256, 5.3
+512, 10.7
+```
+
+### Bar chart
+
+```chart bar "Codec comparison"
+codec, ms
+opus, 21
+aac, 35
+mp3, 29
+```
+
+### CSV table
+
+```csv
+Note, Frequency (Hz), MIDI
+A4, 440.00, 69
+B4, 493.88, 71
+```
+
+### Algebraic data type
+
+```adt
+Expr ::= Const(c)            (* c ∈ ℝ *)
+       | Vec(v)
+       | Op(o, Expr, Expr)
+```
+
+### Grammar (railroad)
+
+```ebnf
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+```
+
+### Unicode tree
+
+```tree
+project
+  src
+    main.ts
+  tests
+    corpus
+```
+
+### SVG tree
+
+```tree svg
+Expr
+  Op
+    Add
+    Sub
+```
+
+### Diff
+
+```diff
+ unchanged context
+-old line
++new line
+```
+
+### Mermaid diagram
+
+```mermaid
+flowchart LR
+  A[Input] --> B{Choice}
+  B -->|yes| C[Next]
+  B -->|no| D[End]
+```
+
+### Callout
+
+::: tip [Tip]
+Callouts highlight a remark without breaking the flow.
+:::
+
+---
+
 ## Credits
 
 markpage is an open-source project assembled from free software.

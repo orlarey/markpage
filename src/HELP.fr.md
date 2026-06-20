@@ -2180,6 +2180,126 @@ SVG)*.
 
 ---
 
+## Galerie de blocs (rendus) \label{sec:gallery}
+
+Là où l'aide-mémoire ci-dessus montre la **syntaxe**, cette galerie
+**rend** chaque type de bloc en direct. C'est un aperçu visuel pratique
+— et un test : si un bloc s'affiche de travers ici, c'est le signe d'une
+régression du rendu.
+
+### Équation
+
+```math
+e^{i\pi} + 1 = 0
+```
+
+### Règle d'inférence
+
+```inference (MP)
+\Gamma \vdash f : A \to B; \Gamma \vdash x : A
+---
+\Gamma \vdash f\,x : B
+```
+
+### Diagramme commutatif
+
+```category
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+
+### Circuit Faust (bda)
+
+```bda "Accumulateur"
+1 : +~_
+```
+
+### Graphique en courbe
+
+```chart line "Latence par buffer" y-min=0
+buffer, ms
+64, 1.3
+128, 2.7
+256, 5.3
+512, 10.7
+```
+
+### Histogramme
+
+```chart bar "Comparaison de codecs"
+codec, ms
+opus, 21
+aac, 35
+mp3, 29
+```
+
+### Table CSV
+
+```csv
+Note, Fréquence (Hz), MIDI
+A4, 440.00, 69
+B4, 493.88, 71
+```
+
+### Type de données algébrique
+
+```adt
+Expr ::= Const(c)            (* c ∈ ℝ *)
+       | Vec(v)
+       | Op(o, Expr, Expr)
+```
+
+### Grammaire (railroad)
+
+```ebnf
+chiffre = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+```
+
+### Arbre Unicode
+
+```tree
+projet
+  src
+    main.ts
+  tests
+    corpus
+```
+
+### Arbre SVG
+
+```tree svg
+Expr
+  Op
+    Add
+    Sub
+```
+
+### Diff
+
+```diff
+ contexte inchangé
+-ancienne ligne
++nouvelle ligne
+```
+
+### Diagramme Mermaid
+
+```mermaid
+flowchart LR
+  A[Entrée] --> B{Choix}
+  B -->|oui| C[Suite]
+  B -->|non| D[Fin]
+```
+
+### Encadré
+
+::: tip [Astuce]
+Les encadrés mettent en valeur une remarque sans interrompre le fil.
+:::
+
+---
+
 ## Crédits
 
 markpage est un projet open source assemblé à partir de logiciels libres.
