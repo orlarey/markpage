@@ -198,22 +198,6 @@ interface PageGeom {
   height: number;
 }
 
-/**
- * Purpose: Read the paginated text-block size (px) from the *current* render
- *   still in `previewEl` — stable across renders (it depends on page settings,
- *   not content), so it's a good basis for the next render's row packing.
- * How: Measure a `.pagedjs_page_content`; fall back to the pane width / a
- *   constant on the very first render (self-corrects next keystroke).
- */
-export function measurePageGeom(previewEl: HTMLElement): PageGeom {
-  const content = previewEl.querySelector<HTMLElement>('.pagedjs_page_content');
-  if (content && content.clientWidth > 0) {
-    return { width: content.clientWidth, height: content.clientHeight };
-  }
-  const w = previewEl.clientWidth > 0 ? previewEl.clientWidth * 0.82 : 600;
-  return { width: w, height: w * 1.4 };
-}
-
 /** Aspect ratio of a (possibly still-loading) image; 3:2 fallback on failure. */
 async function measureRatio(img: HTMLImageElement): Promise<number> {
   try {

@@ -1856,6 +1856,42 @@ function pageSizeMm(s: PdfSettings): { w: number; h: number } {
 }
 
 /**
+ * Purpose: The body text-block size in px, computed *deterministically* from
+ *   settings — same geometry the @page CSS uses (derived canon vs manual
+ *   margins). Used by the mosaic packer so its row count doesn't depend on a
+ *   prior render being measured (which made the first/cold render flip between
+ *   one and two rows).
+ */
+export function pageContentGeomPx(s: PdfSettings): {
+  width: number;
+  height: number;
+} {
+  const PX_PER_MM = 96 / 25.4;
+  const sizeMm = pageSizeMm(s);
+  if (s.marginMode === 'derived') {
+    // Mosaic content sits in the text block; its width is the canonical
+    // measure (measureChars × char width), matching pagedCss.
+    const bodyName = (s.styles.body.family ?? '').trim() || s.fonts.body;
+    const charWidthMm = measureAverageCharWidth(
+      bodyName,
+      s.styles.body.fontSize ?? 11,
+    );
+    const tb = computeCanonicalMargins(
+      sizeMm.w,
+      sizeMm.h,
+      s.measureChars,
+      charWidthMm,
+    );
+    return { width: tb.width * PX_PER_MM, height: tb.height * PX_PER_MM };
+  }
+  const m = s.margins;
+  return {
+    width: Math.max(1, (sizeMm.w - m.left - m.right) * PX_PER_MM),
+    height: Math.max(1, (sizeMm.h - m.top - m.bottom) * PX_PER_MM),
+  };
+}
+
+/**
  * Purpose: Apply the user-configured header / footer typography (font,
  *   size, colour, weight, italic) to every @top-* / @bottom-* margin
  *   box at once, so author-supplied fences pick up the requested

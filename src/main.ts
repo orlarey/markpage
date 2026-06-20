@@ -54,7 +54,7 @@ import {
   renderMathInlines,
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
-import { layoutMosaicBlocks, measurePageGeom } from './mosaic';
+import { layoutMosaicBlocks } from './mosaic';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
@@ -162,7 +162,7 @@ import {
   setCurrentProfileId,
   type ProfileEntry,
 } from './settings-profiles';
-import { paginate } from './preview-paginated';
+import { pageContentGeomPx, paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
 
@@ -457,9 +457,10 @@ async function bootstrap(): Promise<void> {
     applyPreviewMetadata(built, effectiveSettings, meta);
     annotateSourceLines(built, source);
     const preamble = meta['mathjax-preamble'] ?? '';
-    // Mosaic packing needs the text-block size; read it from the still-mounted
-    // previous render (stable across renders) before paginate() rebuilds it.
-    const mosaicGeom = measurePageGeom(previewEl);
+    // Mosaic packing needs the text-block size. Compute it deterministically
+    // from settings (NOT by measuring a prior render) so the row count is the
+    // same on a cold/first render as on subsequent ones.
+    const mosaicGeom = pageContentGeomPx(effectiveSettings);
     await Promise.all([
       renderMermaidBlocks(built),
       renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
