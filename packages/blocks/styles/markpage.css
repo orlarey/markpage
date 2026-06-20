@@ -6,11 +6,14 @@
 
 /* ---- chart --------------------------------------------------------------- */
 :where(.markpage) .chart-block {
-  margin: 0.8em 0;
+  margin: 0.8em auto;
+  text-align: center;
+  break-inside: avoid;
 }
 :where(.markpage) .chart-svg {
-  width: 100%;
+  max-width: 100%;
   height: auto;
+  font-family: var(--font-sans, system-ui, sans-serif);
 }
 :where(.markpage) .chart-svg .chart-axis {
   stroke: #444;
@@ -63,7 +66,7 @@
   border-left: 4px solid #cf222e;
   background: #ffebe9;
   color: #82071e;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
   font-size: 0.9em;
 }
 
@@ -280,4 +283,14 @@
   display: block;
   margin-bottom: 0.3em;
   color: #5d4a00;
+}
+:where(.markpage) .adt-warnings ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+:where(.markpage) .adt-warnings code {
+  font-family: var(--font-mono, 'Roboto Mono', ui-monospace, monospace);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0 0.2em;
+  border-radius: 3px;
 }

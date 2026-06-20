@@ -88,7 +88,7 @@ export function openHelpModal(
   header.append(title, actions);
 
   const body = document.createElement('div');
-  body.className = 'help-body';
+  body.className = 'help-body markpage';
   body.innerHTML = marked.parse(helpMarkdown, { async: false });
   // Fill the math-block / mermaid-block placeholders left by marked.
   // Errors are non-fatal: the placeholders remain visible (and stylable

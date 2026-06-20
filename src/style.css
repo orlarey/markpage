@@ -1435,84 +1435,11 @@ body,
    pagedCss() (preview-paginated.ts) — it computes max-height from the
    user's settings, which we don't know here. */
 
-/* ---- Charts (```chart) ----------------------------------------------- */
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-block {
-  margin: 0.8em auto;
-  text-align: center;
-  break-inside: avoid;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg {
-  max-width: 100%;
-  height: auto;
-  font-family: var(--font-sans);
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-axis {
-  stroke: #444;
-  stroke-width: 1;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-grid {
-  stroke: #e0e0e0;
-  stroke-width: 1;
-  stroke-dasharray: 2 3;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-line {
-  fill: none;
-  stroke-width: 1.8;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-bar {
-  /* Filled by inline `fill=`. No outline — keeps the print compact. */
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-tick {
-  font-size: 11px;
-  fill: #444;
-}
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-tick-y {
-  text-anchor: end;
-}
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-tick-x {
-  text-anchor: middle;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-axis-label {
-  font-size: 12px;
-  fill: #222;
-  text-anchor: middle;
-  font-weight: 500;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-legend {
-  font-size: 11px;
-  fill: #222;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-ref {
-  stroke: #cf222e;
-  stroke-width: 1.2;
-  stroke-dasharray: 5 3;
-  opacity: 0.8;
-}
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-svg .chart-ref-label {
-  font-size: 11px;
-  fill: #cf222e;
-  text-anchor: end;
-  font-weight: 500;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .chart-error {
-  margin: 0.8em 0;
-  padding: 0.6em 0.9em;
-  border-left: 4px solid #cf222e;
-  background: #ffebe9;
-  color: #82071e;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
+/* ---- Charts / bda / category / adt / diff / tree ----------------------
+   Block styles now live in @markpage/blocks (styles/markpage.css), scoped
+   to `.markpage` — imported in main.ts / demo.ts and inlined into the help
+   window. The preview / print / help containers carry the `markpage` class.
+   Only app-specific glue (e.g. figure-margin resets) remains in this file. */
 
 /* ---- Mosaic (image wall) -------------------------------------------- */
 /* Justified-rows gallery: rows of whole images that fill the content
@@ -1886,100 +1813,6 @@ body,
   font-size: 0.9em;
 }
 
-/* ---- category native SVG ------------------------------------------
-   The native renderer (src/category-svg.ts) emits an inline `<svg>`
-   inside `.category-wrap`. Everything draws in `currentColor` so the
-   diagram inherits body-text colour. Wrap centres horizontally and
-   lets the SVG shrink below its intrinsic width on narrow pages. */
-.category-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 0.8em 0;
-}
-.category-wrap .category-svg {
-  max-width: 100%;
-  height: auto;
-}
-.category-svg .cd-obj {
-  font-weight: 500;
-}
-.category-svg .cd-edge-label {
-  font-size: 0.85em;
-}
-
-/* ---- category error block ----------------------------------------
-   Parser / typechecker diagnostics for a `category` fence. Same
-   visual frame as the math-error block (red bar + tinted background),
-   with a bulleted list of diagnostics and the offending source. */
-.category-error {
-  display: block;
-  border-left: 4px solid #d1242f;
-  background: #ffeef0;
-  padding: 0.6em 0.9em;
-  margin: 0.6em 0;
-  border-radius: 0 4px 4px 0;
-}
-.category-error .category-error-msg {
-  color: #d1242f;
-  font-weight: 500;
-  margin-bottom: 0.3em;
-}
-.category-error ul {
-  margin: 0.3em 0 0.6em 1.2em;
-  padding: 0;
-  font-size: 0.95em;
-}
-.category-error pre {
-  margin: 0;
-  background: transparent;
-  padding: 0;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
-
-/* ---- bda native SVG ----------------------------------------------
-   The Block-Diagram Algebra renderer (src/bda-svg.ts) emits an inline
-   `<svg>` inside `.bda-wrap`. Everything draws in `currentColor`; the
-   wrap centres horizontally and lets the SVG shrink on narrow pages. */
-.bda-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 0.8em 0;
-}
-.bda-wrap .bda-svg {
-  max-width: 100%;
-  height: auto;
-}
-.bda-svg .bda-box {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-.bda-svg .bda-label {
-  fill: currentColor;
-}
-.bda-svg .bda-wire,
-.bda-svg .bda-wire-fb {
-  stroke: currentColor;
-  stroke-width: 1;
-  fill: none;
-}
-.bda-svg .bda-port-in,
-.bda-svg .bda-cut {
-  fill: currentColor;
-  stroke: none;
-}
-.bda-svg .bda-port-out {
-  fill: var(--bg, #fff);
-  stroke: currentColor;
-  stroke-width: 0.8;
-}
-.bda-svg .bda-delay {
-  fill: var(--bg, #fff);
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
 /* ---- demo block (side-by-side source + rendered) -----------------
    A `` ```demo `` fence renders its body twice: as a syntax-highlighted
    Markdown listing on the left, and as the parsed Markdown on the
@@ -2072,35 +1905,6 @@ body,
   margin-bottom: 0;
 }
 
-/* ---- bda error block ---------------------------------------------
-   Parser / typechecker diagnostics for a `bda` fence. Same visual frame
-   as the category-error / math-error blocks. */
-.bda-error {
-  display: block;
-  border-left: 4px solid #d1242f;
-  background: #ffeef0;
-  padding: 0.6em 0.9em;
-  margin: 0.6em 0;
-  border-radius: 0 4px 4px 0;
-}
-.bda-error .bda-error-msg {
-  color: #d1242f;
-  font-weight: 500;
-  margin-bottom: 0.3em;
-}
-.bda-error ul {
-  margin: 0.3em 0 0.6em 1.2em;
-  padding: 0;
-  font-size: 0.95em;
-}
-.bda-error pre {
-  margin: 0;
-  background: transparent;
-  padding: 0;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
-
 /* Inline math: MathJax sets `vertical-align: -…ex` on the SVG itself, so
    leaving the span as inline lets the browser line up the formula's
    baseline with the surrounding text automatically. */
@@ -2117,57 +1921,7 @@ body,
   border-radius: 3px;
 }
 
-/* ---- diff block (```diff fence) ----------------------------------
-   Per-line tinted background for added (+) / removed (-) lines, with
-   subtler shades for the hunk headers (@@) and file headers (+++/---).
-   `display: block` on each span forces the background to fill the row
-   width even when the line content is shorter. The outer `<pre>`'s
-   typography (padding, background, border, font) is driven by the
-   user's `code-block` settings via the dynamic preview stylesheet
-   — no need to repeat it here. */
-.diff-block .diff-add,
-.diff-block .diff-del,
-.diff-block .diff-ctx,
-.diff-block .diff-meta,
-.diff-block .diff-hunk {
-  display: block;
-}
-
-.diff-block .diff-add {
-  background: #e6ffec;
-  color: #1a7f37;
-}
-
-.diff-block .diff-del {
-  background: #ffebe9;
-  color: #cf222e;
-}
-
-.diff-block .diff-meta {
-  color: #57606a;
-  font-weight: 500;
-}
-
-.diff-block .diff-hunk {
-  color: #6e7681;
-  background: #ddf4ff;
-}
-
-/* ---- tree block — SVG variant (```tree svg) ----------------------
-   Render at intrinsic size when it fits the column; scale down
-   proportionally otherwise so the diagram (and its labels) stay on
-   the page at print time. `currentColor` on lines + text in the SVG
-   inherits the surrounding text colour. */
-.tree-svg-wrap {
-  display: flex;
-  justify-content: center;
-  margin: 0.8em 0;
-}
-
-.tree-svg-wrap .tree-svg {
-  max-width: 100%;
-  height: auto;
-}
+/* (diff + tree-svg block styles → @markpage/blocks/styles/markpage.css) */
 
 /* ---- algorithm block (```algorithm "Caption") --------------------
    algorithm2e-style listing — numbered lines, bold keywords. The
@@ -2696,121 +2450,7 @@ figure.captioned > pre {
   line-height: 1.5;
 }
 
-/* ---- Algebraic-data-type definitions (```adt) ------------------- */
-
-/* `renderAdtBlock` in src/adt.ts emits a 4-column grid: LHS, the
-   `::=` / `|` separator, the alternative, and an optional
-   right-side annotation. All `|` columns line up vertically, the
-   way they would in a typeset ML / Haskell type definition. */
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block {
-  display: grid;
-  grid-template-columns: max-content max-content auto max-content;
-  column-gap: 0.6em;
-  row-gap: 0.15em;
-  align-items: baseline;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0.8em auto;
-  font-family: 'Roboto Mono', ui-monospace, monospace;
-  font-size: 0.95em;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-lhs {
-  text-align: right;
-  font-weight: 600;
-  color: var(--text, #1f2328);
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-sep {
-  color: var(--text-muted, #57606a);
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-alt {
-  color: var(--text, #1f2328);
-}
-
-/* Capitalised identifiers inside the alternatives split into two
-   classes:
-   - `.adt-type` for names that appear as a LHS somewhere in the
-     block (defined by a rule — same family as the LHS). Same
-     dark-bold style as the LHS itself.
-   - `.adt-ctor` for pure constructors (purple, the “tag” colour
-     conventionally used for data constructors). */
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-type {
-  color: var(--text, #1f2328);
-  font-weight: 600;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-ctor {
-  color: #8250df;
-  font-weight: 500;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-ann {
-  color: var(--text-muted, #57606a);
-  font-style: italic;
-  padding-left: 1em;
-  font-family: 'Roboto', system-ui, sans-serif;
-}
-
-/* In-line `|` separator used when all alternatives of a definition
-   fit on one line (e.g. `Op ::= Add | Sub | Mul | Div`). Same muted
-   tone as the column separator. */
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-sep-inline {
-  color: var(--text-muted, #57606a);
-  margin: 0 0.2em;
-}
-
-/* Vertical spacer between consecutive definitions. Empty grid row
-   that spans all four columns. */
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-block .adt-spacer {
-  grid-column: 1 / -1;
-  height: 0.6em;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-error {
-  background: #ffebe9;
-  color: #cf222e;
-  border: 1px solid #cf222e;
-  border-radius: 6px;
-  padding: 0.6em 0.8em;
-  font-family: 'Roboto Mono', ui-monospace, monospace;
-  font-size: 0.9em;
-}
-
-/* Visible diagnostic for lines that don't parse as either a head
-   (`LHS ::= …`) or a continuation (`| …`). Stays in flow above the
-   rendered definitions so a typo can't be missed. Amber tone so it
-   reads as a warning, not an error. */
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings {
-  background: #fff8e1;
-  border: 1px solid #d29922;
-  border-radius: 6px;
-  padding: 0.6em 0.9em;
-  margin: 0.5em auto;
-  width: fit-content;
-  max-width: 100%;
-  font-size: 0.9em;
-  color: #5d4a00;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings strong {
-  display: block;
-  margin-bottom: 0.3em;
-  color: #5d4a00;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings ol {
-  margin: 0;
-  padding-left: 1.4em;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body) .adt-warnings code {
-  font-family: 'Roboto Mono', ui-monospace, monospace;
-  background: rgba(0, 0, 0, 0.05);
-  padding: 0 0.2em;
-  border-radius: 3px;
-}
+/* (adt block styles → @markpage/blocks/styles/markpage.css) */
 
 /* ---- EBNF railroad diagrams (```ebnf) --------------------------- */
 
