@@ -17,7 +17,7 @@ import { parse as parseCategory, typecheck as typecheckCategory } from './catego
 import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
 import { emitSvg as emitCategorySvg } from './category-svg';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
-import { parseChartInfo, renderChart } from './chart';
+import { parseChartInfo, renderChart } from '@markpage/blocks';
 import { parseMosaicInfo, renderMosaic } from './mosaic';
 import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';

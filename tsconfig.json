@@ -15,7 +15,12 @@
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "useDefineForClassFields": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@markpage/blocks": ["./packages/blocks/src/index.ts"],
+      "@markpage/marked": ["./packages/marked/src/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "packages/blocks/src", "packages/marked/src"]
 }

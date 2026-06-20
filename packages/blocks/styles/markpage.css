@@ -1,0 +1,68 @@
+/* @markpage/blocks — portable styles for the bundled block renderers.
+ *
+ * Scope everything under `.markpage`: wrap your rendered markdown in an
+ * element with that class (`<div class="markpage">…</div>`). `:where()` keeps
+ * the specificity at zero so your own theme can override freely. */
+
+/* ---- chart --------------------------------------------------------------- */
+:where(.markpage) .chart-block {
+  margin: 0.8em 0;
+}
+:where(.markpage) .chart-svg {
+  width: 100%;
+  height: auto;
+}
+:where(.markpage) .chart-svg .chart-axis {
+  stroke: #444;
+  stroke-width: 1;
+}
+:where(.markpage) .chart-svg .chart-grid {
+  stroke: #e0e0e0;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+:where(.markpage) .chart-svg .chart-line {
+  fill: none;
+  stroke-width: 1.8;
+}
+:where(.markpage) .chart-svg .chart-tick {
+  font-size: 11px;
+  fill: #444;
+}
+:where(.markpage) .chart-svg .chart-tick-y {
+  text-anchor: end;
+}
+:where(.markpage) .chart-svg .chart-tick-x {
+  text-anchor: middle;
+}
+:where(.markpage) .chart-svg .chart-axis-label {
+  font-size: 12px;
+  fill: #222;
+  text-anchor: middle;
+  font-weight: 500;
+}
+:where(.markpage) .chart-svg .chart-legend {
+  font-size: 11px;
+  fill: #222;
+}
+:where(.markpage) .chart-svg .chart-ref {
+  stroke: #cf222e;
+  stroke-width: 1.2;
+  stroke-dasharray: 5 3;
+  opacity: 0.8;
+}
+:where(.markpage) .chart-svg .chart-ref-label {
+  font-size: 11px;
+  fill: #cf222e;
+  text-anchor: end;
+  font-weight: 500;
+}
+:where(.markpage) .chart-error {
+  margin: 0.8em 0;
+  padding: 0.6em 0.9em;
+  border-left: 4px solid #cf222e;
+  background: #ffebe9;
+  color: #82071e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
