@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseChartInfo, renderChart } from '../src/chart';
+import { parseChartInfo, renderChart } from '@markpage/blocks';
 
 describe('parseChartInfo', () => {
   it('parses a bare type with no options', () => {

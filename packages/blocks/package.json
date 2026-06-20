@@ -1,0 +1,14 @@
+{
+  "name": "@markpage/blocks",
+  "version": "0.0.0",
+  "description": "Framework-agnostic renderers for markpage's fenced markdown blocks (chart, …) — self-contained HTML/SVG, no app dependencies.",
+  "license": "MIT",
+  "author": "Yann Orlarey",
+  "type": "module",
+  "sideEffects": ["./src/index.ts", "./styles/*.css"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./styles/markpage.css"
+  },
+  "files": ["src", "styles"]
+}

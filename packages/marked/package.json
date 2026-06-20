@@ -1,0 +1,16 @@
+{
+  "name": "@markpage/marked",
+  "version": "0.0.0",
+  "description": "marked plugin for markpage's fenced blocks — `marked.use(markpageBlocks())`.",
+  "license": "MIT",
+  "author": "Yann Orlarey",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@markpage/blocks": "*",
+    "marked": ">=12"
+  },
+  "files": ["src"]
+}

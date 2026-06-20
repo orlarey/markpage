@@ -17,5 +17,5 @@
     "useDefineForClassFields": true,
     "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src", "packages/blocks/src", "packages/marked/src"]
 }

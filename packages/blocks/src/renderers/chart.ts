@@ -26,7 +26,7 @@
 // (a comma between two digits with no whitespace stays as a decimal,
 // every other comma splits) — so French numbers `3,14` survive.
 
-import { extractLabel } from './refs';
+import { extractLabel } from '../util/labels';
 
 const VIEW_W = 640;
 const VIEW_H = 360;
