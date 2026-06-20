@@ -7,7 +7,7 @@
   "homepage": "https://markpage.org",
   "repository": {
     "type": "git",
-    "url": "https://github.com/orlarey/markpage.git",
+    "url": "git+https://github.com/orlarey/markpage.git",
     "directory": "packages/blocks"
   },
   "type": "module",
