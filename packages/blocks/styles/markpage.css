@@ -66,3 +66,218 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
+
+/* ---- category (native commutative-diagram SVG) -------------------------- */
+:where(.markpage) .category-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+:where(.markpage) .category-wrap .category-svg {
+  max-width: 100%;
+  height: auto;
+}
+:where(.markpage) .category-svg .cd-obj {
+  font-weight: 500;
+}
+:where(.markpage) .category-svg .cd-edge-label {
+  font-size: 0.85em;
+}
+:where(.markpage) .category-error {
+  display: block;
+  border-left: 4px solid #d1242f;
+  background: #ffeef0;
+  padding: 0.6em 0.9em;
+  margin: 0.6em 0;
+  border-radius: 0 4px 4px 0;
+}
+:where(.markpage) .category-error .category-error-msg {
+  color: #d1242f;
+  font-weight: 500;
+  margin-bottom: 0.3em;
+}
+:where(.markpage) .category-error ul {
+  margin: 0.3em 0 0.6em 1.2em;
+  padding: 0;
+  font-size: 0.95em;
+}
+:where(.markpage) .category-error pre {
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9em;
+}
+
+/* ---- bda (Faust block-diagram-algebra SVG) ------------------------------ */
+:where(.markpage) .bda-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+:where(.markpage) .bda-wrap .bda-svg {
+  max-width: 100%;
+  height: auto;
+}
+:where(.markpage) .bda-svg .bda-box {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+:where(.markpage) .bda-svg .bda-label {
+  fill: currentColor;
+}
+:where(.markpage) .bda-svg .bda-wire,
+:where(.markpage) .bda-svg .bda-wire-fb {
+  stroke: currentColor;
+  stroke-width: 1;
+  fill: none;
+}
+:where(.markpage) .bda-svg .bda-port-in,
+:where(.markpage) .bda-svg .bda-cut {
+  fill: currentColor;
+  stroke: none;
+}
+:where(.markpage) .bda-svg .bda-port-out {
+  fill: var(--bg, #fff);
+  stroke: currentColor;
+  stroke-width: 0.8;
+}
+:where(.markpage) .bda-svg .bda-delay {
+  fill: var(--bg, #fff);
+  stroke: currentColor;
+  stroke-width: 1;
+}
+:where(.markpage) .bda-error {
+  display: block;
+  border-left: 4px solid #d1242f;
+  background: #ffeef0;
+  padding: 0.6em 0.9em;
+  margin: 0.6em 0;
+  border-radius: 0 4px 4px 0;
+}
+:where(.markpage) .bda-error .bda-error-msg {
+  color: #d1242f;
+  font-weight: 500;
+  margin-bottom: 0.3em;
+}
+:where(.markpage) .bda-error ul {
+  margin: 0.3em 0 0.6em 1.2em;
+  padding: 0;
+  font-size: 0.95em;
+}
+:where(.markpage) .bda-error pre {
+  margin: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9em;
+}
+
+/* ---- diff (unified-diff coloration) ------------------------------------- */
+:where(.markpage) .diff-block .diff-add,
+:where(.markpage) .diff-block .diff-del,
+:where(.markpage) .diff-block .diff-ctx,
+:where(.markpage) .diff-block .diff-meta,
+:where(.markpage) .diff-block .diff-hunk {
+  display: block;
+}
+:where(.markpage) .diff-block .diff-add {
+  background: #e6ffec;
+  color: #1a7f37;
+}
+:where(.markpage) .diff-block .diff-del {
+  background: #ffebe9;
+  color: #cf222e;
+}
+:where(.markpage) .diff-block .diff-meta {
+  color: #57606a;
+  font-weight: 500;
+}
+:where(.markpage) .diff-block .diff-hunk {
+  color: #6e7681;
+  background: #ddf4ff;
+}
+
+/* ---- tree (SVG variant) ------------------------------------------------- */
+:where(.markpage) .tree-svg-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.8em 0;
+}
+:where(.markpage) .tree-svg-wrap .tree-svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---- adt (algebraic-data-type grid) ------------------------------------- */
+:where(.markpage) .adt-block {
+  display: grid;
+  grid-template-columns: max-content max-content auto max-content;
+  column-gap: 0.6em;
+  row-gap: 0.15em;
+  align-items: baseline;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.8em auto;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.95em;
+}
+:where(.markpage) .adt-block .adt-lhs {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text, #1f2328);
+}
+:where(.markpage) .adt-block .adt-sep,
+:where(.markpage) .adt-block .adt-sep-inline {
+  color: var(--text-muted, #57606a);
+}
+:where(.markpage) .adt-block .adt-sep-inline {
+  margin: 0 0.2em;
+}
+:where(.markpage) .adt-block .adt-alt {
+  color: var(--text, #1f2328);
+}
+:where(.markpage) .adt-block .adt-type {
+  color: var(--text, #1f2328);
+  font-weight: 600;
+}
+:where(.markpage) .adt-block .adt-ctor {
+  color: #8250df;
+  font-weight: 500;
+}
+:where(.markpage) .adt-block .adt-ann {
+  color: var(--text-muted, #57606a);
+  font-style: italic;
+  padding-left: 1em;
+  font-family: var(--font-body, 'Roboto', system-ui, sans-serif);
+}
+:where(.markpage) .adt-block .adt-spacer {
+  grid-column: 1 / -1;
+  height: 0.6em;
+}
+:where(.markpage) .adt-error {
+  background: #ffebe9;
+  color: #cf222e;
+  border: 1px solid #cf222e;
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9em;
+}
+:where(.markpage) .adt-warnings {
+  background: #fff8e1;
+  border: 1px solid #d29922;
+  border-radius: 6px;
+  padding: 0.6em 0.9em;
+  margin: 0.5em auto;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 0.9em;
+  color: #5d4a00;
+}
+:where(.markpage) .adt-warnings strong {
+  display: block;
+  margin-bottom: 0.3em;
+  color: #5d4a00;
+}
