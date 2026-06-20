@@ -4,6 +4,14 @@ A [marked](https://marked.js.org) plugin that renders
 [markpage](https://markpage.org)'s fenced blocks (`chart`, `bda`, `category`,
 `adt`, `diff`, `tree`) — drop it into any marked pipeline.
 
+## Install
+
+```sh
+npm install @markpage/marked @markpage/blocks marked
+```
+
+`marked` and `@markpage/blocks` are peer dependencies (install them alongside).
+
 ## Usage
 
 ```js
@@ -41,6 +49,18 @@ from `@markpage/blocks/styles.css` apply:
   the running header/footer, paginated PDF) are **not** part of this plugin —
   it only renders the standalone block fences. For the full experience, use
   the markpage app.
+
+## Fence syntax
+
+The body and options of each fence (`chart`, `bda`, `category`, `adt`, `diff`,
+`tree`) are documented in markpage's authoring guide:
+[AI-AUTHORING.md](https://github.com/orlarey/markpage/blob/main/AI-AUTHORING.md).
+
+## Caption / figure numbering
+
+Pass `markpageBlocks({ captions: false })` to skip the auto-numbered
+`<figure>` wrapper, or `{ labels: { figure: 'Figure', listing: 'Listing' } }`
+to localise the caption words. Numbering resets per `marked.parse()` call.
 
 ## Peer dependencies
 
