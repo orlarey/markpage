@@ -1534,8 +1534,15 @@ body,
 :where(#preview-pane, #markpage-print-target, .help-body) .mosaic-item {
   display: block;
   height: 100%;
+  width: 100%;
   object-fit: cover;
   min-width: 0;
+  /* Override the general `img` rule (margin: 0.6em auto; max-height; object-fit:
+     contain) — its vertical margin would show as white bands between rows, and
+     contain would letterbox each cell. Mosaic cells fill their packed box. */
+  margin: 0;
+  max-width: none;
+  max-height: none;
 }
 /* An image that couldn't be measured (3:2 fallback) is flagged. */
 :where(#preview-pane, #markpage-print-target, .help-body) .mosaic-missing {
