@@ -1,14 +1,33 @@
 {
   "name": "@markpage/blocks",
-  "version": "0.0.0",
-  "description": "Framework-agnostic renderers for markpage's fenced markdown blocks (chart, …) — self-contained HTML/SVG, no app dependencies.",
+  "version": "0.1.0",
+  "description": "Framework-agnostic renderers for markpage's fenced markdown blocks (chart, bda, category, adt, diff, tree) — self-contained HTML/SVG, no app dependencies.",
   "license": "MIT",
   "author": "Yann Orlarey",
+  "homepage": "https://markpage.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orlarey/markpage.git",
+    "directory": "packages/blocks"
+  },
   "type": "module",
-  "sideEffects": ["./src/index.ts", "./styles/*.css"],
+  "sideEffects": ["./src/index.ts", "./dist/index.js", "./styles/*.css"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./styles.css": "./styles/markpage.css"
   },
-  "files": ["src", "styles"]
+  "files": ["dist", "styles", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
