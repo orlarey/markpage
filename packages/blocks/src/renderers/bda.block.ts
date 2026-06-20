@@ -6,9 +6,9 @@
  *
  *******************************************************************************/
 
-import { parse as parseBda, typecheck as typecheckBda } from './bda';
-import { emitSvg as emitBdaSvg } from './bda-svg';
-import { escapeHtml, fenceArgs } from '../util/escape';
+import { parse as parseBda, typecheck as typecheckBda } from './bda.js';
+import { emitSvg as emitBdaSvg } from './bda-svg.js';
+import { escapeHtml, fenceArgs } from '../util/escape.js';
 
 /** Render a `bda` fence (body + full info string) to an SVG / error block. */
 export function renderBda(body: string, info = ''): string {

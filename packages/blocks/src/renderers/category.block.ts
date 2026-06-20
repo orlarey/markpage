@@ -10,10 +10,10 @@
  *
  *******************************************************************************/
 
-import { parse as parseCategory, typecheck as typecheckCategory } from './category';
-import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
-import { emitSvg as emitCategorySvg } from './category-svg';
-import { escapeHtml } from '../util/escape';
+import { parse as parseCategory, typecheck as typecheckCategory } from './category.js';
+import { emitMermaid as emitCategoryMermaid } from './category-mermaid.js';
+import { emitSvg as emitCategorySvg } from './category-svg.js';
+import { escapeHtml } from '../util/escape.js';
 
 /** Render a `category` fence body to an SVG (or Mermaid fallback / error). */
 export function renderCategory(body: string): string {

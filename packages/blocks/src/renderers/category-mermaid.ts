@@ -11,7 +11,7 @@
  *
  *******************************************************************************/
 
-import type { CdAst, MorphismProp } from './category';
+import type { CdAst, MorphismProp } from './category.js';
 
 /**
  * Purpose: Emit a Mermaid `graph <dir>` source for the given AST.

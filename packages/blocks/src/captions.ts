@@ -10,8 +10,8 @@
  *
  *******************************************************************************/
 
-import { escapeHtml } from './util/escape';
-import { extractLabel } from './util/labels';
+import { escapeHtml } from './util/escape.js';
+import { extractLabel } from './util/labels.js';
 
 /** The block "kinds" that can carry a caption (many fences map onto one). */
 export type CaptionKind = 'algorithm' | 'figure' | 'table' | 'listing';

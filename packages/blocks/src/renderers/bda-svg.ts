@@ -18,7 +18,7 @@
  *
  *******************************************************************************/
 
-import type { BdaNode, PrimNode } from './bda';
+import type { BdaNode, PrimNode } from './bda.js';
 
 // ---- Geometry constants ------------------------------------------------
 

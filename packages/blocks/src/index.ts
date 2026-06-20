@@ -10,14 +10,14 @@
  *
  *******************************************************************************/
 
-import { renderChart, parseChartInfo } from './renderers/chart';
-import { renderBda } from './renderers/bda.block';
-import { renderCategory } from './renderers/category.block';
-import { renderAdtBlock } from './renderers/adt';
-import { renderDiffBlock } from './renderers/diff';
-import { renderTreeBlock } from './renderers/tree';
-import { registerBlock } from './registry';
-import { fenceArgs } from './util/escape';
+import { renderChart, parseChartInfo } from './renderers/chart.js';
+import { renderBda } from './renderers/bda.block.js';
+import { renderCategory } from './renderers/category.block.js';
+import { renderAdtBlock } from './renderers/adt.js';
+import { renderDiffBlock } from './renderers/diff.js';
+import { renderTreeBlock } from './renderers/tree.js';
+import { registerBlock } from './registry.js';
+import { fenceArgs } from './util/escape.js';
 
 // Self-register the bundled renderers. The registry maps a fence language word
 // to `(body, info) => html`; each renderer parses its own options from `info`.
@@ -39,7 +39,7 @@ export {
   registerBlock,
   renderBlock,
   type BlockRenderer,
-} from './registry';
+} from './registry.js';
 
 export {
   createCaptionContext,
@@ -47,12 +47,12 @@ export {
   type CaptionContext,
   type CaptionContextOptions,
   type CaptionKind,
-} from './captions';
+} from './captions.js';
 
-export { renderChart, parseChartInfo } from './renderers/chart';
-export type { ChartInfo, ChartOptions, YRef } from './renderers/chart';
-export { renderBda } from './renderers/bda.block';
-export { renderCategory } from './renderers/category.block';
-export { renderAdtBlock } from './renderers/adt';
-export { renderDiffBlock } from './renderers/diff';
-export { renderTreeBlock } from './renderers/tree';
+export { renderChart, parseChartInfo } from './renderers/chart.js';
+export type { ChartInfo, ChartOptions, YRef } from './renderers/chart.js';
+export { renderBda } from './renderers/bda.block.js';
+export { renderCategory } from './renderers/category.block.js';
+export { renderAdtBlock } from './renderers/adt.js';
+export { renderDiffBlock } from './renderers/diff.js';
+export { renderTreeBlock } from './renderers/tree.js';

@@ -18,7 +18,7 @@
  *
  *******************************************************************************/
 
-import type { CdAst, Morphism, Induced } from './category';
+import type { CdAst, Morphism, Induced } from './category.js';
 
 // All geometry in pixels at a 16 px base font-size. The SVG carries
 // explicit width / height in px so the diagram retains its intrinsic

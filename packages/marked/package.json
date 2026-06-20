@@ -1,6 +1,6 @@
 {
   "name": "@orlarey/marked",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "marked plugin for markpage's fenced blocks — `marked.use(markpageBlocks())`.",
   "license": "MIT",
   "author": "Yann Orlarey",
@@ -20,13 +20,16 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@orlarey/blocks": "^0.1.0",
+    "@orlarey/blocks": "^0.1.1",
     "marked": ">=12"
   },
   "publishConfig": {
