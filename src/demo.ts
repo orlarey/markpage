@@ -48,7 +48,8 @@ import {
   renderPreview,
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
-import { paginate } from './preview-paginated';
+import { layoutMosaicBlocks } from './mosaic';
+import { pageContentGeomPx, paginate } from './preview-paginated';
 import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   findShowcaseEntry,
@@ -123,6 +124,7 @@ async function run(): Promise<void> {
     renderMermaidBlocks(built),
     renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
     renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
+    layoutMosaicBlocks(built, pageContentGeomPx(effectiveSettings)),
   ]);
   await paginate(built, effectiveSettings, previewEl);
 }

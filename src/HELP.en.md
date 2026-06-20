@@ -105,6 +105,32 @@ Three options:
 The image is automatically resized and compressed (2000 px max on
 each side), and gets inserted at the cursor position.
 
+### Image walls (mosaic) \label{sec:mosaic}
+
+To montage several pictures into a **wall of images** — a justified,
+gap-free gallery, Flickr-style — put one image per line inside a
+`mosaic` block:
+
+````
+```mosaic "May Day outing"
+![](image-1.jpg)
+![](image-2.jpg)
+![](image-3.jpg)
+![](image-4.jpg)
+```
+````
+
+The images, **never cropped**, are packed into rows that fill the text
+width exactly; row heights adjust to form a clean rectangle. Options in
+the info string, after the optional title:
+
+- `height=<pt>` — target row height (smaller ⇒ more images per row);
+- `gap=<pt>` — gutter between images (0 by default);
+- `last=natural` — leave the last row at its natural size instead of
+  stretching it.
+
+A quoted title adds a numbered caption (*Figure N*).
+
 ### The toolbar \label{sec:toolbar}
 
 At the top of the screen, a handful of buttons:

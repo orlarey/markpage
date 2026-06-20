@@ -109,6 +109,34 @@ Trois moyens, au choix :
 L'image est automatiquement redimensionnée et compressée (max 2000 px
 de côté), et s'insère à la position du curseur.
 
+### Murs d'images (mosaïque) \label{sec:mosaic}
+
+Pour monter plusieurs photos en un **mur d'images** — une galerie
+justifiée, sans espace, façon Flickr — placez une image par ligne dans
+un bloc `mosaic` :
+
+````
+```mosaic "Sortie du 1er mai"
+![](image-1.jpg)
+![](image-2.jpg)
+![](image-3.jpg)
+![](image-4.jpg)
+```
+````
+
+Les images, **jamais rognées**, sont regroupées en rangées qui
+remplissent exactement la largeur du texte ; les hauteurs de rangée
+s'ajustent pour former un rectangle net. Options dans l'info-string,
+après le titre optionnel :
+
+- `height=<pt>` — hauteur de rangée visée (plus petit ⇒ plus d'images
+  par rangée) ;
+- `gap=<pt>` — gouttière entre les images (0 par défaut) ;
+- `last=natural` — laisse la dernière rangée à sa taille naturelle au
+  lieu de l'étirer.
+
+Un titre entre guillemets ajoute une légende numérotée (*Figure N*).
+
 ### La toolbar \label{sec:toolbar}
 
 En haut de l'écran, quelques boutons :

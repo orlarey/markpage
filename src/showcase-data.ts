@@ -25,6 +25,11 @@
 // Credits closes.
 
 import pipeUrl from './assets/pipe.svg';
+import mosaic1Url from './assets/mosaic-tile-1.svg';
+import mosaic2Url from './assets/mosaic-tile-2.svg';
+import mosaic3Url from './assets/mosaic-tile-3.svg';
+import mosaic4Url from './assets/mosaic-tile-4.svg';
+import mosaic5Url from './assets/mosaic-tile-5.svg';
 import type { ShowcaseEntry } from './showcase-types';
 
 /**
@@ -83,6 +88,21 @@ une pipe*. The point was simple: an image of a pipe is not a pipe.
 A picture of a pipe is not a pipe — you can name it, hang it on
 the wall, write a caption underneath. But you cannot smoke the
 picture.
+`,
+  },
+  {
+    id: 'mosaic',
+    title: 'Image walls (mosaic)',
+    description:
+      'A `mosaic` fence montages several pictures into a justified gallery — whole images (never cropped) packed into full-width rows with no gaps, a clean rectangle. Ideal for a wall of event or trip photos. `height=` tunes the density, `gap=` adds a gutter.',
+    sourceLang: 'markdown',
+    source: `\`\`\`mosaic "A wall of pictures"
+![](${mosaic1Url})
+![](${mosaic2Url})
+![](${mosaic3Url})
+![](${mosaic4Url})
+![](${mosaic5Url})
+\`\`\`
 `,
   },
   {
