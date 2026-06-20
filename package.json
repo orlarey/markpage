@@ -6,6 +6,7 @@
   "description": "Client-side Markdown to PDF converter",
   "license": "MIT",
   "author": "Yann Orlarey",
+  "workspaces": ["packages/*"],
   "homepage": "https://markpage.org",
   "repository": {
     "type": "git",

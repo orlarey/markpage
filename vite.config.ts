@@ -20,11 +20,6 @@ const pkg = JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8')) as {
 //   showcase.html  — the long marketing / vitrine page
 export default defineConfig({
   base: './',
-  resolve: {
-    alias: {
-      '@markpage/blocks': resolve(dir, 'packages/blocks/src/index.ts'),
-    },
-  },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
