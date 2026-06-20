@@ -35,6 +35,7 @@ import { makeLogo } from './logo';
 // Bundling the whole app stylesheet keeps the help window visually
 // consistent with the editor / preview without us hand-curating a
 // subset.
+import blocksCss from '@markpage/blocks/styles.css?inline';
 import appCss from '../style.css?inline';
 
 /**
@@ -130,6 +131,7 @@ function buildHelpWindow(
   win.document.head.innerHTML = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>${blocksCss}</style>
     <style>${appCss}</style>
     <style>${windowSpecificCss()}</style>
   `;
@@ -144,7 +146,7 @@ function buildHelpWindow(
     </header>
     <div class="help-window-layout">
       <nav class="help-toc" id="help-toc-nav" aria-label="${t('help.toc')}"></nav>
-      <main class="help-body" id="help-body"></main>
+      <main class="help-body markpage" id="help-body"></main>
     </div>
   `;
   // Render the brand into the placeholder span. We do this from JS
