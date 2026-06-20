@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseChartInfo, renderChart } from '@markpage/blocks';
+import { parseChartInfo, renderChart } from '@orlarey/blocks';
 
 describe('parseChartInfo', () => {
   it('parses a bare type with no options', () => {

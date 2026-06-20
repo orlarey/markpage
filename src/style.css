@@ -1436,7 +1436,7 @@ body,
    user's settings, which we don't know here. */
 
 /* ---- Charts / bda / category / adt / diff / tree ----------------------
-   Block styles now live in @markpage/blocks (styles/markpage.css), scoped
+   Block styles now live in @orlarey/blocks (styles/markpage.css), scoped
    to `.markpage` — imported in main.ts / demo.ts and inlined into the help
    window. The preview / print / help containers carry the `markpage` class.
    Only app-specific glue (e.g. figure-margin resets) remains in this file. */
@@ -1921,7 +1921,7 @@ body,
   border-radius: 3px;
 }
 
-/* (diff + tree-svg block styles → @markpage/blocks/styles/markpage.css) */
+/* (diff + tree-svg block styles → @orlarey/blocks/styles/markpage.css) */
 
 /* ---- algorithm block (```algorithm "Caption") --------------------
    algorithm2e-style listing — numbered lines, bold keywords. The
@@ -2450,7 +2450,7 @@ figure.captioned > pre {
   line-height: 1.5;
 }
 
-/* (adt block styles → @markpage/blocks/styles/markpage.css) */
+/* (adt block styles → @orlarey/blocks/styles/markpage.css) */
 
 /* ---- EBNF railroad diagrams (```ebnf) --------------------------- */
 

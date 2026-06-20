@@ -1,7 +1,7 @@
 /********************************* escape.ts ***********************************
  *
  * Purpose: HTML/XML escaping + fence-info helpers shared by the block
- *   renderers. Self-contained for @markpage/blocks (no app dependency).
+ *   renderers. Self-contained for @orlarey/blocks (no app dependency).
  *
  *******************************************************************************/
 

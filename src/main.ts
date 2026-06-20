@@ -28,7 +28,7 @@ import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 
 import 'highlight.js/styles/atom-one-light.css';
-import '@markpage/blocks/styles.css';
+import '@orlarey/blocks/styles.css';
 import './style.css';
 // Side-effect import: registers our marked extensions ($$math$$, …) on the
 // shared `marked` instance. Must run before any marked.parse / marked.lexer.

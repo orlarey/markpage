@@ -1,7 +1,7 @@
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 
-import { markpageBlocks } from '@markpage/marked';
+import { markpageBlocks } from '@orlarey/marked';
 
 // Visual-regression base for the block library: the help "block gallery" set,
 // rendered through the marked plugin and snapshotted. These renderers emit

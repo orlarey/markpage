@@ -1,7 +1,7 @@
 /********************************* captions.ts *********************************
  *
  * Purpose: The app's captioned-block infrastructure — now a thin adapter over
- *   @markpage/blocks' shared caption context, configured with French labels
+ *   @orlarey/blocks' shared caption context, configured with French labels
  *   and the app's own cross-ref anchor-id scheme (refs.ts). The public API
  *   (resetCaptions / nextCaptionNumber / withCaption / parseFenceInfo) is
  *   unchanged, so marked-config and the exporters keep working as-is.
@@ -12,7 +12,7 @@ import {
   createCaptionContext,
   parseFenceInfo,
   type CaptionKind,
-} from '@markpage/blocks';
+} from '@orlarey/blocks';
 import { anchorId } from './refs';
 
 export type { CaptionKind };

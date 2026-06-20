@@ -1,5 +1,5 @@
 {
-  "name": "@markpage/marked",
+  "name": "@orlarey/marked",
   "version": "0.1.0",
   "description": "marked plugin for markpage's fenced blocks — `marked.use(markpageBlocks())`.",
   "license": "MIT",
@@ -26,7 +26,7 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "@markpage/blocks": "^0.1.0",
+    "@orlarey/blocks": "^0.1.0",
     "marked": ">=12"
   },
   "publishConfig": {

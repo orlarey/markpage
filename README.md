@@ -146,17 +146,17 @@ The rich block renderers (`chart`, `bda`, `category`, `adt`, `diff`, `tree`)
 are published as standalone, framework-agnostic packages — drop them into any
 Markdown toolchain, no markpage app required:
 
-- **[`@markpage/marked`](packages/marked/)** — a [marked](https://marked.js.org)
+- **[`@orlarey/marked`](packages/marked/)** — a [marked](https://marked.js.org)
   plugin. `marked.use(markpageBlocks())` and the fences render, with optional
   auto-numbered figure captions.
-- **[`@markpage/blocks`](packages/blocks/)** — the renderers + a registry for
+- **[`@orlarey/blocks`](packages/blocks/)** — the renderers + a registry for
   any pipeline (`renderBlock('chart', body, info)` → HTML/SVG). Ships a
-  portable stylesheet (`@markpage/blocks/styles.css`, scoped to `.markpage`).
+  portable stylesheet (`@orlarey/blocks/styles.css`, scoped to `.markpage`).
 
 ````js
 import { marked } from 'marked';
-import { markpageBlocks } from '@markpage/marked';
-import '@markpage/blocks/styles.css';
+import { markpageBlocks } from '@orlarey/marked';
+import '@orlarey/blocks/styles.css';
 
 marked.use(markpageBlocks());
 const html = marked.parse('```chart line "Sales"\nq, rev\nQ1, 12\nQ2, 19\n```');

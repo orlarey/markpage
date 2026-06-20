@@ -1,11 +1,11 @@
-/********************************* @markpage/marked ****************************
+/********************************* @orlarey/marked ****************************
  *
  * Purpose: A marked plugin that renders markpage's fenced blocks (`chart`, …),
  *   optionally wrapping a quoted-title fence in an auto-numbered figure.
  *
  *     import { marked } from 'marked';
- *     import { markpageBlocks } from '@markpage/marked';
- *     import '@markpage/blocks/styles.css';
+ *     import { markpageBlocks } from '@orlarey/marked';
+ *     import '@orlarey/blocks/styles.css';
  *
  *     marked.use(markpageBlocks());
  *     marked.parse('```chart line "Sales"\n…\n```');  // → <figure> Figure 1: …
@@ -22,7 +22,7 @@ import {
   parseFenceInfo,
   renderBlock,
   type CaptionKind,
-} from '@markpage/blocks';
+} from '@orlarey/blocks';
 import type { MarkedExtension, Tokens } from 'marked';
 
 // Which numbered "kind" each fence captions as (Figure vs Listing).

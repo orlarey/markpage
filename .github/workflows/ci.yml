@@ -24,7 +24,7 @@ jobs:
       - run: npm test
       - run: npm run build
       # Sanity-check the publishable tarballs (dist + types + styles).
-      - run: npm pack --dry-run -w @markpage/blocks -w @markpage/marked
+      - run: npm pack --dry-run -w @orlarey/blocks -w @orlarey/marked
 
   e2e:
     name: end-to-end (Playwright)

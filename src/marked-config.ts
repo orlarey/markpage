@@ -19,7 +19,7 @@ import {
   renderChart,
   renderDiffBlock,
   renderTreeBlock,
-} from '@markpage/blocks';
+} from '@orlarey/blocks';
 import { parseMosaicInfo, renderMosaic } from './mosaic';
 import { renderEbnfBlock } from './ebnf';
 import { highlightCode, isKnownLanguage } from './highlight';
@@ -1026,7 +1026,7 @@ marked.use({
  * Purpose: Thread the original fenced-block markdown into the first tag of `html`.
  * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
  */
-// `renderCategory` / `renderBda` now live in @markpage/blocks (imported above).
+// `renderCategory` / `renderBda` now live in @orlarey/blocks (imported above).
 
 /**
  * Purpose: Render a `demo` block — show the source markdown on one side

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 /**
  * Purpose: Render-regression net for every block fence, in the real app
  *   pipeline (marked-config → async math/mermaid passes → paged.js → the
- *   @markpage/blocks `.markpage` styles). Complements the deterministic
+ *   @orlarey/blocks `.markpage` styles). Complements the deterministic
  *   markup snapshots in tests/gallery-snapshot.test.ts by also covering the
  *   non-deterministic blocks (math / mermaid / ebnf / inference) and the
  *   actual CSS/layout — catching "a fence stopped rendering" regressions.

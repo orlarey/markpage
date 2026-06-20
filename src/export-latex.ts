@@ -21,7 +21,7 @@ import { mathBodyToLatex } from './latex-math-symbols';
 import { collectImageRefs } from './image';
 import { getImage } from './image-store';
 import { renderMermaid } from './mermaid';
-import { renderChart } from '@markpage/blocks';
+import { renderChart } from '@orlarey/blocks';
 import { parseFenceInfo } from './captions';
 
 /**

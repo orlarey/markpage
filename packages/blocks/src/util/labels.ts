@@ -1,7 +1,7 @@
 /********************************* labels.ts ***********************************
  *
  * Purpose: Extract a `\label{key}` from a fence info string. Self-contained
- *   copy for @markpage/blocks (the app has its own richer cross-ref module;
+ *   copy for @orlarey/blocks (the app has its own richer cross-ref module;
  *   the library only needs the label-extraction primitive).
  *
  *******************************************************************************/

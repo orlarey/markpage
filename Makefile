@@ -26,10 +26,10 @@ preview: ## Serve the production build locally
 	npm run preview
 
 ## ---- Build ------------------------------------------------------------
-build: ## Build the @markpage/* packages then the app (production)
+build: ## Build the @orlarey/* packages then the app (production)
 	npm run build
 
-packages: ## Build only the @markpage/* packages to dist (.js + .d.ts)
+packages: ## Build only the @orlarey/* packages to dist (.js + .d.ts)
 	npm run build:packages
 
 ## ---- Quality ----------------------------------------------------------
@@ -60,10 +60,10 @@ clean: ## Remove build artifacts (dist, package dist, vite cache)
 	@rm -rf dist packages/blocks/dist packages/marked/dist node_modules/.vite
 	@echo "Cleaned dist / packages/*/dist / node_modules/.vite"
 
-## ---- Publish (@markpage/* to npm — needs `npm login`) -----------------
-publish: ## Publish @markpage/blocks then @markpage/marked (runs the build)
-	npm publish -w @markpage/blocks
-	npm publish -w @markpage/marked
+## ---- Publish (@orlarey/* to npm — needs `npm login`) -----------------
+publish: ## Publish @orlarey/blocks then @orlarey/marked (runs the build)
+	npm publish -w @orlarey/blocks
+	npm publish -w @orlarey/marked
 
 ## ---- Claude skill (markpage-specs) ------------------------------------
 install: ## Install/refresh the markpage-specs Claude skill (copies AI-AUTHORING.md)

@@ -1,10 +1,10 @@
-/********************************* @markpage/blocks ****************************
+/********************************* @orlarey/blocks ****************************
  *
  * Purpose: Public entry of the framework-agnostic block-renderer library. Turn
  *   markpage's fenced DSLs (`chart`, `bda`, `category`, `adt`, `tree`, `diff`)
  *   into self-contained HTML/SVG, independent of the markpage app (no
  *   pagination, no image store, no app settings). Markdown integrations live
- *   in sibling packages (@markpage/marked, …) on top of the `registry` here.
+ *   in sibling packages (@orlarey/marked, …) on top of the `registry` here.
  * How: Each renderer is exported directly AND self-registers into the registry
  *   so a host can dispatch by fence name (`renderBlock('chart', body, info)`).
  *

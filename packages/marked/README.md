@@ -1,4 +1,4 @@
-# @markpage/marked
+# @orlarey/marked
 
 A [marked](https://marked.js.org) plugin that renders
 [markpage](https://markpage.org)'s fenced blocks (`chart`, `bda`, `category`,
@@ -7,17 +7,17 @@ A [marked](https://marked.js.org) plugin that renders
 ## Install
 
 ```sh
-npm install @markpage/marked @markpage/blocks marked
+npm install @orlarey/marked @orlarey/blocks marked
 ```
 
-`marked` and `@markpage/blocks` are peer dependencies (install them alongside).
+`marked` and `@orlarey/blocks` are peer dependencies (install them alongside).
 
 ## Usage
 
 ```js
 import { marked } from 'marked';
-import { markpageBlocks } from '@markpage/marked';
-import '@markpage/blocks/styles.css';
+import { markpageBlocks } from '@orlarey/marked';
+import '@orlarey/blocks/styles.css';
 
 marked.use(markpageBlocks());
 
@@ -33,7 +33,7 @@ Q2, 19
 ```
 
 Wrap the rendered HTML in an element with the `markpage` class so the styles
-from `@markpage/blocks/styles.css` apply:
+from `@orlarey/blocks/styles.css` apply:
 
 ```html
 <article class="markpage">${html}</article>
@@ -42,7 +42,7 @@ from `@markpage/blocks/styles.css` apply:
 ## Behaviour
 
 - Overrides marked's fenced-`code` renderer. A fence whose language is a
-  registered block (`chart`, …) is rendered by [`@markpage/blocks`](../blocks);
+  registered block (`chart`, …) is rendered by [`@orlarey/blocks`](../blocks);
   every other fence falls through to marked's default (syntax highlighting,
   etc.) untouched.
 - `markpage`'s richer document features (captions / cross-references, math,
@@ -54,9 +54,9 @@ from `@markpage/blocks/styles.css` apply:
 
 The body and options of each fence (`chart`, `bda`, `category`, `adt`, `diff`,
 `tree`) are documented in
-[`@markpage/blocks`'s SYNTAX.md](https://github.com/orlarey/markpage/blob/main/packages/blocks/SYNTAX.md)
-— it ships in the `@markpage/blocks` peer dependency, so it's also available
-offline at `node_modules/@markpage/blocks/SYNTAX.md`.
+[`@orlarey/blocks`'s SYNTAX.md](https://github.com/orlarey/markpage/blob/main/packages/blocks/SYNTAX.md)
+— it ships in the `@orlarey/blocks` peer dependency, so it's also available
+offline at `node_modules/@orlarey/blocks/SYNTAX.md`.
 
 ## Caption / figure numbering
 
@@ -66,4 +66,4 @@ to localise the caption words. Numbering resets per `marked.parse()` call.
 
 ## Peer dependencies
 
-`marked` (>= 12) and `@markpage/blocks`.
+`marked` (>= 12) and `@orlarey/blocks`.

@@ -1,8 +1,8 @@
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 
-import { blockNames } from '@markpage/blocks';
-import { markpageBlocks } from '@markpage/marked';
+import { blockNames } from '@orlarey/blocks';
+import { markpageBlocks } from '@orlarey/marked';
 
 const render = (md: string): string => {
   const m = new Marked();

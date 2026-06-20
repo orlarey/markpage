@@ -1,10 +1,10 @@
-# @markpage/blocks
+# @orlarey/blocks
 
 Framework-agnostic renderers for [markpage](https://markpage.org)'s fenced
 markdown blocks. Each renderer turns a fence body + info string into a
 self-contained HTML/SVG string — no pagination, no image store, no app state.
 Use them directly, or through the registry, or via a markdown integration
-(see [`@markpage/marked`](../marked)).
+(see [`@orlarey/marked`](../marked)).
 
 ## Fences
 
@@ -19,19 +19,19 @@ Use them directly, or through the registry, or via a markdown integration
 
 Each fence's body + option syntax is documented in [SYNTAX.md](./SYNTAX.md)
 (ships with the package). Using marked? Reach for
-[`@markpage/marked`](../marked) instead of calling the renderers by hand.
+[`@orlarey/marked`](../marked) instead of calling the renderers by hand.
 
 ## Install
 
 ```sh
-npm install @markpage/blocks
+npm install @orlarey/blocks
 ```
 
 ## Usage
 
 ```js
-import { renderBlock, renderChart } from '@markpage/blocks';
-import '@markpage/blocks/styles.css';
+import { renderBlock, renderChart } from '@orlarey/blocks';
+import '@orlarey/blocks/styles.css';
 
 // By fence name (registry):
 const svg = renderBlock('chart', 'x, y\n1, 2\n2, 4', 'chart line "Sales"');
@@ -53,7 +53,7 @@ styles apply:
   placeholder for topologies the native grid placer can't lay out — the host
   is responsible for running [Mermaid](https://mermaid.js.org) over it.
 - Renderers are pure and synchronous; captions / cross-references are a host
-  concern (the markpage app and `@markpage/marked` add them).
+  concern (the markpage app and `@orlarey/marked` add them).
 
 ## API
 

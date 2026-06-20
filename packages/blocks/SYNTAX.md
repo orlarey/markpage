@@ -1,11 +1,11 @@
-# Fence syntax — @markpage/blocks
+# Fence syntax — @orlarey/blocks
 
 Reference for the six fenced blocks this package renders. Each is a fenced code
 block; the first word after the opening backticks is the fence name, and an
 optional `"Quoted title"` becomes an auto-numbered caption when rendered through
-[`@markpage/marked`](https://www.npmjs.com/package/@markpage/marked).
+[`@orlarey/marked`](https://www.npmjs.com/package/@orlarey/marked).
 
-> This covers only the blocks shipped in `@markpage/blocks`. For markpage's full
+> This covers only the blocks shipped in `@orlarey/blocks`. For markpage's full
 > authoring guide (math, mermaid, callouts, letterhead, running headers, …), see
 > [AI-AUTHORING.md](https://github.com/orlarey/markpage/blob/main/AI-AUTHORING.md).
 

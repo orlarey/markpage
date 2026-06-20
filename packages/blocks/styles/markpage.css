@@ -1,4 +1,4 @@
-/* @markpage/blocks — portable styles for the bundled block renderers.
+/* @orlarey/blocks — portable styles for the bundled block renderers.
  *
  * Scope everything under `.markpage`: wrap your rendered markdown in an
  * element with that class (`<div class="markpage">…</div>`). `:where()` keeps

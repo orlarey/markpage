@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 // converters that lean on the browser DOM (preview HTML, SVG
 // sanitisation). Tests that need a *real* browser layout engine
 // (paged.js, mermaid's own renderer) are stubbed instead — we test
-// our code, not theirs. Workspace packages (@markpage/*) resolve via
+// our code, not theirs. Workspace packages (@orlarey/*) resolve via
 // node_modules symlinks (npm workspaces), no alias needed.
 export default defineConfig({
   test: {

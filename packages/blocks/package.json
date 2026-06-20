@@ -1,5 +1,5 @@
 {
-  "name": "@markpage/blocks",
+  "name": "@orlarey/blocks",
   "version": "0.1.0",
   "description": "Framework-agnostic renderers for markpage's fenced markdown blocks (chart, bda, category, adt, diff, tree) — self-contained HTML/SVG, no app dependencies.",
   "license": "MIT",

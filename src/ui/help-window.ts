@@ -35,7 +35,7 @@ import { makeLogo } from './logo';
 // Bundling the whole app stylesheet keeps the help window visually
 // consistent with the editor / preview without us hand-curating a
 // subset.
-import blocksCss from '@markpage/blocks/styles.css?inline';
+import blocksCss from '@orlarey/blocks/styles.css?inline';
 import appCss from '../style.css?inline';
 
 /**

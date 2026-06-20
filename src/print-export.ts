@@ -48,7 +48,7 @@ export async function exportViaPrint(
   // strip these inline styles after pagination so the @media print
   // rule below can flip the target visible at print time.
   const target = ensureNode(document, 'div', PRINT_TARGET_ID);
-  target.classList.add('markpage'); // scope for @markpage/blocks styles
+  target.classList.add('markpage'); // scope for @orlarey/blocks styles
   target.innerHTML = '';
   target.style.cssText =
     'position: fixed; left: -10000px; top: 0; ' +

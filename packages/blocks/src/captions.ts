@@ -1,7 +1,7 @@
 /********************************* captions.ts *********************************
  *
  * Purpose: Per-document caption numbering + the `<figure>` / `<figcaption>`
- *   wrapper, shared by hosts (the markpage app and @markpage/marked). A
+ *   wrapper, shared by hosts (the markpage app and @orlarey/marked). A
  *   caption context holds the per-kind counters so two documents never share
  *   state — the module-global counters of the app are replaced by an instance.
  * How: `createCaptionContext()` returns `{ reset, next, wrap }`. Labels and the

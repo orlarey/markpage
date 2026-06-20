@@ -1,7 +1,7 @@
 /********************************* registry.ts *********************************
  *
  * Purpose: A small registry of fenced-block renderers — the framework-agnostic
- *   core of @markpage/blocks. A renderer turns a fence body + info string into
+ *   core of @orlarey/blocks. A renderer turns a fence body + info string into
  *   a self-contained HTML/SVG string. Markdown integrations (the marked /
  *   markdown-it plugins) and DOM auto-init sit on top of this map.
  * How: A plain Map keyed by the fence language word (`chart`, `bda`, …). The
