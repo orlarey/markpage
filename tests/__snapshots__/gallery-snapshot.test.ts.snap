@@ -1,0 +1,55 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`block gallery (visual-regression snapshots) > renders adt identically 1`] = `"<div class="adt-block block-rigid"><span class="adt-lhs">Expr</span><span class="adt-sep">::=</span><span class="adt-alt"><span class="adt-ctor">Const</span>(c)</span><span class="adt-ann"></span><span class="adt-lhs"></span><span class="adt-sep">|</span><span class="adt-alt"><span class="adt-ctor">Vec</span>(v)</span><span class="adt-ann"></span><span class="adt-lhs"></span><span class="adt-sep">|</span><span class="adt-alt"><span class="adt-ctor">Op</span>(o, <span class="adt-type">Expr</span>, <span class="adt-type">Expr</span>)</span><span class="adt-ann"></span></div>"`;
+
+exports[`block gallery (visual-regression snapshots) > renders bda identically 1`] = `
+"<figure class="captioned captioned-figure"><div class="bda-wrap block-rigid"><svg xmlns="http://www.w3.org/2000/svg" class="bda-svg" width="136" height="86" viewBox="-14 -6 136 86" font-family="inherit" font-size="12" role="img"><g transform="translate(0,27)"><rect x="0" y="0" width="27" height="20" class="bda-box"/><text x="13.5" y="10" text-anchor="middle" dominant-baseline="central" class="bda-label">1</text><circle cx="27" cy="10" r="1.8" class="bda-port-out"/></g><g transform="translate(45,0)"><g transform="translate(43.5,20) scale(-1,-1)"><line x1="0" y1="10" x2="24" y2="10" class="bda-wire"/></g><g transform="translate(18,34)"><rect x="0" y="0" width="27" height="40" class="bda-box"/><text x="13.5" y="20" text-anchor="middle" dominant-baseline="central" class="bda-label">+</text><circle cx="0" cy="10" r="1.8" class="bda-port-in"/><circle cx="0" cy="30" r="1.8" class="bda-port-in"/><circle cx="27" cy="20" r="1.8" class="bda-port-out"/></g><path d="M 45 54 L 53 54 Q 57 54 57 50 L 57 14 Q 57 10 53 10 L 43.5 10" class="bda-wire-fb" fill="none"/><path d="M 19.5 10 L 10 10 Q 6 10 6 14 L 6 40 Q 6 44 10 44 L 18 44" class="bda-wire-fb" fill="none"/><line x1="0" y1="64" x2="18" y2="64" class="bda-wire"/><line x1="45" y1="54" x2="63" y2="54" class="bda-wire"/></g><path d="M 27 37 L 32 37 Q 36 37 36 41 L 36 60 Q 36 64 40 64 L 45 64" class="bda-wire" fill="none"/><line x1="108" y1="54" x2="116" y2="54" class="bda-wire"/><circle cx="116" cy="54" r="1.8" class="bda-port-out"/></svg></div>
+
+<figcaption class="caption">Figure 1: Accumulator</figcaption></figure>
+"
+`;
+
+exports[`block gallery (visual-regression snapshots) > renders category identically 1`] = `
+"<figure class="captioned captioned-figure"><div class="category-wrap block-rigid"><svg xmlns="http://www.w3.org/2000/svg" class="category-svg" width="104" height="105" viewBox="-4 -5 104 105" font-family="inherit" font-size="14" role="img"><defs><marker id="cd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"/></marker></defs><line x1="24" y1="16" x2="72" y2="16" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"/><text x="48" y="6" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">f</text><line x1="80" y1="24" x2="80" y2="72" class="cd-edge cd-edge-skeletal" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"/><text x="90" y="48" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">g</text><line x1="21.7" y1="21.7" x2="74.3" y2="74.3" class="cd-edge cd-edge-shortcut" stroke="currentColor" stroke-width="1" marker-end="url(#cd-arrow)"/><text x="40.9" y="55.1" text-anchor="middle" dominant-baseline="middle" class="cd-edge-label" fill="currentColor">h</text><text x="80" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">B</text><text x="16" y="16" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">A</text><text x="80" y="80" text-anchor="middle" dominant-baseline="middle" class="cd-obj" fill="currentColor">C</text></svg></div>
+
+<figcaption class="caption">Figure 1: Triangle</figcaption></figure>
+"
+`;
+
+exports[`block gallery (visual-regression snapshots) > renders chart-bar identically 1`] = `
+"<figure class="captioned captioned-figure"><div class="chart-block block-rigid"><svg class="chart-svg" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="56" y1="36" x2="56" y2="308" class="chart-axis"/><line x1="56" y1="308" x2="624" y2="308" class="chart-axis"/><line x1="56" y1="308" x2="624" y2="308" class="chart-grid"/><text x="48" y="312" class="chart-tick chart-tick-y">0</text><line x1="56" y1="230.28571428571428" x2="624" y2="230.28571428571428" class="chart-grid"/><text x="48" y="234.28571428571428" class="chart-tick chart-tick-y">10</text><line x1="56" y1="152.57142857142858" x2="624" y2="152.57142857142858" class="chart-grid"/><text x="48" y="156.57142857142858" class="chart-tick chart-tick-y">20</text><line x1="56" y1="74.85714285714286" x2="624" y2="74.85714285714286" class="chart-grid"/><text x="48" y="78.85714285714286" class="chart-tick chart-tick-y">30</text><line x1="198" y1="308" x2="198" y2="312" class="chart-axis"/><text x="198" y="326" class="chart-tick chart-tick-x">opus</text><line x1="482" y1="308" x2="482" y2="312" class="chart-axis"/><text x="482" y="326" class="chart-tick chart-tick-x">aac</text><text x="340" y="346" class="chart-axis-label">codec</text><text class="chart-axis-label" transform="translate(18 172) rotate(-90)">ms</text><rect x="98.6" y="144.8" width="198.8" height="163.2" class="chart-bar" fill="#4a8cf0"/><rect x="382.6" y="36.0" width="198.8" height="272.0" class="chart-bar" fill="#4a8cf0"/></svg></div>
+
+<figcaption class="caption">Figure 1: Codecs</figcaption></figure>
+"
+`;
+
+exports[`block gallery (visual-regression snapshots) > renders chart-line identically 1`] = `
+"<figure class="captioned captioned-figure"><div class="chart-block block-rigid"><svg class="chart-svg" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="56" y1="36" x2="56" y2="308" class="chart-axis"/><line x1="56" y1="308" x2="624" y2="308" class="chart-axis"/><line x1="56" y1="308" x2="624" y2="308" class="chart-grid"/><text x="48" y="312" class="chart-tick chart-tick-y">0</text><line x1="56" y1="256.6792452830189" x2="624" y2="256.6792452830189" class="chart-grid"/><text x="48" y="260.6792452830189" class="chart-tick chart-tick-y">1</text><line x1="56" y1="205.35849056603774" x2="624" y2="205.35849056603774" class="chart-grid"/><text x="48" y="209.35849056603774" class="chart-tick chart-tick-y">2</text><line x1="56" y1="154.03773584905662" x2="624" y2="154.03773584905662" class="chart-grid"/><text x="48" y="158.03773584905662" class="chart-tick chart-tick-y">3</text><line x1="56" y1="102.71698113207546" x2="624" y2="102.71698113207546" class="chart-grid"/><text x="48" y="106.71698113207546" class="chart-tick chart-tick-y">4</text><line x1="56" y1="51.39622641509436" x2="624" y2="51.39622641509436" class="chart-grid"/><text x="48" y="55.39622641509436" class="chart-tick chart-tick-y">5</text><line x1="162.5" y1="308" x2="162.5" y2="312" class="chart-axis"/><text x="162.5" y="326" class="chart-tick chart-tick-x">100</text><line x1="310.4166666666667" y1="308" x2="310.4166666666667" y2="312" class="chart-axis"/><text x="310.4166666666667" y="326" class="chart-tick chart-tick-x">150</text><line x1="458.33333333333337" y1="308" x2="458.33333333333337" y2="312" class="chart-axis"/><text x="458.33333333333337" y="326" class="chart-tick chart-tick-x">200</text><line x1="606.25" y1="308" x2="606.25" y2="312" class="chart-axis"/><text x="606.25" y="326" class="chart-tick chart-tick-x">250</text><text x="340" y="346" class="chart-axis-label">buffer</text><text class="chart-axis-label" transform="translate(18 172) rotate(-90)">ms</text><polyline points="56.0,241.3 245.3,169.4 624.0,36.0" class="chart-line" stroke="#4a8cf0"/></svg></div>
+
+<figcaption class="caption">Figure 1: Latency</figcaption></figure>
+"
+`;
+
+exports[`block gallery (visual-regression snapshots) > renders diff identically 1`] = `
+"<figure class="captioned captioned-listing"><pre class="diff-block"><code><span class="diff-ctx"> ctx</span><span class="diff-del">-old</span><span class="diff-add">+new</span></code></pre>
+
+<figcaption class="caption">Listing 1: Patch</figcaption></figure>
+"
+`;
+
+exports[`block gallery (visual-regression snapshots) > renders tree-svg identically 1`] = `
+"<figure class="captioned captioned-figure"><div class="tree-svg-wrap block-rigid"><svg class="tree-svg" width="88" height="132" viewBox="0 0 88 132" xmlns="http://www.w3.org/2000/svg" role="img"><line x1="44" y1="24" x2="44" y2="54" stroke="currentColor" stroke-width="1" /><line x1="44" y1="72" x2="28" y2="102" stroke="currentColor" stroke-width="1" /><line x1="44" y1="72" x2="60" y2="102" stroke="currentColor" stroke-width="1" /><text x="44" y="18" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Expr</text><text x="44" y="66" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Op</text><text x="28" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Add</text><text x="60" y="114" text-anchor="middle" dominant-baseline="middle" font-family="inherit" font-size="14" fill="currentColor">Sub</text></svg></div>
+
+<figcaption class="caption">Figure 1: AST</figcaption></figure>
+"
+`;
+
+exports[`block gallery (visual-regression snapshots) > renders tree-unicode identically 1`] = `
+"<figure class="captioned captioned-figure"><pre class="tree-block">project
+└── src
+    └── main.ts
+</pre>
+
+<figcaption class="caption">Figure 1: Layout</figcaption></figure>
+"
+`;
