@@ -1,6 +1,7 @@
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 
+import { blockNames } from '@markpage/blocks';
 import { markpageBlocks } from '@markpage/marked';
 
 const render = (md: string): string => {
@@ -30,5 +31,25 @@ describe('markpageBlocks (marked plugin)', () => {
 
   it('leaves plain prose untouched', () => {
     expect(render('Just **bold** text.')).toContain('<strong>bold</strong>');
+  });
+
+  it('registers every migrated renderer', () => {
+    for (const name of ['chart', 'bda', 'category', 'adt', 'diff', 'tree']) {
+      expect(blockNames()).toContain(name);
+    }
+  });
+
+  it('renders a bda circuit to SVG', () => {
+    expect(render('```bda\n1 : +~_\n```')).toContain('<svg');
+  });
+
+  it('renders a category diagram to SVG', () => {
+    const html = render('```category\nf : A -> B\ng : B -> C\nh : A -> C = g . f\n```');
+    expect(html).toContain('<svg');
+  });
+
+  it('colours a unified diff', () => {
+    const html = render('```diff\n+added\n-removed\n```');
+    expect(html.toLowerCase()).toContain('diff');
   });
 });

@@ -9,19 +9,19 @@
  *******************************************************************************/
 
 import { marked, type Tokens } from 'marked';
-import { renderAdtBlock } from './adt';
 import { renderAlgorithmBlock } from './algorithm';
-import { parse as parseBda, typecheck as typecheckBda } from './bda';
-import { emitSvg as emitBdaSvg } from './bda-svg';
-import { parse as parseCategory, typecheck as typecheckCategory } from './category';
-import { emitMermaid as emitCategoryMermaid } from './category-mermaid';
-import { emitSvg as emitCategorySvg } from './category-svg';
 import { parseFenceInfo, resetCaptions, withCaption } from './captions';
-import { parseChartInfo, renderChart } from '@markpage/blocks';
+import {
+  parseChartInfo,
+  renderAdtBlock,
+  renderBda,
+  renderCategory,
+  renderChart,
+  renderDiffBlock,
+  renderTreeBlock,
+} from '@markpage/blocks';
 import { parseMosaicInfo, renderMosaic } from './mosaic';
-import { renderDiffBlock } from './diff';
 import { renderEbnfBlock } from './ebnf';
-import { renderTreeBlock } from './tree';
 import { highlightCode, isKnownLanguage } from './highlight';
 import { renderLetterhead } from './letterhead';
 import { renderPageRunning } from './page-running';
@@ -367,7 +367,7 @@ marked.use({
       // standard red error block.
       if (lang === 'bda' || lang.startsWith('bda ')) {
         return injectSource(
-          withCaption('figure', info.caption, renderBda(token.text, info.args), info.label),
+          withCaption('figure', info.caption, renderBda(token.text, lang), info.label),
           raw,
         );
       }
@@ -1026,79 +1026,7 @@ marked.use({
  * Purpose: Thread the original fenced-block markdown into the first tag of `html`.
  * How: Insert a `data-source="<escaped raw>"` attribute via a single regex on `<\w+`.
  */
-/**
- * Purpose: Render a `category` block — parse + typecheck, then emit a
- *   Mermaid `<pre><code.language-mermaid>` placeholder that the existing
- *   mermaid pipeline picks up at runtime. Parse / typecheck errors render
- *   as a red error block listing every diagnostic with its line number.
- * How: Delegates to `category.parse` + `category.typecheck` +
- *   `category-mermaid.emitMermaid`. Errors are collected from both
- *   phases so the user sees every problem at once.
- */
-function renderCategory(source: string): string {
-  const { ast, errors: parseErrors } = parseCategory(source);
-  const tcErrors = parseErrors.length === 0 ? typecheckCategory(ast) : [];
-  const all = [...parseErrors, ...tcErrors];
-  if (all.length > 0) {
-    const items = all
-      .map((e) => {
-        const where = e.line > 0 ? `ligne ${e.line}: ` : '';
-        return `<li>${escapeHtml(where + e.message)}</li>`;
-      })
-      .join('');
-    return (
-      `<div class="category-error">` +
-      `<div class="category-error-msg">Erreur category</div>` +
-      `<ul>${items}</ul>` +
-      `<pre>${escapeHtml(source)}</pre>` +
-      `</div>\n`
-    );
-  }
-  // Native SVG renderer first — returns null when its grid-placement
-  // algorithm can't find an acceptable layout (rare topologies, large
-  // diagrams). In that case fall through to the Mermaid backend.
-  const svg = emitCategorySvg(ast);
-  if (svg !== null) {
-    return `<div class="category-wrap block-rigid">${svg}</div>\n`;
-  }
-  const mermaidSrc = emitCategoryMermaid(ast);
-  return `<pre><code class="language-mermaid">${escapeHtml(mermaidSrc)}</code></pre>\n`;
-}
-
-/**
- * Purpose: Render a `bda` block — parse + typecheck the BDA expression, then
- *   emit a native SVG. Parse / typecheck errors render as a red error block
- *   matching the style of `category-error` / `math-error`.
- * How: Delegates to `bda.parse` + `bda.typecheck` + `bda-svg.emitSvg`.
- *   Errors from both phases are concatenated so every diagnostic appears
- *   at once.
- */
-function renderBda(source: string, args: string[] = []): string {
-  const { ast, errors: parseErrors } = parseBda(source);
-  const tcErrors = ast !== null ? typecheckBda(ast).errors : [];
-  const all = [...parseErrors, ...tcErrors];
-  if (all.length > 0 || ast === null) {
-    const items = all
-      .map((e) => {
-        const where = e.line > 0 ? `ligne ${e.line}: ` : '';
-        return `<li>${escapeHtml(where + e.message)}</li>`;
-      })
-      .join('');
-    return (
-      `<div class="bda-error">` +
-      `<div class="bda-error-msg">Erreur bda</div>` +
-      `<ul>${items}</ul>` +
-      `<pre>${escapeHtml(source)}</pre>` +
-      `</div>\n`
-    );
-  }
-  // Positional args: `delays` (or alias `faust`) enables the z⁻¹
-  // markers on feedback wires. No-op for diagrams without `~`.
-  const opts = {
-    delays: args.includes('delays') || args.includes('faust'),
-  };
-  return `<div class="bda-wrap block-rigid">${emitBdaSvg(ast, opts)}</div>\n`;
-}
+// `renderCategory` / `renderBda` now live in @markpage/blocks (imported above).
 
 /**
  * Purpose: Render a `demo` block — show the source markdown on one side
