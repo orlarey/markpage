@@ -22,7 +22,7 @@
     },
     "./styles.css": "./styles/markpage.css"
   },
-  "files": ["dist", "styles", "src"],
+  "files": ["dist", "styles", "src", "SYNTAX.md"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build"

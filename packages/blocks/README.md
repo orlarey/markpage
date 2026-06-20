@@ -17,10 +17,9 @@ Use them directly, or through the registry, or via a markdown integration
 | `diff`      | Unified-diff coloration                           |
 | `tree`      | Indented outline → Unicode tree or top-down SVG   |
 
-Each fence's body + option syntax is documented in markpage's authoring guide:
-[AI-AUTHORING.md](https://github.com/orlarey/markpage/blob/main/AI-AUTHORING.md).
-Using marked? Reach for [`@markpage/marked`](../marked) instead of calling the
-renderers by hand.
+Each fence's body + option syntax is documented in [SYNTAX.md](./SYNTAX.md)
+(ships with the package). Using marked? Reach for
+[`@markpage/marked`](../marked) instead of calling the renderers by hand.
 
 ## Install
 

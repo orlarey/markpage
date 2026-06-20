@@ -53,8 +53,10 @@ from `@markpage/blocks/styles.css` apply:
 ## Fence syntax
 
 The body and options of each fence (`chart`, `bda`, `category`, `adt`, `diff`,
-`tree`) are documented in markpage's authoring guide:
-[AI-AUTHORING.md](https://github.com/orlarey/markpage/blob/main/AI-AUTHORING.md).
+`tree`) are documented in
+[`@markpage/blocks`'s SYNTAX.md](https://github.com/orlarey/markpage/blob/main/packages/blocks/SYNTAX.md)
+— it ships in the `@markpage/blocks` peer dependency, so it's also available
+offline at `node_modules/@markpage/blocks/SYNTAX.md`.
 
 ## Caption / figure numbering
 
