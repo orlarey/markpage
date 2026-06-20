@@ -52,4 +52,34 @@ describe('markpageBlocks (marked plugin)', () => {
     const html = render('```diff\n+added\n-removed\n```');
     expect(html.toLowerCase()).toContain('diff');
   });
+
+  it('wraps a quoted-title fence in a numbered figure', () => {
+    const html = render('```chart line "Sales"\nx, y\n1, 2\n```');
+    expect(html).toContain('<figure');
+    expect(html).toContain('Figure 1: Sales');
+  });
+
+  it('numbers figures and listings independently, resetting per parse', () => {
+    const md =
+      '```bda "First"\n1 : +~_\n```\n\n```bda "Second"\n1 : +~_\n```\n\n```diff "A patch"\n+x\n```';
+    const html = render(md);
+    expect(html).toContain('Figure 1: First');
+    expect(html).toContain('Figure 2: Second');
+    expect(html).toContain('Listing 1: A patch');
+    // a second parse restarts numbering
+    expect(render('```chart "Again"\nx,y\n1,2\n```')).toContain('Figure 1: Again');
+  });
+
+  it('can be configured with custom labels / disabled captions', () => {
+    const fr = new Marked();
+    fr.use(markpageBlocks({ labels: { figure: 'Figure' } }));
+    expect(fr.parse('```chart "Ventes"\nx,y\n1,2\n```') as string).toContain(
+      'Figure 1: Ventes',
+    );
+    const off = new Marked();
+    off.use(markpageBlocks({ captions: false }));
+    expect(off.parse('```chart "X"\nx,y\n1,2\n```') as string).not.toContain(
+      '<figure',
+    );
+  });
 });

@@ -41,6 +41,14 @@ export {
   type BlockRenderer,
 } from './registry';
 
+export {
+  createCaptionContext,
+  parseFenceInfo,
+  type CaptionContext,
+  type CaptionContextOptions,
+  type CaptionKind,
+} from './captions';
+
 export { renderChart, parseChartInfo } from './renderers/chart';
 export type { ChartInfo, ChartOptions, YRef } from './renderers/chart';
 export { renderBda } from './renderers/bda.block';
