@@ -113,6 +113,21 @@ A Markdown extended for technical and scientific writing:
 - A built-in **Help** tutorial that opens in a side window without
   disturbing your document
 
+## Drive markpage with an AI (MCP)
+
+markpage ships an optional **MCP bridge** (`markpage-mcp`) so an AI client
+(Claude Desktop / Claude Code) can drive the app in your browser: read and
+write the current document, switch views, list render errors, manage the
+library, and export — plus two tab-free tools that hand the AI markpage's
+authoring guide and fence syntax, so it writes idiomatic markpage Markdown
+even if it has never seen the app.
+
+Open the **MCP pill** (bottom-right of the app) to download the prebuilt
+bridge for your platform and copy the `claude mcp add markpage …` command,
+then restart your AI client. Architecture and the full tool list:
+[`MCP-SPEC.md`](MCP-SPEC.md); build / install / release details:
+[`mcp/README.md`](mcp/README.md).
+
 ## Run locally
 
 ```sh
@@ -133,12 +148,35 @@ GitHub Actions**.
 
 ## Documentation
 
-- The built-in **Help** button opens a complete tutorial (also
-  available as [`src/HELP.fr.md`](src/HELP.fr.md) /
-  [`src/HELP.en.md`](src/HELP.en.md)).
-- [`SPEC.md`](SPEC.md) describes the architecture in detail
-  (storage model, render pipelines, i18n, LaTeX export, regression
-  test harness).
+### For users
+
+- **Help** — the in-app tutorial (the Help button); source also at
+  [`src/HELP.fr.md`](src/HELP.fr.md) / [`src/HELP.en.md`](src/HELP.en.md).
+- [`AI-AUTHORING.md`](AI-AUTHORING.md) — how to write markpage Markdown: every
+  fenced block and convention. (Also what the MCP `get_authoring_guide` tool
+  serves to an AI.)
+
+### Architecture & design
+
+- [`SPEC.md`](SPEC.md) — the app architecture reference (storage model, render
+  pipelines, i18n, LaTeX export, regression test harness).
+- [`MCP-SPEC.md`](MCP-SPEC.md) — the MCP bridge: action↔tool audit, protocol,
+  contract. Build / install / release: [`mcp/README.md`](mcp/README.md).
+- [`FORMAL_METHOD.md`](FORMAL_METHOD.md) — how specifications are written in
+  this project (methodology, not a feature spec).
+
+### Feature design specs
+
+The original design documents; every feature below has shipped, so they read
+as reference + history:
+
+- [`CATEGORY-SPEC.md`](CATEGORY-SPEC.md) — the commutative-diagram language
+  (`category`).
+- [`MOSAIC-SPEC.md`](MOSAIC-SPEC.md) — the justified image gallery (`mosaic`).
+- [`TOC-PLUS-SPEC.md`](TOC-PLUS-SPEC.md) — the table of contents + plan
+  (`::: toc+`).
+- [`FILE-MANAGEMENT-SPEC.md`](FILE-MANAGEMENT-SPEC.md) — document / asset
+  storage and the disk-link feature.
 
 ## Use the fences in your own Markdown pipeline
 

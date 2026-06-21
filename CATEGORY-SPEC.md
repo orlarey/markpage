@@ -4,6 +4,9 @@ author: Yann Orlarey
 version: 0.1 (brouillon)
 ---
 
+> **Statut :** livré — la fence `category` est disponible dans markpage. Ce
+> document est la spécification de conception (grammaire, sémantique, rendu).
+
 **Objet :** une syntaxe textuelle, intégrable en Markdown, pour décrire les diagrammes de théorie des catégories.
 
 ---

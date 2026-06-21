@@ -1,6 +1,6 @@
 # markpage MCP — specification
 
-> Statut : brouillon v1 · contrat `mcp/tools.json` `contractVersion` **0.1.0**
+> **Statut :** livré (v0.29.0) · contrat `mcp/tools.json` `contractVersion` **0.1.0**
 
 Cette spec décrit l'extension **MCP** (Model Context Protocol) de markpage :
 un moyen pour une IA (Claude Desktop / Claude Code) de **piloter l'application
