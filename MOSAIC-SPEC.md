@@ -4,6 +4,10 @@ author: Yann Orlarey
 date: 2026-06-18
 ---
 
+> **Statut :** livré — la fence `mosaic` est disponible dans markpage. Ceci est
+> la spec de conception d'origine ; les sections « plan d'implémentation » et
+> « hors périmètre v1 » sont conservées à titre historique.
+
 # Fence `mosaic` — mur d'images
 
 ::: toc+

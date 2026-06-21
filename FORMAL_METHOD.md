@@ -4,6 +4,9 @@ author: Yann Orlarey
 language: en
 ---
 
+> **Status:** methodology (normative) — how specifications are written in this
+> project. Not a feature spec. See the [README](README.md#documentation).
+
 Every software development project begins with a specification written in
 Markdown.
 

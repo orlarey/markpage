@@ -4,6 +4,9 @@ author: Yann Orlarey
 version: 0.1 (brouillon)
 ---
 
+> **Statut :** livré (phases 1–4, v0.21–0.26) ; la phase 5 (import/export
+> avancé) reste différée. Document de conception et feuille de route.
+
 **Objet :** refondre la gestion des documents et de leurs ressources (images)
 pour retrouver le confort d'une **application locale** — fichiers possédés,
 visibles, ouverts/enregistrés explicitement — mais plaqué sur le système de

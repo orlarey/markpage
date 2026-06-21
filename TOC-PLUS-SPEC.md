@@ -4,6 +4,10 @@ author: Yann Orlarey
 version: 0.1 (brouillon)
 ---
 
+> **Statut :** livré — le bloc `::: toc+` est disponible dans markpage. Spec de
+> conception d'origine ; les sections « questions ouvertes » et « plan
+> d'implémentation » sont historiques.
+
 **Objet :** un bloc `::: toc+` qui décrit le plan du document — chaque titre
 suivi de son **intention** en prose — et qui sert d'abord de spécification (le
 plan préexiste au contenu et guide l'IA), puis se replie au rendu en une **table
