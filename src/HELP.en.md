@@ -1871,6 +1871,31 @@ two address blocks at the top of the letter.
 
 ---
 
+## Drive markpage with an AI (MCP) \label{sec:mcp}
+
+markpage can be **driven by an AI** (Claude Desktop / Claude Code) through a
+small local *MCP bridge*. The AI can then read and write your document, switch
+views, list render errors — and even learn markpage's syntax on its own, so you
+can write together.
+
+**Install (once).** Click the **MCP** pill at the bottom-right of the screen: it
+detects your platform, offers a **download** of the bridge and the
+`claude mcp add markpage …` command to paste in a terminal. Then restart your AI
+client.
+
+**Connect.** Open markpage with `?mcp=ws://127.0.0.1:7878/ws` (or via the pill).
+When it turns **green**, the AI is wired to *this* tab.
+
+::: note
+Everything stays **local**: the bridge listens only on `127.0.0.1`, nothing
+goes to the internet. Two tools (the authoring guide and the fence syntax) work
+even with no tab open, so the AI knows how to write markpage.
+:::
+
+Full details and the tool list: `docs/MCP-SPEC.md` in the repo.
+
+---
+
 ## Fence cheatsheet \label{sec:fences-cheatsheet}
 
 markpage recognises about twenty **specialised fences** beyond

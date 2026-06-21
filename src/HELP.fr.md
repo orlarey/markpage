@@ -1937,6 +1937,31 @@ se présentent comme deux blocs adresse en haut de la lettre.
 
 ---
 
+## Piloter markpage avec une IA (MCP) \label{sec:mcp}
+
+markpage peut être **piloté par une IA** (Claude Desktop / Claude Code) via un
+petit pont local, le *MCP bridge*. L'IA peut alors lire et écrire votre
+document, basculer les vues, lister les erreurs de rendu — et même apprendre la
+syntaxe markpage toute seule, pour rédiger à quatre mains.
+
+**Installation (une seule fois).** Cliquez sur la pastille **MCP** en bas à
+droite de l'écran : elle détecte votre plateforme, propose le **téléchargement**
+du pont et la commande `claude mcp add markpage …` à coller dans un terminal.
+Relancez ensuite votre client IA.
+
+**Connexion.** Ouvrez markpage avec `?mcp=ws://127.0.0.1:7878/ws` (ou via la
+pastille). Quand elle passe au **vert**, l'IA est reliée à *cet* onglet.
+
+::: note
+Tout reste **local** : le pont n'écoute que sur `127.0.0.1`, rien ne part sur
+Internet. Deux outils (le guide de rédaction et la syntaxe des fences)
+fonctionnent même sans onglet ouvert, pour que l'IA sache écrire du markpage.
+:::
+
+Détails et liste complète des outils : `docs/MCP-SPEC.md` dans le dépôt.
+
+---
+
 ## Aide-mémoire des fences \label{sec:fences-cheatsheet}
 
 Markpage reconnaît une vingtaine de **fences spécialisées** au-delà
