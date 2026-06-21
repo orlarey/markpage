@@ -6,7 +6,11 @@
 
 DOCS = AI-AUTHORING.md SYNTAX.md
 
-.PHONY: all sync-docs build probe test clean
+# Cross-compile targets for `make release`. Asset names must match what the
+# in-app MCP panel (src/mcp/pill.ts) links to and what mcp-release.yml uploads.
+PLATFORMS = darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
+
+.PHONY: all sync-docs build probe test release clean
 
 all: build
 
@@ -26,6 +30,21 @@ probe: sync-docs
 test: sync-docs
 	@go test ./...
 
+# Cross-compile every platform into dist/ for a GitHub Release. Static
+# binaries (CGO disabled), stripped (-s -w). Run via `make release` locally
+# or through .github/workflows/mcp-release.yml on an `mcp-v*` tag.
+release: sync-docs
+	@rm -rf dist && mkdir -p dist
+	@for p in $(PLATFORMS); do \
+	  os=$${p%/*}; arch=$${p#*/}; ext=""; \
+	  [ "$$os" = "windows" ] && ext=".exe"; \
+	  out=dist/markpage-mcp-$$os-$$arch$$ext; \
+	  echo "building $$out"; \
+	  CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -ldflags "-s -w" -o $$out . || exit 1; \
+	done
+	@ls -lh dist
+
 clean:
+	@rm -rf dist
 	@rm -f markpage-mcp e2e-probe $(DOCS)
 	@echo "cleaned"

@@ -1,0 +1,37 @@
+name: Release markpage-mcp
+
+# Cross-compiles the MCP bridge for every supported platform and publishes the
+# binaries as GitHub Release assets. The in-app "Connexion IA (MCP)" panel
+# (src/mcp/pill.ts) links to these via /releases/latest/download/<asset>.
+#
+# Trigger by pushing a tag like `mcp-v0.1.0`:
+#   git tag mcp-v0.1.0 && git push origin mcp-v0.1.0
+# Or run manually from the Actions tab (workflow_dispatch).
+
+on:
+  push:
+    tags: ['mcp-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: cross-compile · publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: mcp/go.sum
+      - name: Cross-compile all platforms
+        working-directory: mcp
+        run: make release
+      - name: Publish binaries to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mcp/dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true

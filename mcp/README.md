@@ -28,6 +28,16 @@ here and is the single source of truth for the contract.
 
 ## Install with Claude
 
+### For users — from the app
+
+Open markpage and click the **MCP pill** (bottom-right) → **Connexion IA (MCP)**.
+The panel detects your platform, offers a one-click **download** of the prebuilt
+binary, and shows the exact `claude mcp add markpage …` command to paste. Then
+restart Claude Code. The binaries it links to are the GitHub Release assets
+produced by `make release` (see below).
+
+### For developers — from source
+
 ```sh
 make build
 claude mcp add markpage "$(pwd)/markpage-mcp"
@@ -41,6 +51,23 @@ http://localhost:5173/?mcp=ws://127.0.0.1:7878/ws
 
 or click the MCP pill in the app and connect manually. Add `&token=…` (and pass
 `-token …` to the binary) to require a shared secret.
+
+## Releasing prebuilt binaries
+
+```sh
+make release        # cross-compiles dist/markpage-mcp-<os>-<arch>[.exe] for all platforms
+```
+
+Platforms: `darwin-arm64`, `darwin-amd64`, `linux-amd64`, `linux-arm64`,
+`windows-amd64`. To publish them as GitHub Release assets (which the in-app
+panel downloads from `/releases/latest/download/<asset>`), push a tag:
+
+```sh
+git tag mcp-v0.1.0 && git push origin mcp-v0.1.0
+```
+
+`.github/workflows/mcp-release.yml` cross-compiles and uploads the assets. The
+asset names must stay in sync with `ASSETS` in `src/mcp/pill.ts`.
 
 ## Flags
 
