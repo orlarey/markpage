@@ -10,6 +10,9 @@
  *
  *******************************************************************************/
 
+import { collectImageRefs, extForMime } from './image';
+import { getImage, putBlobBySha } from './image-store';
+
 const API = 'https://api.github.com';
 
 /** A file/dir location in a repo. `branch` defaults to the repo default. */
@@ -136,6 +139,103 @@ export async function putFile(
   return { sha: j.content?.sha ?? '' };
 }
 
+// ---- bundle push / pull -------------------------------------------------
+// A document is stored in the repo exactly like the disk-link bundle:
+// `<path>/content.md` (markdown with img://<sha> refs) + `<path>/assets/
+// <sha>.<ext>` (one file per referenced image). Assets are content-addressed,
+// so a filename that already exists holds identical bytes and is never
+// re-pushed.
+
+const CONTENT_FILE = 'content.md';
+const ASSETS_DIR = 'assets';
+
+/** A bundle location in a repo (no per-file path — that's appended). */
+export interface GithubTarget {
+  owner: string;
+  repo: string;
+  branch?: string;
+  path: string;
+}
+
+function joinPath(...parts: string[]): string {
+  return parts
+    .map((p) => p.replace(/^\/+|\/+$/g, ''))
+    .filter((p) => p !== '')
+    .join('/');
+}
+
+/** Reverse of extForMime — rebuild a blob's MIME from its asset extension. */
+export function mimeForExt(ext: string): string {
+  switch (ext.toLowerCase()) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return 'image/png';
+  }
+}
+
+/** Remote blob sha of the bundle's content.md, or null if absent. */
+export async function getRemoteContentSha(token: string, t: GithubTarget): Promise<string | null> {
+  const f = await getFile(token, { ...t, path: joinPath(t.path, CONTENT_FILE) });
+  return f ? f.sha : null;
+}
+
+/**
+ * Push a document bundle: any missing `assets/<sha>.<ext>` first (so content.md
+ * never references an absent blob), then `content.md` (update with `contentSha`,
+ * or create when omitted). Returns the new content.md sha — the next baseline.
+ */
+export async function pushBundle(
+  token: string,
+  t: GithubTarget,
+  content: string,
+  message: string,
+  contentSha?: string,
+): Promise<{ contentSha: string }> {
+  for (const sha of collectImageRefs(content)) {
+    const blob = await getImage(sha);
+    if (!blob) continue;
+    const loc = { ...t, path: joinPath(t.path, ASSETS_DIR, `${sha}.${extForMime(blob.type)}`) };
+    if (await getFile(token, loc)) continue; // already present (content-addressed)
+    const b64 = bytesToBase64(new Uint8Array(await blob.arrayBuffer()));
+    await putFile(token, loc, { contentBase64: b64, message });
+  }
+  const res = await putFile(
+    token,
+    { ...t, path: joinPath(t.path, CONTENT_FILE) },
+    { contentBase64: utf8ToBase64(content), message, sha: contentSha },
+  );
+  return { contentSha: res.sha };
+}
+
+/**
+ * Pull a bundle: load every `assets/*` file into the image store (by sha) and
+ * return content.md's text + sha. Returns null when there's no content.md.
+ */
+export async function pullBundle(
+  token: string,
+  t: GithubTarget,
+): Promise<{ content: string; contentSha: string } | null> {
+  const f = await getFile(token, { ...t, path: joinPath(t.path, CONTENT_FILE) });
+  if (!f) return null;
+  const assets = await listDir(token, { ...t, path: joinPath(t.path, ASSETS_DIR) });
+  for (const e of assets ?? []) {
+    if (e.type !== 'file') continue;
+    const af = await getFile(token, { ...t, path: e.path });
+    if (!af) continue;
+    const ext = e.name.includes('.') ? e.name.slice(e.name.lastIndexOf('.') + 1) : 'png';
+    await putBlobBySha(new Blob([base64ToBytes(af.contentBase64)], { type: mimeForExt(ext) }));
+  }
+  return { content: f.text, contentSha: f.sha };
+}
+
 // ---- base64 / UTF-8 helpers ---------------------------------------------
 // GitHub's contents API exchanges file bodies as base64. Text (content.md)
 // round-trips through UTF-8; binary assets stay as raw base64.
@@ -149,7 +249,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-export function base64ToBytes(b64: string): Uint8Array {
+export function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   const bin = atob(b64.replace(/\n/g, ''));
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);

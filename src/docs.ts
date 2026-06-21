@@ -50,6 +50,19 @@ export interface DocEntry {
   // a folder bundle (absent ⇒ 'folder', for back-compat). The handle lives in
   // IndexedDB (see disk-link.ts). Drives the "external" badge.
   link?: { name: string; kind?: 'file' | 'folder' };
+  // GitHub-sync link (docs/GITHUB-SYNC-SPEC.md). Present ⇒ the doc mirrors a
+  // bundle in a GitHub repo; `baselineSha` is content.md's sha at the last sync
+  // (drives divergence detection). The PAT lives in IndexedDB (github.ts).
+  githubLink?: GithubLink;
+}
+
+/** A GitHub-sync link target — a bundle location in a repo + the sync baseline. */
+export interface GithubLink {
+  owner: string;
+  repo: string;
+  branch: string;
+  path: string;
+  baselineSha: string;
 }
 
 interface Library {
@@ -129,6 +142,46 @@ export async function setDocLink(
 /** Drop a doc's disk link. */
 export async function clearDocLink(uuid: string): Promise<DocEntry | null> {
   return patchEntry(uuid, clearLink);
+}
+
+/** Whether a doc is linked to a GitHub repo bundle. */
+export function isGithubLinked(entry: DocEntry): boolean {
+  return entry.githubLink != null;
+}
+
+/** The doc's GitHub link, or undefined. */
+export function githubLinkOf(entry: DocEntry): GithubLink | undefined {
+  return entry.githubLink;
+}
+
+/** A copy of `e` with no GitHub link. */
+function clearGithub(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.githubLink;
+  return copy;
+}
+
+/** Set / replace a doc's GitHub link. */
+export async function setDocGithubLink(
+  uuid: string,
+  link: GithubLink,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => ({ ...e, githubLink: link }));
+}
+
+/** Update only the sync baseline (content.md sha) after a push/pull. */
+export async function updateGithubBaseline(
+  uuid: string,
+  baselineSha: string,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) =>
+    e.githubLink ? { ...e, githubLink: { ...e.githubLink, baselineSha } } : e,
+  );
+}
+
+/** Drop a doc's GitHub link. */
+export async function clearDocGithubLink(uuid: string): Promise<DocEntry | null> {
+  return patchEntry(uuid, clearGithub);
 }
 
 /**

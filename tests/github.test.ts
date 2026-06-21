@@ -6,10 +6,15 @@ import {
   base64ToUtf8,
   bytesToBase64,
   getFile,
+  getRemoteContentSha,
   getUser,
   listDir,
+  mimeForExt,
+  pullBundle,
+  pushBundle,
   putFile,
   utf8ToBase64,
+  type GithubTarget,
   type RepoLoc,
 } from '../src/github';
 
@@ -141,5 +146,62 @@ describe('putFile', () => {
     await expect(
       putFile('tok', LOC, { contentBase64: 'Zm9v', message: 'm', sha: 'stale' }),
     ).rejects.toBeInstanceOf(GithubError);
+  });
+});
+
+const TARGET: GithubTarget = { owner: 'orlarey', repo: 'markpage', branch: 'main', path: 'sandbox/devis' };
+
+describe('mimeForExt', () => {
+  it('maps known extensions and defaults to png', () => {
+    expect(mimeForExt('jpg')).toBe('image/jpeg');
+    expect(mimeForExt('JPEG')).toBe('image/jpeg');
+    expect(mimeForExt('svg')).toBe('image/svg+xml');
+    expect(mimeForExt('webp')).toBe('image/webp');
+    expect(mimeForExt('xyz')).toBe('image/png');
+  });
+});
+
+describe('getRemoteContentSha', () => {
+  it('returns the content.md sha when present', async () => {
+    fetchMock.mockResolvedValue(res(200, { sha: 'c1', content: '' }));
+    expect(await getRemoteContentSha('tok', TARGET)).toBe('c1');
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'https://api.github.com/repos/orlarey/markpage/contents/sandbox/devis/content.md?ref=main',
+    );
+  });
+
+  it('returns null when absent (404)', async () => {
+    fetchMock.mockResolvedValue(res(404, { message: 'Not Found' }));
+    expect(await getRemoteContentSha('tok', TARGET)).toBeNull();
+  });
+});
+
+describe('pushBundle (no images)', () => {
+  it('PUTs content.md with the baseline sha and returns the new sha', async () => {
+    fetchMock.mockResolvedValue(res(200, { content: { sha: 'new' } }));
+    const out = await pushBundle('tok', TARGET, '# Devis sans image', 'markpage: Devis', 'base');
+    expect(out).toEqual({ contentSha: 'new' });
+    expect(fetchMock).toHaveBeenCalledTimes(1); // no assets → single commit
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.github.com/repos/orlarey/markpage/contents/sandbox/devis/content.md');
+    expect(init.method).toBe('PUT');
+    const body = JSON.parse(init.body as string);
+    expect(body.sha).toBe('base');
+    expect(base64ToUtf8(body.content as string)).toBe('# Devis sans image');
+  });
+});
+
+describe('pullBundle (no assets)', () => {
+  it('returns content.md text + sha when there are no assets', async () => {
+    fetchMock
+      .mockResolvedValueOnce(res(200, { sha: 'c2', content: Buffer.from('# Pulled', 'utf8').toString('base64') }))
+      .mockResolvedValueOnce(res(404, { message: 'Not Found' })); // assets/ absent
+    const out = await pullBundle('tok', TARGET);
+    expect(out).toEqual({ content: '# Pulled', contentSha: 'c2' });
+  });
+
+  it('returns null when there is no content.md', async () => {
+    fetchMock.mockResolvedValue(res(404, { message: 'Not Found' }));
+    expect(await pullBundle('tok', TARGET)).toBeNull();
   });
 });
