@@ -1,12 +1,14 @@
 {
   "name": "markpage",
   "private": true,
-  "version": "0.28.3",
+  "version": "0.29.0",
   "type": "module",
   "description": "Client-side Markdown to PDF converter",
   "license": "MIT",
   "author": "Yann Orlarey",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "homepage": "https://markpage.org",
   "repository": {
     "type": "git",
