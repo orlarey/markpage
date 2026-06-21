@@ -919,7 +919,7 @@ async function bootstrap(): Promise<void> {
     currentDoc = await commitDoc(currentDoc.uuid);
     toolbarCtrl.setModified(false);
     if (isLinked(currentDoc)) await pushToDisk();
-    else if (isGithubLinked(currentDoc)) await pushToGithub();
+    if (isGithubLinked(currentDoc)) await pushToGithub();
   };
 
   // Revert: discard the working copy and reload the committed content.
