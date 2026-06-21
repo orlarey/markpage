@@ -97,6 +97,7 @@ import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
 import {
+  clearDocGithubLink,
   clearDocLink,
   commitDoc,
   createDoc,
@@ -104,8 +105,12 @@ import {
   duplicateDoc,
   emptyTrash,
   gcContentBlobs,
+  githubLinkOf,
+  isGithubLinked,
   isLinked,
   isModified,
+  setDocGithubLink,
+  updateGithubBaseline,
   linkKind,
   listDocs,
   listTrash,
@@ -166,6 +171,15 @@ import {
 import { pageContentGeomPx, paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
+import {
+  GithubError,
+  getRemoteContentSha,
+  hasToken,
+  loadToken,
+  pullBundle,
+  pushBundle,
+  type GithubTarget,
+} from './github';
 import { initMcp } from './mcp';
 import type { McpContext } from './mcp/context';
 
@@ -212,6 +226,12 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 function utf8ToBase64(s: string): string {
   return bytesToBase64(new TextEncoder().encode(s));
+}
+
+/** Whether a doc is linked to either a disk file/folder or a GitHub repo —
+ *  drives the shared 🔗 link badge. */
+function linkedAny(e: DocEntry): boolean {
+  return isLinked(e) || isGithubLinked(e);
 }
 
 /**
@@ -786,7 +806,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
-    toolbarCtrl.setLinked(isLinked(target));
+    toolbarCtrl.setLinked(linkedAny(target));
     toolbarCtrl.setConflict(false);
     void checkSync();
   };
@@ -887,7 +907,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setLinked(isLinked(currentDoc));
+    toolbarCtrl.setLinked(linkedAny(currentDoc));
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
@@ -899,6 +919,7 @@ async function bootstrap(): Promise<void> {
     currentDoc = await commitDoc(currentDoc.uuid);
     toolbarCtrl.setModified(false);
     if (isLinked(currentDoc)) await pushToDisk();
+    else if (isGithubLinked(currentDoc)) await pushToGithub();
   };
 
   // Revert: discard the working copy and reload the committed content.
@@ -1162,7 +1183,168 @@ async function bootstrap(): Promise<void> {
     await removeHandle(currentDoc.uuid);
     const updated = await clearDocLink(currentDoc.uuid);
     if (updated) currentDoc = updated;
-    toolbarCtrl.setLinked(false);
+    toolbarCtrl.setLinked(linkedAny(currentDoc));
+  };
+
+  // ---- GitHub sync (docs/GITHUB-SYNC-SPEC.md, Phase 3) ------------------
+
+  const githubMessage = (): string => `markpage: ${currentDoc.name}`;
+  const githubTargetOf = (e: DocEntry): GithubTarget | null => {
+    const l = githubLinkOf(e);
+    return l ? { owner: l.owner, repo: l.repo, branch: l.branch, path: l.path } : null;
+  };
+  const githubErr = (err: unknown): string =>
+    err instanceof GithubError
+      ? t('github.error', { status: String(err.status) })
+      : err instanceof Error
+        ? err.message
+        : String(err);
+
+  // Link the current doc to a GitHub repo path and push its bundle there.
+  const linkToGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    if (!token) {
+      globalThis.alert(t('github.no-token'));
+      return;
+    }
+    const repoIn = globalThis.prompt(t('github.prompt-repo'), 'orlarey/markpage');
+    if (!repoIn) return;
+    const [owner, repo] = repoIn.split('/').map((s) => s.trim());
+    if (!owner || !repo) {
+      globalThis.alert(t('github.bad-repo'));
+      return;
+    }
+    const branch =
+      (globalThis.prompt(t('github.prompt-branch'), 'main') ?? '').trim() || 'main';
+    const path = (
+      globalThis.prompt(
+        t('github.prompt-path'),
+        `sandbox/${slugifyDocName(currentDoc.name)}`,
+      ) ?? ''
+    ).trim();
+    if (!path) return;
+    const target: GithubTarget = { owner, repo, branch, path };
+    try {
+      const existingSha = await getRemoteContentSha(token, target);
+      if (
+        existingSha !== null &&
+        !globalThis.confirm(t('github.overwrite-confirm', { path }))
+      ) {
+        return;
+      }
+      const content = (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+      const { contentSha } = await pushBundle(
+        token,
+        target,
+        content,
+        githubMessage(),
+        existingSha ?? undefined,
+      );
+      const updated = await setDocGithubLink(currentDoc.uuid, {
+        owner,
+        repo,
+        branch,
+        path,
+        baselineSha: contentSha,
+      });
+      if (updated) currentDoc = updated;
+      toolbarCtrl.setLinked(true);
+      toolbarCtrl.setConflict(false);
+    } catch (err) {
+      console.error('GitHub link failed', err);
+      globalThis.alert(githubErr(err));
+    }
+  };
+
+  // Push the committed bundle. Detects divergence (remote content.md sha ≠
+  // baseline) and flags a conflict (⛓️‍💥) instead of overwriting.
+  const pushToGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    const link = githubLinkOf(currentDoc);
+    const target = githubTargetOf(currentDoc);
+    if (!token || !link || !target) return;
+    try {
+      const remoteSha = await getRemoteContentSha(token, target);
+      if (remoteSha !== null && remoteSha !== link.baselineSha) {
+        toolbarCtrl.setConflict(true);
+        return;
+      }
+      const content = (await loadCommittedContent(currentDoc)) ?? '';
+      const { contentSha } = await pushBundle(
+        token,
+        target,
+        content,
+        githubMessage(),
+        remoteSha ?? undefined,
+      );
+      const updated = await updateGithubBaseline(currentDoc.uuid, contentSha);
+      if (updated) currentDoc = updated;
+      toolbarCtrl.setConflict(false);
+    } catch (err) {
+      console.error('GitHub push failed', err);
+      globalThis.alert(githubErr(err));
+    }
+  };
+
+  // Pull the bundle from GitHub, replacing the doc's content in place.
+  const reloadFromGithub = async (force = false): Promise<void> => {
+    const token = await loadToken();
+    const target = githubTargetOf(currentDoc);
+    if (!token || !target) return;
+    if (
+      !force &&
+      isModified(currentDoc) &&
+      !globalThis.confirm(t('disk.reload-confirm'))
+    ) {
+      return;
+    }
+    try {
+      const pulled = await pullBundle(token, target);
+      if (!pulled) {
+        globalThis.alert(t('github.not-found'));
+        return;
+      }
+      await applyDiskContent(pulled.content);
+      const updated = await updateGithubBaseline(currentDoc.uuid, pulled.contentSha);
+      if (updated) currentDoc = updated;
+      toolbarCtrl.setConflict(false);
+    } catch (err) {
+      console.error('GitHub reload failed', err);
+      globalThis.alert(githubErr(err));
+    }
+  };
+
+  // Conflict "keep mine" for GitHub: force-push over the current remote.
+  const keepMineGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    const target = githubTargetOf(currentDoc);
+    if (!token || !target) return;
+    try {
+      currentDoc = await commitDoc(currentDoc.uuid);
+      toolbarCtrl.setModified(false);
+      const content = (await loadCommittedContent(currentDoc)) ?? '';
+      const remoteSha = await getRemoteContentSha(token, target);
+      const { contentSha } = await pushBundle(
+        token,
+        target,
+        content,
+        githubMessage(),
+        remoteSha ?? undefined,
+      );
+      const updated = await updateGithubBaseline(currentDoc.uuid, contentSha);
+      if (updated) currentDoc = updated;
+      toolbarCtrl.setConflict(false);
+    } catch (err) {
+      console.error('GitHub keep-mine failed', err);
+      globalThis.alert(githubErr(err));
+    }
+  };
+
+  // Drop the GitHub link (the repo is left untouched).
+  const unlinkGithub = async (): Promise<void> => {
+    const updated = await clearDocGithubLink(currentDoc.uuid);
+    if (updated) currentDoc = updated;
+    toolbarCtrl.setLinked(linkedAny(currentDoc));
   };
 
   const handleSettingsChange = (s: PdfSettings) => {
@@ -1689,10 +1871,23 @@ async function bootstrap(): Promise<void> {
       initialDocName: currentDoc.name,
       initialViewMode: viewMode,
       onFileMenu(anchor) {
+        void (async () => {
+        const githubAvailable = await hasToken();
         openFileMenu(anchor, {
           modified: isModified(currentDoc),
           diskAvailable: fsAccessAvailable(),
           linked: isLinked(currentDoc),
+          githubAvailable,
+          githubLinked: isGithubLinked(currentDoc),
+          onGithubLink: () => {
+            void linkToGithub();
+          },
+          onGithubReload: () => {
+            void reloadFromGithub();
+          },
+          onGithubUnlink: () => {
+            void unlinkGithub();
+          },
           onOpenFromDisk: () => {
             void openFromDisk();
           },
@@ -1732,6 +1927,7 @@ async function bootstrap(): Promise<void> {
           onShareLink: triggerShareLink,
           onShareEmail: triggerShareEmail,
         });
+        })();
       },
       onRenameCurrent: (name) => {
         void renameCurrentDoc(name);
@@ -1747,6 +1943,17 @@ async function bootstrap(): Promise<void> {
       },
       onToggleGuides: triggerGuides,
       onResolveConflict: (anchor) => {
+        if (isGithubLinked(currentDoc) && !isLinked(currentDoc)) {
+          openConflictMenu(anchor, {
+            onKeepMine: () => {
+              void keepMineGithub(); // force-push over the remote
+            },
+            onTakeDisk: () => {
+              void reloadFromGithub(true); // take the remote version
+            },
+          });
+          return;
+        }
         openConflictMenu(anchor, {
           onKeepMine: () => {
             void saveCurrentDoc(); // commit + push my version, clears conflict
@@ -1818,7 +2025,7 @@ async function bootstrap(): Promise<void> {
   // Reflect any resumed working copy (a draft persisted from a previous
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
-  toolbarCtrl.setLinked(isLinked(currentDoc));
+  toolbarCtrl.setLinked(linkedAny(currentDoc));
   void checkSync();
 
   // Two-way sync polling (Phase 4). The File System Access API has no
@@ -1839,7 +2046,7 @@ async function bootstrap(): Promise<void> {
   onLanguageChange(() => {
     renderToolbar();
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setLinked(isLinked(currentDoc));
+    toolbarCtrl.setLinked(linkedAny(currentDoc));
     void checkSync();
   });
 

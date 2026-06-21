@@ -65,6 +65,19 @@ const FR = {
   'file-menu.link-folder': 'Lier à un dossier…',
   'file-menu.reload-disk': 'Recharger depuis le disque…',
   'file-menu.unlink': 'Délier du disque',
+  'file-menu.github-link': 'Lier à GitHub…',
+  'file-menu.github-reload': 'Recharger depuis GitHub',
+  'file-menu.github-unlink': 'Délier de GitHub',
+  'github.no-token':
+    'Aucun jeton GitHub. Ajoute-le dans Réglages → GitHub.',
+  'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
+  'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
+  'github.prompt-branch': 'Branche :',
+  'github.prompt-path': 'Chemin dans le dépôt (dossier du document) :',
+  'github.overwrite-confirm':
+    'Le chemin « {path} » contient déjà un document. L’écraser avec le document courant ?',
+  'github.not-found': 'Document introuvable dans le dépôt à ce chemin.',
+  'github.error': 'Erreur GitHub (HTTP {status}).',
   // ---- disk link (Phase 4) ------------------------------------------
   'disk.overwrite-confirm':
     'Le dossier « {name} » contient déjà un document. L’écraser avec le document courant ?',
@@ -424,6 +437,18 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.link-folder': 'Link to a folder…',
   'file-menu.reload-disk': 'Reload from disk…',
   'file-menu.unlink': 'Unlink from disk',
+  'file-menu.github-link': 'Link to GitHub…',
+  'file-menu.github-reload': 'Reload from GitHub',
+  'file-menu.github-unlink': 'Unlink from GitHub',
+  'github.no-token': 'No GitHub token. Add one in Settings → GitHub.',
+  'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
+  'github.prompt-repo': 'GitHub repo (owner/repo):',
+  'github.prompt-branch': 'Branch:',
+  'github.prompt-path': 'Path in the repo (the document folder):',
+  'github.overwrite-confirm':
+    'The path “{path}” already holds a document. Overwrite it with the current document?',
+  'github.not-found': 'No document found in the repo at that path.',
+  'github.error': 'GitHub error (HTTP {status}).',
   'disk.overwrite-confirm':
     'The folder “{name}” already contains a document. Overwrite it with the current document?',
   'disk.write-failed': 'Could not write to disk.',

@@ -18,6 +18,13 @@ export interface FileMenuOptions {
   // available (Chromium). Reload/Unlink only when the doc is linked.
   diskAvailable: boolean;
   linked: boolean;
+  // GitHub sync (docs/GITHUB-SYNC-SPEC.md). `githubAvailable` ⇒ a PAT is
+  // saved; Reload/Unlink only when the doc is already github-linked.
+  githubAvailable: boolean;
+  githubLinked: boolean;
+  onGithubLink(): void;
+  onGithubReload(): void;
+  onGithubUnlink(): void;
   onOpenFromDisk(): void;
   onLinkFile(): void;
   onLinkFolder(): void;
@@ -106,6 +113,17 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
         item(t('file-menu.reload-disk'), '', opts.onReloadDisk),
         item(t('file-menu.unlink'), '', opts.onUnlink),
       );
+    }
+  }
+  if (opts.githubAvailable) {
+    menu.append(sep());
+    if (opts.githubLinked) {
+      menu.append(
+        item(t('file-menu.github-reload'), '', opts.onGithubReload),
+        item(t('file-menu.github-unlink'), '', opts.onGithubUnlink),
+      );
+    } else {
+      menu.append(item(t('file-menu.github-link'), '', opts.onGithubLink));
     }
   }
   menu.append(sep());
