@@ -276,6 +276,10 @@ body,
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   margin: 0 auto 24px;
+  /* Auto-fit-to-width: main.ts sets --mp-fit-zoom (≤ 1) so a page never
+     overflows a narrow pane. `zoom` reflows, so vertical scroll and
+     click-to-source stay correct. Default 1 = natural size. */
+  zoom: var(--mp-fit-zoom, 1);
 }
 
 /* Presentation mode (toolbar [Présenter] + Cmd/Ctrl+Shift+Enter). The
@@ -308,6 +312,9 @@ body,
   box-shadow: none;
   visibility: hidden;
   transform: translate(-50%, -50%);
+  /* Presentation has its own per-page scaling (--present-scale); keep the
+     fit-to-width zoom off here so the two don't compound. */
+  zoom: 1;
 }
 #preview-pane.presentation .pagedjs_page.is-current {
   visibility: visible;
