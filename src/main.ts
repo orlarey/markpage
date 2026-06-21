@@ -459,6 +459,30 @@ async function bootstrap(): Promise<void> {
   let slideIndex = 0;
   let returnMode: 'editor' | 'preview' = 'editor';
 
+  // Auto-fit-to-width: shrink the paginated pages so a page fits the preview
+  // pane — never upscale past 100% (wide screens keep the natural centred
+  // look; narrow panes / phones stop overflowing). Driven by the
+  // `--mp-fit-zoom` CSS var (applied to `.pagedjs_page` via `zoom`), so the
+  // page flow reflows and vertical-scroll / click-to-source stay correct.
+  // No-op outside preview and during fullscreen presentation (its own scaling).
+  const PREVIEW_FIT_GUTTER = 28; // px breathing room + scrollbar allowance
+  const fitPreviewWidth = (): void => {
+    const firstPage = previewEl.querySelector<HTMLElement>('.pagedjs_page');
+    if (!firstPage) return;
+    if (presenting || viewMode !== 'preview' || previewEl.clientWidth === 0) {
+      previewEl.style.removeProperty('--mp-fit-zoom');
+      return;
+    }
+    previewEl.style.setProperty('--mp-fit-zoom', '1'); // reset to read natural width
+    const natural = firstPage.getBoundingClientRect().width;
+    if (natural === 0) return;
+    const factor = Math.min(
+      1,
+      (previewEl.clientWidth - PREVIEW_FIT_GUTTER) / natural,
+    );
+    previewEl.style.setProperty('--mp-fit-zoom', String(factor));
+  };
+
   // Builds the rendered DOM subtree (Markdown + post-processing) and
   // hands it to paged.js. Called only when entering preview mode (or on
   // settings change while in preview); never during typing.
@@ -489,6 +513,7 @@ async function bootstrap(): Promise<void> {
     await paginate(built, effectiveSettings, previewEl);
     if (myReq !== previewReqId) return;
     dirty = false;
+    fitPreviewWidth();
   };
 
   // Autosave writes the *working copy* (draft), never the committed content
@@ -546,6 +571,7 @@ async function bootstrap(): Promise<void> {
         console.error('Preview render failed', err);
       }
     }
+    fitPreviewWidth();
     if (anchor) applyAnchorToPreview(previewEl, anchor);
     previewEl.focus();
   };
@@ -676,6 +702,7 @@ async function bootstrap(): Promise<void> {
       .forEach((p) => p.classList.remove('is-current'));
     if (document.fullscreenElement) void document.exitFullscreen();
     if (returnMode === 'editor') enterEditor(null);
+    else fitPreviewWidth(); // back to preview → re-fit to the pane
   };
 
   // Enter fullscreen presentation. We reuse the preview render, so we
@@ -709,6 +736,7 @@ async function bootstrap(): Promise<void> {
     presenting = true;
     slideIndex = 0;
     previewEl.classList.add('presentation');
+    fitPreviewWidth(); // drops the fit-zoom so presentation scaling is clean
     window.addEventListener('keydown', onPresentKeydown, true);
     previewEl.addEventListener('click', onPresentClick);
     window.addEventListener('resize', onPresentResize);
@@ -720,6 +748,13 @@ async function bootstrap(): Promise<void> {
   document.addEventListener('fullscreenchange', () => {
     if (presenting && !document.fullscreenElement) exitPresentation();
   });
+
+  // Re-fit the paginated preview when the pane resizes (window resize,
+  // entering preview, panel show/hide). Preview-only, downscale-only.
+  const previewResize = new ResizeObserver(() => {
+    if (viewMode === 'preview' && !presenting) fitPreviewWidth();
+  });
+  previewResize.observe(previewEl);
 
   // Flushes the pending autosave to the *working copy* (draft) if the
   // debounce hasn't fired yet. Called before any operation that swaps the
