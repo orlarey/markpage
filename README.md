@@ -180,6 +180,11 @@ as reference + history:
 - [`FILE-MANAGEMENT-SPEC.md`](docs/FILE-MANAGEMENT-SPEC.md) — document / asset
   storage and the disk-link feature.
 
+Planned (design only, not yet shipped):
+
+- [`GITHUB-SYNC-SPEC.md`](docs/GITHUB-SYNC-SPEC.md) — shared documents across
+  devices via a GitHub repo (fine-grained PAT, no server).
+
 ## Use the fences in your own Markdown pipeline
 
 The rich block renderers (`chart`, `bda`, `category`, `adt`, `diff`, `tree`)
