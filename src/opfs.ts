@@ -2,7 +2,7 @@
  *
  * Purpose: Thin Origin Private File System (OPFS) helpers — the single
  *   hierarchical store that backs the file-management refactor (SPEC
- *   `FILE-MANAGEMENT-SPEC.md` §4). Everything lives under one `library/`
+ *   `docs/FILE-MANAGEMENT-SPEC.md` §4). Everything lives under one `library/`
  *   root; the deduplicated, SHA-keyed image pool lives in `library/.store/`.
  * How: `navigator.storage.getDirectory()` + the File System Access handle
  *   API. All ops are async. `opfsAvailable()` lets callers fall back to the

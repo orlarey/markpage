@@ -1673,7 +1673,7 @@ Les **ligatures de saisie** (\pi → π, indices chiffrés) sont actives
 dans le bloc — `\pi_1` tapé devient `π₁` et le parser accepte les
 identifiants Unicode (lettres grecques, indices, exposants).
 
-> **Spec complète** dans `CATEGORY-SPEC.md` à la racine du dépôt —
+> **Spec complète** dans `docs/CATEGORY-SPEC.md` —
 > grammaire EBNF, sémantique de typage, stratégie de rendu, corpus
 > canonique de dix diagrammes (triangle, produit, coproduit, carré
 > de naturalité, pullback, pushout, égaliseur, coégaliseur,

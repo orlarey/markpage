@@ -3,7 +3,7 @@
  * Purpose: Render the ` ```mosaic ` fence — an image wall (justified gallery).
  *   Whole images (never cropped) are packed into rows that each fill the
  *   content width exactly; row heights vary; no gaps by default. See
- *   MOSAIC-SPEC.md.
+ *   docs/MOSAIC-SPEC.md.
  * How: Two phases. (1) Sync, in marked-config: parse the info string + body
  *   and emit a placeholder holding the <img> list + options. (2) Async, in
  *   main.ts's preview pass: measure each image's aspect ratio, run the greedy

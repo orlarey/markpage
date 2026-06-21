@@ -125,7 +125,7 @@ even if it has never seen the app.
 Open the **MCP pill** (bottom-right of the app) to download the prebuilt
 bridge for your platform and copy the `claude mcp add markpage …` command,
 then restart your AI client. Architecture and the full tool list:
-[`MCP-SPEC.md`](MCP-SPEC.md); build / install / release details:
+[`MCP-SPEC.md`](docs/MCP-SPEC.md); build / install / release details:
 [`mcp/README.md`](mcp/README.md).
 
 ## Run locally
@@ -148,6 +148,8 @@ GitHub Actions**.
 
 ## Documentation
 
+Specs and design docs live in [`docs/`](docs/) (with an index). Quick links:
+
 ### For users
 
 - **Help** — the in-app tutorial (the Help button); source also at
@@ -158,11 +160,11 @@ GitHub Actions**.
 
 ### Architecture & design
 
-- [`SPEC.md`](SPEC.md) — the app architecture reference (storage model, render
+- [`SPEC.md`](docs/SPEC.md) — the app architecture reference (storage model, render
   pipelines, i18n, LaTeX export, regression test harness).
-- [`MCP-SPEC.md`](MCP-SPEC.md) — the MCP bridge: action↔tool audit, protocol,
+- [`MCP-SPEC.md`](docs/MCP-SPEC.md) — the MCP bridge: action↔tool audit, protocol,
   contract. Build / install / release: [`mcp/README.md`](mcp/README.md).
-- [`FORMAL_METHOD.md`](FORMAL_METHOD.md) — how specifications are written in
+- [`FORMAL-METHOD-SPEC.md`](docs/FORMAL-METHOD-SPEC.md) — how specifications are written in
   this project (methodology, not a feature spec).
 
 ### Feature design specs
@@ -170,12 +172,12 @@ GitHub Actions**.
 The original design documents; every feature below has shipped, so they read
 as reference + history:
 
-- [`CATEGORY-SPEC.md`](CATEGORY-SPEC.md) — the commutative-diagram language
+- [`CATEGORY-SPEC.md`](docs/CATEGORY-SPEC.md) — the commutative-diagram language
   (`category`).
-- [`MOSAIC-SPEC.md`](MOSAIC-SPEC.md) — the justified image gallery (`mosaic`).
-- [`TOC-PLUS-SPEC.md`](TOC-PLUS-SPEC.md) — the table of contents + plan
+- [`MOSAIC-SPEC.md`](docs/MOSAIC-SPEC.md) — the justified image gallery (`mosaic`).
+- [`TOC-PLUS-SPEC.md`](docs/TOC-PLUS-SPEC.md) — the table of contents + plan
   (`::: toc+`).
-- [`FILE-MANAGEMENT-SPEC.md`](FILE-MANAGEMENT-SPEC.md) — document / asset
+- [`FILE-MANAGEMENT-SPEC.md`](docs/FILE-MANAGEMENT-SPEC.md) — document / asset
   storage and the disk-link feature.
 
 ## Use the fences in your own Markdown pipeline

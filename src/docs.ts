@@ -2,7 +2,7 @@
  *
  * Purpose: Multi-document store — user docs are envelopes (uuid, name,
  *   mtime, contentSha) addressing their markdown content.
- * How: The canonical store is OPFS bundles (SPEC `FILE-MANAGEMENT-SPEC.md`):
+ * How: The canonical store is OPFS bundles (SPEC `docs/FILE-MANAGEMENT-SPEC.md`):
  *     library/index.json        → { docs: DocEntry[], currentDoc }
  *     library/<uuid>/content.md  → one doc's markdown
  *   An in-memory cache fronts index.json (write-through). On browsers without

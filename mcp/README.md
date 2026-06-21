@@ -1,7 +1,7 @@
 # markpage-mcp
 
 Local MCP bridge that lets an AI client (Claude Desktop / Claude Code) drive the
-**markpage** webapp running in your browser. See [../MCP-SPEC.md](../MCP-SPEC.md)
+**markpage** webapp running in your browser. See [../docs/MCP-SPEC.md](../docs/MCP-SPEC.md)
 for the full design.
 
 ```
