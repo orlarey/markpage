@@ -4,13 +4,14 @@ name: Release markpage-mcp
 # binaries as GitHub Release assets. The in-app "Connexion IA (MCP)" panel
 # (src/mcp/pill.ts) links to these via /releases/latest/download/<asset>.
 #
-# Trigger by pushing a tag like `mcp-v0.1.0`:
-#   git tag mcp-v0.1.0 && git push origin mcp-v0.1.0
+# Fires on the project's usual version tags (vX.Y.Z), so each app release also
+# ships the matching bridge binaries:
+#   git tag v0.29.0 && git push origin v0.29.0
 # Or run manually from the Actions tab (workflow_dispatch).
 
 on:
   push:
-    tags: ['mcp-v*']
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:

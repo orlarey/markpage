@@ -60,14 +60,16 @@ make release        # cross-compiles dist/markpage-mcp-<os>-<arch>[.exe] for all
 
 Platforms: `darwin-arm64`, `darwin-amd64`, `linux-amd64`, `linux-arm64`,
 `windows-amd64`. To publish them as GitHub Release assets (which the in-app
-panel downloads from `/releases/latest/download/<asset>`), push a tag:
+panel downloads from `/releases/latest/download/<asset>`), push one of the
+project's usual version tags:
 
 ```sh
-git tag mcp-v0.1.0 && git push origin mcp-v0.1.0
+git tag v0.29.0 && git push origin v0.29.0
 ```
 
-`.github/workflows/mcp-release.yml` cross-compiles and uploads the assets. The
-asset names must stay in sync with `ASSETS` in `src/mcp/pill.ts`.
+`.github/workflows/mcp-release.yml` (triggered on `v*` tags) cross-compiles and
+uploads the assets, so each app release also ships the matching bridge
+binaries. The asset names must stay in sync with `ASSETS` in `src/mcp/pill.ts`.
 
 ## Flags
 
