@@ -6,7 +6,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -63,8 +65,33 @@ func (s *WSServer) Start(ctx context.Context) error {
 		<-ctx.Done()
 		_ = s.srv.Shutdown(context.Background())
 	}()
+	// Bind with a short retry: a previous instance — or a leftover process —
+	// may still be releasing the port for a second or two. Without this, a
+	// transient "address already in use" leaves the binary running with a
+	// dead WS server (stdio works, but no tab can ever connect), which is
+	// exactly the silent failure mode we want to avoid.
+	var (
+		ln  net.Listener
+		err error
+	)
+	for attempt := 0; attempt < 20; attempt++ {
+		ln, err = net.Listen("tcp", s.cfg.Addr)
+		if err == nil {
+			break
+		}
+		s.log.Warn("ws listen failed, retrying",
+			"addr", s.cfg.Addr, "err", err, "attempt", attempt+1)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("ws listen on %s after retries: %w", s.cfg.Addr, err)
+	}
 	s.log.Info("ws server listening", "addr", s.cfg.Addr)
-	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := s.srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
