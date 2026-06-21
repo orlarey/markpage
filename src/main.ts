@@ -1232,7 +1232,13 @@ async function bootstrap(): Promise<void> {
       ) {
         return;
       }
-      const content = (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+      // Commit first so we push the doc's real content, not a stale (often
+      // empty) committed version — linking a freshly-typed, never-saved doc
+      // would otherwise push an empty content.md.
+      await flushSave();
+      currentDoc = await commitDoc(currentDoc.uuid);
+      toolbarCtrl.setModified(false);
+      const content = (await loadCommittedContent(currentDoc)) ?? '';
       const { contentSha } = await pushBundle(
         token,
         target,
