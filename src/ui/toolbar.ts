@@ -1,17 +1,18 @@
 /********************************* toolbar.ts **********************************
  *
- * Purpose: Build the app toolbar — brand, File menu, editable doc title,
- *   Style, Help, preview-toggle, present, guides, settings — and return a
- *   small control surface for live label / view-mode / modified updates.
+ * Purpose: Build the app toolbar — brand, the Fichier / Format / Vue menus,
+ *   editable doc title, Réglages, and a Help (?) icon — and return a small
+ *   control surface for live label / view-mode / modified updates.
  * How: Static DOM via `document.createElement`, each control wired to one of
- *   the caller's handlers. The File menu consolidates the old Mon doc /
- *   Importer / Exporter controls (Phase 3d); the document name is now an
- *   inline-editable title.
+ *   the caller's handlers. Below ~600px the menu triggers collapse into a
+ *   single hamburger (☰) that re-lists them. The Vue menu groups the view
+ *   actions (Aperçu / Présenter / Repères) that used to be separate buttons.
  *
  *******************************************************************************/
 
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
+import { openViewMenu } from './view-menu';
 
 export type ViewMode = 'editor' | 'preview';
 
@@ -21,8 +22,8 @@ export type ViewMode = 'editor' | 'preview';
 export interface ToolbarHandlers {
   initialDocName: string;
   initialViewMode: ViewMode;
-  // Click on [File ▾]. Receives the trigger element so the caller can anchor
-  // the dropdown to it.
+  // Click on [Fichier ▾]. Receives the trigger element so the caller can
+  // anchor the dropdown to it.
   onFileMenu(anchor: HTMLElement): void;
   // Commit a new name for the current document (inline title edit).
   onRenameCurrent(name: string): void;
@@ -63,21 +64,128 @@ export function mountToolbar(
 ): ToolbarControl {
   parent.innerHTML = '';
 
-  // [File ▾] — consolidates document lifecycle + import/export. The caller
-  // opens the dropdown anchored on this button.
-  const fileBtn = document.createElement('button');
-  fileBtn.type = 'button';
-  fileBtn.className = 'menu-trigger file-trigger';
-  fileBtn.title = t('toolbar.file-title');
-  const fileLabel = document.createTextNode(t('toolbar.file'));
-  const fileCaret = document.createElement('span');
-  fileCaret.className = 'menu-caret';
-  fileCaret.textContent = '▾';
-  fileBtn.append(fileLabel, fileCaret);
+  // View state mirrored here so the Vue menu shows the right checkmarks when
+  // it opens (the menu itself is ephemeral, rebuilt on each open).
+  let currentViewMode: ViewMode = handlers.initialViewMode;
+  let currentGuides = false;
+
+  // ---- a labelled menu trigger ("Label ▾") -----------------------------
+  const trigger = (label: string, title: string): HTMLButtonElement => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'menu-trigger';
+    btn.title = title;
+    const caret = document.createElement('span');
+    caret.className = 'menu-caret';
+    caret.textContent = '▾';
+    btn.append(document.createTextNode(label), caret);
+    return btn;
+  };
+
+  // [Fichier ▾] — document lifecycle + import/export.
+  const fileBtn = trigger(t('toolbar.file'), t('toolbar.file-title'));
+  fileBtn.classList.add('file-trigger');
   fileBtn.addEventListener('click', () => handlers.onFileMenu(fileBtn));
 
-  // Editable document title (with a "modified" dot). Enter / blur commit the
-  // rename; Escape reverts. `currentName` is the last committed value.
+  // [Format ▾] — Markdown formatting. Don't steal focus from the editor.
+  const styleBtn = trigger(t('toolbar.style'), t('toolbar.style-title'));
+  styleBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  styleBtn.addEventListener('click', () => {
+    const r = styleBtn.getBoundingClientRect();
+    handlers.onStyle({ x: r.left, y: r.bottom + 4 });
+  });
+
+  // [Vue ▾] — view actions (Aperçu / Présenter / Repères).
+  const viewBtn = trigger(t('toolbar.view'), t('toolbar.view-title'));
+  const openView = (anchor: HTMLElement): void =>
+    openViewMenu(anchor, {
+      viewMode: currentViewMode,
+      guides: currentGuides,
+      onTogglePreview: handlers.onTogglePreview,
+      onPresent: handlers.onPresent,
+      onToggleGuides: handlers.onToggleGuides,
+    });
+  viewBtn.addEventListener('click', () => openView(viewBtn));
+
+  // [Réglages ▾] — settings / profiles panel.
+  const settingsBtn = trigger(t('toolbar.settings'), t('toolbar.settings-title'));
+  settingsBtn.addEventListener('click', () => handlers.onSettings());
+
+  // [?] — Help, a compact icon at the end of the bar.
+  const helpBtn = document.createElement('button');
+  helpBtn.type = 'button';
+  helpBtn.className = 'help-btn help-icon';
+  helpBtn.textContent = '?';
+  helpBtn.title = t('toolbar.help-title');
+  helpBtn.setAttribute('aria-label', t('toolbar.help'));
+  helpBtn.addEventListener('click', () => handlers.onHelp());
+
+  // [☰] — collapses every menu on narrow screens (shown via CSS only).
+  const hamburger = document.createElement('button');
+  hamburger.type = 'button';
+  hamburger.className = 'toolbar-hamburger';
+  hamburger.textContent = '☰';
+  hamburger.title = t('toolbar.menu-title');
+  hamburger.setAttribute('aria-label', t('toolbar.menu'));
+  hamburger.addEventListener('click', () => openMobileSheet());
+
+  // The mobile sheet re-lists the menus; each entry routes to the same
+  // handler the desktop trigger uses, anchored under the hamburger.
+  const openMobileSheet = (): void => {
+    document.getElementById('mobile-menu')?.remove();
+    const rect = hamburger.getBoundingClientRect();
+    const sheet = document.createElement('div');
+    sheet.id = 'mobile-menu';
+    sheet.className = 'file-menu';
+    sheet.style.right = `${Math.max(4, globalThis.innerWidth - rect.right)}px`;
+    sheet.style.top = `${rect.bottom + 4}px`;
+
+    const close = (): void => {
+      sheet.remove();
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+      globalThis.removeEventListener('resize', close);
+    };
+    const onDown = (e: MouseEvent): void => {
+      if (!sheet.contains(e.target as Node)) close();
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') close();
+    };
+    const entry = (label: string, action: () => void): HTMLButtonElement => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'file-menu-item';
+      const main = document.createElement('span');
+      main.className = 'file-menu-label';
+      main.textContent = label;
+      b.append(main);
+      b.addEventListener('click', () => {
+        close();
+        action();
+      });
+      return b;
+    };
+
+    sheet.append(
+      entry(t('toolbar.file'), () => handlers.onFileMenu(hamburger)),
+      entry(t('toolbar.style'), () => {
+        const r = hamburger.getBoundingClientRect();
+        handlers.onStyle({ x: Math.max(4, r.right - 220), y: r.bottom + 4 });
+      }),
+      entry(t('toolbar.view'), () => openView(hamburger)),
+      entry(t('toolbar.settings'), () => handlers.onSettings()),
+      entry(t('toolbar.help'), () => handlers.onHelp()),
+    );
+    document.body.appendChild(sheet);
+    setTimeout(() => {
+      document.addEventListener('mousedown', onDown, true);
+      document.addEventListener('keydown', onKey);
+      globalThis.addEventListener('resize', close);
+    }, 0);
+  };
+
+  // ---- editable document title (modified dot + disk-link badge) ----------
   let currentName = handlers.initialDocName;
   const titleWrap = document.createElement('div');
   titleWrap.className = 'doc-title';
@@ -92,9 +200,9 @@ export function mountToolbar(
   dot.textContent = '●';
   dot.hidden = true;
   dot.title = t('toolbar.modified-title');
-  // "Linked to disk" badge (Phase 4) — shown when the doc mirrors a file/folder.
-  // 🔗 = linked & auto-syncing; when both sides diverge it gains `.conflict`,
-  // turns into a pulsing ⛓️‍💥 and opens the resolution menu on click.
+  // "Linked to disk" badge (Phase 4): 🔗 = linked & auto-syncing; on
+  // divergence it gains `.conflict`, becomes a pulsing ⛓️‍💥, and opens the
+  // resolution menu on click.
   const linkBadge = document.createElement('span');
   linkBadge.className = 'doc-link-badge';
   linkBadge.textContent = '🔗';
@@ -127,67 +235,7 @@ export function mountToolbar(
   });
   titleInput.addEventListener('blur', commitTitle);
 
-  const previewBtn = document.createElement('button');
-  previewBtn.type = 'button';
-  previewBtn.className = 'preview-toggle';
-  previewBtn.textContent = t('toolbar.preview');
-  previewBtn.title = t('toolbar.preview-title');
-  previewBtn.setAttribute(
-    'aria-pressed',
-    handlers.initialViewMode === 'preview' ? 'true' : 'false',
-  );
-  previewBtn.addEventListener('click', () => handlers.onTogglePreview());
-
-  const presentBtn = document.createElement('button');
-  presentBtn.type = 'button';
-  presentBtn.className = 'present-toggle';
-  presentBtn.textContent = t('toolbar.present');
-  presentBtn.title = t('toolbar.present-title');
-  presentBtn.addEventListener('click', () => handlers.onPresent());
-
-  const guidesBtn = document.createElement('button');
-  guidesBtn.type = 'button';
-  guidesBtn.className = 'guides-toggle';
-  guidesBtn.textContent = t('toolbar.guides');
-  guidesBtn.title = t('toolbar.guides-title');
-  guidesBtn.setAttribute('aria-pressed', 'false');
-  guidesBtn.addEventListener('click', () => handlers.onToggleGuides());
-
-  const styleBtn = document.createElement('button');
-  styleBtn.type = 'button';
-  styleBtn.className = 'menu-trigger';
-  styleBtn.title = t('toolbar.style-title');
-  const styleLabel = document.createTextNode(t('toolbar.style'));
-  const styleCaret = document.createElement('span');
-  styleCaret.className = 'menu-caret';
-  styleCaret.textContent = '▾';
-  styleBtn.append(styleLabel, styleCaret);
-  // Don't steal focus from the editor — keeps cursor / selection alive.
-  styleBtn.addEventListener('mousedown', (e) => e.preventDefault());
-  styleBtn.addEventListener('click', () => {
-    const rect = styleBtn.getBoundingClientRect();
-    handlers.onStyle({ x: rect.left, y: rect.bottom + 4 });
-  });
-
-  const helpBtn = document.createElement('button');
-  helpBtn.type = 'button';
-  helpBtn.className = 'help-btn';
-  helpBtn.textContent = t('toolbar.help');
-  helpBtn.title = t('toolbar.help-title');
-  helpBtn.addEventListener('click', () => handlers.onHelp());
-
-  const settingsBtn = document.createElement('button');
-  settingsBtn.type = 'button';
-  settingsBtn.className = 'menu-trigger';
-  settingsBtn.title = t('toolbar.settings-title');
-  const settingsLabel = document.createTextNode(t('toolbar.settings'));
-  const settingsCaret = document.createElement('span');
-  settingsCaret.className = 'menu-caret';
-  settingsCaret.textContent = '▾';
-  settingsBtn.append(settingsLabel, settingsCaret);
-  settingsBtn.addEventListener('click', () => handlers.onSettings());
-
-  // Logo links to the showcase (reciprocal home button).
+  // ---- brand --------------------------------------------------------------
   const logoLink = document.createElement('a');
   logoLink.href = './showcase.html';
   logoLink.className = 'markpage-logo-slot';
@@ -203,33 +251,39 @@ export function mountToolbar(
   brandSlot.className = 'toolbar-brand';
   brandSlot.append(logoLink, version);
 
+  // ---- assemble -----------------------------------------------------------
+  const menusLeft = document.createElement('div');
+  menusLeft.className = 'toolbar-menus-left';
+  menusLeft.append(fileBtn, styleBtn, viewBtn);
+
   const left = document.createElement('div');
   left.className = 'toolbar-left';
-  left.append(brandSlot, fileBtn, styleBtn);
+  left.append(brandSlot, menusLeft);
 
   const center = document.createElement('div');
   center.className = 'toolbar-center';
   center.append(titleWrap);
 
+  const menusRight = document.createElement('div');
+  menusRight.className = 'toolbar-menus-right';
+  menusRight.append(settingsBtn, helpBtn);
+
   const right = document.createElement('div');
   right.className = 'toolbar-right';
-  right.append(helpBtn, previewBtn, presentBtn, guidesBtn, settingsBtn);
+  right.append(menusRight, hamburger);
 
   parent.append(left, center, right);
 
   return {
     setViewMode(mode: ViewMode) {
-      previewBtn.setAttribute(
-        'aria-pressed',
-        mode === 'preview' ? 'true' : 'false',
-      );
+      currentViewMode = mode;
     },
     setDocName(name: string) {
       currentName = name;
       if (document.activeElement !== titleInput) titleInput.value = name;
     },
     setGuidesPressed(pressed: boolean) {
-      guidesBtn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+      currentGuides = pressed;
     },
     setModified(modified: boolean) {
       dot.hidden = !modified;

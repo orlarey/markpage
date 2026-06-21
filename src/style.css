@@ -169,6 +169,69 @@ body,
   line-height: 1;
 }
 
+/* The two menu clusters (left: Fichier/Format/Vue, right: Réglages/?) lay
+   their triggers out inline. They collapse into the hamburger on mobile. */
+#toolbar .toolbar-menus-left,
+#toolbar .toolbar-menus-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Help as a compact (?) icon at the end of the bar. */
+#toolbar button.help-icon {
+  width: 2rem;
+  padding: 0.4rem 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Vue menu: push the keyboard hint to the right edge of each item. */
+.cm-context-hint {
+  margin-left: auto;
+  padding-left: 1.5rem;
+  font-size: 0.85em;
+  color: var(--text-muted, #57606a);
+  opacity: 0.7;
+}
+
+/* Hamburger — hidden on wide screens (the menu triggers show inline). */
+#toolbar .toolbar-hamburger {
+  display: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.3rem 0.6rem;
+}
+
+/* ---- Narrow screens (phones): collapse every menu into the ☰ -------- */
+@media (max-width: 600px) {
+  #toolbar {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.4rem;
+    padding: 0.4rem 0.5rem;
+  }
+  #toolbar .toolbar-menus-left,
+  #toolbar .toolbar-menus-right {
+    display: none;
+  }
+  #toolbar .toolbar-hamburger {
+    display: inline-flex;
+    align-items: center;
+  }
+  #toolbar .toolbar-version {
+    display: none;
+  }
+  #toolbar .toolbar-center {
+    justify-self: stretch;
+    min-width: 0;
+  }
+  #toolbar .doc-title,
+  #toolbar .doc-title-input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 /* Single-pane mode: only one of editor / preview is visible at a time.
    `data-view` on #panes drives the toggle. The hidden pane is
    display:none rather than visibility:hidden so it doesn't reserve any
