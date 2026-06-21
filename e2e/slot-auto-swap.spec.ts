@@ -89,7 +89,8 @@ async function readPageMarginContent(
 test('simplex: outer-right content lands at top-right on every page', async ({ page }) => {
   await page.goto('/');
   await injectHeaderFence(page);
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
   // Both pages should show OUTER at top-right (simplex = no swap).
@@ -112,7 +113,8 @@ test('duplex: outer-right content swaps to top-left on verso pages', async ({ pa
     .locator('xpath=following-sibling::input');
   await duplex.check();
 
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   await page.waitForTimeout(500); // settle after duplex toggle
 

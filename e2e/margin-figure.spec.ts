@@ -56,7 +56,8 @@ async function waitForRender(page: Page): Promise<void> {
 test('default mode: the margin image renders inline (no absolute layout)', async ({ page }) => {
   await page.goto('/');
   await injectMarginFigureDoc(page);
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
   const computed = await page
@@ -75,7 +76,8 @@ test("side mode: img.margin is positioned absolute in the outer gutter", async (
   await settings.getByRole('button', { name: 'Page', exact: true }).click();
   await settings.getByText('Préréglage').locator('xpath=following-sibling::select').selectOption({ label: 'Édition critique' });
 
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   await page.waitForTimeout(700);
 

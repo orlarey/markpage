@@ -56,7 +56,8 @@ async function injectFootnoteDoc(page: Page): Promise<void> {
 test('foot mode (default): sidenote lands in the per-page .pagedjs_footnote_area, document-tail section is hidden', async ({ page }) => {
   await page.goto('/');
   await injectFootnoteDoc(page);
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
   // paged.js consumed `float: footnote` and moved the .sidenote
@@ -103,7 +104,8 @@ test("side mode (Édition critique preset): sidenote visible at right of its anc
   await settings.getByRole('button', { name: 'Page', exact: true }).click();
   await settings.getByText('Préréglage').locator('xpath=following-sibling::select').selectOption({ label: 'Édition critique' });
 
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   await page.waitForTimeout(700);
 

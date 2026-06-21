@@ -72,7 +72,8 @@ test('simplex (default) keeps the page-2 content area at the same x as page 1', 
   await page.goto('/');
   const settings = await openSettings(page);
   await setAsymmetricMargins(settings);
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
   const offsets = await readAreaOffsets(page, 2);
@@ -96,7 +97,8 @@ test('duplex mirrors the page-2 content area to the verso position', async ({
     .locator('xpath=following-sibling::input');
   await duplexCheckbox.check();
 
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
   const offsets = await readAreaOffsets(page, 2);
