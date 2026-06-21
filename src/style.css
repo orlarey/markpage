@@ -2321,6 +2321,22 @@ figure.captioned > pre {
   gap: 0.9rem;
 }
 
+/* GitHub-sync section (Réglages → GitHub). */
+.settings-form .github-intro,
+.settings-form .github-hint {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #57606a);
+}
+.settings-form .github-status {
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+.settings-form .github-create-link {
+  display: inline-block;
+  margin-top: 0.4rem;
+}
+
 .settings-form .date-field input[type='text'] {
   margin-left: 0;
 }

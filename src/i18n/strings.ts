@@ -297,6 +297,21 @@ const FR = {
   'rail.group.document': 'Document',
   'rail.group.typography': 'Typographie',
   'rail.group.content': 'Contenu',
+  'rail.group.sync': 'Synchronisation',
+  'settings.section.github': 'GitHub',
+  'settings.github.intro':
+    'Lie tes documents à un dépôt GitHub pour les éditer depuis plusieurs appareils.',
+  'settings.github.token-label': 'Jeton (PAT)',
+  'settings.github.token-placeholder': 'github_pat_…',
+  'settings.github.save': 'Enregistrer',
+  'settings.github.clear': 'Effacer',
+  'settings.github.create': 'Créer un token →',
+  'settings.github.create-hint':
+    'Sur GitHub : Repository access → ton dépôt ; Permissions → Contents : Read and write.',
+  'settings.github.checking': 'Vérification…',
+  'settings.github.connected': 'Connecté en tant que @{login}',
+  'settings.github.disconnected': 'Non connecté (aucun jeton enregistré)',
+  'settings.github.invalid': 'Jeton invalide ou expiré',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.title': 'Titre du document',
@@ -637,6 +652,21 @@ const EN: Record<keyof typeof FR, string> = {
   'rail.group.document': 'Document',
   'rail.group.typography': 'Typography',
   'rail.group.content': 'Content',
+  'rail.group.sync': 'Sync',
+  'settings.section.github': 'GitHub',
+  'settings.github.intro':
+    'Link your documents to a GitHub repo to edit them across devices.',
+  'settings.github.token-label': 'Token (PAT)',
+  'settings.github.token-placeholder': 'github_pat_…',
+  'settings.github.save': 'Save',
+  'settings.github.clear': 'Clear',
+  'settings.github.create': 'Create a token →',
+  'settings.github.create-hint':
+    'On GitHub: Repository access → your repo; Permissions → Contents: Read and write.',
+  'settings.github.checking': 'Checking…',
+  'settings.github.connected': 'Connected as @{login}',
+  'settings.github.disconnected': 'Not connected (no token saved)',
+  'settings.github.invalid': 'Invalid or expired token',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.title': 'Document title',
