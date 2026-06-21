@@ -1,0 +1,11 @@
+# Built binaries
+markpage-mcp
+e2e-probe
+
+# Cross-compiled release artifacts (`make release`)
+dist/
+
+# Docs synced from the repo root for //go:embed (source of truth lives at
+# ../AI-AUTHORING.md and ../packages/blocks/SYNTAX.md)
+AI-AUTHORING.md
+SYNTAX.md

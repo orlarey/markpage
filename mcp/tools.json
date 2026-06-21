@@ -1,0 +1,440 @@
+{
+  "contractVersion": "0.1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Uuid": {
+      "type": "string",
+      "description": "Document or profile identifier (uuid)."
+    },
+    "View": {
+      "type": "string",
+      "enum": ["editor", "preview", "presentation"],
+      "description": "Active view of the markpage app."
+    },
+    "DocEntry": {
+      "type": "object",
+      "description": "Library document metadata.",
+      "properties": {
+        "uuid": { "$ref": "#/$defs/Uuid" },
+        "name": { "type": "string" },
+        "mtime": { "type": "number" },
+        "modified": { "type": "boolean", "description": "Has uncommitted working-copy edits." },
+        "linked": { "type": "boolean", "description": "Linked to a disk file/folder." }
+      },
+      "required": ["uuid", "name", "mtime"]
+    },
+    "RenderError": {
+      "type": "object",
+      "description": "One problem surfaced in the paginated preview.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["math", "xref", "fence", "image", "overflow"],
+          "description": "math=invalid TeX, xref=broken \\ref, fence=block render error, image=missing image, overflow=page overflow."
+        },
+        "message": { "type": "string" },
+        "context": { "type": "string", "description": "Snippet or identifier locating the error." }
+      },
+      "required": ["kind", "message"]
+    },
+    "ProfileEntry": {
+      "type": "object",
+      "properties": {
+        "uuid": { "$ref": "#/$defs/Uuid" },
+        "name": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["uuid", "name"]
+    }
+  },
+  "tools": [
+    {
+      "name": "get_document",
+      "description": "Return the markdown of the current document (working copy, including unsaved edits).",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "markdown": { "type": "string" },
+          "uuid": { "$ref": "#/$defs/Uuid" },
+          "name": { "type": "string" }
+        },
+        "required": ["markdown"]
+      }
+    },
+    {
+      "name": "set_document",
+      "description": "Replace the entire markdown of the current document and re-render the preview. Persists as a draft (use save_document to commit).",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "markdown": { "type": "string" } },
+        "required": ["markdown"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "uuid": { "$ref": "#/$defs/Uuid" },
+          "bytes": { "type": "integer" }
+        },
+        "required": ["uuid"]
+      }
+    },
+    {
+      "name": "insert_text",
+      "description": "Insert text at the editor cursor (replaces the selection if any). Appends at end if no cursor is set.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "text": { "type": "string" } },
+        "required": ["text"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "uuid": { "$ref": "#/$defs/Uuid" },
+          "cursor": { "type": "integer", "description": "New cursor offset." }
+        },
+        "required": ["uuid"]
+      }
+    },
+    {
+      "name": "list_documents",
+      "description": "List library documents, freshest first. Set trash=true to list the Trash instead.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "trash": { "type": "boolean", "default": false } },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "documents": { "type": "array", "items": { "$ref": "#/$defs/DocEntry" } }
+        },
+        "required": ["documents"]
+      }
+    },
+    {
+      "name": "open_document",
+      "description": "Open a library document (by uuid) in the editor, making it the current document.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "uuid": { "$ref": "#/$defs/Uuid" } },
+        "required": ["uuid"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "document": { "$ref": "#/$defs/DocEntry" } },
+        "required": ["document"]
+      }
+    },
+    {
+      "name": "create_document",
+      "description": "Create a new library document with an optional name and initial markdown content, and open it.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "markdown": { "type": "string", "default": "" }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "document": { "$ref": "#/$defs/DocEntry" } },
+        "required": ["document"]
+      }
+    },
+    {
+      "name": "rename_document",
+      "description": "Rename a library document.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "uuid": { "$ref": "#/$defs/Uuid" },
+          "name": { "type": "string" }
+        },
+        "required": ["uuid", "name"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "document": { "$ref": "#/$defs/DocEntry" } },
+        "required": ["document"]
+      }
+    },
+    {
+      "name": "delete_document",
+      "description": "Move a library document to the Trash (soft delete; restore with restore_document).",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "uuid": { "$ref": "#/$defs/Uuid" } },
+        "required": ["uuid"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "uuid": { "$ref": "#/$defs/Uuid" } },
+        "required": ["uuid"]
+      }
+    },
+    {
+      "name": "restore_document",
+      "description": "Restore a document from the Trash.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "uuid": { "$ref": "#/$defs/Uuid" } },
+        "required": ["uuid"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "document": { "$ref": "#/$defs/DocEntry" } },
+        "required": ["document"]
+      }
+    },
+    {
+      "name": "save_document",
+      "description": "Commit the current document's working copy (make the draft the saved content).",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "document": { "$ref": "#/$defs/DocEntry" } },
+        "required": ["document"]
+      }
+    },
+    {
+      "name": "revert_document",
+      "description": "Discard the current document's uncommitted edits and reload the saved content.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "document": { "$ref": "#/$defs/DocEntry" } },
+        "required": ["document"]
+      }
+    },
+    {
+      "name": "get_state",
+      "description": "Return the current app state: active document, view, page count, modified flag, disk link.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "document": { "$ref": "#/$defs/DocEntry" },
+          "view": { "$ref": "#/$defs/View" },
+          "pageCount": { "type": "integer" },
+          "modified": { "type": "boolean" }
+        },
+        "required": ["view"]
+      }
+    },
+    {
+      "name": "set_view",
+      "description": "Switch the app view: 'editor', 'preview' (paginated), or 'presentation' (fullscreen slides). Switching to preview paginates if needed.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "view": { "$ref": "#/$defs/View" } },
+        "required": ["view"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "view": { "$ref": "#/$defs/View" },
+          "pageCount": { "type": "integer" }
+        },
+        "required": ["view"]
+      }
+    },
+    {
+      "name": "get_render_errors",
+      "description": "Paginate the current document if needed, then list rendering problems: invalid math, broken cross-references, fence/block errors, missing images, page overflow. Empty list = clean document.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "errors": { "type": "array", "items": { "$ref": "#/$defs/RenderError" } },
+          "pageCount": { "type": "integer" }
+        },
+        "required": ["errors"]
+      }
+    },
+    {
+      "name": "get_page_count",
+      "description": "Return the number of paginated pages of the current document (paginates if needed).",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "pageCount": { "type": "integer" } },
+        "required": ["pageCount"]
+      }
+    },
+    {
+      "name": "get_block_svg",
+      "description": "Return the rendered SVG/HTML of a fenced block in the preview, located by 0-based index (optionally filtered by type: chart, bda, category, mermaid, tree).",
+      "stability": "beta",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "index": { "type": "integer", "minimum": 0, "default": 0 },
+          "type": { "type": "string", "enum": ["chart", "bda", "category", "mermaid", "tree", "any"], "default": "any" }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "svg": { "type": "string" },
+          "type": { "type": "string" },
+          "count": { "type": "integer", "description": "Total matching blocks." }
+        },
+        "required": ["svg", "count"]
+      }
+    },
+    {
+      "name": "export_markdown",
+      "description": "Return the current document as a self-contained markdown string (image refs expanded to data: URLs).",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "markdown": { "type": "string" },
+          "bytes": { "type": "integer" }
+        },
+        "required": ["markdown"]
+      }
+    },
+    {
+      "name": "export_latex",
+      "description": "Export the current document to LaTeX. The bridge writes the .tex (and resources, zipped if any) to a temp file and returns its path. Never returns large blobs into the AI context.",
+      "stability": "beta",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Path to the written .tex or .zip." },
+          "resources": { "type": "integer", "description": "Number of bundled resource files." }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "name": "export_pdf",
+      "description": "Start the PDF export flow (opens the system print dialog). Cannot be fully automated — the user confirms the save in the native dialog. Prefer export_latex for programmatic output.",
+      "stability": "beta",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "started": { "type": "boolean" } },
+        "required": ["started"]
+      }
+    },
+    {
+      "name": "get_settings",
+      "description": "Return the active style profile and its resolved PdfSettings.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "profile": { "$ref": "#/$defs/ProfileEntry" },
+          "settings": { "type": "object", "additionalProperties": true }
+        },
+        "required": ["settings"]
+      }
+    },
+    {
+      "name": "list_profiles",
+      "description": "List available style profiles.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "profiles": { "type": "array", "items": { "$ref": "#/$defs/ProfileEntry" } }
+        },
+        "required": ["profiles"]
+      }
+    },
+    {
+      "name": "set_profile",
+      "description": "Activate a style profile (by uuid) and re-render the current document.",
+      "stability": "stable",
+      "inputSchema": {
+        "type": "object",
+        "properties": { "uuid": { "$ref": "#/$defs/Uuid" } },
+        "required": ["uuid"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "profile": { "$ref": "#/$defs/ProfileEntry" } },
+        "required": ["profile"]
+      }
+    },
+    {
+      "name": "get_authoring_guide",
+      "description": "Return AI-AUTHORING.md — markpage's full guide for writing markdown documents (constructs, fences, frontmatter, conventions). Served by the bridge without a tab.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "markdown": { "type": "string" } },
+        "required": ["markdown"]
+      }
+    },
+    {
+      "name": "get_fence_syntax",
+      "description": "Return SYNTAX.md — the @orlarey/blocks fence reference (chart, bda, category, adt, diff, tree). Served by the bridge without a tab.",
+      "stability": "stable",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "outputSchema": {
+        "type": "object",
+        "properties": { "markdown": { "type": "string" } },
+        "required": ["markdown"]
+      }
+    },
+    {
+      "name": "validate_fence",
+      "description": "Render a fenced block via @orlarey/blocks to check it: returns ok=true with the SVG/HTML, or ok=false with the error. The fence name must be one of the registered blocks.",
+      "stability": "beta",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Fence name, e.g. chart, bda, category, adt, diff, tree." },
+          "body": { "type": "string", "description": "Fence body (content between the backticks)." },
+          "info": { "type": "string", "description": "Full info string, e.g. 'chart line \"Sales\"'.", "default": "" }
+        },
+        "required": ["name", "body"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "svg": { "type": "string" },
+          "error": { "type": "string" },
+          "knownFences": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["ok"]
+      }
+    }
+  ]
+}

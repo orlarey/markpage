@@ -166,6 +166,8 @@ import {
 import { pageContentGeomPx, paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
+import { initMcp } from './mcp';
+import type { McpContext } from './mcp/context';
 
 /**
  * Purpose: Pick the bundled help tutorial matching the active UI locale.
@@ -195,6 +197,21 @@ function slugifyDocName(name: string): string {
     .replaceAll(/-{2,}/g, '-')
     .replaceAll(/^-+|-+$/g, '');
   return slug === '' ? 'document' : slug;
+}
+
+// Base64-encode raw bytes for the MCP export_latex artifact channel (the Go
+// bridge decodes them to a temp file). Chunked to stay clear of the
+// String.fromCharCode argument-count limit on large buffers.
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+function utf8ToBase64(s: string): string {
+  return bytesToBase64(new TextEncoder().encode(s));
 }
 
 /**
@@ -1790,6 +1807,153 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setLinked(isLinked(currentDoc));
     void checkSync();
   });
+
+  // ---- MCP bridge (optional) --------------------------------------------
+  // Expose the app's actions to an AI client via the markpage-mcp bridge.
+  // The context is the single coupling point: src/mcp/ never reaches into
+  // the closure except through these methods. Connection is opt-in (a ?mcp=
+  // URL param, a saved preference, or the pill's Connect button).
+  const docSummary = (e: DocEntry) => ({
+    uuid: e.uuid,
+    name: e.name,
+    mtime: e.mtime,
+    modified: isModified(e),
+    linked: isLinked(e),
+  });
+  const profileSummary = (e: ProfileEntry) => ({
+    uuid: e.uuid,
+    name: displayProfileName(e),
+    active: e.uuid === getCurrentProfileId(),
+  });
+  const pageCountNow = (): number =>
+    previewEl.querySelectorAll('.pagedjs_page').length;
+
+  const mcpContext: McpContext = {
+    getDocument: () => ({ ...docSummary(currentDoc), markdown: editor.getValue() }),
+    setDocument: async (markdown) => {
+      editor.setValue(markdown);
+      dirty = true;
+      const updated = await saveDraft(currentDoc.uuid, markdown);
+      if (currentDoc.uuid === updated.uuid) {
+        currentDoc = updated;
+        toolbarCtrl.setModified(isModified(updated));
+      }
+      if (viewMode === 'preview') await updatePreview(markdown);
+      return { uuid: currentDoc.uuid, bytes: new TextEncoder().encode(markdown).length };
+    },
+    insertText: (text) => {
+      const v = editor.view;
+      const sel = v.state.selection.main;
+      const cursor = sel.from + text.length;
+      v.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: text },
+        selection: { anchor: cursor },
+      });
+      dirty = true;
+      debouncedSaveDraft(currentDoc.uuid, editor.getValue());
+      return { uuid: currentDoc.uuid, cursor };
+    },
+
+    listDocuments: async (trash) =>
+      (trash ? await listTrash() : await listDocs()).map(docSummary),
+    openDocument: async (uuid) => {
+      const target = (await listDocs()).find((e) => e.uuid === uuid);
+      if (!target) throw new Error(`no document ${uuid}`);
+      await switchToDoc(uuid);
+      return docSummary(currentDoc);
+    },
+    createDocument: async (name, markdown) => {
+      await flushSave();
+      const entry = await createDoc(name ?? 'Sans titre', markdown);
+      currentDoc = entry;
+      await setCurrentDocId(entry.uuid);
+      editor.setValue(markdown);
+      dirty = true;
+      if (viewMode === 'preview') setViewMode('editor');
+      toolbarCtrl.setDocName(entry.name);
+      toolbarCtrl.setModified(false);
+      toolbarCtrl.setLinked(false);
+      return docSummary(entry);
+    },
+    renameDocument: async (uuid, name) => {
+      const updated = await renameDoc(uuid, name);
+      if (!updated) throw new Error(`no document ${uuid}`);
+      if (uuid === currentDoc.uuid) {
+        currentDoc = updated;
+        toolbarCtrl.setDocName(updated.name);
+      }
+      return docSummary(updated);
+    },
+    deleteDocument: (uuid) => deleteAndAdjust(uuid),
+    restoreDocument: async (uuid) => {
+      const updated = await restoreDoc(uuid);
+      if (!updated) throw new Error(`no document ${uuid}`);
+      return docSummary(updated);
+    },
+    saveDocument: async () => {
+      await saveCurrentDoc();
+      return docSummary(currentDoc);
+    },
+    revertDocument: async () => {
+      await revertCurrentDoc();
+      return docSummary(currentDoc);
+    },
+    getState: async () => ({
+      document: docSummary(currentDoc),
+      view: presenting ? 'presentation' : viewMode,
+      pageCount: pageCountNow(),
+      modified: isModified(currentDoc),
+    }),
+
+    setView: async (view) => {
+      if (view === 'editor') enterEditor(null);
+      else if (view === 'preview') await enterPreview();
+      else await enterPresentation();
+      return { view, pageCount: pageCountNow() };
+    },
+    ensurePreview: async () => {
+      await enterPreview();
+      return previewEl;
+    },
+
+    exportMarkdown: async () => {
+      const expanded = await expandRefsToDataUrls(refifyImageUrls(editor.getValue()));
+      return { markdown: expanded, bytes: new TextEncoder().encode(expanded).length };
+    },
+    exportLatex: async () => {
+      const slug = slugifyDocName(currentDoc.name);
+      const { tex, resources } = await exportLatex(editor.getValue(), state.settings);
+      if (resources.size === 0) {
+        return { filenameHint: `${slug}.tex`, base64: utf8ToBase64(tex), resources: 0 };
+      }
+      const { default: JSZip } = await import('jszip');
+      const zip = new JSZip();
+      zip.file(`${slug}.tex`, tex);
+      for (const [path, blob] of resources) zip.file(path, blob);
+      const u8 = await zip.generateAsync({ type: 'uint8array' });
+      return { filenameHint: `${slug}.zip`, base64: bytesToBase64(u8), resources: resources.size };
+    },
+    exportPdf: async () => {
+      triggerDownload();
+      return { started: true };
+    },
+
+    getSettings: () => {
+      const active = listProfiles().find((p) => p.uuid === getCurrentProfileId());
+      return {
+        profile: active ? profileSummary(active) : undefined,
+        settings: state.settings as unknown as Record<string, unknown>,
+      };
+    },
+    listProfiles: () => listProfiles().map(profileSummary),
+    setProfile: (uuid) => {
+      const entry = listProfiles().find((p) => p.uuid === uuid);
+      if (!entry) throw new Error(`no profile ${uuid}`);
+      applyProfile(entry);
+      return { profile: profileSummary(entry) };
+    },
+  };
+  initMcp(mcpContext);
 
   // If we just returned from the OneDrive OAuth flow with a pending
   // upload, resume it now that everything (doc loaded, editor mounted,
