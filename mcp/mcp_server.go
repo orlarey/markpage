@@ -39,7 +39,24 @@ func NewMCPServer(contract *ToolsContract, bridge *Bridge, log *slog.Logger, req
 		Title:   "markpage-mcp",
 		Version: contract.ContractVersion,
 	}
-	srv := mcp.NewServer(impl, nil)
+	// Instructions are returned to the client at initialize. They nudge the
+	// assistant to learn markpage's authoring vocabulary (served by the two
+	// pure tools — they work even before any tab connects) before writing,
+	// which matters most for users who only know markpage.org and not its
+	// fenced-block syntax.
+	srv := mcp.NewServer(impl, &mcp.ServerOptions{
+		Instructions: "markpage turns Markdown into print-ready paginated PDFs in the " +
+			"browser. Before writing or editing a markpage document, call " +
+			"get_authoring_guide (the full authoring guide: callouts, math, and the " +
+			"chart/bda/category/adt/mermaid/tree/diff/mosaic fences) and " +
+			"get_fence_syntax — both are served by this bridge and need no open tab. " +
+			"Use the rich constructs they describe instead of plain Markdown when they " +
+			"fit. Document/view/render tools (get_document, set_document, set_view, " +
+			"get_render_errors, …) require a markpage tab connected to this bridge; if " +
+			"they return no_webapp, tell the user to open markpage with " +
+			"?mcp=ws://127.0.0.1:7878/ws. After editing, call get_render_errors to " +
+			"verify the document renders cleanly.",
+	})
 	validator, err := NewSchemaValidator(contract)
 	if err != nil {
 		return nil, fmt.Errorf("compile schemas: %w", err)
