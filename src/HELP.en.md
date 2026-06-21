@@ -1614,7 +1614,7 @@ following equations express the cone's commutativity.
 inside the block — `\pi_1` typed becomes `π₁` and the parser accepts
 Unicode identifiers (Greek letters, subscripts, superscripts).
 
-> **Full spec** in `CATEGORY-SPEC.md` at the repository root — EBNF
+> **Full spec** in `docs/CATEGORY-SPEC.md` — EBNF
 > grammar, typing semantics, rendering strategy, and a canonical
 > corpus of ten diagrams (triangle, product, coproduct, naturality
 > square, pullback, pushout, equalizer, coequalizer, functoriality,

@@ -5,7 +5,7 @@ language: en
 ---
 
 > **Status:** methodology (normative) — how specifications are written in this
-> project. Not a feature spec. See the [README](README.md#documentation).
+> project. Not a feature spec. See the [README](../README.md#documentation).
 
 Every software development project begins with a specification written in
 Markdown.
@@ -53,7 +53,7 @@ The specification is written in Markdown, meant to be rendered by
 [markpage](https://markpage.org) (paginated PDF via MathJax + paged.js).
 The **precise dialect** — special fences (`math`, `inference`, `chart`,
 `csv`, `mermaid`), Pandoc callouts, input ligatures — is documented in
-[AI-AUTHORING.md](AI-AUTHORING.md); this document focuses on **method**.
+[AI-AUTHORING.md](../AI-AUTHORING.md); this document focuses on **method**.
 
 The source must remain readable in a plain text editor, independently of
 the rendering engine. We therefore prefer **UTF-8** characters for common

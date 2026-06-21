@@ -252,7 +252,7 @@ Syntax:
 A type error (composition with mismatched domain/codomain, or
 equation whose sides have different source/target) is reported in
 a red error block instead of rendering. Full grammar and
-type-checking rules in `CATEGORY-SPEC.md`.
+type-checking rules in `docs/CATEGORY-SPEC.md`.
 
 **Identifiers are Unicode-aware** — write subscripts as Unicode
 glyphs (`p₁`, `p₂`, `f̃`, `π₁`) rather than LaTeX (`p_1`, `p_2`).

@@ -4,9 +4,9 @@ author: Yann Orlarey
 ---
 
 > **Statut :** référence d'architecture de l'app, tenue à jour. Pour *rédiger*
-> des documents, voir [AI-AUTHORING.md](AI-AUTHORING.md) ; pour la carte
+> des documents, voir [AI-AUTHORING.md](../AI-AUTHORING.md) ; pour la carte
 > complète de la documentation et les specs de features, voir le
-> [README](README.md#documentation).
+> [README](../README.md#documentation).
 
 ## 1. Objectif
 
