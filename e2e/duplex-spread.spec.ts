@@ -40,7 +40,8 @@ async function readPageTops(page: Page, n: number): Promise<number[]> {
 
 test('simplex (default): pages are stacked vertically', async ({ page }) => {
   await page.goto('/');
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   const tops = await readPageTops(page, 3);
   // Page 1 strictly below page 0 → stacking, not spread.
@@ -60,7 +61,8 @@ test('duplex: verso (page 1) and the next recto (page 2) share a row', async ({
     .locator('xpath=following-sibling::input');
   await duplex.check();
 
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   // Settle after the duplex toggle re-paginates.
   await page.waitForTimeout(500);

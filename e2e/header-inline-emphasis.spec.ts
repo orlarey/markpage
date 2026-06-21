@@ -24,7 +24,8 @@ async function pasteDoc(page: Page, doc: string): Promise<void> {
 }
 
 async function waitForRender(page: Page): Promise<void> {
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 30_000 });
   // Give paged.js's afterPageLayout pass time to inject the running clone.
   await page.waitForFunction(

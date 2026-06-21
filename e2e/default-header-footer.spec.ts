@@ -28,7 +28,8 @@ async function waitForRender(page: Page): Promise<void> {
 
 test("default footer ` | {page} | ` puts the page counter in the bottom-center on every page", async ({ page }) => {
   await page.goto('/');
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   // The default footer (DEFAULT_SETTINGS.footer = ' | {page} | ') emits
   // `content: counter(page)` on .pagedjs_margin-bottom-center via the
@@ -55,7 +56,8 @@ test('custom default header from settings shows on every page', async ({ page })
     .getByText('En-tête par défaut')
     .locator('xpath=following-sibling::input')
     .fill(' | | Mon en-tête');
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
   const r = await page.evaluate(() => {
@@ -88,7 +90,8 @@ test('an in-doc ```header fence overrides the default header but keeps the defau
   );
   await page.keyboard.press('ControlOrMeta+v');
   await page.waitForTimeout(400);
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   // The cover (= first mp-section page after the synth + real fences)
   // shows the fence-supplied header AND the default footer counter.

@@ -52,7 +52,8 @@ async function readPage1Geometry(page: Page) {
 
 test('manual mode (default) keeps the user margins on the preview', async ({ page }) => {
   await page.goto('/');
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   const g = await readPage1Geometry(page);
   expect(g).not.toBeNull();
@@ -74,7 +75,8 @@ test('derived mode (Rapport preset) yields canonical asymmetric margins', async 
   const presetSelect = settings.getByText('Préréglage').locator('xpath=following-sibling::select');
   await presetSelect.selectOption({ label: 'Rapport' });
 
-  await page.locator('button.preview-toggle').click();
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
   // Give paged.js a moment after the settings change to repaginate.
   await page.waitForTimeout(500);
