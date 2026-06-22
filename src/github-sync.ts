@@ -32,7 +32,12 @@ import {
   utf8ToBytes,
 } from './github';
 import { getImage } from './image-store';
-import { addResource, extractExternalRefs, loadMapping } from './resource-mapping';
+import {
+  addResource,
+  extractExternalRefs,
+  isExternalRef,
+  loadMapping,
+} from './resource-mapping';
 
 /** A linked document's GitHub target (mirrors docs.ts `GithubLink`). */
 export interface GithubTarget {
@@ -83,6 +88,28 @@ export function resolveRepoPath(fooPath: string, ref: string): string | null {
     segs.push(raw);
   }
   return segs.join('/');
+}
+
+/** File extension for an image MIME (inverse of mimeForPath; DOM-free copy). */
+function extForMime(mime: string): string {
+  switch (mime) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    case 'image/svg+xml':
+      return 'svg';
+    default:
+      return 'png';
+  }
+}
+
+/** SHA-256 hex of a blob's bytes (content id, for R3 dedup / collision suffix). */
+async function blobSha256(blob: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** Guess an image MIME from a path extension (for blob storage). */
@@ -158,6 +185,76 @@ export async function importFromGithub(
     fetched.push(imgRef);
   }
   return { content: file.text, baselineSha: file.sha, fetched, skipped };
+}
+
+// ---- R3 — placing a newly-added image -----------------------------------
+
+/** Folder of the in-perimeter image ref nearest the cursor, or null. */
+function nearestNeighborFolder(content: string, cursor: number): string | null {
+  const re = /!\[[^\]\n]*\]\(\s*([^)\s]+)/g;
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const m of content.matchAll(re)) {
+    const url = m[1];
+    if (!isExternalRef(url)) continue; // only relative, in-P refs
+    const dist = Math.abs((m.index ?? 0) - cursor);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = url;
+    }
+  }
+  return best === null ? null : dirOf(best);
+}
+
+/** Turn an original filename into a clean, URL-safe base (no extension). */
+function sanitizeBase(originalName: string | null): string {
+  const noDir = (originalName ?? '').slice((originalName ?? '').lastIndexOf('/') + 1);
+  const noExt = noDir.replace(/\.[^.]+$/, '');
+  const clean = noExt.replace(/[^\w.\-]+/g, '-').replace(/^-+|-+$/g, '');
+  return clean === '' ? 'image' : clean;
+}
+
+/**
+ * Place a freshly-added image (drop / paste / pick) into a GitHub-linked doc
+ * (R3): pick the folder (nearest neighbour image, else `images/`), keep the
+ * original name (collision with a *different* blob → lengthen the content hash,
+ * never an ordinal), dedup by content, register it in the resource mapping and
+ * return the **verbatim relative ref** to insert (`![](ref)`). The actual push
+ * happens at the next Save (`prepareImages`).
+ */
+export async function placeImageForInsert(
+  content: string,
+  cursorOffset: number,
+  fooPath: string,
+  blob: Blob,
+  originalName: string | null,
+): Promise<string> {
+  void fooPath; // refs are relative to foo.md; resolution happens at Save
+  const sha = await blobSha256(blob);
+  const mapping = loadMapping();
+
+  // Dedup by content: reuse a path already mapped to this exact blob.
+  for (const [path, entry] of Object.entries(mapping)) {
+    if (entry.sha === sha) return path;
+  }
+
+  const ext = extForMime(blob.type);
+  const base = sanitizeBase(originalName);
+  const folder = nearestNeighborFolder(content, cursorOffset) ?? 'images';
+  const join = (name: string): string => (folder === '' ? name : `${folder}/${name}`);
+
+  let ref = join(`${base}.${ext}`);
+  if (mapping[ref] && mapping[ref].sha !== sha) {
+    for (let len = 8; len <= 40; len += 4) {
+      const candidate = join(`${base}-${sha.slice(0, len)}.${ext}`);
+      if (!mapping[candidate] || mapping[candidate].sha === sha) {
+        ref = candidate;
+        break;
+      }
+    }
+  }
+  await addResource(ref, blob);
+  return ref;
 }
 
 // ---- R3/R4 — Save state machine ----------------------------------------

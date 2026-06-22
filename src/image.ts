@@ -59,6 +59,23 @@ export function extForMime(mime: string): string {
 // them on every keystroke.
 const blobUrlCache = new Map<string, string>();
 
+// Optional placement strategy, injected by the app (main.ts). For a
+// GitHub-linked doc it returns a natural relative path (R3) after registering
+// the blob in the resource mapping; returning null falls back to the internal
+// `assets/<sha>` scheme. Keeps image.ts free of any github-sync import.
+export interface ImagePlacementContext {
+  blob: Blob;
+  originalName: string | null;
+  view: EditorView;
+}
+export type ImagePlacer = (
+  ctx: ImagePlacementContext,
+) => Promise<string | null>;
+let imagePlacer: ImagePlacer | null = null;
+export function setImagePlacer(placer: ImagePlacer | null): void {
+  imagePlacer = placer;
+}
+
 // ---- image processing -------------------------------------------------
 
 /**
@@ -140,9 +157,18 @@ function hasTransparency(
 async function insertImageAtCursor(
   view: EditorView,
   blob: Blob,
+  originalName: string | null = null,
 ): Promise<void> {
-  const id = await putBlobBySha(blob);
-  const ext = extForMime(blob.type);
+  // GitHub-linked docs place the image at a natural relative path (R3) and
+  // register it in the resource mapping; everything else uses the internal
+  // content-addressed `assets/<sha>` scheme.
+  let ref = imagePlacer
+    ? await imagePlacer({ blob, originalName, view })
+    : null;
+  if (ref === null) {
+    const id = await putBlobBySha(blob);
+    ref = `assets/${id}.${extForMime(blob.type)}`;
+  }
 
   const { state } = view;
   const range = state.selection.main;
@@ -151,7 +177,7 @@ async function insertImageAtCursor(
   const after = state.doc.sliceString(range.to, line.to);
   const prefix = before.trim() === '' ? '' : '\n\n';
   const suffix = after.trim() === '' ? '' : '\n\n';
-  const insert = `${prefix}![](assets/${id}.${ext})${suffix}`;
+  const insert = `${prefix}![](${ref})${suffix}`;
   // Caret lands inside the alt-text brackets so the user can type a label.
   const altPos = range.from + prefix.length + 2;
 
@@ -170,7 +196,7 @@ async function insertImageAtCursor(
 async function handleImageFile(file: File, view: EditorView): Promise<void> {
   try {
     const blob = await processImageToBlob(file);
-    await insertImageAtCursor(view, blob);
+    await insertImageAtCursor(view, blob, file.name || null);
   } catch (err) {
     console.error('Image insertion failed', err);
     globalThis.alert(

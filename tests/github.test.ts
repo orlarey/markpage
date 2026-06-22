@@ -27,6 +27,7 @@ import {
 import {
   type GithubTarget,
   importFromGithub,
+  placeImageForInsert,
   resolveRepoPath,
   saveToGithub,
 } from '../src/github-sync';
@@ -198,6 +199,42 @@ describe('saveToGithub — state machine (R4)', () => {
     mockGithub({ head: null, treeSha: 'T', files: {} });
     const out = await saveToGithub('tok', TARGET, '# x\n', 'Devis', 'BASE');
     expect(out.kind).toBe('remote-gone');
+  });
+});
+
+// ---- R3 image placement -------------------------------------------------
+
+describe('placeImageForInsert (R3)', () => {
+  const png = (bytes: number[]): Blob => new Blob([new Uint8Array(bytes)], { type: 'image/png' });
+
+  it('defaults to images/ when the doc has no image neighbour', async () => {
+    const ref = await placeImageForInsert('# Doc\n', 5, 'bidon/foo.md', png([1, 2, 3]), 'logo.png');
+    expect(ref).toBe('images/logo.png');
+  });
+
+  it('places next to the nearest neighbour image', async () => {
+    const content = '![](pics/a.png)\n\nhere';
+    const ref = await placeImageForInsert(content, content.length, 'foo.md', png([4, 5]), 'logo.png');
+    expect(ref).toBe('pics/logo.png');
+  });
+
+  it('dedups by content — same blob reuses its mapped path regardless of name', async () => {
+    const blob = png([9, 9, 9]);
+    const first = await placeImageForInsert('# d\n', 0, 'foo.md', blob, 'logo.png');
+    const again = await placeImageForInsert('# d\n', 0, 'foo.md', blob, 'autre.png');
+    expect(again).toBe(first);
+  });
+
+  it('renames on a name collision with different content (hash, never ordinal)', async () => {
+    const first = await placeImageForInsert('# d\n', 0, 'foo.md', png([1]), 'logo.png');
+    const second = await placeImageForInsert('# d\n', 0, 'foo.md', png([2]), 'logo.png');
+    expect(first).toBe('images/logo.png');
+    expect(second).toMatch(/^images\/logo-[0-9a-f]{8}\.png$/);
+  });
+
+  it('falls back to "image" for a nameless paste', async () => {
+    const ref = await placeImageForInsert('# d\n', 0, 'foo.md', png([7]), null);
+    expect(ref).toBe('images/image.png');
   });
 });
 

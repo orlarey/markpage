@@ -82,6 +82,7 @@ import {
   gcUnusedImages,
   refifyImageUrls,
   rewriteImageRefs,
+  setImagePlacer,
 } from './image';
 import { migrateImagesToOpfs } from './image-store';
 import { requestPersistentStorage } from './opfs';
@@ -134,6 +135,7 @@ import {
   GithubBranchAbsentError,
   createOnGithub,
   importFromGithub,
+  placeImageForInsert,
   saveToGithub,
 } from './github-sync';
 import {
@@ -1184,6 +1186,21 @@ async function bootstrap(): Promise<void> {
   const refreshLinkBadge = (): void => {
     toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
   };
+
+  // For a GitHub-linked doc, route new images through R3 placement (natural
+  // relative path + resource mapping) so Save pushes them; otherwise fall back
+  // to the internal assets/<sha> scheme (returns null).
+  setImagePlacer(async ({ blob, originalName, view }) => {
+    const link = githubLinkOf(currentDoc);
+    if (!link) return null;
+    return placeImageForInsert(
+      view.state.doc.toString(),
+      view.state.selection.main.from,
+      link.path,
+      blob,
+      originalName,
+    );
+  });
 
   // Map a thrown GitHub error to a clear message.
   const handleGithubError = (err: unknown): void => {
