@@ -97,6 +97,7 @@ import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
 import {
+  clearDocGithubLink,
   clearDocLink,
   commitDoc,
   createDoc,
@@ -104,6 +105,8 @@ import {
   duplicateDoc,
   emptyTrash,
   gcContentBlobs,
+  githubLinkOf,
+  isGithubLinked,
   isLinked,
   isModified,
   linkKind,
@@ -121,9 +124,18 @@ import {
   saveDocContent,
   saveDraft,
   setCurrentDocId,
+  setDocGithubLink,
   setDocLink,
+  updateGithubBaseline,
   type DocEntry,
 } from './docs';
+import { GithubError, hasToken, loadToken } from './github';
+import {
+  GithubBranchAbsentError,
+  createOnGithub,
+  importFromGithub,
+  saveToGithub,
+} from './github-sync';
 import {
   dirHasBundle,
   diskContentMtime,
@@ -786,7 +798,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
-    toolbarCtrl.setLinked(isLinked(target));
+    toolbarCtrl.setLinked(isLinked(target) || isGithubLinked(target));
     toolbarCtrl.setConflict(false);
     void checkSync();
   };
@@ -887,7 +899,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setLinked(isLinked(currentDoc));
+    toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
@@ -899,6 +911,7 @@ async function bootstrap(): Promise<void> {
     currentDoc = await commitDoc(currentDoc.uuid);
     toolbarCtrl.setModified(false);
     if (isLinked(currentDoc)) await pushToDisk();
+    if (isGithubLinked(currentDoc)) await pushToGithub();
   };
 
   // Revert: discard the working copy and reload the committed content.
@@ -1162,7 +1175,168 @@ async function bootstrap(): Promise<void> {
     await removeHandle(currentDoc.uuid);
     const updated = await clearDocLink(currentDoc.uuid);
     if (updated) currentDoc = updated;
-    toolbarCtrl.setLinked(false);
+    refreshLinkBadge();
+  };
+
+  // ---- GitHub sync (docs/GITHUB-SYNC-SPEC.md) ---------------------------
+
+  // The link badge reflects either kind of link (disk or GitHub).
+  const refreshLinkBadge = (): void => {
+    toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
+  };
+
+  // Map a thrown GitHub error to a clear message.
+  const handleGithubError = (err: unknown): void => {
+    console.error('GitHub sync failed', err);
+    if (err instanceof GithubBranchAbsentError) {
+      globalThis.alert(t('github.branch-absent', { branch: err.branch }));
+    } else if (err instanceof GithubError) {
+      globalThis.alert(t('github.error', { status: String(err.status) }));
+    } else {
+      globalThis.alert(t('github.error', { status: '?' }));
+    }
+  };
+
+  // Link the current doc to a `foo.md` in a repo. Existing file → import it
+  // (R2); absent → create it verbatim (R1). v1 collects the target via prompts.
+  const linkToGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    if (!token) {
+      globalThis.alert(t('github.no-token'));
+      return;
+    }
+    const repo = globalThis.prompt(t('github.prompt-repo'), '')?.trim();
+    if (!repo) return;
+    const slash = repo.indexOf('/');
+    if (slash <= 0 || slash >= repo.length - 1) {
+      globalThis.alert(t('github.bad-repo'));
+      return;
+    }
+    const owner = repo.slice(0, slash);
+    const repoName = repo.slice(slash + 1);
+    const branch = globalThis.prompt(t('github.prompt-branch'), 'main')?.trim();
+    if (!branch) return;
+    const defaultPath = `${currentDoc.name.trim().replace(/\s+/g, '-')}.md`;
+    const path = globalThis.prompt(t('github.prompt-path'), defaultPath)?.trim();
+    if (!path) return;
+    const target = { owner, repo: repoName, branch, path };
+    try {
+      await flushSave();
+      currentDoc = await commitDoc(currentDoc.uuid);
+      toolbarCtrl.setModified(false);
+      const existing = await importFromGithub(token, target);
+      if (existing) {
+        if (
+          editor.getValue().trim() !== '' &&
+          existing.content !== editor.getValue() &&
+          !globalThis.confirm(t('github.adopt-confirm', { path }))
+        ) {
+          return;
+        }
+        await applyDiskContent(existing.content);
+        const updated = await setDocGithubLink(currentDoc.uuid, {
+          ...target,
+          baselineSha: existing.baselineSha,
+        });
+        if (updated) currentDoc = updated;
+      } else {
+        const content =
+          (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+        const { baselineSha } = await createOnGithub(
+          token,
+          target,
+          content,
+          currentDoc.name,
+        );
+        const updated = await setDocGithubLink(currentDoc.uuid, {
+          ...target,
+          baselineSha,
+        });
+        if (updated) currentDoc = updated;
+      }
+      refreshLinkBadge();
+    } catch (err) {
+      handleGithubError(err);
+    }
+  };
+
+  // Push the linked doc to GitHub (R3/R4 state machine). Called from Save.
+  const pushToGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    const link = githubLinkOf(currentDoc);
+    if (!token || !link) return;
+    const content =
+      (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+    try {
+      const outcome = await saveToGithub(
+        token,
+        link,
+        content,
+        currentDoc.name,
+        link.baselineSha,
+      );
+      switch (outcome.kind) {
+        case 'noop':
+          break;
+        case 'pushed': {
+          const updated = await updateGithubBaseline(
+            currentDoc.uuid,
+            outcome.baselineSha,
+          );
+          if (updated) currentDoc = updated;
+          break;
+        }
+        case 'forked': {
+          const updated = await setDocGithubLink(currentDoc.uuid, {
+            ...link,
+            path: outcome.path,
+            baselineSha: outcome.baselineSha,
+          });
+          if (updated) currentDoc = updated;
+          globalThis.alert(
+            t('github.forked', { mine: outcome.path, theirs: link.path }),
+          );
+          break;
+        }
+        case 'reload-suggested':
+          globalThis.alert(t('github.reload-suggested'));
+          break;
+        case 'remote-gone':
+          globalThis.alert(t('github.remote-gone', { path: link.path }));
+          break;
+      }
+    } catch (err) {
+      handleGithubError(err);
+    }
+  };
+
+  // Pull from GitHub (R2): refetch foo.md + images, replace content in place.
+  const reloadFromGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    const link = githubLinkOf(currentDoc);
+    if (!token || !link) return;
+    if (isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) {
+      return;
+    }
+    try {
+      const res = await importFromGithub(token, link);
+      if (!res) {
+        globalThis.alert(t('github.remote-gone', { path: link.path }));
+        return;
+      }
+      await applyDiskContent(res.content);
+      const updated = await updateGithubBaseline(currentDoc.uuid, res.baselineSha);
+      if (updated) currentDoc = updated;
+    } catch (err) {
+      handleGithubError(err);
+    }
+  };
+
+  // Drop the GitHub link (the repo is left untouched).
+  const unlinkGithub = async (): Promise<void> => {
+    const updated = await clearDocGithubLink(currentDoc.uuid);
+    if (updated) currentDoc = updated;
+    refreshLinkBadge();
   };
 
   const handleSettingsChange = (s: PdfSettings) => {
@@ -1688,11 +1862,23 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl = mountToolbar(toolbarEl, {
       initialDocName: currentDoc.name,
       initialViewMode: viewMode,
-      onFileMenu(anchor) {
+      async onFileMenu(anchor) {
+        const githubAvailable = await hasToken();
         openFileMenu(anchor, {
           modified: isModified(currentDoc),
           diskAvailable: fsAccessAvailable(),
           linked: isLinked(currentDoc),
+          githubAvailable,
+          githubLinked: isGithubLinked(currentDoc),
+          onGithubLink: () => {
+            void linkToGithub();
+          },
+          onGithubReload: () => {
+            void reloadFromGithub();
+          },
+          onGithubUnlink: () => {
+            void unlinkGithub();
+          },
           onOpenFromDisk: () => {
             void openFromDisk();
           },
@@ -1839,7 +2025,7 @@ async function bootstrap(): Promise<void> {
   onLanguageChange(() => {
     renderToolbar();
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setLinked(isLinked(currentDoc));
+    toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
     void checkSync();
   });
 

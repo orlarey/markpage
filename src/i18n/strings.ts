@@ -65,6 +65,9 @@ const FR = {
   'file-menu.link-folder': 'Lier à un dossier…',
   'file-menu.reload-disk': 'Recharger depuis le disque…',
   'file-menu.unlink': 'Délier du disque',
+  'file-menu.github-link': 'Lier à GitHub…',
+  'file-menu.github-reload': 'Recharger depuis GitHub',
+  'file-menu.github-unlink': 'Délier de GitHub',
   // ---- disk link (Phase 4) ------------------------------------------
   'disk.overwrite-confirm':
     'Le dossier « {name} » contient déjà un document. L’écraser avec le document courant ?',
@@ -313,6 +316,24 @@ const FR = {
   'settings.github.connected': 'Connecté en tant que @{login}',
   'settings.github.disconnected': 'Non connecté (aucun jeton enregistré)',
   'settings.github.invalid': 'Jeton invalide ou expiré',
+  // GitHub sync — prompts, notices, errors
+  'github.no-token':
+    'Aucun jeton GitHub. Ajoutez-en un dans Réglages → GitHub.',
+  'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
+  'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
+  'github.prompt-branch': 'Branche :',
+  'github.prompt-path': 'Chemin du fichier dans le dépôt (ex. lettres/devis.md) :',
+  'github.adopt-confirm':
+    'Le fichier {path} existe déjà dans le dépôt. Remplacer le contenu local par celui du dépôt ?',
+  'github.forked':
+    'Divergence : le dépôt a changé de son côté. Pour ne rien perdre, ta version a été enregistrée dans « {mine} » ; « {theirs} » garde la version du dépôt. Fusionne-les quand tu veux, puis supprime le doublon.',
+  'github.reload-suggested':
+    'Le dépôt a avancé mais tu n’as pas d’édition locale en attente. Utilise « Recharger depuis GitHub » pour récupérer la dernière version.',
+  'github.remote-gone':
+    'Le fichier {path} est introuvable dans le dépôt (supprimé ou déplacé). Recrée-le, délie le document, ou corrige la cible.',
+  'github.branch-absent':
+    'La branche « {branch} » n’existe pas dans le dépôt. Crée-la sur GitHub, puis réessaie.',
+  'github.error': 'Erreur GitHub (HTTP {status}).',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.title': 'Titre du document',
@@ -425,6 +446,9 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.link-folder': 'Link to a folder…',
   'file-menu.reload-disk': 'Reload from disk…',
   'file-menu.unlink': 'Unlink from disk',
+  'file-menu.github-link': 'Link to GitHub…',
+  'file-menu.github-reload': 'Reload from GitHub',
+  'file-menu.github-unlink': 'Unlink from GitHub',
   'disk.overwrite-confirm':
     'The folder “{name}” already contains a document. Overwrite it with the current document?',
   'disk.write-failed': 'Could not write to disk.',
@@ -669,6 +693,23 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.github.connected': 'Connected as @{login}',
   'settings.github.disconnected': 'Not connected (no token saved)',
   'settings.github.invalid': 'Invalid or expired token',
+  // GitHub sync — prompts, notices, errors
+  'github.no-token': 'No GitHub token. Add one in Settings → GitHub.',
+  'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
+  'github.prompt-repo': 'GitHub repo (owner/repo):',
+  'github.prompt-branch': 'Branch:',
+  'github.prompt-path': 'File path in the repo (e.g. letters/quote.md):',
+  'github.adopt-confirm':
+    'The file {path} already exists in the repo. Replace the local content with the repo version?',
+  'github.forked':
+    'Divergence: the repo changed on its side. To lose nothing, your version was saved to “{mine}”; “{theirs}” keeps the repo version. Merge them whenever you like, then delete the duplicate.',
+  'github.reload-suggested':
+    'The repo moved ahead but you have no pending local edits. Use “Reload from GitHub” to get the latest version.',
+  'github.remote-gone':
+    'The file {path} is missing from the repo (deleted or moved). Recreate it, unlink the document, or fix the target.',
+  'github.branch-absent':
+    'The branch “{branch}” does not exist in the repo. Create it on GitHub, then try again.',
+  'github.error': 'GitHub error (HTTP {status}).',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.title': 'Document title',
