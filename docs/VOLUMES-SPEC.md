@@ -1,8 +1,8 @@
 ---
 title: Spécification — Volumes (système de fichiers unifié)
 author: Yann Orlarey
-version: 0.1 (brouillon)
-date: 2026-06-22
+version: 0.2 (brouillon)
+date: 2026-06-23
 ---
 
 > **Statut :** design exploratoire (v0.1) — non implémenté. Spec **pilotée par
@@ -170,15 +170,28 @@ Démonter un volume
     V3 : un document ouvert a toujours son volume d'origine monté* — on n'a donc
     jamais d'origine « pendante ». (Bibliothèque ne se démonte pas.)
 
+Supprimer
+:   Envoie le document à la **Corbeille** (suppression douce, restaurable). C'est
+    la **seule fonction irréductible** de l'ancien gestionnaire « Fichiers… » :
+    on la garde comme **commande dédiée** (*Supprimer…*) + un **lieu** (la
+    Corbeille), pas comme un gestionnaire. En v1, opération de la **Bibliothèque**
+    uniquement ; sur Disque/Dépôt, effacer un vrai fichier est une opération du
+    backend, **différée** (§9) — « retirer de markpage » s'y résume à **fermer**
+    le document.
+
 ## 4. Conséquences — ce qui disparaît
 
-::: important [Deux commandes s'évaporent]
+::: important [Trois éléments s'évaporent]
 
 - **« Importer »** n'est plus une commande : c'est la branche « format étranger »
   de *Ouvrir* (V4).
 - **« Lier à … »** n'est plus un concept : c'est *Enregistrer sous* vers un
   volume (V5). Le moteur de lien (R1–R4 pour GitHub, miroir pour le disque)
   **reste** — seul le *vocabulaire* de surface change.
+- **Le gestionnaire « Fichiers… »** disparaît : lister/ouvrir → le navigateur ;
+  renommer → inline sur le titre ; dupliquer → *Enregistrer sous* ; et sa seule
+  fonction propre, **supprimer**, devient la commande *Supprimer…* + la Corbeille
+  (un lieu, pas un gestionnaire).
 
 :::
 
@@ -255,8 +268,10 @@ Pas à pas :
   (remplace les badges 🔗 disque / GitHub épars).
 - **Réglages → GitHub** : le PAT devient *« le sésame pour monter des volumes
   Dépôt »* ; on y gère la **liste des dépôts montés**.
-- **Le gestionnaire *Fichiers…*** (corbeille, renommage) se recentre sur la
-  **Bibliothèque** — ou fusionne avec le navigateur (à décider, cf. carrefour).
+- **Plus de gestionnaire *Fichiers…*** : *Supprimer…* est une commande, la
+  **Corbeille** une zone du volume Bibliothèque dans le navigateur (restaurer /
+  vider). *Renommer* reste inline sur le titre ; *Dupliquer* = *Enregistrer
+  sous* en Bibliothèque.
 
 ## 8. Correspondance avec le code existant
 
