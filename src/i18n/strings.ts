@@ -335,6 +335,17 @@ const FR = {
   'github.branch-absent':
     'La branche « {branch} » n’existe pas dans le dépôt. Crée-la sur GitHub, puis réessaie.',
   'github.error': 'Erreur GitHub (HTTP {status}).',
+  // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
+  'volume.browser-title': 'Ouvrir',
+  'volume.mount-disk': 'Monter un dossier…',
+  'volume.mount-repo': 'Monter un dépôt…',
+  'volume.loading': 'Chargement…',
+  'volume.empty': 'Dossier vide',
+  'volume.list-failed': 'Impossible de lister ce dossier.',
+  'volume.state.needs-permission': 'permission requise',
+  'volume.state.offline': 'hors-ligne',
+  'volume.state.error': 'erreur',
+  'volume.state.ready': '',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.title': 'Titre du document',
@@ -712,6 +723,17 @@ const EN: Record<keyof typeof FR, string> = {
   'github.branch-absent':
     'The branch “{branch}” does not exist in the repo. Create it on GitHub, then try again.',
   'github.error': 'GitHub error (HTTP {status}).',
+  // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
+  'volume.browser-title': 'Open',
+  'volume.mount-disk': 'Mount a folder…',
+  'volume.mount-repo': 'Mount a repo…',
+  'volume.loading': 'Loading…',
+  'volume.empty': 'Empty folder',
+  'volume.list-failed': 'Could not list this folder.',
+  'volume.state.needs-permission': 'permission needed',
+  'volume.state.offline': 'offline',
+  'volume.state.error': 'error',
+  'volume.state.ready': '',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.title': 'Document title',
