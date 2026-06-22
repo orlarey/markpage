@@ -297,6 +297,22 @@ const FR = {
   'rail.group.document': 'Document',
   'rail.group.typography': 'Typographie',
   'rail.group.content': 'Contenu',
+  'rail.group.sync': 'Synchronisation',
+  // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
+  'settings.section.github': 'GitHub',
+  'settings.github.intro':
+    'Liez vos documents à un dépôt GitHub pour les éditer depuis plusieurs appareils. Le jeton reste sur cet appareil (stocké en clair dans le navigateur — pas un coffre-fort) ; utilisez « Oublier le token » sur une machine partagée.',
+  'settings.github.token-label': 'Jeton (PAT)',
+  'settings.github.token-placeholder': 'github_pat_…',
+  'settings.github.save': 'Enregistrer',
+  'settings.github.clear': 'Oublier le token',
+  'settings.github.create': 'Créer un token →',
+  'settings.github.create-hint':
+    'Jeton « fine-grained », permission Contents : Lecture et écriture, sur le(s) dépôt(s) voulu(s).',
+  'settings.github.checking': 'Vérification…',
+  'settings.github.connected': 'Connecté en tant que @{login}',
+  'settings.github.disconnected': 'Non connecté (aucun jeton enregistré)',
+  'settings.github.invalid': 'Jeton invalide ou expiré',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.title': 'Titre du document',
@@ -637,6 +653,22 @@ const EN: Record<keyof typeof FR, string> = {
   'rail.group.document': 'Document',
   'rail.group.typography': 'Typography',
   'rail.group.content': 'Content',
+  'rail.group.sync': 'Sync',
+  // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
+  'settings.section.github': 'GitHub',
+  'settings.github.intro':
+    'Link your documents to a GitHub repo to edit them across devices. The token stays on this device (stored in clear in the browser — not a vault); use “Forget token” on a shared machine.',
+  'settings.github.token-label': 'Token (PAT)',
+  'settings.github.token-placeholder': 'github_pat_…',
+  'settings.github.save': 'Save',
+  'settings.github.clear': 'Forget token',
+  'settings.github.create': 'Create a token →',
+  'settings.github.create-hint':
+    'Fine-grained token, Contents: Read and write permission, on the repo(s) you want.',
+  'settings.github.checking': 'Checking…',
+  'settings.github.connected': 'Connected as @{login}',
+  'settings.github.disconnected': 'Not connected (no token saved)',
+  'settings.github.invalid': 'Invalid or expired token',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.title': 'Document title',

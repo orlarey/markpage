@@ -2643,3 +2643,19 @@ body.demo-frame-body #preview-pane {
   margin: 0;
   padding: 1rem;
 }
+
+/* ---- GitHub-sync settings section (docs/GITHUB-SYNC-SPEC.md) ---- */
+.settings-form .github-intro,
+.settings-form .github-hint {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #57606a);
+}
+.settings-form .github-status {
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+.settings-form .github-create-link {
+  display: inline-block;
+  margin-top: 0.4rem;
+}
