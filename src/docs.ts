@@ -50,6 +50,21 @@ export interface DocEntry {
   // a folder bundle (absent ⇒ 'folder', for back-compat). The handle lives in
   // IndexedDB (see disk-link.ts). Drives the "external" badge.
   link?: { name: string; kind?: 'file' | 'folder' };
+  // GitHub-sync link (docs/GITHUB-SYNC-SPEC.md). Present ⇒ the doc is linked to
+  // a natural `foo.md` file in a repo. `path` is that file's repo path (NOT a
+  // bundle dir); `baselineSha` is the blob SHA we are last in sync with (R4).
+  githubLink?: GithubLink;
+}
+
+/** A GitHub-sync link target — a `foo.md` file in a repo + the sync baseline. */
+export interface GithubLink {
+  owner: string;
+  repo: string;
+  branch: string;
+  /** Repo path of the linked `foo.md`, e.g. `lettres/2026/devis.md`. */
+  path: string;
+  /** Blob SHA of `foo.md` at the last successful sync (R4 baseline). */
+  baselineSha: string;
 }
 
 interface Library {
@@ -131,6 +146,48 @@ export async function clearDocLink(uuid: string): Promise<DocEntry | null> {
   return patchEntry(uuid, clearLink);
 }
 
+// ---- GitHub-sync link (docs/GITHUB-SYNC-SPEC.md) ------------------------
+
+/** Whether a doc is linked to a GitHub `foo.md` file. */
+export function isGithubLinked(entry: DocEntry): boolean {
+  return entry.githubLink != null;
+}
+
+/** The doc's GitHub link, or undefined. */
+export function githubLinkOf(entry: DocEntry): GithubLink | undefined {
+  return entry.githubLink;
+}
+
+/** A copy of `e` with no GitHub link. */
+function clearGithub(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.githubLink;
+  return copy;
+}
+
+/** Set / replace a doc's GitHub link. */
+export async function setDocGithubLink(
+  uuid: string,
+  link: GithubLink,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => ({ ...e, githubLink: link }));
+}
+
+/** Update only the sync baseline (foo.md blob sha) after a push/pull (R4). */
+export async function updateGithubBaseline(
+  uuid: string,
+  baselineSha: string,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) =>
+    e.githubLink ? { ...e, githubLink: { ...e.githubLink, baselineSha } } : e,
+  );
+}
+
+/** Drop a doc's GitHub link. */
+export async function clearDocGithubLink(uuid: string): Promise<DocEntry | null> {
+  return patchEntry(uuid, clearGithub);
+}
+
 /**
  * Purpose: Runtime guard checking that an unknown value is a `DocEntry`.
  */
@@ -150,7 +207,21 @@ function isDocEntry(x: unknown): x is DocEntry {
         typeof (e.link as { name?: unknown }).name === 'string' &&
         ((e.link as { kind?: unknown }).kind === undefined ||
           (e.link as { kind?: unknown }).kind === 'file' ||
-          (e.link as { kind?: unknown }).kind === 'folder')))
+          (e.link as { kind?: unknown }).kind === 'folder'))) &&
+    (e.githubLink === undefined || isGithubLink(e.githubLink))
+  );
+}
+
+/** Runtime guard for a `GithubLink` shape (used by `isDocEntry`). */
+function isGithubLink(x: unknown): x is GithubLink {
+  if (!x || typeof x !== 'object') return false;
+  const g = x as Partial<GithubLink>;
+  return (
+    typeof g.owner === 'string' &&
+    typeof g.repo === 'string' &&
+    typeof g.branch === 'string' &&
+    typeof g.path === 'string' &&
+    typeof g.baselineSha === 'string'
   );
 }
 
