@@ -22,6 +22,7 @@ export interface FileMenuOptions {
   // saved; Reload/Unlink only when the doc is already github-linked.
   githubAvailable: boolean;
   githubLinked: boolean;
+  onGithubOpen(): void;
   onGithubLink(): void;
   onGithubReload(): void;
   onGithubUnlink(): void;
@@ -117,6 +118,7 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
   }
   if (opts.githubAvailable) {
     menu.append(sep());
+    menu.append(item(t('file-menu.github-open'), '', opts.onGithubOpen));
     if (opts.githubLinked) {
       menu.append(
         item(t('file-menu.github-reload'), '', opts.onGithubReload),

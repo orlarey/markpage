@@ -1339,6 +1339,59 @@ async function bootstrap(): Promise<void> {
     refreshLinkBadge();
   };
 
+  // Open a `foo.md` from a repo → import it (R2) as a NEW library doc and link
+  // it. The multi-device entry point: pick up a shared document on a fresh
+  // machine. v1 collects the target via prompts (folder browser is a follow-up).
+  const openFromGithub = async (): Promise<void> => {
+    const token = await loadToken();
+    if (!token) {
+      globalThis.alert(t('github.no-token'));
+      return;
+    }
+    const repo = globalThis.prompt(t('github.prompt-repo'), '')?.trim();
+    if (!repo) return;
+    const slash = repo.indexOf('/');
+    if (slash <= 0 || slash >= repo.length - 1) {
+      globalThis.alert(t('github.bad-repo'));
+      return;
+    }
+    const branch = globalThis.prompt(t('github.prompt-branch'), 'main')?.trim();
+    if (!branch) return;
+    const path = globalThis.prompt(t('github.prompt-path'), '')?.trim();
+    if (!path) return;
+    const target = {
+      owner: repo.slice(0, slash),
+      repo: repo.slice(slash + 1),
+      branch,
+      path,
+    };
+    try {
+      const res = await importFromGithub(token, target);
+      if (!res) {
+        globalThis.alert(t('github.remote-gone', { path }));
+        return;
+      }
+      await flushSave();
+      const base = path.slice(path.lastIndexOf('/') + 1).replace(/\.md$/i, '');
+      const entry = await createDoc(base === '' ? 'Document' : base, res.content);
+      currentDoc = entry;
+      await setCurrentDocId(entry.uuid);
+      editor.setValue(res.content);
+      const linked = await setDocGithubLink(entry.uuid, {
+        ...target,
+        baselineSha: res.baselineSha,
+      });
+      if (linked) currentDoc = linked;
+      dirty = true;
+      if (viewMode === 'preview') setViewMode('editor');
+      toolbarCtrl.setDocName(currentDoc.name);
+      toolbarCtrl.setModified(false);
+      refreshLinkBadge();
+    } catch (err) {
+      handleGithubError(err);
+    }
+  };
+
   const handleSettingsChange = (s: PdfSettings) => {
     state.settings = s;
     // Fire-and-forget: the SHA hash + localStorage write is fast and
@@ -1870,6 +1923,9 @@ async function bootstrap(): Promise<void> {
           linked: isLinked(currentDoc),
           githubAvailable,
           githubLinked: isGithubLinked(currentDoc),
+          onGithubOpen: () => {
+            void openFromGithub();
+          },
           onGithubLink: () => {
             void linkToGithub();
           },
