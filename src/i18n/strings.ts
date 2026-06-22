@@ -346,6 +346,8 @@ const FR = {
   'volume.state.offline': 'hors-ligne',
   'volume.state.error': 'erreur',
   'volume.state.ready': '',
+  'volume.foreign-repo':
+    'Ouvrir un fichier non-markdown depuis un dépôt n’est pas encore pris en charge.',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.title': 'Titre du document',
@@ -734,6 +736,8 @@ const EN: Record<keyof typeof FR, string> = {
   'volume.state.offline': 'offline',
   'volume.state.error': 'error',
   'volume.state.ready': '',
+  'volume.foreign-repo':
+    'Opening a non-markdown file from a repo is not supported yet.',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.title': 'Document title',

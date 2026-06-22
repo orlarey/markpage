@@ -93,7 +93,6 @@ import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
 import { openFilesModal } from './ui/files-modal';
-import { openOpenModal } from './ui/open-modal';
 import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
@@ -132,12 +131,16 @@ import {
 } from './docs';
 import { GithubError, hasToken, loadToken } from './github';
 import {
+  type GithubTarget,
   GithubBranchAbsentError,
   createOnGithub,
   importFromGithub,
   placeImageForInsert,
   saveToGithub,
 } from './github-sync';
+import { DiskVolume, RepoVolume, type Volume, type VolumeEntry } from './volumes';
+import { listVolumes, mountDisk, mountRepo } from './volume-registry';
+import { openVolumeBrowser } from './ui/volume-browser';
 import {
   dirHasBundle,
   diskContentMtime,
@@ -1356,10 +1359,89 @@ async function bootstrap(): Promise<void> {
     refreshLinkBadge();
   };
 
-  // Open a `foo.md` from a repo → import it (R2) as a NEW library doc and link
-  // it. The multi-device entry point: pick up a shared document on a fresh
-  // machine. v1 collects the target via prompts (folder browser is a follow-up).
-  const openFromGithub = async (): Promise<void> => {
+  // Import a repo `foo.md` (R2) as a NEW library doc linked to GitHub, then
+  // switch to it. Shared by the volume browser and the legacy prompt flow.
+  const openGithubTarget = async (
+    token: string,
+    target: GithubTarget,
+  ): Promise<void> => {
+    const res = await importFromGithub(token, target);
+    if (!res) {
+      globalThis.alert(t('github.remote-gone', { path: target.path }));
+      return;
+    }
+    await flushSave();
+    const base = target.path.slice(target.path.lastIndexOf('/') + 1).replace(/\.md$/i, '');
+    const entry = await createDoc(base === '' ? 'Document' : base, res.content);
+    currentDoc = entry;
+    await setCurrentDocId(entry.uuid);
+    editor.setValue(res.content);
+    const linked = await setDocGithubLink(entry.uuid, {
+      ...target,
+      baselineSha: res.baselineSha,
+    });
+    if (linked) currentDoc = linked;
+    dirty = true;
+    if (viewMode === 'preview') setViewMode('editor');
+    toolbarCtrl.setDocName(currentDoc.name);
+    toolbarCtrl.setModified(false);
+    refreshLinkBadge();
+  };
+
+  // Import a disk `.md` file handle as a NEW library doc, linked to that file.
+  const linkDiskFileHandle = async (fh: FileSystemFileHandle): Promise<void> => {
+    const entry = await handleImport(await fh.getFile());
+    if (!entry) return;
+    if (!(await ensureRwPermission(fh))) return; // imported, just not linked
+    await saveHandle(entry.uuid, fh);
+    const updated = await setDocLink(entry.uuid, fh.name, 'file');
+    if (updated) currentDoc = updated;
+    refreshLinkBadge();
+    await markSynced(currentDoc, fh);
+  };
+
+  // Route an open from the unified browser (V1/V3/V4): a Library entry switches
+  // to the existing doc; a markdown file on Disk/Repo is imported + linked in
+  // place; a foreign file is imported as a copy into the Bibliothèque (V4).
+  const openFromVolume = async (vol: Volume, entry: VolumeEntry): Promise<void> => {
+    try {
+      if (vol.kind === 'library') {
+        await switchToDoc(entry.path); // path = doc uuid
+        return;
+      }
+      if (vol instanceof RepoVolume) {
+        if (!entry.isMarkdown) {
+          globalThis.alert(t('volume.foreign-repo'));
+          return;
+        }
+        const token = await loadToken();
+        if (!token) {
+          globalThis.alert(t('github.no-token'));
+          return;
+        }
+        await openGithubTarget(token, { ...vol.target, path: entry.path });
+        return;
+      }
+      if (vol instanceof DiskVolume) {
+        const fh = await vol.fileHandle(entry.path);
+        if (entry.isMarkdown) await linkDiskFileHandle(fh);
+        else await handleImport(await fh.getFile());
+      }
+    } catch (err) {
+      handleGithubError(err);
+    }
+  };
+
+  // Mount a disk folder as a volume, then reopen the browser on it.
+  const mountDiskFolder = async (): Promise<void> => {
+    const dir = await pickDirectory();
+    if (!dir) return;
+    await mountDisk(dir);
+    reopenBrowser();
+  };
+
+  // Mount a GitHub repo as a volume (PAT required), then reopen the browser.
+  const mountRepoVolume = async (): Promise<void> => {
     const token = await loadToken();
     if (!token) {
       globalThis.alert(t('github.no-token'));
@@ -1374,39 +1456,35 @@ async function bootstrap(): Promise<void> {
     }
     const branch = globalThis.prompt(t('github.prompt-branch'), 'main')?.trim();
     if (!branch) return;
-    const path = globalThis.prompt(t('github.prompt-path'), '')?.trim();
-    if (!path) return;
-    const target = {
-      owner: repo.slice(0, slash),
-      repo: repo.slice(slash + 1),
-      branch,
-      path,
-    };
-    try {
-      const res = await importFromGithub(token, target);
-      if (!res) {
-        globalThis.alert(t('github.remote-gone', { path }));
-        return;
-      }
-      await flushSave();
-      const base = path.slice(path.lastIndexOf('/') + 1).replace(/\.md$/i, '');
-      const entry = await createDoc(base === '' ? 'Document' : base, res.content);
-      currentDoc = entry;
-      await setCurrentDocId(entry.uuid);
-      editor.setValue(res.content);
-      const linked = await setDocGithubLink(entry.uuid, {
-        ...target,
-        baselineSha: res.baselineSha,
-      });
-      if (linked) currentDoc = linked;
-      dirty = true;
-      if (viewMode === 'preview') setViewMode('editor');
-      toolbarCtrl.setDocName(currentDoc.name);
-      toolbarCtrl.setModified(false);
-      refreshLinkBadge();
-    } catch (err) {
-      handleGithubError(err);
-    }
+    mountRepo({ owner: repo.slice(0, slash), repo: repo.slice(slash + 1), branch });
+    reopenBrowser();
+  };
+
+  // The unified browser (V1) — replaces Open / from-disk / from-GitHub / Import.
+  const triggerOpen = async (): Promise<void> => {
+    const volumes = await listVolumes();
+    openVolumeBrowser({
+      volumes,
+      initialVolumeId: githubLinkOf(currentDoc) ? undefined : 'library',
+      onOpen: (vol, entry) => {
+        void openFromVolume(vol, entry);
+      },
+      onMountDisk: fsAccessAvailable()
+        ? () => {
+            void mountDiskFolder();
+          }
+        : undefined,
+      onMountRepo: () => {
+        void mountRepoVolume();
+      },
+    });
+  };
+
+  // Close any open browser instance and reopen it (after a mount changed the
+  // volume list). The browser is single-instance, so we drop the old overlay.
+  const reopenBrowser = (): void => {
+    document.getElementById('volume-browser-overlay')?.remove();
+    void triggerOpen();
   };
 
   const handleSettingsChange = (s: PdfSettings) => {
@@ -1509,17 +1587,6 @@ async function bootstrap(): Promise<void> {
       globalThis.alert(t('import.failed', { msg }));
       return null;
     }
-  };
-
-  // Open… picker (Cmd/Ctrl+O). A pure selector — pick a doc to edit.
-  const triggerOpenModal = async (): Promise<void> => {
-    openOpenModal({
-      docs: await listDocs(),
-      currentUuid: currentDoc.uuid,
-      onOpen: (uuid) => {
-        void switchToDoc(uuid);
-      },
-    });
   };
 
   // Files… manager (documents + Trash). Opened via Cmd/Ctrl+Shift+O until the
@@ -1941,7 +2008,7 @@ async function bootstrap(): Promise<void> {
           githubAvailable,
           githubLinked: isGithubLinked(currentDoc),
           onGithubOpen: () => {
-            void openFromGithub();
+            void triggerOpen();
           },
           onGithubLink: () => {
             void linkToGithub();
@@ -1971,7 +2038,7 @@ async function bootstrap(): Promise<void> {
             void createNewDoc();
           },
           onOpen: () => {
-            void triggerOpenModal();
+            void triggerOpen();
           },
           onFiles: triggerFilesModal,
           onSave: () => {
@@ -2059,7 +2126,7 @@ async function bootstrap(): Promise<void> {
         break;
       case 'o':
         e.preventDefault();
-        void triggerOpenModal();
+        void triggerOpen();
         break;
       case 'p':
         e.preventDefault();

@@ -184,12 +184,21 @@ export class DiskVolume implements Volume {
   }
 
   async readText(path: string): Promise<string> {
+    return (await (await this.fileHandle(path)).getFile()).text();
+  }
+
+  /** The file handle for `path` — lets the app link a disk doc in place (V3). */
+  async fileHandle(path: string): Promise<FileSystemFileHandle> {
     const segs = path.split('/').filter((s) => s !== '');
     const name = segs.pop();
     if (name === undefined) throw new Error('Chemin vide');
     const dir = await this.dirAt(segs.join('/'));
-    const file = await (await dir.getFileHandle(name)).getFile();
-    return file.text();
+    return dir.getFileHandle(name);
+  }
+
+  /** The mounted root directory handle (for permission prompts). */
+  get rootHandle(): FileSystemDirectoryHandle {
+    return this.root;
   }
 }
 
@@ -208,6 +217,11 @@ export class RepoVolume implements Volume {
   ) {
     this.id = `repo:${ref.owner}/${ref.repo}@${ref.branch}`;
     this.label = `${ref.owner}/${ref.repo}@${ref.branch}`;
+  }
+
+  /** The repo coordinates — lets the app link/import a file in place (V3). */
+  get target(): RepoRef {
+    return this.ref;
   }
 
   private async tree(): Promise<TreeEntry[]> {
