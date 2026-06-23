@@ -71,6 +71,7 @@ const FR = {
   'file-menu.github-unlink': 'Délier de GitHub',
   'file-menu.reload': 'Recharger',
   'file-menu.unlink-origin': 'Délier',
+  'file-menu.delete-doc': 'Mettre à la corbeille…',
   // ---- disk link (Phase 4) ------------------------------------------
   'disk.overwrite-confirm':
     'Le dossier « {name} » contient déjà un document. L’écraser avec le document courant ?',
@@ -346,6 +347,10 @@ const FR = {
   'volume.mount-repo': 'Monter un dépôt…',
   'volume.authorize': 'Autoriser',
   'volume.unmount': 'Démonter ce volume',
+  'volume.delete': 'Mettre à la corbeille',
+  'volume.restore': 'Restaurer',
+  'volume.purge': 'Supprimer définitivement',
+  'volume.empty-trash': 'Vider la corbeille',
   'volume.loading': 'Chargement…',
   'volume.empty': 'Dossier vide',
   'volume.list-failed': 'Impossible de lister ce dossier.',
@@ -473,6 +478,7 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.github-unlink': 'Unlink from GitHub',
   'file-menu.reload': 'Reload',
   'file-menu.unlink-origin': 'Unlink',
+  'file-menu.delete-doc': 'Move to Trash…',
   'disk.overwrite-confirm':
     'The folder “{name}” already contains a document. Overwrite it with the current document?',
   'disk.write-failed': 'Could not write to disk.',
@@ -743,6 +749,10 @@ const EN: Record<keyof typeof FR, string> = {
   'volume.mount-repo': 'Mount a repo…',
   'volume.authorize': 'Authorize',
   'volume.unmount': 'Unmount this volume',
+  'volume.delete': 'Move to Trash',
+  'volume.restore': 'Restore',
+  'volume.purge': 'Delete permanently',
+  'volume.empty-trash': 'Empty the Trash',
   'volume.loading': 'Loading…',
   'volume.empty': 'Empty folder',
   'volume.list-failed': 'Could not list this folder.',

@@ -92,7 +92,6 @@ import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
-import { openFilesModal } from './ui/files-modal';
 import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
@@ -102,7 +101,6 @@ import {
   commitDoc,
   createDoc,
   deleteDoc,
-  duplicateDoc,
   emptyTrash,
   gcContentBlobs,
   githubLinkOf,
@@ -826,57 +824,6 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setDocName(updated.name);
   };
 
-  const renameOtherDoc = async (uuid: string, newName: string): Promise<void> => {
-    if (uuid === currentDoc.uuid) {
-      await renameCurrentDoc(newName);
-      return;
-    }
-    await renameDoc(uuid, newName);
-  };
-
-  // Reloads a doc's content from a file picked via a transient
-  // <input type=file>. Replaces the doc's content in place (same uuid,
-  // same name); if the doc is the current one the editor is updated
-  // live, otherwise we switch to it so the user sees the result.
-  const reloadDocFromFile = async (uuid: string): Promise<void> => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = ACCEPT_ATTRIBUTE;
-    fileInput.style.display = 'none';
-    document.body.appendChild(fileInput);
-    // Browsers don't fire a reliable cancel event, so we wait only for
-    // `change` and leave the transient input attached in the cancel
-    // path (it's harmless — display:none, no event handlers leaking).
-    const file = await new Promise<File | null>((resolve) => {
-      fileInput.addEventListener('change', () => {
-        resolve(fileInput.files?.[0] ?? null);
-      });
-      fileInput.click();
-    });
-    fileInput.remove();
-    if (!file) return;
-    try {
-      const { content } = await importFile(file);
-      // Hoist any inline data URLs into IndexedDB, like the regular
-      // import path does.
-      const cleaned = await extractDataUrlsToStore(content);
-      const updated = await saveDocContent(uuid, cleaned);
-      if (uuid === currentDoc.uuid) {
-        currentDoc = updated;
-        editor.setValue(cleaned);
-        dirty = true;
-        if (viewMode === 'preview') setViewMode('editor');
-        toolbarCtrl.setModified(false);
-      } else {
-        await switchToDoc(uuid);
-      }
-    } catch (err: unknown) {
-      console.error('Reload failed', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      globalThis.alert(t('import.failed', { msg }));
-    }
-  };
-
   // Deletes a doc. If it was the current one, fall back to the most
   // recent remaining doc, or seed a fresh empty one if the list
   // becomes empty.
@@ -1398,6 +1345,13 @@ async function bootstrap(): Promise<void> {
       onOpen: (vol, entry) => {
         void openFromVolume(vol, entry);
       },
+      // Bibliothèque management (replaces «Fichiers…»): entry.path = doc uuid.
+      onDelete: (entry) => deleteAndAdjust(entry.path),
+      onRestore: async (entry) => {
+        await restoreDoc(entry.path);
+      },
+      onPurge: (entry) => purgeDoc(entry.path),
+      onEmptyTrash: () => emptyTrash(),
       ...mountActions(),
     });
   };
@@ -1598,36 +1552,6 @@ async function bootstrap(): Promise<void> {
       globalThis.alert(t('import.failed', { msg }));
       return null;
     }
-  };
-
-  // Files… manager (documents + Trash). Opened via Cmd/Ctrl+Shift+O until the
-  // File menu (Phase 3d) gives it a visible entry.
-  const triggerFilesModal = (): void => {
-    openFilesModal({
-      loadDocs: () => listDocs(),
-      loadTrash: () => listTrash(),
-      currentUuid: currentDoc.uuid,
-      onOpen: (uuid) => {
-        void switchToDoc(uuid);
-      },
-      onNew: () => {
-        void createNewDoc();
-      },
-      onImport: triggerImportDialog,
-      onRename: (uuid, name) => renameOtherDoc(uuid, name),
-      onDuplicate: async (uuid) => {
-        await duplicateDoc(uuid);
-      },
-      onReload: (uuid) => {
-        void reloadDocFromFile(uuid);
-      },
-      onDelete: (uuid) => deleteAndAdjust(uuid),
-      onRestore: async (uuid) => {
-        await restoreDoc(uuid);
-      },
-      onPurge: (uuid) => purgeDoc(uuid),
-      onEmptyTrash: () => emptyTrash(),
-    });
   };
 
   // Import dialog: transient <input type=file>, hands the chosen
@@ -2026,7 +1950,6 @@ async function bootstrap(): Promise<void> {
           onOpen: () => {
             void triggerOpen();
           },
-          onFiles: triggerFilesModal,
           onSave: () => {
             void saveCurrentDoc();
           },
@@ -2035,6 +1958,9 @@ async function bootstrap(): Promise<void> {
           },
           onRevert: () => {
             void revertCurrentDoc();
+          },
+          onDelete: () => {
+            void deleteAndAdjust(currentDoc.uuid);
           },
           onImport: triggerImportDialog,
           onMarkdown: triggerSave,
@@ -2084,10 +2010,6 @@ async function bootstrap(): Promise<void> {
       if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         triggerGuides();
-      } else if (e.key.toLowerCase() === 'o') {
-        // Cmd/Ctrl+Shift+O: open the Files… manager (temp until Phase 3d).
-        e.preventDefault();
-        triggerFilesModal();
       } else if (e.key === 'Enter') {
         // Cmd/Ctrl+Shift+Enter: start the fullscreen presentation.
         e.preventDefault();

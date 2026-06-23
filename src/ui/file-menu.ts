@@ -22,10 +22,10 @@ export interface FileMenuOptions {
   onUnlink(): void;
   onNew(): void;
   onOpen(): void;
-  onFiles(): void;
   onSave(): void;
   onSaveAs(): void;
   onRevert(): void;
+  onDelete(): void;
   onImport(): void;
   onMarkdown(): void;
   onPdf(): void;
@@ -92,7 +92,6 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
   menu.append(
     item(t('file-menu.new'), '', opts.onNew),
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
-    item(t('file-menu.files'), 'Cmd/Ctrl + ⇧ + O', opts.onFiles),
   );
   // Operations on the doc's origin volume (the link is created via Save As).
   if (opts.linked) {
@@ -109,6 +108,7 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('file-menu.save'), 'Cmd/Ctrl + S', opts.onSave, !opts.modified),
     item(t('file-menu.save-as'), '', opts.onSaveAs),
     item(t('file-menu.revert'), '', opts.onRevert, !opts.modified),
+    item(t('file-menu.delete-doc'), '', opts.onDelete),
   );
   menu.append(
     sep(),

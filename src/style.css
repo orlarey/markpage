@@ -2793,19 +2793,72 @@ body.demo-frame-body #preview-pane {
 .vb-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
   width: 100%;
+  border-radius: 6px;
+}
+.vb-row:hover {
+  background: var(--hover, #f0f3f6);
+}
+.vb-row-name-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
   text-align: left;
   border: none;
   background: none;
   color: inherit;
   padding: 0.4rem 0.6rem;
-  border-radius: 6px;
   cursor: pointer;
+  font: inherit;
   font-size: 0.92rem;
 }
-.vb-row:hover {
-  background: var(--hover, #f0f3f6);
+.vb-row-name .vb-row-name,
+.vb-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vb-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  padding-right: 0.4rem;
+}
+.vb-row-action {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted, #57606a);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  opacity: 0;
+}
+.vb-row:hover .vb-row-action {
+  opacity: 1;
+}
+.vb-row-action:hover {
+  background: var(--hover, #e1e6eb);
+}
+.vb-row-action.purge:hover,
+.vb-row-action.delete:hover {
+  color: var(--danger, #cf222e);
+}
+.vb-empty-trash {
+  display: block;
+  margin: 0.6rem auto 0.3rem;
+  border: 1px solid var(--border, #d0d7de);
+  background: none;
+  color: var(--danger, #cf222e);
+  border-radius: 6px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
 .vb-row-foreign .vb-row-name {
   color: var(--text-muted, #57606a);

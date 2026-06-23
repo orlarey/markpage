@@ -13,7 +13,7 @@
  *******************************************************************************/
 
 import { t } from '../i18n/strings';
-import type { Volume, VolumeEntry, VolumeState } from '../volumes';
+import { TRASH_DIR, type Volume, type VolumeEntry, type VolumeState } from '../volumes';
 
 const OVERLAY_ID = 'volume-browser-overlay';
 
@@ -35,6 +35,12 @@ export interface VolumeBrowserOptions {
   onReauthorize?(volume: Volume): Promise<boolean>;
   /** Unmount a volume (Disk/Repo) — removes it from the list. */
   onUnmount?(volume: Volume): void;
+  // Bibliothèque management (open mode): delete a doc → Corbeille, and the trash
+  // lifecycle (the entry's `path` is the doc UUID). Replaces the «Fichiers…» modal.
+  onDelete?(entry: VolumeEntry): void | Promise<void>;
+  onRestore?(entry: VolumeEntry): void | Promise<void>;
+  onPurge?(entry: VolumeEntry): void | Promise<void>;
+  onEmptyTrash?(): void | Promise<void>;
 }
 
 /** Open the unified volume browser (single-instance). */
@@ -246,23 +252,51 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
       listEl.append(empty);
       return;
     }
+    // Management context (Bibliothèque only, open mode): delete at the root,
+    // restore/purge in the Corbeille.
+    const inTrash = current.kind === 'library' && path === TRASH_DIR;
+    const inLibRoot = current.kind === 'library' && path === '';
+    const canManage = mode === 'open';
+
+    const actionBtn = (
+      cls: string,
+      glyph: string,
+      title: string,
+      run: () => void | Promise<void>,
+    ): HTMLButtonElement => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = `vb-row-action ${cls}`;
+      b.textContent = glyph;
+      b.title = title;
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        void Promise.resolve(run()).then(() => render());
+      });
+      return b;
+    };
+
     for (const entry of entries) {
-      const row = doc.createElement('button');
-      row.type = 'button';
+      const row = doc.createElement('div');
       row.className = 'vb-row';
       row.dataset.type = entry.type;
       if (entry.type === 'file' && !entry.isMarkdown) row.classList.add('vb-row-foreign');
+      const nameBtn = doc.createElement('button');
+      nameBtn.type = 'button';
+      nameBtn.className = 'vb-row-name-btn';
       const icon = doc.createElement('span');
       icon.className = 'vb-row-icon';
       icon.textContent = entry.type === 'dir' ? '📁' : entry.isMarkdown ? '📄' : '⎙';
       const name = doc.createElement('span');
       name.className = 'vb-row-name';
       name.textContent = entry.name;
-      row.append(icon, name);
-      row.addEventListener('click', () => {
+      nameBtn.append(icon, name);
+      nameBtn.addEventListener('click', () => {
         if (entry.type === 'dir') {
           path = entry.path;
           void render();
+        } else if (inTrash && canManage && opts.onRestore) {
+          void Promise.resolve(opts.onRestore(entry)).then(() => render());
         } else if (mode === 'save') {
           nameInput.value = entry.name; // pick a name to overwrite
         } else {
@@ -270,7 +304,34 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
           opts.onOpen?.(current, entry);
         }
       });
+
+      const actions = doc.createElement('span');
+      actions.className = 'vb-row-actions';
+      if (canManage && entry.type === 'file') {
+        if (inTrash) {
+          if (opts.onRestore) {
+            actions.append(actionBtn('restore', '↩', t('volume.restore'), () => opts.onRestore?.(entry)));
+          }
+          if (opts.onPurge) {
+            actions.append(actionBtn('purge', '×', t('volume.purge'), () => opts.onPurge?.(entry)));
+          }
+        } else if (inLibRoot && opts.onDelete) {
+          actions.append(actionBtn('delete', '×', t('volume.delete'), () => opts.onDelete?.(entry)));
+        }
+      }
+      row.append(nameBtn, actions);
       listEl.append(row);
+    }
+
+    if (canManage && inTrash && opts.onEmptyTrash) {
+      const empty = doc.createElement('button');
+      empty.type = 'button';
+      empty.className = 'vb-empty-trash';
+      empty.textContent = t('volume.empty-trash');
+      empty.addEventListener('click', () => {
+        void Promise.resolve(opts.onEmptyTrash?.()).then(() => render());
+      });
+      listEl.append(empty);
     }
   };
 

@@ -88,7 +88,7 @@ export function sortEntries(entries: VolumeEntry[]): VolumeEntry[] {
 
 // ---- Library volume (OPFS / docs.ts) -----------------------------------
 
-const TRASH_DIR = 'Corbeille';
+export const TRASH_DIR = 'Corbeille';
 
 /**
  * The browser's private file system (always mounted, offline, flat in v1).
