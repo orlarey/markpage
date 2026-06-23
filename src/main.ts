@@ -801,7 +801,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
-    toolbarCtrl.setOrigin(originLabelOf(target));
+    toolbarCtrl.setOrigin(originOf(target));
     toolbarCtrl.setConflict(false);
     void checkSync();
   };
@@ -902,7 +902,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setOrigin(originLabelOf(currentDoc));
+    toolbarCtrl.setOrigin(originOf(currentDoc));
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
@@ -1091,18 +1091,25 @@ async function bootstrap(): Promise<void> {
   // Whether the doc has an origin volume (disk or GitHub).
   const linkedAny = (e: DocEntry): boolean => isLinked(e) || isGithubLinked(e);
 
-  // The doc's origin label for the toolbar chip (volume + path), or null for a
-  // pure Bibliothèque doc (VOLUMES-SPEC §7).
-  const originLabelOf = (e: DocEntry): string | null => {
+  // The doc's origin for the toolbar (file name as read-only title + a chip of
+  // volume + folder), or null for a pure Bibliothèque doc (VOLUMES-SPEC §7).
+  const originOf = (e: DocEntry): { fileName: string; chip: string } | null => {
     const gh = githubLinkOf(e);
-    if (gh) return `🐙 ${gh.owner}/${gh.repo}@${gh.branch} ▸ ${gh.path}`;
-    if (e.link) return `💻 ${e.link.name}`;
+    if (gh) {
+      const slash = gh.path.lastIndexOf('/');
+      const dir = slash === -1 ? '' : gh.path.slice(0, slash);
+      return {
+        fileName: gh.path.slice(slash + 1),
+        chip: `🐙 ${gh.owner}/${gh.repo}@${gh.branch}${dir === '' ? '' : ` ▸ ${dir}/`}`,
+      };
+    }
+    if (e.link) return { fileName: e.link.name, chip: '💻' };
     return null;
   };
 
-  // The origin chip reflects whichever volume the doc belongs to.
+  // The origin chip + read-only title reflect whichever volume the doc belongs to.
   const refreshLinkBadge = (): void => {
-    toolbarCtrl.setOrigin(originLabelOf(currentDoc));
+    toolbarCtrl.setOrigin(originOf(currentDoc));
   };
 
   // One *Recharger* (V3): pull from whichever origin the doc has.
@@ -2093,7 +2100,7 @@ async function bootstrap(): Promise<void> {
   // Reflect any resumed working copy (a draft persisted from a previous
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
-  toolbarCtrl.setOrigin(originLabelOf(currentDoc));
+  toolbarCtrl.setOrigin(originOf(currentDoc));
   void checkSync();
 
   // Two-way sync polling (Phase 4). The File System Access API has no
@@ -2114,7 +2121,7 @@ async function bootstrap(): Promise<void> {
   onLanguageChange(() => {
     renderToolbar();
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setOrigin(originLabelOf(currentDoc));
+    toolbarCtrl.setOrigin(originOf(currentDoc));
     void checkSync();
   });
 

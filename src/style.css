@@ -971,6 +971,12 @@ body,
   outline: none;
   background: var(--bg);
 }
+/* A linked doc's name is its file name — read-only (rename = backend op). */
+.doc-title-input.linked,
+.doc-title-input.linked:hover {
+  cursor: default;
+  border-color: transparent;
+}
 .doc-title .doc-modified-dot {
   color: var(--accent, #0969da);
   font-size: 0.7em;

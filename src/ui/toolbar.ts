@@ -49,9 +49,10 @@ export interface ToolbarControl {
   setGuidesPressed(pressed: boolean): void;
   // Show / hide the "modified" dot when the current doc has unsaved edits.
   setModified(modified: boolean): void;
-  // Show the doc's origin volume + path (VOLUMES-SPEC), or null for a pure
-  // Bibliothèque doc (chip hidden).
-  setOrigin(label: string | null): void;
+  // For a linked doc, show its file name as a read-only title and the volume +
+  // folder as the chip (VOLUMES-SPEC §7). `null` = a pure Bibliothèque doc: the
+  // title stays the editable nickname (set via setDocName) and the chip hides.
+  setOrigin(origin: { fileName: string; chip: string } | null): void;
   // Turn the origin chip into a clickable conflict (⛓️‍💥) affordance.
   setConflict(conflict: boolean): void;
 }
@@ -289,12 +290,25 @@ export function mountToolbar(
     setModified(modified: boolean) {
       dot.hidden = !modified;
     },
-    setOrigin(label: string | null) {
-      originText = label ?? '';
+    setOrigin(origin: { fileName: string; chip: string } | null) {
       originChip.classList.remove('conflict');
-      originChip.textContent = originText;
-      originChip.title = originText;
-      originChip.hidden = originText === '';
+      if (origin) {
+        // Linked: the file IS the name → read-only title; chip = volume + folder.
+        currentName = origin.fileName; // keep commitTitle a no-op (no rename)
+        titleInput.value = origin.fileName;
+        titleInput.readOnly = true;
+        titleInput.classList.add('linked');
+        originText = origin.chip;
+        originChip.textContent = origin.chip;
+        originChip.title = origin.chip;
+        originChip.hidden = false;
+      } else {
+        // Bibliothèque: editable nickname (value set via setDocName); no chip.
+        titleInput.readOnly = false;
+        titleInput.classList.remove('linked');
+        originText = '';
+        originChip.hidden = true;
+      }
     },
     setConflict(conflict: boolean) {
       originChip.classList.toggle('conflict', conflict);
