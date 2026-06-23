@@ -341,6 +341,7 @@ const FR = {
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Ouvrir',
   'volume.save-title': 'Enregistrer sous',
+  'volume.root': 'markpage',
   'volume.name-placeholder': 'nom-du-fichier.md',
   'volume.save-here': 'Enregistrer ici',
   'volume.mount-disk': 'Monter un dossier…',
@@ -743,6 +744,7 @@ const EN: Record<keyof typeof FR, string> = {
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Open',
   'volume.save-title': 'Save As',
+  'volume.root': 'markpage',
   'volume.name-placeholder': 'file-name.md',
   'volume.save-here': 'Save here',
   'volume.mount-disk': 'Mount a folder…',
