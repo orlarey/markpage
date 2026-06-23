@@ -78,6 +78,16 @@ async function getMsal(): Promise<MsalApp> {
       cache: { cacheLocation: 'localStorage' },
     });
     await app.initialize();
+    // MSAL requires handleRedirectPromise() to be awaited before any other
+    // interaction — it both finishes a returning redirect AND clears a stuck
+    // `interaction_in_progress` flag left by an aborted attempt. Without it,
+    // the next loginRedirect throws `interaction_in_progress`.
+    try {
+      const r = await app.handleRedirectPromise();
+      if (r) app.setActiveAccount(r.account);
+    } catch (err) {
+      console.error('MSAL handleRedirectPromise failed', err);
+    }
     return app as unknown as MsalApp;
   })();
   return msalPromise;
@@ -150,7 +160,24 @@ export async function signInOneDrive(): Promise<void> {
     setConnected(true);
     return;
   }
+  clearStuckInteraction(); // belt-and-suspenders against a stale in-progress flag
   await app.loginRedirect({ scopes: SCOPES }); // page navigates away
+}
+
+/**
+ * Remove any leftover MSAL `interaction.status` marker from web storage. MSAL
+ * sets it when a redirect starts; an aborted attempt (e.g. a failed module
+ * load) can leave it set, and the next `loginRedirect` then throws
+ * `interaction_in_progress`. We're starting a fresh interaction, so clearing it
+ * is safe.
+ */
+function clearStuckInteraction(): void {
+  for (const store of [sessionStorage, localStorage]) {
+    for (let i = store.length - 1; i >= 0; i -= 1) {
+      const k = store.key(i);
+      if (k != null && k.includes('interaction.status')) store.removeItem(k);
+    }
+  }
 }
 
 /** Unmount OneDrive (v1: forget the connected flag; the MSAL cache stays). */
