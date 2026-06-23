@@ -2833,3 +2833,50 @@ body.demo-frame-body #preview-pane {
   color: #fff;
   cursor: pointer;
 }
+
+/* ---- Volume sidebar: name button + per-volume actions (permissions) ---- */
+.vb-vol {
+  cursor: default;
+  padding: 0.2rem 0.35rem;
+  gap: 0.3rem;
+}
+.vb-vol-name {
+  flex: 1;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vb-vol-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+.vb-vol-auth {
+  font-size: 0.72rem;
+  border: 1px solid var(--accent, #0969da);
+  color: var(--accent, #0969da);
+  background: none;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  cursor: pointer;
+}
+.vb-vol-unmount {
+  border: none;
+  background: none;
+  color: var(--text-muted, #57606a);
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+.vb-vol-unmount:hover {
+  color: var(--danger, #cf222e);
+}

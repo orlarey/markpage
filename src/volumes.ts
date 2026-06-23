@@ -137,6 +137,7 @@ export class LibraryVolume implements Volume {
 interface FsDirHandle extends FileSystemDirectoryHandle {
   values(): AsyncIterableIterator<FileSystemHandle>;
   queryPermission?(d: { mode: 'readwrite' }): Promise<PermissionState>;
+  requestPermission?(d: { mode: 'readwrite' }): Promise<PermissionState>;
 }
 
 /** A real folder on the machine, mounted via a directory handle (Chromium). */
@@ -158,6 +159,13 @@ export class DiskVolume implements Volume {
     return (await h.queryPermission({ mode: 'readwrite' })) === 'granted'
       ? 'ready'
       : 'needs-permission';
+  }
+
+  /** Re-request RW permission on the existing handle (needs a user gesture). */
+  async requestPermission(): Promise<boolean> {
+    const h = this.root as FsDirHandle;
+    if (!h.requestPermission) return true;
+    return (await h.requestPermission({ mode: 'readwrite' })) === 'granted';
   }
 
   private async dirAt(path: string): Promise<FileSystemDirectoryHandle> {

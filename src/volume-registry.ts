@@ -32,8 +32,24 @@ interface DiskMount {
   handle: FileSystemDirectoryHandle;
 }
 
-/** Persist a mounted directory handle; returns its mount id. */
+interface ComparableHandle {
+  isSameEntry(other: FileSystemHandle): Promise<boolean>;
+}
+
+/**
+ * Persist a mounted directory handle; returns its mount id. **Idempotent on the
+ * folder**: if the same directory is already mounted (`isSameEntry`), reuse its
+ * id instead of creating a duplicate volume.
+ */
 export async function mountDisk(handle: FileSystemDirectoryHandle): Promise<string> {
+  const cmp = handle as unknown as ComparableHandle;
+  for (const m of await loadDiskMounts()) {
+    try {
+      if (await cmp.isSameEntry(m.handle)) return m.id; // already mounted
+    } catch {
+      /* isSameEntry unsupported — fall through to a fresh mount */
+    }
+  }
   const id = crypto.randomUUID();
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
@@ -112,6 +128,12 @@ export function mountRepo(ref: RepoRef): void {
 /** Unmount a repo by its `owner/repo@branch` key (the repo is untouched). */
 export function unmountRepo(key: string): void {
   saveRepoMounts(loadRepoMounts().filter((r) => repoKey(r) !== key));
+}
+
+/** Unmount any volume by its `Volume.id` (`disk:<uuid>` or `repo:<key>`). */
+export async function unmountVolume(volumeId: string): Promise<void> {
+  if (volumeId.startsWith('disk:')) await unmountDisk(volumeId.slice('disk:'.length));
+  else if (volumeId.startsWith('repo:')) unmountRepo(volumeId.slice('repo:'.length));
 }
 
 // ---- the live volume list ----------------------------------------------

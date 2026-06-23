@@ -31,6 +31,10 @@ export interface VolumeBrowserOptions {
   /** Optional mount actions, shown in the footer when provided. */
   onMountDisk?(): void;
   onMountRepo?(): void;
+  /** Re-grant RW permission on a volume's handle; resolves to whether granted. */
+  onReauthorize?(volume: Volume): Promise<boolean>;
+  /** Unmount a volume (Disk/Repo) — removes it from the list. */
+  onUnmount?(volume: Volume): void;
 }
 
 /** Open the unified volume browser (single-instance). */
@@ -132,24 +136,61 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   const renderSidebar = (): void => {
     sidebar.replaceChildren();
     for (const v of opts.volumes) {
-      const row = doc.createElement('button');
-      row.type = 'button';
+      // A row is a div (not a button) so it can hold action buttons.
+      const row = doc.createElement('div');
       row.className = 'vb-vol';
       if (v.id === current.id) row.classList.add('vb-vol-current');
       row.dataset.kind = v.kind;
-      const name = doc.createElement('span');
+      const name = doc.createElement('button');
+      name.type = 'button';
       name.className = 'vb-vol-name';
       name.textContent = v.label;
-      const st = doc.createElement('span');
-      st.className = 'vb-vol-state';
-      row.append(name, st);
-      void v.state().then((s) => {
-        if (s !== 'ready') st.textContent = stateLabel(s);
-      });
-      row.addEventListener('click', () => {
+      name.addEventListener('click', () => {
         current = v;
         path = '';
         void render();
+      });
+      const st = doc.createElement('span');
+      st.className = 'vb-vol-state';
+      const actions = doc.createElement('span');
+      actions.className = 'vb-vol-actions';
+      row.append(name, st, actions);
+
+      // Unmount (Disk/Repo only — Bibliothèque is permanent).
+      if (v.kind !== 'library' && opts.onUnmount) {
+        const x = doc.createElement('button');
+        x.type = 'button';
+        x.className = 'vb-vol-unmount';
+        x.title = t('volume.unmount');
+        x.textContent = '×';
+        x.addEventListener('click', (e) => {
+          e.stopPropagation();
+          opts.onUnmount?.(v);
+        });
+        actions.append(x);
+      }
+
+      void v.state().then((s) => {
+        if (s === 'ready') return;
+        st.textContent = stateLabel(s);
+        // A permission-lapsed disk volume gets an in-place "Autoriser" action.
+        if (s === 'needs-permission' && opts.onReauthorize) {
+          const auth = doc.createElement('button');
+          auth.type = 'button';
+          auth.className = 'vb-vol-auth';
+          auth.textContent = t('volume.authorize');
+          auth.addEventListener('click', (e) => {
+            e.stopPropagation();
+            void opts.onReauthorize?.(v).then((ok) => {
+              if (ok) {
+                current = v;
+                path = '';
+                void render();
+              }
+            });
+          });
+          actions.prepend(auth);
+        }
       });
       sidebar.append(row);
     }

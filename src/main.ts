@@ -139,8 +139,8 @@ import {
   saveToGithub,
 } from './github-sync';
 import { DiskVolume, RepoVolume, type Volume, type VolumeEntry } from './volumes';
-import { listVolumes, mountDisk, mountRepo } from './volume-registry';
-import { openVolumeBrowser } from './ui/volume-browser';
+import { listVolumes, mountDisk, mountRepo, unmountVolume } from './volume-registry';
+import { type VolumeBrowserOptions, openVolumeBrowser } from './ui/volume-browser';
 import {
   dirHasBundle,
   diskContentMtime,
@@ -1444,10 +1444,24 @@ async function bootstrap(): Promise<void> {
     reopenBrowser();
   };
 
-  const mountActions = (): {
-    onMountDisk?: () => void;
-    onMountRepo: () => void;
-  } => ({
+  // Re-grant RW permission on a disk volume's handle (a user gesture — the
+  // sidebar click — drives the prompt), then the browser re-selects it.
+  const reauthorizeVolume = async (vol: Volume): Promise<boolean> => {
+    if (vol instanceof DiskVolume) return vol.requestPermission();
+    return true;
+  };
+
+  // Unmount a volume (the backend is untouched), then refresh the browser.
+  const unmountVolumeAndRefresh = async (vol: Volume): Promise<void> => {
+    await unmountVolume(vol.id);
+    reopenBrowser();
+  };
+
+  // Shared browser callbacks: mount, re-authorize, unmount.
+  const mountActions = (): Pick<
+    VolumeBrowserOptions,
+    'onMountDisk' | 'onMountRepo' | 'onReauthorize' | 'onUnmount'
+  > => ({
     onMountDisk: fsAccessAvailable()
       ? () => {
           void mountDiskFolder();
@@ -1455,6 +1469,10 @@ async function bootstrap(): Promise<void> {
       : undefined,
     onMountRepo: () => {
       void mountRepoVolume();
+    },
+    onReauthorize: reauthorizeVolume,
+    onUnmount: (vol) => {
+      void unmountVolumeAndRefresh(vol);
     },
   });
 
