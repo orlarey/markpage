@@ -14,6 +14,7 @@
 
 import { t } from '../i18n/strings';
 import { TRASH_DIR, type Volume, type VolumeEntry, type VolumeState } from '../volumes';
+import { type IconName, makeIcon } from './icons';
 
 const OVERLAY_ID = 'volume-browser-overlay';
 
@@ -44,11 +45,11 @@ export interface VolumeBrowserOptions {
   onEmptyTrash?(): void | Promise<void>;
 }
 
-const KIND_ICON: Record<Volume['kind'], string> = {
-  library: '🗂',
-  disk: '💻',
-  repo: '🐙',
-  onedrive: '☁️',
+const KIND_ICON: Record<Volume['kind'], IconName> = {
+  library: 'library',
+  disk: 'hard-drive',
+  repo: 'github',
+  onedrive: 'cloud',
 };
 
 /** Open the unified volume browser (single-instance). */
@@ -224,7 +225,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
       nameBtn.className = 'vb-row-name-btn';
       const icon = doc.createElement('span');
       icon.className = 'vb-row-icon';
-      icon.textContent = KIND_ICON[v.kind];
+      icon.append(makeIcon(KIND_ICON[v.kind]));
       const name = doc.createElement('span');
       name.className = 'vb-row-name';
       name.textContent = v.label;
@@ -336,7 +337,9 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
       nameBtn.className = 'vb-row-name-btn';
       const icon = doc.createElement('span');
       icon.className = 'vb-row-icon';
-      icon.textContent = entry.type === 'dir' ? '📁' : entry.isMarkdown ? '📄' : '⎙';
+      icon.append(
+        makeIcon(entry.type === 'dir' ? 'folder' : entry.isMarkdown ? 'file-text' : 'file'),
+      );
       const name = doc.createElement('span');
       name.className = 'vb-row-name';
       name.textContent = entry.name;

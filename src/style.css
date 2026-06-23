@@ -2833,6 +2833,12 @@ body.demo-frame-body #preview-pane {
 }
 .vb-row-icon {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted, #57606a);
+}
+.vb-row-icon .lucide {
+  display: block;
 }
 .vb-loading,
 .vb-empty,
