@@ -1481,14 +1481,43 @@ async function bootstrap(): Promise<void> {
     });
   };
 
+  // The doc's origin as a browser location (volume + folder), when that volume
+  // is mounted — so Save As opens in the origin folder (e.g. after a conflict).
+  const originLocation = (
+    volumes: Volume[],
+    e: DocEntry,
+  ): { volumeId: string; path: string } | undefined => {
+    const dir = (p: string): string => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+    const gh = githubLinkOf(e);
+    if (gh) {
+      const id = `repo:${gh.owner}/${gh.repo}@${gh.branch}`;
+      return volumes.some((v) => v.id === id) ? { volumeId: id, path: dir(gh.path) } : undefined;
+    }
+    const od = oneDriveLinkOf(e);
+    if (od) {
+      return volumes.some((v) => v.id === 'onedrive')
+        ? { volumeId: 'onedrive', path: dir(od.path) }
+        : undefined;
+    }
+    if (e.link) {
+      const v = volumes.find((vv) => vv.kind === 'disk' && vv.label === e.link?.volume);
+      return v ? { volumeId: v.id, path: e.link.dir ?? '' } : undefined;
+    }
+    return undefined;
+  };
+
   // *Enregistrer sous…* (V5) — pick a (volume, folder, name) target. Absorbs the
-  // old "Lier à GitHub / au disque" and "Save As".
+  // old "Lier à GitHub / au disque" and "Save As". For a linked doc, opens in
+  // its origin folder with the origin file name prefilled (tweak & save).
   const triggerSaveAs = async (): Promise<void> => {
     browserMode = 'save';
+    const volumes = await listVolumes();
+    const origin = originOf(currentDoc);
     openVolumeBrowser({
-      volumes: await listVolumes(),
+      volumes,
       mode: 'save',
-      defaultName: `${currentDoc.name.trim().replace(/\s+/g, '-')}.md`,
+      defaultName: origin?.fileName ?? `${currentDoc.name.trim().replace(/\s+/g, '-')}.md`,
+      initial: originLocation(volumes, currentDoc),
       onSave: (vol, folder, name) => {
         void saveAsToVolume(vol, folder, name);
       },

@@ -23,6 +23,8 @@ export interface VolumeBrowserOptions {
   mode?: 'open' | 'save';
   /** Prefilled file name in save mode. */
   defaultName?: string;
+  /** Start navigated into this volume + folder (e.g. a doc's origin on Save As). */
+  initial?: { volumeId: string; path: string };
   onOpen?(volume: Volume, entry: VolumeEntry): void;
   /** Save target chosen: a volume, the current folder, and a file name (V5). */
   onSave?(volume: Volume, folderPath: string, name: string): void;
@@ -108,6 +110,14 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   // ---- navigation state: null = the common root (lists the volumes) ----
   let current: Volume | null = null;
   let path = '';
+  // Start inside a volume when asked (Save As → the doc's origin folder).
+  if (opts.initial) {
+    const v = opts.volumes.find((vv) => vv.id === opts.initial?.volumeId);
+    if (v) {
+      current = v;
+      path = opts.initial.path;
+    }
+  }
 
   // Save bar (save mode only): file-name input + confirm button (V5).
   const saveBar = doc.createElement('div');
