@@ -801,7 +801,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
-    toolbarCtrl.setLinked(isLinked(target) || isGithubLinked(target));
+    toolbarCtrl.setOrigin(originLabelOf(target));
     toolbarCtrl.setConflict(false);
     void checkSync();
   };
@@ -815,7 +815,7 @@ async function bootstrap(): Promise<void> {
     dirty = true;
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setModified(false);
-    toolbarCtrl.setLinked(false);
+    toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
   };
 
@@ -902,7 +902,7 @@ async function bootstrap(): Promise<void> {
     if (viewMode === 'preview') setViewMode('editor');
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
+    toolbarCtrl.setOrigin(originLabelOf(currentDoc));
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
@@ -1091,9 +1091,18 @@ async function bootstrap(): Promise<void> {
   // Whether the doc has an origin volume (disk or GitHub).
   const linkedAny = (e: DocEntry): boolean => isLinked(e) || isGithubLinked(e);
 
-  // The link badge reflects either kind of link (disk or GitHub).
+  // The doc's origin label for the toolbar chip (volume + path), or null for a
+  // pure Bibliothèque doc (VOLUMES-SPEC §7).
+  const originLabelOf = (e: DocEntry): string | null => {
+    const gh = githubLinkOf(e);
+    if (gh) return `🐙 ${gh.owner}/${gh.repo}@${gh.branch} ▸ ${gh.path}`;
+    if (e.link) return `💻 ${e.link.name}`;
+    return null;
+  };
+
+  // The origin chip reflects whichever volume the doc belongs to.
   const refreshLinkBadge = (): void => {
-    toolbarCtrl.setLinked(linkedAny(currentDoc));
+    toolbarCtrl.setOrigin(originLabelOf(currentDoc));
   };
 
   // One *Recharger* (V3): pull from whichever origin the doc has.
@@ -1544,7 +1553,7 @@ async function bootstrap(): Promise<void> {
       dirty = true;
       if (viewMode === 'preview') setViewMode('editor');
       toolbarCtrl.setDocName(entry.name);
-      toolbarCtrl.setLinked(false);
+      toolbarCtrl.setOrigin(null);
       return entry;
     } catch (err: unknown) {
       console.error('Import failed', err);
@@ -2084,7 +2093,7 @@ async function bootstrap(): Promise<void> {
   // Reflect any resumed working copy (a draft persisted from a previous
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
-  toolbarCtrl.setLinked(isLinked(currentDoc));
+  toolbarCtrl.setOrigin(originLabelOf(currentDoc));
   void checkSync();
 
   // Two-way sync polling (Phase 4). The File System Access API has no
@@ -2105,7 +2114,7 @@ async function bootstrap(): Promise<void> {
   onLanguageChange(() => {
     renderToolbar();
     toolbarCtrl.setModified(isModified(currentDoc));
-    toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
+    toolbarCtrl.setOrigin(originLabelOf(currentDoc));
     void checkSync();
   });
 
@@ -2173,7 +2182,7 @@ async function bootstrap(): Promise<void> {
       if (viewMode === 'preview') setViewMode('editor');
       toolbarCtrl.setDocName(entry.name);
       toolbarCtrl.setModified(false);
-      toolbarCtrl.setLinked(false);
+      toolbarCtrl.setOrigin(null);
       return docSummary(entry);
     },
     renameDocument: async (uuid, name) => {

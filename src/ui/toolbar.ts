@@ -49,9 +49,10 @@ export interface ToolbarControl {
   setGuidesPressed(pressed: boolean): void;
   // Show / hide the "modified" dot when the current doc has unsaved edits.
   setModified(modified: boolean): void;
-  // Show / hide the "linked to disk" badge (Phase 4).
-  setLinked(linked: boolean): void;
-  // Turn the link badge into a clickable conflict (⛓️‍💥) affordance.
+  // Show the doc's origin volume + path (VOLUMES-SPEC), or null for a pure
+  // Bibliothèque doc (chip hidden).
+  setOrigin(label: string | null): void;
+  // Turn the origin chip into a clickable conflict (⛓️‍💥) affordance.
   setConflict(conflict: boolean): void;
 }
 
@@ -200,20 +201,20 @@ export function mountToolbar(
   dot.textContent = '●';
   dot.hidden = true;
   dot.title = t('toolbar.modified-title');
-  // "Linked to disk" badge (Phase 4): 🔗 = linked & auto-syncing; on
-  // divergence it gains `.conflict`, becomes a pulsing ⛓️‍💥, and opens the
+  // Origin chip (VOLUMES-SPEC §7): shows the doc's origin volume + path, e.g.
+  // "🐙 owner/repo@branch ▸ path" or "💻 folder". Hidden for a pure Bibliothèque
+  // doc. On disk divergence it gains `.conflict`, prepends ⛓️‍💥, and opens the
   // resolution menu on click.
-  const linkBadge = document.createElement('span');
-  linkBadge.className = 'doc-link-badge';
-  linkBadge.textContent = '🔗';
-  linkBadge.hidden = true;
-  linkBadge.title = t('toolbar.linked-title');
-  linkBadge.addEventListener('click', () => {
-    if (linkBadge.classList.contains('conflict')) {
-      handlers.onResolveConflict(linkBadge);
+  const originChip = document.createElement('span');
+  originChip.className = 'doc-origin';
+  originChip.hidden = true;
+  let originText = '';
+  originChip.addEventListener('click', () => {
+    if (originChip.classList.contains('conflict')) {
+      handlers.onResolveConflict(originChip);
     }
   });
-  titleWrap.append(dot, titleInput, linkBadge);
+  titleWrap.append(dot, titleInput, originChip);
 
   const commitTitle = (): void => {
     const next = titleInput.value.trim();
@@ -288,20 +289,24 @@ export function mountToolbar(
     setModified(modified: boolean) {
       dot.hidden = !modified;
     },
-    setLinked(linked: boolean) {
-      linkBadge.hidden = !linked;
-      if (!linked) {
-        linkBadge.classList.remove('conflict');
-        linkBadge.textContent = '🔗';
-        linkBadge.title = t('toolbar.linked-title');
-      }
+    setOrigin(label: string | null) {
+      originText = label ?? '';
+      originChip.classList.remove('conflict');
+      originChip.textContent = originText;
+      originChip.title = originText;
+      originChip.hidden = originText === '';
     },
     setConflict(conflict: boolean) {
-      linkBadge.classList.toggle('conflict', conflict);
-      linkBadge.textContent = conflict ? '⛓️‍💥' : '🔗';
-      linkBadge.title = conflict
-        ? t('toolbar.conflict-title')
-        : t('toolbar.linked-title');
+      originChip.classList.toggle('conflict', conflict);
+      if (conflict) {
+        originChip.textContent = `⛓️‍💥 ${originText}`.trim();
+        originChip.title = t('toolbar.conflict-title');
+        originChip.hidden = false;
+      } else {
+        originChip.textContent = originText;
+        originChip.title = originText;
+        originChip.hidden = originText === '';
+      }
     },
   };
 }

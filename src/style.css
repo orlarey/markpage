@@ -981,8 +981,19 @@ body,
   font-size: 0.85em;
   cursor: default;
 }
-/* Conflict (edited on both sides): the badge becomes a clickable resolver. */
-.doc-link-badge.conflict {
+/* Origin chip (VOLUMES-SPEC §7): volume + path of the current doc. */
+.doc-origin {
+  color: var(--muted, #6b7280);
+  font-size: 0.78em;
+  cursor: default;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Conflict (edited on both sides): the chip/badge becomes a clickable resolver. */
+.doc-link-badge.conflict,
+.doc-origin.conflict {
   color: var(--danger, #cf222e);
   cursor: pointer;
   font-weight: 700;
