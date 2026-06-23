@@ -23,6 +23,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  // `@azure/msal-browser` is reached only through a dynamic `import()` (loaded
+  // on demand when the user connects OneDrive). Pre-bundling it at dev-server
+  // start makes that lazy import deterministic — otherwise Vite optimizes it
+  // late and the page can hit a stale `.vite/deps` URL ("Failed to fetch
+  // dynamically imported module").
+  optimizeDeps: {
+    include: ['@azure/msal-browser'],
+  },
   build: {
     target: 'es2022',
     sourcemap: true,
