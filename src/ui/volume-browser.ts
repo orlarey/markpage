@@ -47,7 +47,7 @@ export interface VolumeBrowserOptions {
 
 const KIND_ICON: Record<Volume['kind'], IconName> = {
   library: 'library',
-  disk: 'hard-drive',
+  disk: 'folder', // a mounted Disk volume IS a folder the user picked
   repo: 'github',
   onedrive: 'cloud',
 };
