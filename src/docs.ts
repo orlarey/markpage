@@ -46,10 +46,11 @@ export interface DocEntry {
   // Trash: hidden from listDocs, restorable, kept on disk until purged.
   deletedAt?: number;
   // Disk link (Phase 4). Present ⇒ the doc mirrors a real file/folder on disk;
-  // `name` is its display name and `kind` tells a single `.md` file apart from
-  // a folder bundle (absent ⇒ 'folder', for back-compat). The handle lives in
-  // IndexedDB (see disk-link.ts). Drives the "external" badge.
-  link?: { name: string; kind?: 'file' | 'folder' };
+  // `name` is the file/folder name, `kind` tells a single `.md` file apart from
+  // a folder bundle (absent ⇒ 'folder', for back-compat). `volume`/`dir` (filled
+  // when linked via the volume browser) give the origin chip its volume + folder
+  // (VOLUMES-SPEC §7). The handle lives in IndexedDB (see disk-link.ts).
+  link?: { name: string; kind?: 'file' | 'folder'; volume?: string; dir?: string };
   // GitHub-sync link (docs/GITHUB-SYNC-SPEC.md). Present ⇒ the doc is linked to
   // a natural `foo.md` file in a repo. `path` is that file's repo path (NOT a
   // bundle dir); `baselineSha` is the blob SHA we are last in sync with (R4).
@@ -132,13 +133,12 @@ export function linkKind(entry: DocEntry): 'file' | 'folder' {
   return entry.link?.kind ?? 'folder';
 }
 
-/** Mark a doc as linked to a disk file/folder (display name + kind). */
+/** Mark a doc as linked to a disk file/folder (name + kind, optional volume/dir). */
 export async function setDocLink(
   uuid: string,
-  name: string,
-  kind: 'file' | 'folder',
+  link: { name: string; kind: 'file' | 'folder'; volume?: string; dir?: string },
 ): Promise<DocEntry | null> {
-  return patchEntry(uuid, (e) => ({ ...e, link: { name, kind } }));
+  return patchEntry(uuid, (e) => ({ ...e, link }));
 }
 
 /** Drop a doc's disk link. */

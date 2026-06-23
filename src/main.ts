@@ -1103,7 +1103,16 @@ async function bootstrap(): Promise<void> {
         chip: `🐙 ${gh.owner}/${gh.repo}@${gh.branch}${dir === '' ? '' : ` ▸ ${dir}/`}`,
       };
     }
-    if (e.link) return { fileName: e.link.name, chip: '💻' };
+    if (e.link) {
+      // Same schema as GitHub: <icon> <volume> [▸ <folder>/]. Older links that
+      // predate volume/dir fall back to the file name alone.
+      const vol = e.link.volume ?? e.link.name;
+      const dir = e.link.dir ?? '';
+      return {
+        fileName: e.link.name,
+        chip: `💻 ${vol}${dir === '' ? '' : ` ▸ ${dir}/`}`,
+      };
+    }
     return null;
   };
 
@@ -1259,13 +1268,29 @@ async function bootstrap(): Promise<void> {
     refreshLinkBadge();
   };
 
+  // Folder portion of a volume-relative path (`''` at the volume root).
+  const dirOfPath = (p: string): string => {
+    const i = p.lastIndexOf('/');
+    return i === -1 ? '' : p.slice(0, i);
+  };
+
   // Import a disk `.md` file handle as a NEW library doc, linked to that file.
-  const linkDiskFileHandle = async (fh: FileSystemFileHandle): Promise<void> => {
+  // `volume`/`path` (from the browser) feed the origin chip its volume + folder.
+  const linkDiskFileHandle = async (
+    fh: FileSystemFileHandle,
+    volume?: string,
+    path?: string,
+  ): Promise<void> => {
     const entry = await handleImport(await fh.getFile());
     if (!entry) return;
     if (!(await ensureRwPermission(fh))) return; // imported, just not linked
     await saveHandle(entry.uuid, fh);
-    const updated = await setDocLink(entry.uuid, fh.name, 'file');
+    const updated = await setDocLink(entry.uuid, {
+      name: fh.name,
+      kind: 'file',
+      volume,
+      dir: path === undefined ? undefined : dirOfPath(path),
+    });
     if (updated) currentDoc = updated;
     refreshLinkBadge();
     await markSynced(currentDoc, fh);
@@ -1295,7 +1320,7 @@ async function bootstrap(): Promise<void> {
       }
       if (vol instanceof DiskVolume) {
         const fh = await vol.fileHandle(entry.path);
-        if (entry.isMarkdown) await linkDiskFileHandle(fh);
+        if (entry.isMarkdown) await linkDiskFileHandle(fh, vol.label, entry.path);
         else await handleImport(await fh.getFile());
       }
     } catch (err) {
@@ -1439,7 +1464,12 @@ async function bootstrap(): Promise<void> {
         }
         await writeFileHandle(fh, content);
         await saveHandle(currentDoc.uuid, fh);
-        const updated = await setDocLink(currentDoc.uuid, fh.name, 'file');
+        const updated = await setDocLink(currentDoc.uuid, {
+          name: fh.name,
+          kind: 'file',
+          volume: vol.label,
+          dir: dirOfPath(fullPath),
+        });
         if (updated) currentDoc = updated;
         refreshLinkBadge();
         await markSynced(currentDoc, fh);
