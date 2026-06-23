@@ -129,7 +129,7 @@ import {
   updateGithubBaseline,
   type DocEntry,
 } from './docs';
-import { GithubError, hasToken, loadToken } from './github';
+import { GithubError, loadToken } from './github';
 import {
   type GithubTarget,
   GithubBranchAbsentError,
@@ -142,7 +142,6 @@ import { DiskVolume, RepoVolume, type Volume, type VolumeEntry } from './volumes
 import { listVolumes, mountDisk, mountRepo, unmountVolume } from './volume-registry';
 import { type VolumeBrowserOptions, openVolumeBrowser } from './ui/volume-browser';
 import {
-  dirHasBundle,
   diskContentMtime,
   ensureRwPermission,
   fileHandleMtime,
@@ -151,7 +150,6 @@ import {
   loadHandle,
   loadSyncedMtime,
   pickDirectory,
-  pickMarkdownFileHandle,
   queryRwGranted,
   readBundleFromDir,
   readFileHandle,
@@ -1011,85 +1009,6 @@ async function bootstrap(): Promise<void> {
     await markSynced(currentDoc, handle);
   };
 
-  // Open a .md from disk → import as a new library doc, then auto-link it to
-  // the file it came from (the picker hands us a durable handle, unlike the
-  // classic <input> import). If the user declines write access, the doc stays
-  // imported but unlinked.
-  const openFromDisk = async (): Promise<void> => {
-    const fh = await pickMarkdownFileHandle();
-    if (!fh) return;
-    const entry = await handleImport(await fh.getFile());
-    if (!entry) return;
-    if (!(await ensureRwPermission(fh))) return; // imported, just not linked
-    await saveHandle(entry.uuid, fh);
-    const updated = await setDocLink(entry.uuid, fh.name, 'file');
-    if (updated) currentDoc = updated;
-    toolbarCtrl.setLinked(true);
-    await markSynced(currentDoc, fh);
-  };
-
-  // Link the current doc to a folder: write its bundle there + remember it.
-  const linkToFolder = async (): Promise<void> => {
-    const dir = await pickDirectory();
-    if (!dir) return;
-    if (
-      (await dirHasBundle(dir)) &&
-      !globalThis.confirm(t('disk.overwrite-confirm', { name: dir.name }))
-    ) {
-      return;
-    }
-    try {
-      const content =
-        (await loadCommittedContent(currentDoc)) ?? editor.getValue();
-      await writeBundleToDir(dir, content);
-      await saveHandle(currentDoc.uuid, dir);
-      const updated = await setDocLink(currentDoc.uuid, dir.name, 'folder');
-      if (updated) currentDoc = updated;
-      toolbarCtrl.setLinked(true);
-      await markSynced(currentDoc, dir);
-    } catch (err) {
-      console.error('Link to folder failed', err);
-      globalThis.alert(t('disk.write-failed'));
-    }
-  };
-
-  // Link the current doc to a single `.md` file on disk. An empty target is
-  // "published" (the current doc is written into it); a non-empty target is
-  // "adopted" (its content replaces the doc, guarding unsaved local edits).
-  const linkToFile = async (): Promise<void> => {
-    const fh = await pickMarkdownFileHandle();
-    if (!fh) return;
-    if (!(await ensureRwPermission(fh))) {
-      globalThis.alert(t('disk.permission-denied'));
-      return;
-    }
-    try {
-      const diskText = await readFileHandle(fh);
-      if (diskText.trim() === '') {
-        const content =
-          (await loadCommittedContent(currentDoc)) ?? editor.getValue();
-        await writeFileHandle(fh, content);
-      } else {
-        if (
-          editor.getValue().trim() !== '' &&
-          !globalThis.confirm(t('disk.adopt-confirm', { name: fh.name }))
-        ) {
-          return;
-        }
-        // Adopt = a clean commit of the file's content, staying in view.
-        await applyDiskContent(diskText);
-      }
-      await saveHandle(currentDoc.uuid, fh);
-      const updated = await setDocLink(currentDoc.uuid, fh.name, 'file');
-      if (updated) currentDoc = updated;
-      toolbarCtrl.setLinked(true);
-      await markSynced(currentDoc, fh);
-    } catch (err) {
-      console.error('Link to file failed', err);
-      globalThis.alert(t('disk.write-failed'));
-    }
-  };
-
   // Pull: replace the doc's content from its linked file/folder on disk, in
   // place (keeps the current view). `force` skips the unsaved-edits guard — used
   // by conflict "take the disk", where the user has already chosen.
@@ -1198,69 +1117,6 @@ async function bootstrap(): Promise<void> {
       globalThis.alert(t('github.error', { status: String(err.status) }));
     } else {
       globalThis.alert(t('github.error', { status: '?' }));
-    }
-  };
-
-  // Link the current doc to a `foo.md` in a repo. Existing file → import it
-  // (R2); absent → create it verbatim (R1). v1 collects the target via prompts.
-  const linkToGithub = async (): Promise<void> => {
-    const token = await loadToken();
-    if (!token) {
-      globalThis.alert(t('github.no-token'));
-      return;
-    }
-    const repo = globalThis.prompt(t('github.prompt-repo'), '')?.trim();
-    if (!repo) return;
-    const slash = repo.indexOf('/');
-    if (slash <= 0 || slash >= repo.length - 1) {
-      globalThis.alert(t('github.bad-repo'));
-      return;
-    }
-    const owner = repo.slice(0, slash);
-    const repoName = repo.slice(slash + 1);
-    const branch = globalThis.prompt(t('github.prompt-branch'), 'main')?.trim();
-    if (!branch) return;
-    const defaultPath = `${currentDoc.name.trim().replace(/\s+/g, '-')}.md`;
-    const path = globalThis.prompt(t('github.prompt-path'), defaultPath)?.trim();
-    if (!path) return;
-    const target = { owner, repo: repoName, branch, path };
-    try {
-      await flushSave();
-      currentDoc = await commitDoc(currentDoc.uuid);
-      toolbarCtrl.setModified(false);
-      const existing = await importFromGithub(token, target);
-      if (existing) {
-        if (
-          editor.getValue().trim() !== '' &&
-          existing.content !== editor.getValue() &&
-          !globalThis.confirm(t('github.adopt-confirm', { path }))
-        ) {
-          return;
-        }
-        await applyDiskContent(existing.content);
-        const updated = await setDocGithubLink(currentDoc.uuid, {
-          ...target,
-          baselineSha: existing.baselineSha,
-        });
-        if (updated) currentDoc = updated;
-      } else {
-        const content =
-          (await loadCommittedContent(currentDoc)) ?? editor.getValue();
-        const { baselineSha } = await createOnGithub(
-          token,
-          target,
-          content,
-          currentDoc.name,
-        );
-        const updated = await setDocGithubLink(currentDoc.uuid, {
-          ...target,
-          baselineSha,
-        });
-        if (updated) currentDoc = updated;
-      }
-      refreshLinkBadge();
-    } catch (err) {
-      handleGithubError(err);
     }
   };
 
@@ -2093,34 +1949,16 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl = mountToolbar(toolbarEl, {
       initialDocName: currentDoc.name,
       initialViewMode: viewMode,
-      async onFileMenu(anchor) {
-        const githubAvailable = await hasToken();
+      onFileMenu(anchor) {
         openFileMenu(anchor, {
           modified: isModified(currentDoc),
-          diskAvailable: fsAccessAvailable(),
           linked: isLinked(currentDoc),
-          githubAvailable,
           githubLinked: isGithubLinked(currentDoc),
-          onGithubOpen: () => {
-            void triggerOpen();
-          },
-          onGithubLink: () => {
-            void linkToGithub();
-          },
           onGithubReload: () => {
             void reloadFromGithub();
           },
           onGithubUnlink: () => {
             void unlinkGithub();
-          },
-          onOpenFromDisk: () => {
-            void openFromDisk();
-          },
-          onLinkFile: () => {
-            void linkToFile();
-          },
-          onLinkFolder: () => {
-            void linkToFolder();
           },
           onReloadDisk: () => {
             void reloadFromDisk();

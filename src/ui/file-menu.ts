@@ -14,21 +14,13 @@ const MENU_ID = 'file-menu';
 
 export interface FileMenuOptions {
   modified: boolean;
-  // Disk interop (Phase 4) — only shown when the File System Access API is
-  // available (Chromium). Reload/Unlink only when the doc is linked.
-  diskAvailable: boolean;
-  linked: boolean;
-  // GitHub sync (docs/GITHUB-SYNC-SPEC.md). `githubAvailable` ⇒ a PAT is
-  // saved; Reload/Unlink only when the doc is already github-linked.
-  githubAvailable: boolean;
+  // Opening / linking now go through the unified volume browser (Open) and
+  // Save As (docs/VOLUMES-SPEC.md). Only the *operations on an already-linked
+  // doc* remain in this menu: Reload + Unlink, per backend.
+  linked: boolean; // disk-linked
   githubLinked: boolean;
-  onGithubOpen(): void;
-  onGithubLink(): void;
   onGithubReload(): void;
   onGithubUnlink(): void;
-  onOpenFromDisk(): void;
-  onLinkFile(): void;
-  onLinkFolder(): void;
   onReloadDisk(): void;
   onUnlink(): void;
   onNew(): void;
@@ -102,31 +94,21 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
     item(t('file-menu.files'), 'Cmd/Ctrl + ⇧ + O', opts.onFiles),
   );
-  if (opts.diskAvailable) {
+  // Operations on a doc already linked to a backend (the link itself is now
+  // created via Save As → a volume).
+  if (opts.linked) {
     menu.append(
       sep(),
-      item(t('file-menu.open-disk'), '', opts.onOpenFromDisk),
-      item(t('file-menu.link-file'), '', opts.onLinkFile),
-      item(t('file-menu.link-folder'), '', opts.onLinkFolder),
+      item(t('file-menu.reload-disk'), '', opts.onReloadDisk),
+      item(t('file-menu.unlink'), '', opts.onUnlink),
     );
-    if (opts.linked) {
-      menu.append(
-        item(t('file-menu.reload-disk'), '', opts.onReloadDisk),
-        item(t('file-menu.unlink'), '', opts.onUnlink),
-      );
-    }
   }
-  if (opts.githubAvailable) {
-    menu.append(sep());
-    menu.append(item(t('file-menu.github-open'), '', opts.onGithubOpen));
-    if (opts.githubLinked) {
-      menu.append(
-        item(t('file-menu.github-reload'), '', opts.onGithubReload),
-        item(t('file-menu.github-unlink'), '', opts.onGithubUnlink),
-      );
-    } else {
-      menu.append(item(t('file-menu.github-link'), '', opts.onGithubLink));
-    }
+  if (opts.githubLinked) {
+    menu.append(
+      sep(),
+      item(t('file-menu.github-reload'), '', opts.onGithubReload),
+      item(t('file-menu.github-unlink'), '', opts.onGithubUnlink),
+    );
   }
   menu.append(sep());
   if (opts.modified) {
