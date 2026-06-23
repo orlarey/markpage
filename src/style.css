@@ -2809,3 +2809,27 @@ body.demo-frame-body #preview-pane {
   padding: 0.6rem 0.9rem;
   border-top: 1px solid var(--border, #d0d7de);
 }
+
+/* ---- Volume browser: save bar (V5) ---- */
+.vb-savebar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.9rem;
+  border-top: 1px solid var(--border, #d0d7de);
+}
+.vb-name {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 6px;
+  font-size: 0.92rem;
+}
+.vb-save {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent, #0969da);
+  background: var(--accent, #0969da);
+  color: #fff;
+  cursor: pointer;
+}

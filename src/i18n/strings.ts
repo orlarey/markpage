@@ -337,6 +337,9 @@ const FR = {
   'github.error': 'Erreur GitHub (HTTP {status}).',
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Ouvrir',
+  'volume.save-title': 'Enregistrer sous',
+  'volume.name-placeholder': 'nom-du-fichier.md',
+  'volume.save-here': 'Enregistrer ici',
   'volume.mount-disk': 'Monter un dossier…',
   'volume.mount-repo': 'Monter un dépôt…',
   'volume.loading': 'Chargement…',
@@ -727,6 +730,9 @@ const EN: Record<keyof typeof FR, string> = {
   'github.error': 'GitHub error (HTTP {status}).',
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Open',
+  'volume.save-title': 'Save As',
+  'volume.name-placeholder': 'file-name.md',
+  'volume.save-here': 'Save here',
   'volume.mount-disk': 'Mount a folder…',
   'volume.mount-repo': 'Mount a repo…',
   'volume.loading': 'Loading…',

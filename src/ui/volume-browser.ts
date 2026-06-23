@@ -21,7 +21,13 @@ export interface VolumeBrowserOptions {
   volumes: Volume[];
   /** Volume to select first (defaults to the first, i.e. Bibliothèque). */
   initialVolumeId?: string;
-  onOpen(volume: Volume, entry: VolumeEntry): void;
+  /** `open` (default) picks a file; `save` picks a folder + a name (V5). */
+  mode?: 'open' | 'save';
+  /** Prefilled file name in save mode. */
+  defaultName?: string;
+  onOpen?(volume: Volume, entry: VolumeEntry): void;
+  /** Save target chosen: a volume, the current folder, and a file name (V5). */
+  onSave?(volume: Volume, folderPath: string, name: string): void;
   /** Optional mount actions, shown in the footer when provided. */
   onMountDisk?(): void;
   onMountRepo?(): void;
@@ -32,6 +38,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   if (document.getElementById(OVERLAY_ID)) return;
 
   const doc = document;
+  const mode = opts.mode ?? 'open';
   const overlay = doc.createElement('div');
   overlay.id = OVERLAY_ID;
   overlay.className = 'vb-overlay';
@@ -44,7 +51,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   // Header
   const header = doc.createElement('header');
   const title = doc.createElement('h2');
-  title.textContent = t('volume.browser-title');
+  title.textContent = t(mode === 'save' ? 'volume.save-title' : 'volume.browser-title');
   const closeBtn = doc.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'close';
@@ -95,6 +102,30 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   let current: Volume =
     opts.volumes.find((v) => v.id === opts.initialVolumeId) ?? opts.volumes[0];
   let path = '';
+
+  // Save bar (save mode only): file-name input + confirm button (V5).
+  const saveBar = doc.createElement('div');
+  saveBar.className = 'vb-savebar';
+  const nameInput = doc.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'vb-name';
+  nameInput.value = opts.defaultName ?? '';
+  nameInput.placeholder = t('volume.name-placeholder');
+  const saveBtn = doc.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'vb-save';
+  saveBtn.textContent = t('volume.save-here');
+  const confirmSave = (): void => {
+    const name = nameInput.value.trim();
+    if (name === '') return;
+    close();
+    opts.onSave?.(current, path, name);
+  };
+  saveBtn.addEventListener('click', confirmSave);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmSave();
+  });
+  saveBar.append(nameInput, saveBtn);
 
   const stateLabel = (s: VolumeState): string => t(`volume.state.${s}`);
 
@@ -191,9 +222,11 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
         if (entry.type === 'dir') {
           path = entry.path;
           void render();
+        } else if (mode === 'save') {
+          nameInput.value = entry.name; // pick a name to overwrite
         } else {
           close();
-          opts.onOpen(current, entry);
+          opts.onOpen?.(current, entry);
         }
       });
       listEl.append(row);
@@ -212,8 +245,10 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   });
   doc.addEventListener('keydown', onKey);
 
-  panel.append(header, body, footer);
+  if (mode === 'save') panel.append(header, body, saveBar, footer);
+  else panel.append(header, body, footer);
   overlay.appendChild(panel);
   doc.body.appendChild(overlay);
   void render();
+  if (mode === 'save') nameInput.focus();
 }

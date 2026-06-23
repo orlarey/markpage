@@ -196,6 +196,16 @@ export class DiskVolume implements Volume {
     return dir.getFileHandle(name);
   }
 
+  /** Create (or get) a file handle at `path`, creating folders as needed (V5). */
+  async createFileHandle(path: string): Promise<FileSystemFileHandle> {
+    const segs = path.split('/').filter((s) => s !== '');
+    const name = segs.pop();
+    if (name === undefined) throw new Error('Chemin vide');
+    let dir = this.root;
+    for (const seg of segs) dir = await dir.getDirectoryHandle(seg, { create: true });
+    return dir.getFileHandle(name, { create: true });
+  }
+
   /** The mounted root directory handle (for permission prompts). */
   get rootHandle(): FileSystemDirectoryHandle {
     return this.root;

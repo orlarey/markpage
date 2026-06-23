@@ -929,22 +929,6 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(false);
   };
 
-  // Save As (option a): branch the current working content into a new doc;
-  // the original reverts to its committed version; we switch to editing B.
-  const saveAsNewDoc = async (): Promise<void> => {
-    const content = editor.getValue();
-    const origUuid = currentDoc.uuid;
-    const created = await createDoc(currentDoc.name, content);
-    await revertDoc(origUuid); // original drops its pending draft → clean
-    currentDoc = created;
-    await setCurrentDocId(created.uuid);
-    // The editor already shows `content`; just retarget to the new doc.
-    if (viewMode === 'preview') setViewMode('editor');
-    toolbarCtrl.setDocName(created.name);
-    toolbarCtrl.setModified(false);
-    toolbarCtrl.setLinked(false);
-  };
-
   // ---- disk link (Phase 4, File System Access — Chromium only) ----------
 
   // Dispatch disk I/O on the link kind: a single `.md` file handle vs a folder
@@ -1460,31 +1444,123 @@ async function bootstrap(): Promise<void> {
     reopenBrowser();
   };
 
+  const mountActions = (): {
+    onMountDisk?: () => void;
+    onMountRepo: () => void;
+  } => ({
+    onMountDisk: fsAccessAvailable()
+      ? () => {
+          void mountDiskFolder();
+        }
+      : undefined,
+    onMountRepo: () => {
+      void mountRepoVolume();
+    },
+  });
+
+  let browserMode: 'open' | 'save' = 'open';
+
   // The unified browser (V1) — replaces Open / from-disk / from-GitHub / Import.
   const triggerOpen = async (): Promise<void> => {
-    const volumes = await listVolumes();
+    browserMode = 'open';
     openVolumeBrowser({
-      volumes,
-      initialVolumeId: githubLinkOf(currentDoc) ? undefined : 'library',
+      volumes: await listVolumes(),
       onOpen: (vol, entry) => {
         void openFromVolume(vol, entry);
       },
-      onMountDisk: fsAccessAvailable()
-        ? () => {
-            void mountDiskFolder();
-          }
-        : undefined,
-      onMountRepo: () => {
-        void mountRepoVolume();
-      },
+      ...mountActions(),
     });
   };
 
-  // Close any open browser instance and reopen it (after a mount changed the
-  // volume list). The browser is single-instance, so we drop the old overlay.
+  // *Enregistrer sous…* (V5) — pick a (volume, folder, name) target. Absorbs the
+  // old "Lier à GitHub / au disque" and "Save As".
+  const triggerSaveAs = async (): Promise<void> => {
+    browserMode = 'save';
+    openVolumeBrowser({
+      volumes: await listVolumes(),
+      mode: 'save',
+      defaultName: `${currentDoc.name.trim().replace(/\s+/g, '-')}.md`,
+      onSave: (vol, folder, name) => {
+        void saveAsToVolume(vol, folder, name);
+      },
+      ...mountActions(),
+    });
+  };
+
+  // Close any open browser instance and reopen it in the same mode (after a
+  // mount changed the volume list). Single-instance → drop the old overlay.
   const reopenBrowser = (): void => {
     document.getElementById('volume-browser-overlay')?.remove();
-    void triggerOpen();
+    void (browserMode === 'save' ? triggerSaveAs() : triggerOpen());
+  };
+
+  // Publish the current document to a (volume, folder, name) target (V5).
+  // Library → a new library doc (copy). Disk → write the file + link in place.
+  // Repo → push the content + link (R1–R4 thereafter).
+  // NOTE (v1): a Bibliothèque doc's existing images (img:// / assets) are not
+  // yet materialised at the target — publish text-first, then add images on the
+  // now-linked doc (R3 carries them at the next Save).
+  const saveAsToVolume = async (
+    vol: Volume,
+    folderPath: string,
+    name: string,
+  ): Promise<void> => {
+    try {
+      await flushSave();
+      currentDoc = await commitDoc(currentDoc.uuid);
+      toolbarCtrl.setModified(false);
+      const content = (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+      const fileName = /\.(md|markdown)$/i.test(name) ? name : `${name}.md`;
+      const base = fileName.replace(/\.(md|markdown)$/i, '');
+      const fullPath = folderPath === '' ? fileName : `${folderPath}/${fileName}`;
+
+      if (vol.kind === 'library') {
+        const created = await createDoc(base === '' ? 'Document' : base, content);
+        currentDoc = created;
+        await setCurrentDocId(created.uuid);
+        editor.setValue(content);
+        if (viewMode === 'preview') setViewMode('editor');
+        toolbarCtrl.setDocName(currentDoc.name);
+        toolbarCtrl.setModified(false);
+        refreshLinkBadge();
+        return;
+      }
+
+      if (vol instanceof DiskVolume) {
+        const fh = await vol.createFileHandle(fullPath);
+        if (!(await ensureRwPermission(fh))) {
+          globalThis.alert(t('disk.permission-denied'));
+          return;
+        }
+        await writeFileHandle(fh, content);
+        await saveHandle(currentDoc.uuid, fh);
+        const updated = await setDocLink(currentDoc.uuid, fh.name, 'file');
+        if (updated) currentDoc = updated;
+        refreshLinkBadge();
+        await markSynced(currentDoc, fh);
+        return;
+      }
+
+      if (vol instanceof RepoVolume) {
+        const token = await loadToken();
+        if (!token) {
+          globalThis.alert(t('github.no-token'));
+          return;
+        }
+        const target = { ...vol.target, path: fullPath };
+        const { baselineSha } = await createOnGithub(
+          token,
+          target,
+          content,
+          currentDoc.name,
+        );
+        const updated = await setDocGithubLink(currentDoc.uuid, { ...target, baselineSha });
+        if (updated) currentDoc = updated;
+        refreshLinkBadge();
+      }
+    } catch (err) {
+      handleGithubError(err);
+    }
   };
 
   const handleSettingsChange = (s: PdfSettings) => {
@@ -2045,7 +2121,7 @@ async function bootstrap(): Promise<void> {
             void saveCurrentDoc();
           },
           onSaveAs: () => {
-            void saveAsNewDoc();
+            void triggerSaveAs();
           },
           onRevert: () => {
             void revertCurrentDoc();
