@@ -924,8 +924,12 @@ body,
   font: inherit;
   color: var(--text);
 }
-.file-menu-item:hover {
+.file-menu-item:hover:not(:disabled) {
   background: var(--bg-alt);
+}
+.file-menu-item:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 .file-menu-label {
   font-weight: 500;
@@ -967,6 +971,12 @@ body,
   outline: none;
   background: var(--bg);
 }
+/* A linked doc's name is its file name — read-only (rename = backend op). */
+.doc-title-input.linked,
+.doc-title-input.linked:hover {
+  cursor: default;
+  border-color: transparent;
+}
 .doc-title .doc-modified-dot {
   color: var(--accent, #0969da);
   font-size: 0.7em;
@@ -977,8 +987,19 @@ body,
   font-size: 0.85em;
   cursor: default;
 }
-/* Conflict (edited on both sides): the badge becomes a clickable resolver. */
-.doc-link-badge.conflict {
+/* Origin chip (VOLUMES-SPEC §7): volume + path of the current doc. */
+.doc-origin {
+  color: var(--muted, #6b7280);
+  font-size: 0.78em;
+  cursor: default;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Conflict (edited on both sides): the chip/badge becomes a clickable resolver. */
+.doc-link-badge.conflict,
+.doc-origin.conflict {
   color: var(--danger, #cf222e);
   cursor: pointer;
   font-weight: 700;
@@ -2642,4 +2663,246 @@ body.demo-frame-body {
 body.demo-frame-body #preview-pane {
   margin: 0;
   padding: 1rem;
+}
+
+/* ---- GitHub-sync settings section (docs/GITHUB-SYNC-SPEC.md) ---- */
+.settings-form .github-intro,
+.settings-form .github-hint {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+  color: var(--text-muted, #57606a);
+}
+.settings-form .github-status {
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+.settings-form .github-create-link {
+  display: inline-block;
+  margin-top: 0.4rem;
+}
+
+/* ---- Volume browser (docs/VOLUMES-SPEC.md) ---- */
+.vb-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.vb-panel {
+  background: var(--bg, #fff);
+  color: var(--text, #1f2328);
+  width: min(820px, 92vw);
+  height: min(560px, 86vh);
+  border-radius: 10px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.vb-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border, #d0d7de);
+}
+.vb-panel > header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.vb-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* Volume rows at the root carry a state hint + a slightly heavier name. */
+.vb-vol-row .vb-row-name {
+  font-weight: 500;
+}
+.vb-vol-state {
+  font-size: 0.72rem;
+  color: var(--text-muted, #57606a);
+  flex-shrink: 0;
+  margin-left: 0.4rem;
+}
+.vb-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--border, #d0d7de);
+  font-size: 0.85rem;
+}
+.vb-crumb {
+  border: none;
+  background: none;
+  color: var(--accent, #0969da);
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+}
+.vb-crumb-sep {
+  color: var(--text-muted, #57606a);
+}
+.vb-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.3rem;
+}
+.vb-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  border-radius: 6px;
+}
+.vb-row:hover {
+  background: var(--hover, #f0f3f6);
+}
+.vb-row-name-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  color: inherit;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+}
+.vb-row-name .vb-row-name,
+.vb-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vb-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  padding-right: 0.4rem;
+}
+.vb-row-action {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted, #57606a);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  opacity: 0;
+}
+.vb-row:hover .vb-row-action {
+  opacity: 1;
+}
+.vb-row-action:hover {
+  background: var(--hover, #e1e6eb);
+}
+.vb-row-action.purge:hover,
+.vb-row-action.delete:hover {
+  color: var(--danger, #cf222e);
+}
+.vb-empty-trash {
+  display: block;
+  margin: 0.6rem auto 0.3rem;
+  /* Toolbar pill, with a danger-coloured label (destructive). */
+  border: 1px solid rgba(28, 18, 117, 0.352);
+  background: var(--bg);
+  color: var(--danger, #cf222e);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font: inherit;
+}
+.vb-empty-trash:hover {
+  background: var(--bg-alt);
+}
+.vb-row-foreign .vb-row-name {
+  color: var(--text-muted, #57606a);
+  font-style: italic;
+}
+.vb-row-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted, #57606a);
+}
+.vb-row-icon .lucide {
+  display: block;
+}
+.vb-loading,
+.vb-empty,
+.vb-error {
+  padding: 1rem;
+  color: var(--text-muted, #57606a);
+  font-size: 0.9rem;
+}
+.vb-error {
+  color: var(--danger, #cf222e);
+}
+.vb-footer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-top: 1px solid var(--border, #d0d7de);
+}
+
+/* Command buttons match the main toolbar (bordered pill, flat fill). */
+.vb-footer button,
+.vb-save,
+.vb-panel > header .close {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(28, 18, 117, 0.352);
+  background: var(--bg);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+.vb-footer button:hover,
+.vb-save:hover,
+.vb-panel > header .close:hover {
+  background: var(--bg-alt);
+}
+
+/* ---- Volume browser: save bar (V5) ---- */
+.vb-savebar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.9rem;
+  border-top: 1px solid var(--border, #d0d7de);
+}
+/* The name field matches the toolbar input: square corners + inset shadow. */
+.vb-name {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+  background: var(--bg);
+  font: inherit;
+}
+
+/* ---- Per-volume actions at the root (permissions / unmount) ---- */
+.vb-vol-auth {
+  font-size: 0.72rem;
+  border: 1px solid var(--accent, #0969da);
+  color: var(--accent, #0969da);
+  background: none;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  cursor: pointer;
+}
+.vb-vol-unmount:hover {
+  color: var(--danger, #cf222e);
 }

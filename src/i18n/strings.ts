@@ -65,6 +65,13 @@ const FR = {
   'file-menu.link-folder': 'Lier à un dossier…',
   'file-menu.reload-disk': 'Recharger depuis le disque…',
   'file-menu.unlink': 'Délier du disque',
+  'file-menu.github-open': 'Ouvrir depuis GitHub…',
+  'file-menu.github-link': 'Lier à GitHub…',
+  'file-menu.github-reload': 'Recharger depuis GitHub',
+  'file-menu.github-unlink': 'Délier de GitHub',
+  'file-menu.reload': 'Recharger',
+  'file-menu.unlink-origin': 'Délier',
+  'file-menu.delete-doc': 'Mettre à la corbeille…',
   // ---- disk link (Phase 4) ------------------------------------------
   'disk.overwrite-confirm':
     'Le dossier « {name} » contient déjà un document. L’écraser avec le document courant ?',
@@ -297,6 +304,67 @@ const FR = {
   'rail.group.document': 'Document',
   'rail.group.typography': 'Typographie',
   'rail.group.content': 'Contenu',
+  'rail.group.sync': 'Synchronisation',
+  // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
+  'settings.section.github': 'GitHub',
+  'settings.github.intro':
+    'Liez vos documents à un dépôt GitHub pour les éditer depuis plusieurs appareils. Le jeton reste sur cet appareil (stocké en clair dans le navigateur — pas un coffre-fort) ; utilisez « Oublier le token » sur une machine partagée.',
+  'settings.github.token-label': 'Jeton (PAT)',
+  'settings.github.token-placeholder': 'github_pat_…',
+  'settings.github.save': 'Enregistrer',
+  'settings.github.clear': 'Oublier le token',
+  'settings.github.create': 'Créer un token →',
+  'settings.github.create-hint':
+    'Jeton « fine-grained », permission Contents : Lecture et écriture, sur le(s) dépôt(s) voulu(s).',
+  'settings.github.checking': 'Vérification…',
+  'settings.github.connected': 'Connecté en tant que @{login}',
+  'settings.github.disconnected': 'Non connecté (aucun jeton enregistré)',
+  'settings.github.invalid': 'Jeton invalide ou expiré',
+  // GitHub sync — prompts, notices, errors
+  'github.no-token':
+    'Aucun jeton GitHub. Ajoutez-en un dans Réglages → GitHub.',
+  'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
+  'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
+  'github.prompt-branch': 'Branche :',
+  'github.prompt-path': 'Chemin du fichier dans le dépôt (ex. lettres/devis.md) :',
+  'github.adopt-confirm':
+    'Le fichier {path} existe déjà dans le dépôt. Remplacer le contenu local par celui du dépôt ?',
+  'github.forked':
+    'Divergence : le dépôt a changé de son côté. Pour ne rien perdre, ta version a été enregistrée dans « {mine} » ; « {theirs} » garde la version du dépôt. Fusionne-les quand tu veux, puis supprime le doublon.',
+  'github.reload-suggested':
+    'Le dépôt a avancé mais tu n’as pas d’édition locale en attente. Utilise « Recharger depuis GitHub » pour récupérer la dernière version.',
+  'github.remote-gone':
+    'Le fichier {path} est introuvable dans le dépôt (supprimé ou déplacé). Recrée-le, délie le document, ou corrige la cible.',
+  'github.branch-absent':
+    'La branche « {branch} » n’existe pas dans le dépôt. Crée-la sur GitHub, puis réessaie.',
+  'github.error': 'Erreur GitHub (HTTP {status}).',
+  'onedrive.error': 'Erreur OneDrive : {msg}',
+  'onedrive.conflict':
+    'Ce fichier a changé sur OneDrive depuis ta dernière synchro. Écraser avec ta version ?',
+  // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
+  'volume.browser-title': 'Ouvrir',
+  'volume.save-title': 'Enregistrer sous',
+  'volume.root': 'markpage',
+  'volume.name-placeholder': 'nom-du-fichier.md',
+  'volume.save-here': 'Enregistrer ici',
+  'volume.mount-disk': 'Monter un dossier…',
+  'volume.mount-repo': 'Monter un dépôt…',
+  'volume.mount-onedrive': 'Connecter OneDrive…',
+  'volume.authorize': 'Autoriser',
+  'volume.unmount': 'Démonter ce volume',
+  'volume.delete': 'Mettre à la corbeille',
+  'volume.restore': 'Restaurer',
+  'volume.purge': 'Supprimer définitivement',
+  'volume.empty-trash': 'Vider la corbeille',
+  'volume.loading': 'Chargement…',
+  'volume.empty': 'Dossier vide',
+  'volume.list-failed': 'Impossible de lister ce dossier.',
+  'volume.state.needs-permission': 'permission requise',
+  'volume.state.offline': 'hors-ligne',
+  'volume.state.error': 'erreur',
+  'volume.state.ready': '',
+  'volume.foreign-repo':
+    'Ouvrir un fichier non-markdown depuis un dépôt n’est pas encore pris en charge.',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Texte normal',
   'element.title': 'Titre du document',
@@ -409,6 +477,13 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.link-folder': 'Link to a folder…',
   'file-menu.reload-disk': 'Reload from disk…',
   'file-menu.unlink': 'Unlink from disk',
+  'file-menu.github-open': 'Open from GitHub…',
+  'file-menu.github-link': 'Link to GitHub…',
+  'file-menu.github-reload': 'Reload from GitHub',
+  'file-menu.github-unlink': 'Unlink from GitHub',
+  'file-menu.reload': 'Reload',
+  'file-menu.unlink-origin': 'Unlink',
+  'file-menu.delete-doc': 'Move to Trash…',
   'disk.overwrite-confirm':
     'The folder “{name}” already contains a document. Overwrite it with the current document?',
   'disk.write-failed': 'Could not write to disk.',
@@ -637,6 +712,66 @@ const EN: Record<keyof typeof FR, string> = {
   'rail.group.document': 'Document',
   'rail.group.typography': 'Typography',
   'rail.group.content': 'Content',
+  'rail.group.sync': 'Sync',
+  // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
+  'settings.section.github': 'GitHub',
+  'settings.github.intro':
+    'Link your documents to a GitHub repo to edit them across devices. The token stays on this device (stored in clear in the browser — not a vault); use “Forget token” on a shared machine.',
+  'settings.github.token-label': 'Token (PAT)',
+  'settings.github.token-placeholder': 'github_pat_…',
+  'settings.github.save': 'Save',
+  'settings.github.clear': 'Forget token',
+  'settings.github.create': 'Create a token →',
+  'settings.github.create-hint':
+    'Fine-grained token, Contents: Read and write permission, on the repo(s) you want.',
+  'settings.github.checking': 'Checking…',
+  'settings.github.connected': 'Connected as @{login}',
+  'settings.github.disconnected': 'Not connected (no token saved)',
+  'settings.github.invalid': 'Invalid or expired token',
+  // GitHub sync — prompts, notices, errors
+  'github.no-token': 'No GitHub token. Add one in Settings → GitHub.',
+  'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
+  'github.prompt-repo': 'GitHub repo (owner/repo):',
+  'github.prompt-branch': 'Branch:',
+  'github.prompt-path': 'File path in the repo (e.g. letters/quote.md):',
+  'github.adopt-confirm':
+    'The file {path} already exists in the repo. Replace the local content with the repo version?',
+  'github.forked':
+    'Divergence: the repo changed on its side. To lose nothing, your version was saved to “{mine}”; “{theirs}” keeps the repo version. Merge them whenever you like, then delete the duplicate.',
+  'github.reload-suggested':
+    'The repo moved ahead but you have no pending local edits. Use “Reload from GitHub” to get the latest version.',
+  'github.remote-gone':
+    'The file {path} is missing from the repo (deleted or moved). Recreate it, unlink the document, or fix the target.',
+  'github.branch-absent':
+    'The branch “{branch}” does not exist in the repo. Create it on GitHub, then try again.',
+  'github.error': 'GitHub error (HTTP {status}).',
+  'onedrive.error': 'OneDrive error: {msg}',
+  'onedrive.conflict':
+    'This file changed on OneDrive since your last sync. Overwrite with your version?',
+  // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
+  'volume.browser-title': 'Open',
+  'volume.save-title': 'Save As',
+  'volume.root': 'markpage',
+  'volume.name-placeholder': 'file-name.md',
+  'volume.save-here': 'Save here',
+  'volume.mount-disk': 'Mount a folder…',
+  'volume.mount-repo': 'Mount a repo…',
+  'volume.mount-onedrive': 'Connect OneDrive…',
+  'volume.authorize': 'Authorize',
+  'volume.unmount': 'Unmount this volume',
+  'volume.delete': 'Move to Trash',
+  'volume.restore': 'Restore',
+  'volume.purge': 'Delete permanently',
+  'volume.empty-trash': 'Empty the Trash',
+  'volume.loading': 'Loading…',
+  'volume.empty': 'Empty folder',
+  'volume.list-failed': 'Could not list this folder.',
+  'volume.state.needs-permission': 'permission needed',
+  'volume.state.offline': 'offline',
+  'volume.state.error': 'error',
+  'volume.state.ready': '',
+  'volume.foreign-repo':
+    'Opening a non-markdown file from a repo is not supported yet.',
   // ---- per-element matrix labels -----------------------------------
   'element.body': 'Body text',
   'element.title': 'Document title',

@@ -14,26 +14,22 @@ const MENU_ID = 'file-menu';
 
 export interface FileMenuOptions {
   modified: boolean;
-  // Disk interop (Phase 4) — only shown when the File System Access API is
-  // available (Chromium). Reload/Unlink only when the doc is linked.
-  diskAvailable: boolean;
-  linked: boolean;
-  onOpenFromDisk(): void;
-  onLinkFile(): void;
-  onLinkFolder(): void;
-  onReloadDisk(): void;
+  // Opening / linking now go through the unified volume browser (Open) and
+  // Save As (docs/VOLUMES-SPEC.md). Only the *operations on the doc's origin
+  // volume* remain: a single Reload (pull) + a single Unlink (V3, one origin).
+  linked: boolean; // has an origin volume (disk or GitHub)
+  onReload(): void;
   onUnlink(): void;
   onNew(): void;
   onOpen(): void;
-  onFiles(): void;
   onSave(): void;
   onSaveAs(): void;
   onRevert(): void;
+  onDelete(): void;
   onImport(): void;
   onMarkdown(): void;
   onPdf(): void;
   onLatex(): void;
-  onOneDrive(): void;
   onShareLink(): void;
   onShareEmail(): void;
 }
@@ -66,10 +62,12 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     label: string,
     hint: string,
     action: () => void,
+    disabled = false,
   ): HTMLButtonElement => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'file-menu-item';
+    btn.disabled = disabled; // shown greyed, not removed — more informative
     const main = document.createElement('span');
     main.className = 'file-menu-label';
     main.textContent = label;
@@ -78,6 +76,7 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     sub.textContent = hint;
     btn.append(main, sub);
     btn.addEventListener('click', () => {
+      if (btn.disabled) return;
       close();
       action();
     });
@@ -92,30 +91,24 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
   menu.append(
     item(t('file-menu.new'), '', opts.onNew),
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
-    item(t('file-menu.files'), 'Cmd/Ctrl + ⇧ + O', opts.onFiles),
   );
-  if (opts.diskAvailable) {
+  // Operations on the doc's origin volume (the link is created via Save As).
+  if (opts.linked) {
     menu.append(
       sep(),
-      item(t('file-menu.open-disk'), '', opts.onOpenFromDisk),
-      item(t('file-menu.link-file'), '', opts.onLinkFile),
-      item(t('file-menu.link-folder'), '', opts.onLinkFolder),
+      item(t('file-menu.reload'), '', opts.onReload),
+      item(t('file-menu.unlink-origin'), '', opts.onUnlink),
     );
-    if (opts.linked) {
-      menu.append(
-        item(t('file-menu.reload-disk'), '', opts.onReloadDisk),
-        item(t('file-menu.unlink'), '', opts.onUnlink),
-      );
-    }
   }
-  menu.append(sep());
-  if (opts.modified) {
-    menu.append(item(t('file-menu.save'), 'Cmd/Ctrl + S', opts.onSave));
-  }
-  menu.append(item(t('file-menu.save-as'), '', opts.onSaveAs));
-  if (opts.modified) {
-    menu.append(item(t('file-menu.revert'), '', opts.onRevert));
-  }
+  // Save / Revert stay visible but greyed when there's nothing to save —
+  // more informative than hiding them.
+  menu.append(
+    sep(),
+    item(t('file-menu.save'), 'Cmd/Ctrl + S', opts.onSave, !opts.modified),
+    item(t('file-menu.save-as'), '', opts.onSaveAs),
+    item(t('file-menu.revert'), '', opts.onRevert, !opts.modified),
+    item(t('file-menu.delete-doc'), '', opts.onDelete),
+  );
   menu.append(
     sep(),
     item(t('file-menu.import'), '', opts.onImport),
@@ -123,7 +116,6 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('export-menu.markdown'), '', opts.onMarkdown),
     item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),
     item(t('export-menu.latex'), '', opts.onLatex),
-    item(t('export-menu.onedrive'), '', opts.onOneDrive),
     sep(),
     item(t('export-menu.share-link'), '', opts.onShareLink),
     item(t('export-menu.share-email'), '', opts.onShareEmail),

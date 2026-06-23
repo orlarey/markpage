@@ -46,10 +46,38 @@ export interface DocEntry {
   // Trash: hidden from listDocs, restorable, kept on disk until purged.
   deletedAt?: number;
   // Disk link (Phase 4). Present ⇒ the doc mirrors a real file/folder on disk;
-  // `name` is its display name and `kind` tells a single `.md` file apart from
-  // a folder bundle (absent ⇒ 'folder', for back-compat). The handle lives in
-  // IndexedDB (see disk-link.ts). Drives the "external" badge.
-  link?: { name: string; kind?: 'file' | 'folder' };
+  // `name` is the file/folder name, `kind` tells a single `.md` file apart from
+  // a folder bundle (absent ⇒ 'folder', for back-compat). `volume`/`dir` (filled
+  // when linked via the volume browser) give the origin chip its volume + folder
+  // (VOLUMES-SPEC §7). The handle lives in IndexedDB (see disk-link.ts).
+  link?: { name: string; kind?: 'file' | 'folder'; volume?: string; dir?: string };
+  // GitHub-sync link (docs/GITHUB-SYNC-SPEC.md). Present ⇒ the doc is linked to
+  // a natural `foo.md` file in a repo. `path` is that file's repo path (NOT a
+  // bundle dir); `baselineSha` is the blob SHA we are last in sync with (R4).
+  githubLink?: GithubLink;
+  // OneDrive-sync link (docs/VOLUMES-SPEC.md). Present ⇒ the doc lives in the
+  // OneDrive app-folder; `path` is its app-folder-relative path, `baselineEtag`
+  // the eTag we last synced with (V1: overwrite + conflict, no fork).
+  oneDriveLink?: OneDriveLink;
+}
+
+/** A OneDrive-sync link target — a file in the app-folder + its sync baseline. */
+export interface OneDriveLink {
+  /** App-folder-relative path, e.g. `lettres/devis.md`. */
+  path: string;
+  /** eTag at the last successful sync (the conditional-write baseline). */
+  baselineEtag: string;
+}
+
+/** A GitHub-sync link target — a `foo.md` file in a repo + the sync baseline. */
+export interface GithubLink {
+  owner: string;
+  repo: string;
+  branch: string;
+  /** Repo path of the linked `foo.md`, e.g. `lettres/2026/devis.md`. */
+  path: string;
+  /** Blob SHA of `foo.md` at the last successful sync (R4 baseline). */
+  baselineSha: string;
 }
 
 interface Library {
@@ -117,18 +145,100 @@ export function linkKind(entry: DocEntry): 'file' | 'folder' {
   return entry.link?.kind ?? 'folder';
 }
 
-/** Mark a doc as linked to a disk file/folder (display name + kind). */
+/** Mark a doc as linked to a disk file/folder (name + kind, optional volume/dir). */
 export async function setDocLink(
   uuid: string,
-  name: string,
-  kind: 'file' | 'folder',
+  link: { name: string; kind: 'file' | 'folder'; volume?: string; dir?: string },
 ): Promise<DocEntry | null> {
-  return patchEntry(uuid, (e) => ({ ...e, link: { name, kind } }));
+  return patchEntry(uuid, (e) => ({ ...e, link }));
 }
 
 /** Drop a doc's disk link. */
 export async function clearDocLink(uuid: string): Promise<DocEntry | null> {
   return patchEntry(uuid, clearLink);
+}
+
+// ---- GitHub-sync link (docs/GITHUB-SYNC-SPEC.md) ------------------------
+
+/** Whether a doc is linked to a GitHub `foo.md` file. */
+export function isGithubLinked(entry: DocEntry): boolean {
+  return entry.githubLink != null;
+}
+
+/** The doc's GitHub link, or undefined. */
+export function githubLinkOf(entry: DocEntry): GithubLink | undefined {
+  return entry.githubLink;
+}
+
+/** A copy of `e` with no GitHub link. */
+function clearGithub(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.githubLink;
+  return copy;
+}
+
+/** Set / replace a doc's GitHub link. */
+export async function setDocGithubLink(
+  uuid: string,
+  link: GithubLink,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => ({ ...e, githubLink: link }));
+}
+
+/** Update only the sync baseline (foo.md blob sha) after a push/pull (R4). */
+export async function updateGithubBaseline(
+  uuid: string,
+  baselineSha: string,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) =>
+    e.githubLink ? { ...e, githubLink: { ...e.githubLink, baselineSha } } : e,
+  );
+}
+
+/** Drop a doc's GitHub link. */
+export async function clearDocGithubLink(uuid: string): Promise<DocEntry | null> {
+  return patchEntry(uuid, clearGithub);
+}
+
+// ---- OneDrive-sync link (docs/VOLUMES-SPEC.md) --------------------------
+
+/** Whether a doc is linked to a OneDrive app-folder file. */
+export function isOneDriveLinked(entry: DocEntry): boolean {
+  return entry.oneDriveLink != null;
+}
+
+/** The doc's OneDrive link, or undefined. */
+export function oneDriveLinkOf(entry: DocEntry): OneDriveLink | undefined {
+  return entry.oneDriveLink;
+}
+
+function clearOneDrive(e: DocEntry): DocEntry {
+  const copy = { ...e };
+  delete copy.oneDriveLink;
+  return copy;
+}
+
+/** Set / replace a doc's OneDrive link. */
+export async function setDocOneDriveLink(
+  uuid: string,
+  link: OneDriveLink,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => ({ ...e, oneDriveLink: link }));
+}
+
+/** Update only the sync baseline (eTag) after a push/pull. */
+export async function updateOneDriveBaseline(
+  uuid: string,
+  baselineEtag: string,
+): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) =>
+    e.oneDriveLink ? { ...e, oneDriveLink: { ...e.oneDriveLink, baselineEtag } } : e,
+  );
+}
+
+/** Drop a doc's OneDrive link. */
+export async function clearDocOneDriveLink(uuid: string): Promise<DocEntry | null> {
+  return patchEntry(uuid, clearOneDrive);
 }
 
 /**
@@ -150,8 +260,30 @@ function isDocEntry(x: unknown): x is DocEntry {
         typeof (e.link as { name?: unknown }).name === 'string' &&
         ((e.link as { kind?: unknown }).kind === undefined ||
           (e.link as { kind?: unknown }).kind === 'file' ||
-          (e.link as { kind?: unknown }).kind === 'folder')))
+          (e.link as { kind?: unknown }).kind === 'folder'))) &&
+    (e.githubLink === undefined || isGithubLink(e.githubLink)) &&
+    (e.oneDriveLink === undefined || isOneDriveLink(e.oneDriveLink))
   );
+}
+
+/** Runtime guard for a `GithubLink` shape (used by `isDocEntry`). */
+function isGithubLink(x: unknown): x is GithubLink {
+  if (!x || typeof x !== 'object') return false;
+  const g = x as Partial<GithubLink>;
+  return (
+    typeof g.owner === 'string' &&
+    typeof g.repo === 'string' &&
+    typeof g.branch === 'string' &&
+    typeof g.path === 'string' &&
+    typeof g.baselineSha === 'string'
+  );
+}
+
+/** Runtime guard for a `OneDriveLink` shape (used by `isDocEntry`). */
+function isOneDriveLink(x: unknown): x is OneDriveLink {
+  if (!x || typeof x !== 'object') return false;
+  const o = x as Partial<OneDriveLink>;
+  return typeof o.path === 'string' && typeof o.baselineEtag === 'string';
 }
 
 /** Compute the SHA-256 hex of a markdown string (content fingerprint). */

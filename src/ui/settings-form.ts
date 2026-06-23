@@ -57,6 +57,7 @@ import {
   type EditorFont,
 } from '../editor-font';
 import { getLanguage, setLanguage, type Language } from '../i18n/locale';
+import { clearToken, getUser, loadToken, saveToken } from '../github';
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 import { openProfileMenu } from './profile-menu';
@@ -192,7 +193,8 @@ export function buildSettingsForm(
         | 'rail.group.app'
         | 'rail.group.document'
         | 'rail.group.typography'
-        | 'rail.group.content';
+        | 'rail.group.content'
+        | 'rail.group.sync';
       items: Array<{
         id: string;
         label: string;
@@ -528,6 +530,16 @@ export function buildSettingsForm(
           },
         ],
       },
+      {
+        titleKey: 'rail.group.sync',
+        items: [
+          {
+            id: 'sync-github',
+            label: t('settings.section.github'),
+            build: () => [buildGithubSection()],
+          },
+        ],
+      },
     ];
 
     const layout = doc.createElement('div');
@@ -605,6 +617,89 @@ export function buildSettingsForm(
     span.textContent = label;
     wrap.append(span, control);
     return wrap;
+  }
+
+  // GitHub-sync section (docs/GITHUB-SYNC-SPEC.md, Phase 2). Unlike every
+  // other section it doesn't touch `current` (PdfSettings): it persists a
+  // fine-grained PAT in IndexedDB (github.ts) and shows the connected user.
+  function buildGithubSection(): HTMLElement {
+    const intro = doc.createElement('p');
+    intro.className = 'github-intro';
+    intro.textContent = t('settings.github.intro');
+
+    const tokenInput = doc.createElement('input');
+    tokenInput.type = 'password';
+    tokenInput.autocomplete = 'off';
+    tokenInput.placeholder = t('settings.github.token-placeholder');
+
+    const status = doc.createElement('div');
+    status.className = 'github-status';
+    status.textContent = t('settings.github.checking');
+
+    const refreshStatus = (): void => {
+      status.textContent = t('settings.github.checking');
+      void (async () => {
+        const tok = await loadToken();
+        if (!tok) {
+          status.textContent = t('settings.github.disconnected');
+          return;
+        }
+        try {
+          const u = await getUser(tok);
+          status.textContent = t('settings.github.connected', { login: u.login });
+        } catch {
+          status.textContent = t('settings.github.invalid');
+        }
+      })();
+    };
+
+    const saveBtn = doc.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.textContent = t('settings.github.save');
+    saveBtn.addEventListener('click', () => {
+      const v = tokenInput.value.trim();
+      if (v === '') return;
+      void saveToken(v).then(refreshStatus);
+    });
+
+    const clearBtn = doc.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.textContent = t('settings.github.clear');
+    clearBtn.addEventListener('click', () => {
+      tokenInput.value = '';
+      void clearToken().then(refreshStatus);
+    });
+
+    const buttons = doc.createElement('div');
+    buttons.className = 'toggles';
+    buttons.append(saveBtn, clearBtn);
+
+    const createLink = doc.createElement('a');
+    createLink.href = 'https://github.com/settings/personal-access-tokens/new';
+    createLink.target = '_blank';
+    createLink.rel = 'noopener';
+    createLink.className = 'github-create-link';
+    createLink.textContent = t('settings.github.create');
+
+    const hint = doc.createElement('p');
+    hint.className = 'github-hint';
+    hint.textContent = t('settings.github.create-hint');
+
+    // Prefill the field if a token is already stored, then show the status.
+    void (async () => {
+      const tok = await loadToken();
+      if (tok) tokenInput.value = tok;
+      refreshStatus();
+    })();
+
+    return section(t('settings.section.github'), [
+      intro,
+      row(t('settings.github.token-label'), tokenInput),
+      buttons,
+      status,
+      createLink,
+      hint,
+    ]);
   }
 
   function metadataField(
