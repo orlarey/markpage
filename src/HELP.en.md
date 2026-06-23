@@ -445,6 +445,14 @@ A new document (*File ▸ New*) is born in the **Library**. Opening a
 `.md` from another volume edits it **in place**: every Save re-publishes
 it there.
 
+> **Keep in mind.** markpage **publishes and resumes** files — it is
+> **not** real-time multi-user editing (like Google Docs). Each *Save*
+> syncs **one file**; if two versions diverge, the conflict is handled
+> **without losing anything** (see GitHub and OneDrive below). And
+> “sharing” doesn't mean the same thing everywhere: an **access right**
+> to the repo (GitHub), an **account link/folder** (OneDrive), or a
+> **frozen copy** with no account (share link).
+
 #### The document name and origin
 
 The title, centred in the bar, is **editable** for a Library document.

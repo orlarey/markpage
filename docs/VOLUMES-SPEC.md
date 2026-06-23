@@ -1,21 +1,46 @@
 ---
 title: Spécification — Volumes (système de fichiers unifié)
 author: Yann Orlarey
-version: 0.2 (brouillon)
+version: 0.3
 date: 2026-06-23
 ---
 
-> **Statut :** design exploratoire (v0.1) — non implémenté. Spec **pilotée par
-> invariants** (voir « Invariants »). Elle unifie l'ouverture / l'enregistrement
-> de documents au-dessus de trois backends qui existent déjà
-> (`docs.ts`, `disk-link.ts`, `github-sync.ts` — cf.
-> [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md)). Le plan en fin de fichier est
-> prévisionnel.
+> **Statut :** **voie A livrée** (markpage 0.32.0). Les invariants V1–V5 sont
+> implémentés sur quatre volumes — Bibliothèque (`docs.ts`), Disque
+> (`disk-link.ts`/File System Access), Dépôt GitHub (`github-sync.ts`, cf.
+> [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md)), OneDrive (Microsoft Graph) — et
+> validés en réel. **Reste à venir : la voie B** (un document *appartient*
+> vraiment à un volume — le modèle de données « pur ») et les différés notés en
+> §9. Le plan en fin de fichier décrit la voie A telle qu'elle a été suivie.
 
 **Thèse :** offrir une expérience d'**application de bureau traditionnelle** —
 un seul *Ouvrir*, une racine, des **volumes montés**, des dossiers, des fichiers
 — **sans installation et sans serveur**, fidèle à l'ADN de markpage (appli
 statique, données chez l'utilisateur).
+
+::: important [Ce que c'est, et ce que ce n'est pas]
+markpage permet de **publier et reprendre** un document Markdown sur plusieurs
+supports. **Ce n'est pas de l'édition collaborative temps réel** (type Google
+Docs) : chaque *Save* **synchronise un fichier**, et les **conflits sont gérés
+explicitement, sans perte**. L'UX est unifiée, mais les volumes n'ont **pas la
+même sémantique** — voir « Capacités par volume » ci-dessous.
+:::
+
+**Capacités par volume.** L'unification (un *Ouvrir*, un *Enregistrer sous*) ne
+gomme **pas** les différences de contrat. Chaque volume expose les siennes :
+
+| Volume | Versionné | Hors-ligne | Conflit au Save | « Partager » signifie |
+| :-- | :-- | :-- | :-- | :-- |
+| **Bibliothèque** | non | oui | sans objet (local) | — (rien ne sort) |
+| **Disque** | non (le FS) | oui | détecté (mtime), badge ⛓️ | donner le fichier / versionner avec git soi-même |
+| **Dépôt GitHub** | **oui** (git) | non (réseau) | **fork** `foo-<sha>.md`, jamais d'écrasement (R4) | **droits sur le dépôt** |
+| **OneDrive** | non (eTag) | non (réseau) | **confirmation** avant écrasement | **lien / dossier** Microsoft |
+| *Lien de partage* | non | — | sans objet | **copie détachée** (`?import=`), sans compte |
+
+> **Le mot « partagé » recouvre trois contrats distincts** : un *droit d'accès*
+> au dépôt (GitHub), un *lien/dossier* de compte (OneDrive), ou une *copie
+> figée* sans compte ni édition de l'original (lien `?import=`). À employer avec
+> soin dans l'UI et la doc.
 
 ::: toc+
 

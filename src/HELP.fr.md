@@ -461,6 +461,14 @@ Un nouveau document (*Fichier ▸ Nouveau*) naît dans la **Bibliothèque**.
 Ouvrir un `.md` depuis un autre volume l'édite **en place** : à chaque
 Save, il y est republié.
 
+> **À garder en tête.** markpage **publie et reprend** des fichiers — ce
+> n'est **pas** de l'édition à plusieurs en temps réel (type Google Docs).
+> Chaque *Save* synchronise **un fichier** ; si deux versions divergent,
+> le conflit est géré **sans rien perdre** (voir GitHub et OneDrive plus
+> bas). Et « partager » ne veut pas dire la même chose partout : un
+> **droit d'accès** au dépôt (GitHub), un **lien/dossier** de compte
+> (OneDrive), ou une **copie figée** sans compte (lien de partage).
+
 #### Le nom et l'origine du document
 
 Le titre, au centre de la barre, est **modifiable** pour un document de
