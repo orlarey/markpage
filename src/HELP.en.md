@@ -135,21 +135,20 @@ A quoted title adds a numbered caption (*Figure N*).
 
 At the top of the screen, a handful of buttons:
 
-- **My doc ▾** — shows the current document's name; opens the list
-  of your documents, lets you create / rename / duplicate / delete.
-- **Import** — adds a file (`.md`, `.txt`, `.html`, `.docx`) as a
-  new document, without touching the current one.
-- **Style ▾** — a formatting menu (headings, bold, lists, insert
+- **File ▾** — everything about the document: *New*, *Open…*, *Save* /
+  *Save As…*, *Move to Trash*, *Import a file*, export (Markdown / PDF /
+  LaTeX) and sharing (cf. *Opening, saving, sharing* below).
+- **The document name** (centred) — editable for a Library document;
+  for a document linked to a volume, it shows its file name and an
+  origin chip.
+- **Format ▾** — a formatting menu (headings, bold, lists, insert
   image…). **Right-clicking** in the editor opens the same menu.
-- **Help** (yellow) — opens this tutorial.
-- **Preview** — toggles between editor and paginated rendering.
-- **Export ▾** — produces a Markdown file (`.md`), a PDF, a LaTeX
-  source (`.tex`), uploads to OneDrive, or generates a share link
-  you can paste into email / chat (cf. *Exporting your document*
-  below).
-- **Settings ▾** — customise the PDF render (author, margins,
+- **View ▾** — *Preview* (toggle editor / paginated render), *Present*
+  (full screen), *Guides* (layout overlay).
+- **Settings** — customise the PDF render (author, margins,
   fonts…). Opens in a **separate window** that you can place next
   to the preview to see each change in real time.
+- **?** (yellow) — opens this tutorial.
 
 ### Seeing the preview
 
@@ -168,7 +167,7 @@ to fix it. Or press `Cmd/Ctrl + Enter` again.
 
 ### Exporting to PDF \label{sec:pdf-export}
 
-Click on **Export ▾** then **PDF (.pdf)**, or use the shortcut
+Click on **File ▾** then **PDF (.pdf)**, or use the shortcut
 `Cmd/Ctrl + P` directly.
 
 The browser opens its print dialog. Choose:
@@ -419,91 +418,130 @@ slides mode), `zoom=0.7` (explicit factor between 0.1 and 2.0).
 Caption + label work as usual
 (`` ```demo "Lists" \label{fig:lists} `` ``).
 
-### Managing multiple documents \label{sec:multi-doc}
+### Opening, saving, sharing \label{sec:multi-doc}
 
-markpage keeps **all your documents** in the browser. The list lives
-behind the **My doc ▾** button, which also shows the name of the
-document you're currently editing.
+markpage handles your documents like a **desktop application** — one
+*Open*, folders, files — but **with no install and no server**.
+Everything lives under the **File ▾** menu.
 
-#### The My doc ▾ menu
+#### One “Open”, several sources
 
-- **Rename the current doc**: click in the field at the top of the
-  menu, type, confirm with Enter. (Esc cancels.)
-- **+ New document**: creates an empty document and switches to it.
-  The previous doc stays in place, you can come back to it at any
-  time.
-- **Reload**: to the right of the name field, reloads the current
-  doc from a file on disk (handy when the file has been modified by
-  an external editor). The doc's name in markpage is preserved; only
-  the content is replaced.
-- **List of other documents**: sorted by modification date. Click
-  a name to open it. On hover, four actions appear:
-  - *Rename* — edits the name directly in the list.
-  - *Reload* — replaces the content from a file on disk.
-  - *Duplicate* — clones the document.
-  - *Delete* — with a confirmation prompt.
+**File ▸ Open…** (`Cmd/Ctrl + O`) opens a single **file browser**. At
+its root sit your **volumes** — the places your documents live:
+
+| Volume | What it is | Availability |
+|---|---|---|
+| **Library** | your documents stored in the browser — private, offline, always there | everywhere |
+| **Folder** | a real folder on your machine | Chrome / Edge |
+| **GitHub repo** | a git repo, to edit one document across several devices | with a token (see below) |
+| **OneDrive** | your `Apps/markpage/` folder | after a Microsoft sign-in |
+
+Enter a volume, browse folders, click a `.md` to open it. At the bottom
+of the browser: **Mount a folder…**, **Mount a repo…**, **Connect
+OneDrive…** add a volume (the `⏏` next to a volume unmounts it; it is
+never deleted from disk or the repo).
+
+A new document (*File ▸ New*) is born in the **Library**. Opening a
+`.md` from another volume edits it **in place**: every Save re-publishes
+it there.
+
+#### The document name and origin
+
+The title, centred in the bar, is **editable** for a Library document.
+For a document **linked** to a volume, the title shows its **file name**
+(read-only) and a **chip** recalls its origin: `🐙 repo ▸ folder/`, the
+folder on disk, or `☁️ OneDrive`.
+
+#### Saving and publishing
+
+- **Save** (`Cmd/Ctrl + S`) — saves the document; if it's linked to a
+  volume, it is re-published there too.
+- **Save As…** — picks **a volume + a folder + a name**. This is how you
+  **publish** a Library document to GitHub, disk or OneDrive. For an
+  already-linked document, the dialog opens **in its origin folder**,
+  the name prefilled — just tweak it.
+
+#### Deleting: the Trash
+
+**File ▸ Move to Trash…** sends the current document to the **Trash** —
+a soft, **reversible** delete. The Trash is a folder of the Library in
+the browser: there you **restore** or **delete permanently** each
+document, and you can **empty** it.
 
 #### Importing a file
 
-The **Import** button (shortcut `Cmd/Ctrl + O`) adds an external
-file as a **new document** in the list, without touching the one
-you're working on. Accepted formats: `.md`, `.txt`, `.html`, `.docx`
-(Word).
+**File ▸ Import a file…** adds an external file as a **new document** in
+the Library. Formats: `.md`, `.txt`, `.html`, `.docx` (Word).
 
 > **Note about Word files**: when importing a `.docx`, the text,
 > headings, lists, bold/italic, links and quotes are recovered, but
 > **not the images**. If your Word document contained photos, you'll
 > need to re-insert them manually after import.
 
-#### Exporting your document
+#### Working with GitHub
 
-The **Export ▾** button offers several options:
+A **GitHub repo** lets you edit the **same document** across several
+devices (laptop, desktop, another browser), versioned, **with no
+server**.
+
+1. **The token.** In **Settings ▸ GitHub**, paste a *fine-grained
+   personal access token* (the *Create a token →* button opens the
+   prefilled GitHub page; **Contents: Read and write** permission). The
+   token stays **on this device**; use *Forget token* on a shared
+   machine.
+2. **Mount the repo** from the browser (*Mount a repo…*), then open a
+   `.md`. It edits in place; **Save** re-publishes it.
+3. On another device: same token, *Mount a repo…*, open the same file —
+   you pick up your work. **Reload** (File menu) fetches the latest
+   remote version.
+
+> **Never overwrites.** If the repo **and** your copy both changed since
+> the last sync, markpage doesn't decide for you and loses nothing: on
+> Save, your version is written to a **sibling** file `foo-<sha>.md`;
+> `foo.md` keeps the repo's version. Merge the two whenever you like,
+> then delete the duplicate.
+
+#### Working with OneDrive
+
+**Connect OneDrive…** runs a Microsoft sign-in (the page reloads once).
+markpage only ever accesses your private `Apps/markpage/` folder (scope
+`Files.ReadWrite.AppFolder`), not the rest of your Drive. Then browse /
+open / save like any other volume. If the file changed on OneDrive since
+your last sync, markpage **asks** before overwriting.
+
+#### Exporting and sharing
+
+The **File ▾** menu also offers:
 
 | Option | Shortcut | Effect |
 |---|---|---|
-| **Markdown (.md)** | `Cmd/Ctrl + S` | Downloads your document as Markdown |
+| **Markdown (.md)** | `Cmd/Ctrl + S` | Downloads the document as Markdown |
 | **PDF (.pdf)** | `Cmd/Ctrl + P` | Produces the final PDF |
 | **LaTeX (.tex)** | — | Produces a LaTeX source compilable with `xelatex` |
-| **OneDrive…** | — | Uploads the `.md` to your OneDrive (`Apps/markpage/` folder) and copies an anonymous share link |
-| **Copy share link** | — | Encodes the document into a `?import=…` URL ready to paste into Slack / email / SMS |
-| **Send by email** | — | Same URL, opened in your mail client with the link pre-filled |
+| **Copy share link** | — | Encodes the document into a `?import=…` URL to paste into Slack / email / SMS |
+| **Send by email** | — | Same URL, opened in your mail client |
 
-The **Markdown** format (`.md`) is an open, plain-text format,
-readable anywhere. You can send it to someone who doesn't use
-markpage — they'll open it in any text editor.
+The **Markdown** format (`.md`) is an open, plain-text format, readable
+anywhere — send it to someone who doesn't use markpage and they'll open
+it in any editor.
 
-The **LaTeX** format (`.tex`) is useful when you want to fine-tune
-the layout with a LaTeX compiler, or submit your document to a
-journal that requires `.tex` sources. When your document contains
-images or diagrams (mermaid, chart), the download is a **`.zip`
-file** containing the `.tex` and an `images/` directory. Compile
-with:
+The **LaTeX** format (`.tex`) is for fine-tuning the layout with a LaTeX
+compiler, or submitting to a journal. When the document contains images
+or diagrams (mermaid, chart), the download is a **`.zip`** (the `.tex` +
+an `images/` directory). Compile with:
 
 ```
 xelatex --shell-escape your-document.tex
 ```
 
-(`--shell-escape` is only needed when the document contains
-diagrams, and requires `inkscape` to be installed.) The header
-comment in the `.tex` reminds you of these prerequisites.
+(`--shell-escape` is only needed with diagrams, and requires `inkscape`
+to be installed.)
 
-**OneDrive** asks for a Microsoft sign-in on first use (OAuth
-popup, scope `Files.ReadWrite.AppFolder` — markpage only ever sees
-the `Apps/markpage/` folder, not the rest of your Drive). The
-generated share link is anonymous and view-only: anyone you give
-it to can download the `.md`, but no one can modify it in your
-OneDrive.
-
-**The share link** is a self-contained URL: the whole document
-(text + base64-inlined images) is gzip-compressed and packed into
-the URL itself. No server, no account required. The recipient
-opens the link in their browser and the document is auto-imported
-as a fresh local document in their markpage. Cap: ~8 KB payload
-(≈ 5-10 pages of normal Markdown) — beyond that, use OneDrive
-instead.
-
-The exported filename matches your document's name (the one shown
-on **My doc ▾**).
+**The share link** is a self-contained URL: the whole document (text +
+base64-inlined images) is gzip-compressed and packed into the URL. No
+server, no account. The recipient opens the link and the document is
+imported as a fresh local document in their markpage. Cap: ~8 KB payload
+(≈ 5-10 pages) — beyond that, use a volume (GitHub / OneDrive).
 
 Your work is **saved automatically** in the browser, so if you
 close the tab by mistake, everything is recovered the next time

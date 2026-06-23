@@ -141,24 +141,23 @@ Un titre entre guillemets ajoute une légende numérotée (*Figure N*).
 
 En haut de l'écran, quelques boutons :
 
-- **Mon doc ▾** — montre le nom du document courant ; ouvre la liste
-  de vos documents, permet d'en créer / renommer / dupliquer /
-  supprimer.
-- **Importer** — ajoute un fichier (`.md`, `.txt`, `.html`,
-  `.docx`) comme nouveau document, sans toucher au courant.
-- **Style ▾** — un menu de mise en forme (titres, gras, listes,
+- **Fichier ▾** — tout ce qui touche au document : *Nouveau*, *Ouvrir…*,
+  *Enregistrer* / *Enregistrer sous…*, *Mettre à la corbeille*,
+  *Importer un fichier*, l'export (Markdown / PDF / LaTeX) et le partage
+  (cf. *Ouvrir, enregistrer, partager* plus bas).
+- **Le nom du document** (au centre) — modifiable pour un document de la
+  Bibliothèque ; pour un document lié à un volume, il affiche son nom de
+  fichier et une pastille d'origine.
+- **Format ▾** — un menu de mise en forme (titres, gras, listes,
   insérer une image…). Le **clic-droit** dans l'éditeur ouvre le
   même menu.
-- **Aide** (jaune) — ouvre ce tutoriel.
-- **Aperçu** — bascule entre l'éditeur et le rendu paginé.
-- **Exporter ▾** — produit un fichier Markdown (`.md`), un PDF, un
-  source LaTeX (`.tex`), envoie vers OneDrive, ou génère un lien de
-  partage que vous pouvez coller dans un email / chat (cf. *Exporter
-  votre document* plus bas).
-- **Réglages ▾** — personnaliser le rendu PDF (auteur, marges,
+- **Vue ▾** — *Aperçu* (bascule éditeur / rendu paginé), *Présenter*
+  (plein écran), *Repères* (overlay de mise en page).
+- **Réglages** — personnaliser le rendu PDF (auteur, marges,
   polices…). S'ouvre dans une **fenêtre séparée** que vous pouvez
   poser à côté de l'aperçu pour voir l'effet de chaque changement
   en temps réel.
+- **?** (jaune) — ouvre ce tutoriel.
 
 ### Voir l'aperçu
 
@@ -177,7 +176,7 @@ pour la corriger. Ou rappuyez sur `Cmd/Ctrl + Enter`.
 
 ### Exporter en PDF \label{sec:pdf-export}
 
-Cliquez sur **Exporter ▾** puis **PDF (.pdf)**, ou utilisez le
+Cliquez sur **Fichier ▾** puis **PDF (.pdf)**, ou utilisez le
 raccourci `Cmd/Ctrl + P` directement.
 
 Le navigateur ouvre son dialogue d'impression. Choisissez :
@@ -434,37 +433,64 @@ slide en mode slides), `zoom=0.7` (facteur explicite entre 0.1 et
 2.0). Caption + label fonctionnent comme partout
 (`` ```demo "Listes" \label{fig:listes} ``).
 
-### Gérer plusieurs documents \label{sec:multi-doc}
+### Ouvrir, enregistrer, partager \label{sec:multi-doc}
 
-markpage garde **tous vos documents** dans le navigateur. La liste se
-trouve derrière le bouton **Mon doc ▾**, qui affiche aussi le nom
-du document que vous éditez actuellement.
+markpage gère vos documents comme une **application de bureau** — un
+seul *Ouvrir*, des dossiers, des fichiers — mais **sans installation
+ni serveur**. Tout passe par le menu **Fichier ▾**.
 
-#### Le menu Mon doc ▾
+#### Un seul « Ouvrir », plusieurs sources
 
-- **Renommer le doc courant** : cliquez dans le champ en haut du
-  menu, tapez, validez avec Entrée. (Échap annule.)
-- **+ Nouveau document** : crée un document vide et bascule
-  dessus. Le doc précédent reste en place, vous pouvez y revenir
-  à tout moment.
-- **Recharger** : à droite du champ de nom, recharge le doc courant
-  depuis un fichier sur disque (utile quand le fichier a été modifié
-  par un éditeur externe). Le nom du doc dans markpage est conservé,
-  seul le contenu est remplacé.
-- **Liste des autres documents** : triés par date de modification.
-  Cliquez sur un nom pour l'ouvrir. Au survol, quatre actions
-  apparaissent :
-  - *Renommer* — édite le nom directement dans la liste.
-  - *Recharger* — remplace le contenu depuis un fichier sur disque.
-  - *Dupliquer* — clone le document.
-  - *Supprimer* — avec une demande de confirmation.
+**Fichier ▸ Ouvrir…** (`Cmd/Ctrl + O`) ouvre un **navigateur de
+fichiers** unique. À sa racine, vos **volumes** — les endroits où
+vivent vos documents :
+
+| Volume | Ce que c'est | Disponibilité |
+|---|---|---|
+| **Bibliothèque** | vos documents stockés dans le navigateur — privés, hors-ligne, toujours là | partout |
+| **Dossier** | un vrai dossier de votre machine | Chrome / Edge |
+| **Dépôt GitHub** | un dépôt git, pour éditer un même document depuis plusieurs appareils | avec un jeton (voir plus bas) |
+| **OneDrive** | votre dossier `Apps/markpage/` | après connexion Microsoft |
+
+Entrez dans un volume, naviguez les dossiers, cliquez un `.md` pour
+l'ouvrir. En bas du navigateur : **Monter un dossier…**, **Monter un
+dépôt…**, **Connecter OneDrive…** ajoutent un volume (un `⏏` à côté
+d'un volume le retire ; il n'est jamais effacé du disque ou du dépôt).
+
+Un nouveau document (*Fichier ▸ Nouveau*) naît dans la **Bibliothèque**.
+Ouvrir un `.md` depuis un autre volume l'édite **en place** : à chaque
+Save, il y est republié.
+
+#### Le nom et l'origine du document
+
+Le titre, au centre de la barre, est **modifiable** pour un document de
+la Bibliothèque. Pour un document **lié** à un volume, le titre montre
+son **nom de fichier** (non modifiable) et une **pastille** rappelle son
+origine : `🐙 dépôt ▸ dossier/`, le dossier sur le disque, ou
+`☁️ OneDrive`.
+
+#### Enregistrer et publier
+
+- **Enregistrer** (`Cmd/Ctrl + S`) — sauvegarde le document ; s'il est
+  lié à un volume, il y est aussi republié.
+- **Enregistrer sous…** — choisit **un volume + un dossier + un nom**.
+  C'est ainsi qu'on **publie** un document de la Bibliothèque vers
+  GitHub, le disque ou OneDrive. Pour un document déjà lié, le dialogue
+  s'ouvre **dans son dossier d'origine**, le nom pré-rempli : il suffit
+  de le retoucher.
+
+#### Supprimer : la Corbeille
+
+**Fichier ▸ Mettre à la corbeille…** envoie le document courant à la
+**Corbeille** — une suppression douce, **réversible**. La Corbeille est
+un dossier de la Bibliothèque dans le navigateur : on y **restaure** ou
+**supprime définitivement** chaque document, et on peut la **vider**.
 
 #### Importer un fichier
 
-Le bouton **Importer** (raccourci `Cmd/Ctrl + O`) ajoute un fichier
-externe comme **nouveau document** dans la liste, sans toucher à
-celui sur lequel vous travaillez. Formats acceptés : `.md`,
-`.txt`, `.html`, `.docx` (Word).
+**Fichier ▸ Importer un fichier…** ajoute un fichier externe comme
+**nouveau document** dans la Bibliothèque. Formats : `.md`, `.txt`,
+`.html`, `.docx` (Word).
 
 > **À noter pour les fichiers Word** : à l'import d'un `.docx`, le
 > texte, les titres, les listes, le gras/italique, les liens et les
@@ -472,55 +498,73 @@ celui sur lequel vous travaillez. Formats acceptés : `.md`,
 > document Word contenait des photos, vous devrez les réinsérer
 > manuellement après import.
 
-#### Exporter votre document
+#### Travailler avec GitHub
 
-Le bouton **Exporter ▾** propose plusieurs options :
+Un **dépôt GitHub** vous permet d'éditer le **même document** depuis
+plusieurs appareils (portable, bureau, autre navigateur), versionné,
+**sans serveur**.
+
+1. **Le jeton.** Dans **Réglages ▸ GitHub**, collez un *jeton personnel
+   fine-grained* (le bouton *Créer un token →* ouvre la page GitHub
+   pré-remplie ; permission **Contents : lecture et écriture**). Le
+   jeton reste **sur cet appareil** ; utilisez *Oublier le token* sur
+   une machine partagée.
+2. **Monter le dépôt** depuis le navigateur (*Monter un dépôt…*), puis
+   ouvrez un `.md`. Il s'édite en place ; **Save** le republie.
+3. Sur un autre appareil : même jeton, *Monter un dépôt…*, ouvrez le
+   même fichier — vous reprenez votre travail. **Recharger** (menu
+   Fichier) récupère la dernière version distante.
+
+> **Jamais d'écrasement.** Si le dépôt **et** votre copie ont changé
+> depuis la dernière synchro, markpage ne tranche pas à votre place et
+> ne perd rien : au Save, votre version est enregistrée dans un fichier
+> **frère** `foo-<sha>.md` ; `foo.md` garde la version du dépôt. Vous
+> fusionnez les deux quand vous voulez, puis supprimez le doublon.
+
+#### Travailler avec OneDrive
+
+**Connecter OneDrive…** ouvre une connexion Microsoft (la page se
+recharge une fois). markpage n'accède qu'à votre dossier privé
+`Apps/markpage/` (scope `Files.ReadWrite.AppFolder`), pas au reste de
+votre Drive. Ensuite, parcourez / ouvrez / enregistrez comme pour les
+autres volumes. Si le fichier a changé sur OneDrive depuis votre
+dernière synchro, markpage **vous demande** avant d'écraser.
+
+#### Exporter et partager
+
+Le menu **Fichier ▾** propose aussi :
 
 | Option | Raccourci | Effet |
 |---|---|---|
-| **Markdown (.md)** | `Cmd/Ctrl + S` | Télécharge votre document au format Markdown |
+| **Markdown (.md)** | `Cmd/Ctrl + S` | Télécharge le document au format Markdown |
 | **PDF (.pdf)** | `Cmd/Ctrl + P` | Produit le PDF final |
 | **LaTeX (.tex)** | — | Produit un source LaTeX compilable avec `xelatex` |
-| **OneDrive…** | — | Envoie le `.md` dans votre OneDrive (dossier `Apps/markpage/`) et copie un lien de partage anonyme |
 | **Copier le lien de partage** | — | Encode le document dans une URL `?import=…` à coller dans Slack / email / SMS |
-| **Envoyer par email** | — | Même URL, ouverte dans votre client mail avec le lien pré-rempli |
+| **Envoyer par email** | — | Même URL, ouverte dans votre client mail |
 
 Le format **Markdown** (`.md`) est un format texte ouvert, lisible
-partout. Vous pouvez l'envoyer à quelqu'un qui n'utilise pas markpage —
-il l'ouvrira dans n'importe quel éditeur de texte.
+partout — envoyez-le à quelqu'un qui n'utilise pas markpage, il
+l'ouvrira dans n'importe quel éditeur.
 
-Le format **LaTeX** (`.tex`) est utile si vous voulez retoucher
-finement la mise en page avec un compilateur LaTeX, ou soumettre
-votre document à un journal qui demande des sources `.tex`. Quand
-votre document contient des images ou des diagrammes (mermaid,
-chart), le téléchargement est un **fichier `.zip`** contenant le
-`.tex` et un dossier `images/`. Compilez avec :
+Le format **LaTeX** (`.tex`) sert à retoucher finement la mise en page
+avec un compilateur LaTeX, ou à soumettre à un journal. Si le document
+contient des images ou des diagrammes (mermaid, chart), le
+téléchargement est un **`.zip`** (le `.tex` + un dossier `images/`).
+Compilez avec :
 
 ```
 xelatex --shell-escape votre-document.tex
 ```
 
-(`--shell-escape` n'est nécessaire que si le document contient des
-diagrammes, et exige qu'`inkscape` soit installé.) Le commentaire
-en tête du `.tex` rappelle ces prérequis.
-
-**OneDrive** demande une connexion Microsoft à la première
-utilisation (popup OAuth, scope `Files.ReadWrite.AppFolder` —
-markpage n'a accès qu'au dossier `Apps/markpage/`, pas au reste
-de votre Drive). Le lien de partage généré est anonyme et en
-lecture seule : n'importe qui à qui vous le donnez peut télécharger
-le `.md`, mais personne ne peut le modifier dans votre OneDrive.
+(`--shell-escape` n'est nécessaire qu'avec des diagrammes, et exige
+qu'`inkscape` soit installé.)
 
 **Le lien de partage** est une URL auto-portante : tout le document
-(texte + images en base64) est gzip-compressé puis encodé dans
-l'URL elle-même. Aucune connexion serveur, aucun compte requis. Le
-destinataire ouvre le lien dans son navigateur et le document est
-importé automatiquement comme un nouveau document local dans son
-markpage. Limite : ~8 Ko de payload (≈ 5-10 pages de markdown
-normal) — au-delà, utilisez OneDrive plutôt.
-
-Le nom du fichier exporté reprend le nom de votre document (celui
-affiché sur **Mon doc ▾**).
+(texte + images en base64) est gzip-compressé puis encodé dans l'URL.
+Aucun serveur, aucun compte. Le destinataire ouvre le lien et le
+document est importé comme un nouveau document local dans son markpage.
+Limite : ~8 Ko de payload (≈ 5-10 pages) — au-delà, passez par un
+volume (GitHub / OneDrive).
 
 Votre travail est **automatiquement sauvegardé** dans le navigateur,
 donc si vous fermez l'onglet par accident, tout est récupéré à la
