@@ -63,10 +63,12 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     label: string,
     hint: string,
     action: () => void,
+    disabled = false,
   ): HTMLButtonElement => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'file-menu-item';
+    btn.disabled = disabled; // shown greyed, not removed — more informative
     const main = document.createElement('span');
     main.className = 'file-menu-label';
     main.textContent = label;
@@ -75,6 +77,7 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     sub.textContent = hint;
     btn.append(main, sub);
     btn.addEventListener('click', () => {
+      if (btn.disabled) return;
       close();
       action();
     });
@@ -99,14 +102,14 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
       item(t('file-menu.unlink-origin'), '', opts.onUnlink),
     );
   }
-  menu.append(sep());
-  if (opts.modified) {
-    menu.append(item(t('file-menu.save'), 'Cmd/Ctrl + S', opts.onSave));
-  }
-  menu.append(item(t('file-menu.save-as'), '', opts.onSaveAs));
-  if (opts.modified) {
-    menu.append(item(t('file-menu.revert'), '', opts.onRevert));
-  }
+  // Save / Revert stay visible but greyed when there's nothing to save —
+  // more informative than hiding them.
+  menu.append(
+    sep(),
+    item(t('file-menu.save'), 'Cmd/Ctrl + S', opts.onSave, !opts.modified),
+    item(t('file-menu.save-as'), '', opts.onSaveAs),
+    item(t('file-menu.revert'), '', opts.onRevert, !opts.modified),
+  );
   menu.append(
     sep(),
     item(t('file-menu.import'), '', opts.onImport),
