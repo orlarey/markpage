@@ -29,6 +29,7 @@ export interface VolumeBrowserOptions {
   /** Mount actions, shown in the footer when provided. */
   onMountDisk?(): void;
   onMountRepo?(): void;
+  onMountOneDrive?(): void;
   /** Re-grant RW permission on a volume's handle; resolves to whether granted. */
   onReauthorize?(volume: Volume): Promise<boolean>;
   /** Unmount a volume (Disk/Repo) — removes it from the root. */
@@ -45,6 +46,7 @@ const KIND_ICON: Record<Volume['kind'], string> = {
   library: '🗂',
   disk: '💻',
   repo: '🐙',
+  onedrive: '☁️',
 };
 
 /** Open the unified volume browser (single-instance). */
@@ -93,6 +95,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   };
   if (opts.onMountDisk) mountBtn(t('volume.mount-disk'), () => opts.onMountDisk?.());
   if (opts.onMountRepo) mountBtn(t('volume.mount-repo'), () => opts.onMountRepo?.());
+  if (opts.onMountOneDrive) mountBtn(t('volume.mount-onedrive'), () => opts.onMountOneDrive?.());
 
   const close = (): void => {
     overlay.remove();

@@ -11,7 +11,14 @@
  *******************************************************************************/
 
 import { type RepoRef, loadToken } from './github';
-import { DiskVolume, LibraryVolume, RepoVolume, type Volume } from './volumes';
+import { oneDriveConnected, signOutOneDrive } from './onedrive';
+import {
+  DiskVolume,
+  LibraryVolume,
+  OneDriveVolume,
+  RepoVolume,
+  type Volume,
+} from './volumes';
 
 // ---- disk mounts (directory handles in IndexedDB) ----------------------
 
@@ -130,10 +137,11 @@ export function unmountRepo(key: string): void {
   saveRepoMounts(loadRepoMounts().filter((r) => repoKey(r) !== key));
 }
 
-/** Unmount any volume by its `Volume.id` (`disk:<uuid>` or `repo:<key>`). */
+/** Unmount any volume by its `Volume.id` (`disk:<uuid>` / `repo:<key>` / `onedrive`). */
 export async function unmountVolume(volumeId: string): Promise<void> {
   if (volumeId.startsWith('disk:')) await unmountDisk(volumeId.slice('disk:'.length));
   else if (volumeId.startsWith('repo:')) unmountRepo(volumeId.slice('repo:'.length));
+  else if (volumeId === 'onedrive') signOutOneDrive();
 }
 
 // ---- the live volume list ----------------------------------------------
@@ -152,5 +160,6 @@ export async function listVolumes(): Promise<Volume[]> {
   if (token) {
     for (const ref of loadRepoMounts()) volumes.push(new RepoVolume(token, ref));
   }
+  if (oneDriveConnected()) volumes.push(new OneDriveVolume());
   return volumes;
 }

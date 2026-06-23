@@ -13,6 +13,7 @@
  *******************************************************************************/
 
 import { type DocEntry, listDocs, listTrash, loadDocContent } from './docs';
+import { listOneDrive, readOneDriveText } from './onedrive';
 import {
   type RepoRef,
   type TreeEntry,
@@ -22,7 +23,7 @@ import {
   readTextFile,
 } from './github';
 
-export type VolumeKind = 'library' | 'disk' | 'repo';
+export type VolumeKind = 'library' | 'disk' | 'repo' | 'onedrive';
 
 /** Health of a volume — drives the browser's availability hints. */
 export type VolumeState =
@@ -273,5 +274,36 @@ export class RepoVolume implements Volume {
     const f = await readTextFile(this.token, { ...this.ref, path });
     if (!f) throw new Error(`Fichier introuvable : ${path}`);
     return f.text;
+  }
+}
+
+// ---- OneDrive volume (Microsoft Graph app-folder) -----------------------
+
+/** The user's OneDrive app-folder (`Apps/markpage/`), mounted once signed in. */
+export class OneDriveVolume implements Volume {
+  readonly id = 'onedrive';
+  readonly kind = 'onedrive' as const;
+  readonly label = 'OneDrive';
+
+  // Included in the list only when connected, so a token is expected; a lapsed
+  // token surfaces as a list error rather than a separate state.
+  state(): Promise<VolumeState> {
+    return Promise.resolve('ready');
+  }
+
+  async list(path: string): Promise<VolumeEntry[]> {
+    const entries = await listOneDrive(path);
+    return sortEntries(
+      entries.map((e) => ({
+        name: e.name,
+        path: path === '' ? e.name : `${path}/${e.name}`,
+        type: e.isFolder ? 'dir' : 'file',
+        isMarkdown: !e.isFolder && isMd(e.name),
+      })),
+    );
+  }
+
+  async readText(path: string): Promise<string> {
+    return (await readOneDriveText(path)).text;
   }
 }

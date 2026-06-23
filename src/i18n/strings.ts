@@ -338,6 +338,9 @@ const FR = {
   'github.branch-absent':
     'La branche « {branch} » n’existe pas dans le dépôt. Crée-la sur GitHub, puis réessaie.',
   'github.error': 'Erreur GitHub (HTTP {status}).',
+  'onedrive.error': 'Erreur OneDrive : {msg}',
+  'onedrive.conflict':
+    'Ce fichier a changé sur OneDrive depuis ta dernière synchro. Écraser avec ta version ?',
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Ouvrir',
   'volume.save-title': 'Enregistrer sous',
@@ -346,6 +349,7 @@ const FR = {
   'volume.save-here': 'Enregistrer ici',
   'volume.mount-disk': 'Monter un dossier…',
   'volume.mount-repo': 'Monter un dépôt…',
+  'volume.mount-onedrive': 'Connecter OneDrive…',
   'volume.authorize': 'Autoriser',
   'volume.unmount': 'Démonter ce volume',
   'volume.delete': 'Mettre à la corbeille',
@@ -741,6 +745,9 @@ const EN: Record<keyof typeof FR, string> = {
   'github.branch-absent':
     'The branch “{branch}” does not exist in the repo. Create it on GitHub, then try again.',
   'github.error': 'GitHub error (HTTP {status}).',
+  'onedrive.error': 'OneDrive error: {msg}',
+  'onedrive.conflict':
+    'This file changed on OneDrive since your last sync. Overwrite with your version?',
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Open',
   'volume.save-title': 'Save As',
@@ -749,6 +756,7 @@ const EN: Record<keyof typeof FR, string> = {
   'volume.save-here': 'Save here',
   'volume.mount-disk': 'Mount a folder…',
   'volume.mount-repo': 'Mount a repo…',
+  'volume.mount-onedrive': 'Connect OneDrive…',
   'volume.authorize': 'Authorize',
   'volume.unmount': 'Unmount this volume',
   'volume.delete': 'Move to Trash',

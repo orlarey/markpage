@@ -107,12 +107,14 @@ import {
   isGithubLinked,
   isLinked,
   isModified,
+  isOneDriveLinked,
   linkKind,
   listDocs,
   listTrash,
   loadCommittedContent,
   loadDocContent,
   migrateLegacyDocIfNeeded,
+  oneDriveLinkOf,
   purgeDoc,
   renameDoc,
   resolveCurrentDoc,
@@ -124,7 +126,10 @@ import {
   setCurrentDocId,
   setDocGithubLink,
   setDocLink,
+  setDocOneDriveLink,
+  clearDocOneDriveLink,
   updateGithubBaseline,
+  updateOneDriveBaseline,
   type DocEntry,
 } from './docs';
 import { GithubError, loadToken } from './github';
@@ -136,7 +141,19 @@ import {
   placeImageForInsert,
   saveToGithub,
 } from './github-sync';
-import { DiskVolume, RepoVolume, type Volume, type VolumeEntry } from './volumes';
+import {
+  DiskVolume,
+  OneDriveVolume,
+  RepoVolume,
+  type Volume,
+  type VolumeEntry,
+} from './volumes';
+import {
+  OneDriveConflictError,
+  readOneDriveText,
+  signInOneDrive,
+  writeOneDriveText,
+} from './onedrive';
 import { listVolumes, mountDisk, mountRepo, unmountVolume } from './volume-registry';
 import { type VolumeBrowserOptions, openVolumeBrowser } from './ui/volume-browser';
 import {
@@ -862,6 +879,7 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(false);
     if (isLinked(currentDoc)) await pushToDisk();
     if (isGithubLinked(currentDoc)) await pushToGithub();
+    if (isOneDriveLinked(currentDoc)) await pushToOneDrive();
   };
 
   // Revert: discard the working copy and reload the committed content.
@@ -1035,8 +1053,9 @@ async function bootstrap(): Promise<void> {
 
   // ---- GitHub sync (docs/GITHUB-SYNC-SPEC.md) ---------------------------
 
-  // Whether the doc has an origin volume (disk or GitHub).
-  const linkedAny = (e: DocEntry): boolean => isLinked(e) || isGithubLinked(e);
+  // Whether the doc has an origin volume (disk / GitHub / OneDrive).
+  const linkedAny = (e: DocEntry): boolean =>
+    isLinked(e) || isGithubLinked(e) || isOneDriveLinked(e);
 
   // The doc's origin for the toolbar (file name as read-only title + a chip of
   // volume + folder), or null for a pure Bibliothèque doc (VOLUMES-SPEC §7).
@@ -1060,6 +1079,15 @@ async function bootstrap(): Promise<void> {
         chip: `💻 ${vol}${dir === '' ? '' : ` ▸ ${dir}/`}`,
       };
     }
+    const od = oneDriveLinkOf(e);
+    if (od) {
+      const slash = od.path.lastIndexOf('/');
+      const dir = slash === -1 ? '' : od.path.slice(0, slash);
+      return {
+        fileName: od.path.slice(slash + 1),
+        chip: `☁️ OneDrive${dir === '' ? '' : ` ▸ ${dir}/`}`,
+      };
+    }
     return null;
   };
 
@@ -1071,12 +1099,14 @@ async function bootstrap(): Promise<void> {
   // One *Recharger* (V3): pull from whichever origin the doc has.
   const reloadFromOrigin = async (): Promise<void> => {
     if (isGithubLinked(currentDoc)) await reloadFromGithub();
+    else if (isOneDriveLinked(currentDoc)) await reloadFromOneDrive();
     else if (isLinked(currentDoc)) await reloadFromDisk();
   };
 
   // One *Délier* (V3): drop whatever origin link(s) the doc carries.
   const unlinkFromOrigin = async (): Promise<void> => {
     if (isGithubLinked(currentDoc)) await unlinkGithub();
+    if (isOneDriveLinked(currentDoc)) await unlinkOneDrive();
     if (isLinked(currentDoc)) await unlinkDoc();
   };
 
@@ -1186,6 +1216,80 @@ async function bootstrap(): Promise<void> {
     refreshLinkBadge();
   };
 
+  // ---- OneDrive sync (docs/VOLUMES-SPEC.md — app-folder, eTag baseline) --
+
+  const handleOneDriveError = (err: unknown): void => {
+    console.error('OneDrive sync failed', err);
+    globalThis.alert(
+      t('onedrive.error', { msg: err instanceof Error ? err.message : String(err) }),
+    );
+  };
+
+  // Open a OneDrive app-folder `.md` as a NEW library doc linked to it.
+  const openOneDriveFile = async (path: string): Promise<void> => {
+    try {
+      const { text, etag } = await readOneDriveText(path);
+      await flushSave();
+      const base = path.slice(path.lastIndexOf('/') + 1).replace(/\.(md|markdown)$/i, '');
+      const entry = await createDoc(base === '' ? 'Document' : base, text);
+      currentDoc = entry;
+      await setCurrentDocId(entry.uuid);
+      editor.setValue(text);
+      const linked = await setDocOneDriveLink(entry.uuid, { path, baselineEtag: etag });
+      if (linked) currentDoc = linked;
+      dirty = true;
+      if (viewMode === 'preview') setViewMode('editor');
+      toolbarCtrl.setModified(false);
+      refreshLinkBadge();
+    } catch (err) {
+      handleOneDriveError(err);
+    }
+  };
+
+  // Push the linked doc to OneDrive (V1: conditional overwrite via the baseline
+  // eTag; a clash asks to overwrite — fork is deferred).
+  const pushToOneDrive = async (): Promise<void> => {
+    const link = oneDriveLinkOf(currentDoc);
+    if (!link) return;
+    const content = (await loadCommittedContent(currentDoc)) ?? editor.getValue();
+    try {
+      const { etag } = await writeOneDriveText(link.path, content, link.baselineEtag);
+      const updated = await updateOneDriveBaseline(currentDoc.uuid, etag);
+      if (updated) currentDoc = updated;
+    } catch (err) {
+      if (err instanceof OneDriveConflictError) {
+        if (!globalThis.confirm(t('onedrive.conflict'))) return;
+        const { etag } = await writeOneDriveText(link.path, content); // force
+        const updated = await updateOneDriveBaseline(currentDoc.uuid, etag);
+        if (updated) currentDoc = updated;
+      } else {
+        handleOneDriveError(err);
+      }
+    }
+  };
+
+  // Pull from OneDrive: replace content in place + refresh the eTag baseline.
+  const reloadFromOneDrive = async (): Promise<void> => {
+    const link = oneDriveLinkOf(currentDoc);
+    if (!link) return;
+    if (isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) return;
+    try {
+      const { text, etag } = await readOneDriveText(link.path);
+      await applyDiskContent(text);
+      const updated = await updateOneDriveBaseline(currentDoc.uuid, etag);
+      if (updated) currentDoc = updated;
+    } catch (err) {
+      handleOneDriveError(err);
+    }
+  };
+
+  // Drop the OneDrive link (the file in the app-folder is left untouched).
+  const unlinkOneDrive = async (): Promise<void> => {
+    const updated = await clearDocOneDriveLink(currentDoc.uuid);
+    if (updated) currentDoc = updated;
+    refreshLinkBadge();
+  };
+
   // Import a repo `foo.md` (R2) as a NEW library doc linked to GitHub, then
   // switch to it. Shared by the volume browser and the legacy prompt flow.
   const openGithubTarget = async (
@@ -1269,6 +1373,14 @@ async function bootstrap(): Promise<void> {
         const fh = await vol.fileHandle(entry.path);
         if (entry.isMarkdown) await linkDiskFileHandle(fh, vol.label, entry.path);
         else await handleImport(await fh.getFile());
+        return;
+      }
+      if (vol instanceof OneDriveVolume) {
+        if (!entry.isMarkdown) {
+          globalThis.alert(t('volume.foreign-repo'));
+          return;
+        }
+        await openOneDriveFile(entry.path);
       }
     } catch (err) {
       handleGithubError(err);
@@ -1310,6 +1422,16 @@ async function bootstrap(): Promise<void> {
     return true;
   };
 
+  // Mount OneDrive: sign in (may redirect & reload the page), then reopen.
+  const mountOneDrive = async (): Promise<void> => {
+    try {
+      await signInOneDrive(); // redirects away if no cached account
+      reopenBrowser();
+    } catch (err) {
+      handleOneDriveError(err);
+    }
+  };
+
   // Unmount a volume (the backend is untouched), then refresh the browser.
   const unmountVolumeAndRefresh = async (vol: Volume): Promise<void> => {
     await unmountVolume(vol.id);
@@ -1319,7 +1441,7 @@ async function bootstrap(): Promise<void> {
   // Shared browser callbacks: mount, re-authorize, unmount.
   const mountActions = (): Pick<
     VolumeBrowserOptions,
-    'onMountDisk' | 'onMountRepo' | 'onReauthorize' | 'onUnmount'
+    'onMountDisk' | 'onMountRepo' | 'onMountOneDrive' | 'onReauthorize' | 'onUnmount'
   > => ({
     onMountDisk: fsAccessAvailable()
       ? () => {
@@ -1328,6 +1450,9 @@ async function bootstrap(): Promise<void> {
       : undefined,
     onMountRepo: () => {
       void mountRepoVolume();
+    },
+    onMountOneDrive: () => {
+      void mountOneDrive();
     },
     onReauthorize: reauthorizeVolume,
     onUnmount: (vol) => {
@@ -1444,6 +1569,17 @@ async function bootstrap(): Promise<void> {
           currentDoc.name,
         );
         const updated = await setDocGithubLink(currentDoc.uuid, { ...target, baselineSha });
+        if (updated) currentDoc = updated;
+        refreshLinkBadge();
+        return;
+      }
+
+      if (vol instanceof OneDriveVolume) {
+        const { etag } = await writeOneDriveText(fullPath, content);
+        const updated = await setDocOneDriveLink(currentDoc.uuid, {
+          path: fullPath,
+          baselineEtag: etag,
+        });
         if (updated) currentDoc = updated;
         refreshLinkBadge();
       }
@@ -1583,50 +1719,6 @@ async function bootstrap(): Promise<void> {
         );
       } catch (err) {
         console.error('Save failed', err);
-      }
-    })();
-  };
-
-  // Upload the same self-contained .md to the user's OneDrive app-folder
-  // via Microsoft Graph. First call: stores a pending marker + redirects
-  // to Microsoft login, then resumes here on return. Subsequent calls hit
-  // the silent token path and upload immediately. Also generates an
-  // anonymous view-only share link and copies it to the clipboard.
-  const triggerSaveToOneDrive = (): void => {
-    const source = editor.getValue();
-    void (async () => {
-      try {
-        const refified = refifyImageUrls(source);
-        const expanded = await expandRefsToDataUrls(refified);
-        const filename = `${slugifyDocName(currentDoc.name)}.md`;
-        const { uploadToOneDrive } = await import('./onedrive');
-        const result = await uploadToOneDrive(
-          filename,
-          expanded,
-          currentDoc.uuid,
-          { createShareLink: true },
-        );
-        if (result === null) return; // redirecting for login
-        if (!result.ok) {
-          globalThis.alert(t('onedrive.failed', { msg: result.error }));
-          return;
-        }
-        if (result.shareUrl) {
-          try {
-            await navigator.clipboard.writeText(result.shareUrl);
-            globalThis.alert(t('onedrive.uploaded-with-link'));
-          } catch {
-            globalThis.alert(
-              t('onedrive.uploaded-link-shown', { url: result.shareUrl }),
-            );
-          }
-        } else {
-          globalThis.alert(t('onedrive.uploaded'));
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('OneDrive save failed', err);
-        globalThis.alert(t('onedrive.failed', { msg }));
       }
     })();
   };
@@ -1966,7 +2058,6 @@ async function bootstrap(): Promise<void> {
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
-          onOneDrive: triggerSaveToOneDrive,
           onShareLink: triggerShareLink,
           onShareEmail: triggerShareEmail,
         });
@@ -2223,13 +2314,6 @@ async function bootstrap(): Promise<void> {
     },
   };
   initMcp(mcpContext);
-
-  // If we just returned from the OneDrive OAuth flow with a pending
-  // upload, resume it now that everything (doc loaded, editor mounted,
-  // settings applied) is in place.
-  if (onedriveResumeUuid) {
-    triggerSaveToOneDrive();
-  }
 }
 
 await bootstrap();

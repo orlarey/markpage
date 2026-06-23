@@ -108,7 +108,146 @@ export async function processOAuthRedirect(): Promise<{
     console.error('MSAL redirect handling failed', err);
   }
   if (pending) clearPending();
+  // Remember that an account exists so listVolumes can include the OneDrive
+  // volume without loading the MSAL SDK on every browser open.
+  try {
+    const app = await getMsal();
+    if (app.getAllAccounts().length > 0) setConnected(true);
+  } catch {
+    /* ignore */
+  }
   return { resumeDocUuid: pending?.docUuid ?? null };
+}
+
+// ---- OneDrive as a mounted volume (docs/VOLUMES-SPEC.md) ----------------
+// The app-folder (`special/approot` = Apps/markpage/) browsed/read/written via
+// Microsoft Graph. Auth reuses the MSAL singleton above.
+
+const CONNECTED_KEY = 'markpage:onedrive-connected';
+const GRAPH = 'https://graph.microsoft.com/v1.0/me/drive';
+
+/** A conditional write rejected because the remote file changed (eTag clash). */
+export class OneDriveConflictError extends Error {
+  constructor() {
+    super('OneDrive: le fichier a changé entre-temps.');
+    this.name = 'OneDriveConflictError';
+  }
+}
+
+/** Cheap check (no MSAL load) — is a OneDrive account connected? */
+export function oneDriveConnected(): boolean {
+  return localStorage.getItem(CONNECTED_KEY) === '1';
+}
+function setConnected(on: boolean): void {
+  if (on) localStorage.setItem(CONNECTED_KEY, '1');
+  else localStorage.removeItem(CONNECTED_KEY);
+}
+
+/** Mount OneDrive: sign in (redirect if needed). Sets the connected flag. */
+export async function signInOneDrive(): Promise<void> {
+  const app = await getMsal();
+  if (app.getAllAccounts().length > 0) {
+    setConnected(true);
+    return;
+  }
+  await app.loginRedirect({ scopes: SCOPES }); // page navigates away
+}
+
+/** Unmount OneDrive (v1: forget the connected flag; the MSAL cache stays). */
+export function signOutOneDrive(): void {
+  setConnected(false);
+}
+
+/** A silent Graph access token, or null when no account / silent acquire fails. */
+export async function getOneDriveToken(): Promise<string | null> {
+  const app = await getMsal();
+  const account = app.getAllAccounts()[0];
+  if (!account) return null;
+  app.setActiveAccount(account);
+  try {
+    return (await app.acquireTokenSilent({ scopes: SCOPES, account })).accessToken;
+  } catch {
+    return null;
+  }
+}
+
+async function odToken(): Promise<string> {
+  const token = await getOneDriveToken();
+  if (!token) throw new Error('OneDrive non connecté');
+  return token;
+}
+
+/** Encode an app-folder-relative path for a Graph `approot:/…:` address. */
+function approotPath(path: string): string {
+  const enc = path
+    .split('/')
+    .filter((s) => s !== '')
+    .map(encodeURIComponent)
+    .join('/');
+  return enc;
+}
+
+export interface OneDriveEntry {
+  name: string;
+  isFolder: boolean;
+}
+
+/** List a folder within the app-folder (`''` = its root). */
+export async function listOneDrive(path: string): Promise<OneDriveEntry[]> {
+  const token = await odToken();
+  const enc = approotPath(path);
+  const url =
+    enc === ''
+      ? `${GRAPH}/special/approot/children`
+      : `${GRAPH}/special/approot:/${enc}:/children`;
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) throw new Error(`Graph children ${resp.status}`);
+  const j = (await resp.json()) as { value: { name: string; folder?: unknown }[] };
+  return j.value.map((e) => ({ name: e.name, isFolder: e.folder != null }));
+}
+
+/** Read a text file + its eTag (the sync baseline) from the app-folder. */
+export async function readOneDriveText(path: string): Promise<{ text: string; etag: string }> {
+  const token = await odToken();
+  const enc = approotPath(path);
+  const meta = await fetch(`${GRAPH}/special/approot:/${enc}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!meta.ok) throw new Error(`Graph item ${meta.status}`);
+  const etag = ((await meta.json()) as { eTag?: string }).eTag ?? '';
+  const resp = await fetch(`${GRAPH}/special/approot:/${enc}:/content`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) throw new Error(`Graph content ${resp.status}`);
+  return { text: await resp.text(), etag };
+}
+
+/**
+ * Write a text file to the app-folder. `ifMatch` (the baseline eTag) makes the
+ * write conditional — a clash throws `OneDriveConflictError` (V1: overwrite +
+ * conflict signal; fork is deferred). Returns the new eTag.
+ */
+export async function writeOneDriveText(
+  path: string,
+  content: string,
+  ifMatch?: string,
+): Promise<{ etag: string }> {
+  const token = await odToken();
+  const enc = approotPath(path);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'text/markdown',
+  };
+  if (ifMatch) headers['If-Match'] = ifMatch;
+  const resp = await fetch(`${GRAPH}/special/approot:/${enc}:/content`, {
+    method: 'PUT',
+    headers,
+    body: content,
+  });
+  if (resp.status === 412) throw new OneDriveConflictError();
+  if (!resp.ok) throw new Error(`Graph PUT ${resp.status}: ${await resp.text()}`);
+  const etag = ((await resp.json()) as { eTag?: string }).eTag ?? '';
+  return { etag };
 }
 
 /**
