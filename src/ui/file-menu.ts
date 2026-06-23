@@ -15,13 +15,10 @@ const MENU_ID = 'file-menu';
 export interface FileMenuOptions {
   modified: boolean;
   // Opening / linking now go through the unified volume browser (Open) and
-  // Save As (docs/VOLUMES-SPEC.md). Only the *operations on an already-linked
-  // doc* remain in this menu: Reload + Unlink, per backend.
-  linked: boolean; // disk-linked
-  githubLinked: boolean;
-  onGithubReload(): void;
-  onGithubUnlink(): void;
-  onReloadDisk(): void;
+  // Save As (docs/VOLUMES-SPEC.md). Only the *operations on the doc's origin
+  // volume* remain: a single Reload (pull) + a single Unlink (V3, one origin).
+  linked: boolean; // has an origin volume (disk or GitHub)
+  onReload(): void;
   onUnlink(): void;
   onNew(): void;
   onOpen(): void;
@@ -94,20 +91,12 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
     item(t('file-menu.files'), 'Cmd/Ctrl + ⇧ + O', opts.onFiles),
   );
-  // Operations on a doc already linked to a backend (the link itself is now
-  // created via Save As → a volume).
+  // Operations on the doc's origin volume (the link is created via Save As).
   if (opts.linked) {
     menu.append(
       sep(),
-      item(t('file-menu.reload-disk'), '', opts.onReloadDisk),
-      item(t('file-menu.unlink'), '', opts.onUnlink),
-    );
-  }
-  if (opts.githubLinked) {
-    menu.append(
-      sep(),
-      item(t('file-menu.github-reload'), '', opts.onGithubReload),
-      item(t('file-menu.github-unlink'), '', opts.onGithubUnlink),
+      item(t('file-menu.reload'), '', opts.onReload),
+      item(t('file-menu.unlink-origin'), '', opts.onUnlink),
     );
   }
   menu.append(sep());

@@ -69,6 +69,8 @@ const FR = {
   'file-menu.github-link': 'Lier à GitHub…',
   'file-menu.github-reload': 'Recharger depuis GitHub',
   'file-menu.github-unlink': 'Délier de GitHub',
+  'file-menu.reload': 'Recharger',
+  'file-menu.unlink-origin': 'Délier',
   // ---- disk link (Phase 4) ------------------------------------------
   'disk.overwrite-confirm':
     'Le dossier « {name} » contient déjà un document. L’écraser avec le document courant ?',
@@ -469,6 +471,8 @@ const EN: Record<keyof typeof FR, string> = {
   'file-menu.github-link': 'Link to GitHub…',
   'file-menu.github-reload': 'Reload from GitHub',
   'file-menu.github-unlink': 'Unlink from GitHub',
+  'file-menu.reload': 'Reload',
+  'file-menu.unlink-origin': 'Unlink',
   'disk.overwrite-confirm':
     'The folder “{name}” already contains a document. Overwrite it with the current document?',
   'disk.write-failed': 'Could not write to disk.',

@@ -1088,9 +1088,24 @@ async function bootstrap(): Promise<void> {
 
   // ---- GitHub sync (docs/GITHUB-SYNC-SPEC.md) ---------------------------
 
+  // Whether the doc has an origin volume (disk or GitHub).
+  const linkedAny = (e: DocEntry): boolean => isLinked(e) || isGithubLinked(e);
+
   // The link badge reflects either kind of link (disk or GitHub).
   const refreshLinkBadge = (): void => {
-    toolbarCtrl.setLinked(isLinked(currentDoc) || isGithubLinked(currentDoc));
+    toolbarCtrl.setLinked(linkedAny(currentDoc));
+  };
+
+  // One *Recharger* (V3): pull from whichever origin the doc has.
+  const reloadFromOrigin = async (): Promise<void> => {
+    if (isGithubLinked(currentDoc)) await reloadFromGithub();
+    else if (isLinked(currentDoc)) await reloadFromDisk();
+  };
+
+  // One *Délier* (V3): drop whatever origin link(s) the doc carries.
+  const unlinkFromOrigin = async (): Promise<void> => {
+    if (isGithubLinked(currentDoc)) await unlinkGithub();
+    if (isLinked(currentDoc)) await unlinkDoc();
   };
 
   // For a GitHub-linked doc, route new images through R3 placement (natural
@@ -1952,19 +1967,12 @@ async function bootstrap(): Promise<void> {
       onFileMenu(anchor) {
         openFileMenu(anchor, {
           modified: isModified(currentDoc),
-          linked: isLinked(currentDoc),
-          githubLinked: isGithubLinked(currentDoc),
-          onGithubReload: () => {
-            void reloadFromGithub();
-          },
-          onGithubUnlink: () => {
-            void unlinkGithub();
-          },
-          onReloadDisk: () => {
-            void reloadFromDisk();
+          linked: linkedAny(currentDoc),
+          onReload: () => {
+            void reloadFromOrigin();
           },
           onUnlink: () => {
-            void unlinkDoc();
+            void unlinkFromOrigin();
           },
           onNew: () => {
             void createNewDoc();
