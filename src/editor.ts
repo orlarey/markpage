@@ -165,6 +165,49 @@ export interface Editor {
 }
 
 /**
+ * App-level actions bound *inside* the editor as well as on `window`. Firefox
+ * does not bubble `Ctrl/Cmd`-combos (Enter, S, O, P, …) from CodeMirror's
+ * contentEditable up to the window listener the way Chromium does, so the
+ * global handler alone left every shortcut dead while the editor had focus.
+ * Binding them in the keymap fixes that; the window handler's `defaultPrevented`
+ * guard keeps them from firing twice. Fields are optional and read lazily, so
+ * the caller can pass a holder it populates after these actions are defined.
+ */
+export interface EditorShortcuts {
+  preview?(): void;
+  present?(): void;
+  save?(): void;
+  open?(): void;
+  exportPdf?(): void;
+  settings?(): void;
+  guides?(): void;
+}
+
+// Bind the app shortcuts at high precedence. Each `run` reads its action
+// lazily (the holder is filled after the editor is built) and returns `true`
+// when wired, so CodeMirror marks the event handled + preventDefault — which
+// in turn trips the window handler's `defaultPrevented` early-return.
+function appShortcutKeymap(s: EditorShortcuts) {
+  const fire = (get: () => (() => void) | undefined) => (): boolean => {
+    const fn = get();
+    if (!fn) return false;
+    fn();
+    return true;
+  };
+  return Prec.high(
+    keymap.of([
+      { key: 'Mod-Enter', run: fire(() => s.preview) },
+      { key: 'Mod-Shift-Enter', run: fire(() => s.present) },
+      { key: 'Mod-s', run: fire(() => s.save) },
+      { key: 'Mod-o', run: fire(() => s.open) },
+      { key: 'Mod-p', run: fire(() => s.exportPdf) },
+      { key: 'Mod-,', run: fire(() => s.settings) },
+      { key: 'Mod-Shift-g', run: fire(() => s.guides) },
+    ]),
+  );
+}
+
+/**
  * Purpose: Construct a CodeMirror editor in `parent` and notify `onChange` on edits.
  * How: Compose extensions, attach gutter + image handlers, return the `Editor` handle.
  */
@@ -172,6 +215,7 @@ export function createEditor(
   parent: HTMLElement,
   initialDoc: string,
   onChange: (doc: string) => void,
+  shortcuts?: EditorShortcuts,
 ): Editor {
   const view = new EditorView({
     parent,
@@ -183,6 +227,7 @@ export function createEditor(
         EditorView.lineWrapping,
         syntaxHighlighting(editorHighlight),
         formatKeymap,
+        ...(shortcuts ? [appShortcutKeymap(shortcuts)] : []),
         ligatures,
         // Smart Tab. Without binding, the browser intercepts it for
         // focus traversal; with `indentWithTab` (the standard CM

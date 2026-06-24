@@ -43,7 +43,7 @@ import { initLocale, onLanguageChange } from './i18n/locale';
 import { t } from './i18n/strings';
 import { registerFallbackFonts } from './fonts';
 import { loadFontTrio, registerCustomFonts } from './font-loader';
-import { createEditor } from './editor';
+import { createEditor, type EditorShortcuts } from './editor';
 import {
   renderPreview,
   debounce,
@@ -569,12 +569,21 @@ async function bootstrap(): Promise<void> {
 
   applyPreviewStyles(state.settings);
 
-  const editor = createEditor(editorEl, initialDoc, (doc) => {
-    // Edits mark the preview dirty (re-paginate on next toggle) and
-    // auto-persist the working copy.
-    dirty = true;
-    debouncedSaveDraft(currentDoc.uuid, doc);
-  });
+  // Also bound inside the editor keymap (filled in below, after the action fns
+  // exist) so Cmd/Ctrl shortcuts fire while CodeMirror has focus — Firefox
+  // doesn't bubble them to the window listener like Chromium does.
+  const editorShortcuts: EditorShortcuts = {};
+  const editor = createEditor(
+    editorEl,
+    initialDoc,
+    (doc) => {
+      // Edits mark the preview dirty (re-paginate on next toggle) and
+      // auto-persist the working copy.
+      dirty = true;
+      debouncedSaveDraft(currentDoc.uuid, doc);
+    },
+    editorShortcuts,
+  );
 
   attachStyleContextMenu(editor.view.dom, editor.view);
 
@@ -2202,6 +2211,23 @@ async function bootstrap(): Promise<void> {
     }
   };
   globalThis.addEventListener('keydown', onAppKeydown);
+
+  // Same actions, bound inside the editor keymap so they also fire when
+  // CodeMirror has focus (the window handler above misses those on Firefox).
+  // The window handler's `defaultPrevented` guard prevents a double trigger.
+  editorShortcuts.preview = toggleView;
+  editorShortcuts.present = () => {
+    void enterPresentation();
+  };
+  editorShortcuts.save = () => {
+    void saveCurrentDoc();
+  };
+  editorShortcuts.open = () => {
+    void triggerOpen();
+  };
+  editorShortcuts.exportPdf = triggerDownload;
+  editorShortcuts.settings = triggerSettings;
+  editorShortcuts.guides = triggerGuides;
 
   renderToolbar();
   // Reflect any resumed working copy (a draft persisted from a previous
