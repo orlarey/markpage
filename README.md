@@ -168,6 +168,9 @@ Specs and design docs live in [`docs/`](docs/) (with an index). Quick links:
   contract. Build / install / release: [`mcp/README.md`](mcp/README.md).
 - [`FORMAL-METHOD-SPEC.md`](docs/FORMAL-METHOD-SPEC.md) — how specifications are written in
   this project (methodology, not a feature spec).
+- [`FILESYSTEM-BLUEPRINT.md`](docs/FILESYSTEM-BLUEPRINT.md) — a reusable blueprint (model,
+  invariants, browser-sandbox constraints + an AI implementation recipe) for building a
+  desktop-like, serverless file system in a static web app — markpage as the worked example.
 
 ### Feature design specs
 

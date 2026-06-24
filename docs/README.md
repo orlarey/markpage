@@ -32,6 +32,7 @@ ouvertes" sections are kept for the record.
 | Doc | What it covers | Status |
 | :-- | :-- | :-- |
 | [FORMAL-METHOD-SPEC.md](FORMAL-METHOD-SPEC.md) | How specifications are written in this project | Normative |
+| [FILESYSTEM-BLUEPRINT.md](FILESYSTEM-BLUEPRINT.md) | Reusable blueprint: model, invariants, sandbox constraints + an AI implementation recipe for a serverless web-app file system (markpage as the worked example) | Blueprint |
 
 > **Note for authors:** when a feature changes, update its spec's status banner
 > (top of the file) and this index in the same change.
