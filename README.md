@@ -152,6 +152,8 @@ Specs and design docs live in [`docs/`](docs/) (with an index). Quick links:
 
 ### For users
 
+- [`FEATURES.md`](FEATURES.md) / [`FEATURES.fr.md`](FEATURES.fr.md) — the full
+  feature list, including every supported fence.
 - **Help** — the in-app tutorial (the Help button); source also at
   [`src/HELP.fr.md`](src/HELP.fr.md) / [`src/HELP.en.md`](src/HELP.en.md).
 - [`AI-AUTHORING.md`](AI-AUTHORING.md) — how to write markpage Markdown: every
