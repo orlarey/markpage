@@ -101,8 +101,8 @@ overrides du renderer `code`, voir §5 et §8) :
   arithmétique, fonctions math, labels arités `X[in,out]`). Pipeline
   parser → typechecker (cohérence des arités) → renderer SVG natif.
   Option `delays` (alias `faust`) pour matérialiser le `z⁻¹`
-  implicite sur les boucles de récursion. Spec complète :
-  `src/bda.ts`.
+  implicite sur les boucles de récursion. Renderer :
+  `packages/blocks/src/renderers/bda.ts`.
 - **Tableaux de données** — blocs ```` ```csv ```` et ```` ```tsv ````.
   Première ligne = en-têtes, suivantes = données. Séparateur
   auto-détecté pour `csv`. Guillemets RFC-4180 supportés.
@@ -2233,7 +2233,7 @@ sont joints par `.`, optionnellement suivis d'un point final.
 
 ## 16. Graphiques (`chart`)
 
-Module `src/chart.ts`. Self-contained : pas de dépendance externe, le
+Module `packages/blocks/src/renderers/chart.ts`. Self-contained : pas de dépendance externe, le
 SVG est émis inline dans le DOM rendu, donc imprime crispe et stay
 éditable comme un vecteur. Override du renderer `code` pour
 `lang === 'chart'`.

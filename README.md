@@ -178,12 +178,13 @@ as reference + history:
 - [`TOC-PLUS-SPEC.md`](docs/TOC-PLUS-SPEC.md) — the table of contents + plan
   (`::: toc+`).
 - [`FILE-MANAGEMENT-SPEC.md`](docs/FILE-MANAGEMENT-SPEC.md) — document / asset
-  storage and the disk-link feature.
-
-Planned (design only, not yet shipped):
-
+  storage and the disk-link feature (the original model, since superseded by
+  `VOLUMES-SPEC`).
+- [`VOLUMES-SPEC.md`](docs/VOLUMES-SPEC.md) — the unified file system: one
+  *Open*, one root, mounted volumes (Library / Disk / GitHub repo / OneDrive).
 - [`GITHUB-SYNC-SPEC.md`](docs/GITHUB-SYNC-SPEC.md) — shared documents across
-  devices via a GitHub repo (fine-grained PAT, no server).
+  devices via a GitHub repo (fine-grained PAT, no server); the R1–R4 engine
+  under the GitHub volume.
 
 ## Use the fences in your own Markdown pipeline
 
@@ -217,7 +218,8 @@ Ready-to-customise documents under [`templates/`](templates/):
 
 - **Facture (FR)** — [`templates/facture.md`](templates/facture.md)
   is a French invoice scaffold using the dedicated ` ```sender ` /
-  ` ```recipient ` letterhead blocks (side-by-side flex layout),
+  ` ```recipient ` / ` ```signature ` letterhead blocks (side-by-side
+  flex layout),
   followed by a pipe-table of items, a totals block, and a
   `::: caution` callout for the mandatory mentions légales. Pair it
   with the matching profile
@@ -260,8 +262,8 @@ does something specific and does it well.
   — W3C EBNF → SVG railroad diagrams for the ` ```ebnf ` fence,
   one diagram per production.
 - Charts (`line`, `bar`) come from a small custom SVG generator in
-  `src/chart.ts` — light enough that it wasn't worth pulling a
-  full charting library.
+  [`packages/blocks/src/renderers/chart.ts`](packages/blocks/src/renderers/chart.ts)
+  — light enough that it wasn't worth pulling a full charting library.
 
 ### Syntax highlighting
 

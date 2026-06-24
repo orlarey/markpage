@@ -100,7 +100,7 @@ Three options:
 1. **Drag-and-drop** an image from your desktop straight into the
    editor.
 2. **Paste** a screenshot (`Cmd/Ctrl + V` after capturing it).
-3. **Style** button in the toolbar → *"Insert image…"*.
+3. **Format** button in the toolbar → *"Insert image…"*.
 
 The image is automatically resized and compressed (2000 px max on
 each side), and gets inserted at the cursor position.
@@ -926,7 +926,7 @@ symbols (★, ♥, ✓) are handled correctly, on screen as in the PDF.
 To number the headings of a long document without configuring a
 menu, just **show the example on the first heading of each level**:
 the **Number sections** command (`Cmd/Ctrl + Shift + N`, or the
-**Style** menu → *Number sections*) detects the numbering style you
+**Format** menu → *Number sections*) detects the numbering style you
 wrote, then applies it to all other headings of the same level.
 
 Example. You write:

@@ -5,7 +5,7 @@ version: 0.7 (brouillon)
 date: 2026-06-22
 ---
 
-> **Statut :** design (v0.7) — non encore livré. Spec **pilotée par invariants**
+> **Statut :** livré (markpage 0.32.0). Spec **pilotée par invariants**
 > (voir « Invariants » ci-dessous). La **v0.7** ajoute la **machine à états du
 > Save** (§5) : un 2×2 `(édité localement ?) × (dépôt avancé ?)` → quatre
 > transitions (No-op / Recharger / Avance rapide / Fork), avec la **preuve

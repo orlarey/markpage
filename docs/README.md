@@ -23,13 +23,9 @@ ouvertes" sections are kept for the record.
 | [CATEGORY-SPEC.md](CATEGORY-SPEC.md) | `category` — commutative diagrams | Livré |
 | [MOSAIC-SPEC.md](MOSAIC-SPEC.md) | `mosaic` — justified image gallery | Livré |
 | [TOC-PLUS-SPEC.md](TOC-PLUS-SPEC.md) | `::: toc+` — table of contents + plan | Livré |
-| [FILE-MANAGEMENT-SPEC.md](FILE-MANAGEMENT-SPEC.md) | Document/asset storage, disk link | Livré (phases 1–4) ; phase 5 différée |
-
-## En conception (non encore livré)
-
-| Doc | Feature | Status |
-| :-- | :-- | :-- |
-| [GITHUB-SYNC-SPEC.md](GITHUB-SYNC-SPEC.md) | Documents partagés via un dépôt GitHub (PAT, sans serveur) | Design |
+| [FILE-MANAGEMENT-SPEC.md](FILE-MANAGEMENT-SPEC.md) | Document/asset storage, disk link (modèle d'origine, voir VOLUMES-SPEC) | Livré (phases 1–4) ; supplanté par VOLUMES-SPEC |
+| [VOLUMES-SPEC.md](VOLUMES-SPEC.md) | Système de fichiers unifié : un Ouvrir, une racine, volumes montés | Livré (0.32.0) |
+| [GITHUB-SYNC-SPEC.md](GITHUB-SYNC-SPEC.md) | Documents partagés via un dépôt GitHub (PAT, sans serveur), R1–R4 + fork | Livré (0.32.0) |
 
 ## Methodology
 

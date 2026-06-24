@@ -5,7 +5,11 @@ version: 0.1 (brouillon)
 ---
 
 > **Statut :** livré (phases 1–4, v0.21–0.26) ; la phase 5 (import/export
-> avancé) reste différée. Document de conception et feuille de route.
+> avancé) reste différée. **Modèle d'origine, depuis supplanté par
+> [VOLUMES-SPEC](VOLUMES-SPEC.md)** (système de fichiers unifié, 0.32.0) :
+> les briques décrites ici (OPFS, lien disque) demeurent, mais sont
+> présentées à l'utilisateur via les volumes. Document de conception et
+> feuille de route.
 
 **Objet :** refondre la gestion des documents et de leurs ressources (images)
 pour retrouver le confort d'une **application locale** — fichiers possédés,

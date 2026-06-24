@@ -349,9 +349,10 @@ marked.use({
         );
       }
       // ```category — declarative commutative-diagram DSL (CD-SPEC).
-      // Parsed + typechecked by `category.ts`, then transpiled to a
-      // Mermaid `graph` source that piggybacks on the existing mermaid
-      // pipeline for SVG rendering. Parse / typecheck errors render in
+      // Parsed + typechecked in @orlarey/blocks, then rendered as a
+      // native SVG by default; when no acceptable grid layout is found
+      // it falls back to a Mermaid `graph` that piggybacks on the
+      // existing mermaid pipeline. Parse / typecheck errors render in
       // their own red error block, like math-error / mermaid-error.
       if (lang === 'category' || lang.startsWith('category ')) {
         const block = renderCategory(token.text);

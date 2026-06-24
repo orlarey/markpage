@@ -104,7 +104,7 @@ Trois moyens, au choix :
    l'éditeur.
 2. **Coller** une capture d'écran (`Cmd/Ctrl + V` après l'avoir
    capturée).
-3. Bouton **Style** dans la toolbar → *« Insérer une image… »*.
+3. Bouton **Format** dans la toolbar → *« Insérer une image… »*.
 
 L'image est automatiquement redimensionnée et compressée (max 2000 px
 de côté), et s'insère à la position du curseur.
@@ -965,7 +965,7 @@ dans le PDF.
 Pour numéroter les titres d'un long document sans configurer de menu,
 il suffit de **donner l'exemple sur le premier titre de chaque
 niveau** : la commande **Numéroter les sections**
-(`Cmd/Ctrl + Maj + N`, ou bien menu **Style** → *Numéroter les
+(`Cmd/Ctrl + Maj + N`, ou bien menu **Format** → *Numéroter les
 sections*) détecte le style de numérotation que vous avez écrit, puis
 l'applique à tous les autres titres du même niveau.
 
