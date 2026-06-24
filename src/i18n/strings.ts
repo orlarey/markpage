@@ -323,6 +323,8 @@ const FR = {
   // GitHub sync — prompts, notices, errors
   'github.no-token':
     'Aucun jeton GitHub. Ajoutez-en un dans Réglages → GitHub.',
+  'github.prompt-token':
+    'Aucun jeton GitHub configuré. Collez ici un jeton « fine-grained » (permission Contents : lecture et écriture).\n\nPour en créer un : {url}',
   'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
   'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
   'github.prompt-branch': 'Branche :',
@@ -730,6 +732,8 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.github.invalid': 'Invalid or expired token',
   // GitHub sync — prompts, notices, errors
   'github.no-token': 'No GitHub token. Add one in Settings → GitHub.',
+  'github.prompt-token':
+    'No GitHub token configured. Paste a fine-grained token here (Contents: Read and write permission).\n\nTo create one: {url}',
   'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
   'github.prompt-repo': 'GitHub repo (owner/repo):',
   'github.prompt-branch': 'Branch:',

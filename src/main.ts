@@ -132,7 +132,7 @@ import {
   updateOneDriveBaseline,
   type DocEntry,
 } from './docs';
-import { GithubError, loadToken } from './github';
+import { GithubError, getUser, loadToken, saveToken } from './github';
 import {
   type GithubTarget,
   GithubBranchAbsentError,
@@ -1137,6 +1137,25 @@ async function bootstrap(): Promise<void> {
     }
   };
 
+  // Return a usable GitHub token. If none is stored, offer to paste one right
+  // here (with the create-token URL) rather than bouncing the user to Settings;
+  // the pasted token is validated and saved. Returns null if the user cancels.
+  const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
+  const ensureGithubToken = async (): Promise<string | null> => {
+    const existing = await loadToken();
+    if (existing) return existing;
+    const pasted = globalThis.prompt(t('github.prompt-token', { url: TOKEN_URL }))?.trim();
+    if (!pasted) return null;
+    try {
+      await getUser(pasted); // validate before storing
+    } catch {
+      globalThis.alert(t('settings.github.invalid'));
+      return null;
+    }
+    await saveToken(pasted);
+    return pasted;
+  };
+
   // Push the linked doc to GitHub (R3/R4 state machine). Called from Save.
   const pushToGithub = async (): Promise<void> => {
     const token = await loadToken();
@@ -1361,11 +1380,8 @@ async function bootstrap(): Promise<void> {
           globalThis.alert(t('volume.foreign-repo'));
           return;
         }
-        const token = await loadToken();
-        if (!token) {
-          globalThis.alert(t('github.no-token'));
-          return;
-        }
+        const token = await ensureGithubToken();
+        if (!token) return;
         await openGithubTarget(token, { ...vol.target, path: entry.path });
         return;
       }
@@ -1397,11 +1413,8 @@ async function bootstrap(): Promise<void> {
 
   // Mount a GitHub repo as a volume (PAT required), then reopen the browser.
   const mountRepoVolume = async (): Promise<void> => {
-    const token = await loadToken();
-    if (!token) {
-      globalThis.alert(t('github.no-token'));
-      return;
-    }
+    const token = await ensureGithubToken();
+    if (!token) return;
     const repo = globalThis.prompt(t('github.prompt-repo'), '')?.trim();
     if (!repo) return;
     const slash = repo.indexOf('/');
@@ -1585,11 +1598,8 @@ async function bootstrap(): Promise<void> {
       }
 
       if (vol instanceof RepoVolume) {
-        const token = await loadToken();
-        if (!token) {
-          globalThis.alert(t('github.no-token'));
-          return;
-        }
+        const token = await ensureGithubToken();
+        if (!token) return;
         const target = { ...vol.target, path: fullPath };
         const { baselineSha } = await createOnGithub(
           token,
