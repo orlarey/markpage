@@ -12,7 +12,10 @@ date: 2026-06-24
 > projet** — typiquement en le donnant tel quel à une IA comme Claude Code.
 > markpage sert d'**exemple concret** : chaque pièce générique est reliée au
 > fichier qui l'incarne (cf. [VOLUMES-SPEC](VOLUMES-SPEC.md) et
-> [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md) pour le détail interne).
+> [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md) pour le détail interne). Une **version
+> autonome anglophone**, sans dépendance à markpage et en markdown portable
+> (prête à déposer à la racine d'un autre dépôt), est disponible :
+> [FILESYSTEM-BLUEPRINT.en.md](FILESYSTEM-BLUEPRINT.en.md).
 
 **Thèse.** Offrir, dans une **appli web statique** (pas de serveur, pas
 d'installation, données chez l'utilisateur), l'expérience d'une **application

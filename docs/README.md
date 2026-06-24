@@ -33,6 +33,7 @@ ouvertes" sections are kept for the record.
 | :-- | :-- | :-- |
 | [FORMAL-METHOD-SPEC.md](FORMAL-METHOD-SPEC.md) | How specifications are written in this project | Normative |
 | [FILESYSTEM-BLUEPRINT.md](FILESYSTEM-BLUEPRINT.md) | Reusable blueprint: model, invariants, sandbox constraints + an AI implementation recipe for a serverless web-app file system (markpage as the worked example) | Blueprint |
+| [FILESYSTEM-BLUEPRINT.en.md](FILESYSTEM-BLUEPRINT.en.md) | Standalone English version of the blueprint — portable Markdown, no markpage dependency, ready to drop at the root of another repo for an AI agent | Blueprint (portable) |
 
 > **Note for authors:** when a feature changes, update its spec's status banner
 > (top of the file) and this index in the same change.
