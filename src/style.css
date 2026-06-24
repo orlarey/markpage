@@ -2874,6 +2874,19 @@ body.demo-frame-body #preview-pane {
   background: var(--bg-alt);
 }
 
+/* "Ouvrir un fichier…" is an open action, not a mount: align its icon and
+   push it to the left so it sits apart from the mount buttons. */
+.vb-open-device {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: auto;
+}
+.vb-open-device svg {
+  width: 1em;
+  height: 1em;
+}
+
 /* ---- Volume browser: save bar (V5) ---- */
 .vb-savebar {
   display: flex;

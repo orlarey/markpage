@@ -27,6 +27,8 @@ export interface VolumeBrowserOptions {
   /** Start navigated into this volume + folder (e.g. a doc's origin on Save As). */
   initial?: { volumeId: string; path: string };
   onOpen?(volume: Volume, entry: VolumeEntry): void;
+  /** Open a loose file from the device (folds in the old *Import*, V4). */
+  onOpenDeviceFile?(): void;
   /** Save target chosen: a volume, the current folder, and a file name (V5). */
   onSave?(volume: Volume, folderPath: string, name: string): void;
   /** Mount actions, shown in the footer when provided. */
@@ -96,6 +98,22 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
     b.addEventListener('click', run);
     footer.append(b);
   };
+  // "Ouvrir un fichier…" — a loose file from the device, routed by format
+  // (in-place .md vs imported copy). Shown in open mode on every browser
+  // (native picker on Chromium, <input> fallback elsewhere) — the single
+  // entry point that replaces the old *Importer* menu item (V4).
+  if (mode === 'open' && opts.onOpenDeviceFile) {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = 'vb-open-device';
+    b.append(makeIcon('file'));
+    b.append(doc.createTextNode(` ${t('volume.open-device')}`));
+    b.addEventListener('click', () => {
+      close();
+      opts.onOpenDeviceFile?.();
+    });
+    footer.append(b);
+  }
   if (opts.onMountDisk) mountBtn(t('volume.mount-disk'), () => opts.onMountDisk?.());
   if (opts.onMountRepo) mountBtn(t('volume.mount-repo'), () => opts.onMountRepo?.());
   if (opts.onMountOneDrive) mountBtn(t('volume.mount-onedrive'), () => opts.onMountOneDrive?.());

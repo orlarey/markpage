@@ -165,6 +165,7 @@ import {
   loadHandle,
   loadSyncedMtime,
   pickDirectory,
+  pickImportableFileHandle,
   queryRwGranted,
   readBundleFromDir,
   readFileHandle,
@@ -1483,6 +1484,10 @@ async function bootstrap(): Promise<void> {
       onOpen: (vol, entry) => {
         void openFromVolume(vol, entry);
       },
+      // "Ouvrir un fichier…" — a loose file from the device (folds in Import, V4).
+      onOpenDeviceFile: () => {
+        void openDeviceFile();
+      },
       // Bibliothèque management (replaces «Fichiers…»): entry.path = doc uuid.
       onDelete: (entry) => deleteAndAdjust(entry.path),
       onRestore: async (entry) => {
@@ -1729,8 +1734,10 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  // Import dialog: transient <input type=file>, hands the chosen
-  // file to handleImport. Shared by the toolbar [Importer] button.
+  // Import dialog: transient <input type=file>, hands the chosen file to
+  // handleImport. The cross-browser fallback for "Ouvrir un fichier…" when the
+  // File System Access pickers are absent (Safari/Firefox): always a copy,
+  // since a plain <input> yields a File blob with no handle to link in place.
   const triggerImportDialog = (): void => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -1743,6 +1750,25 @@ async function bootstrap(): Promise<void> {
       if (file) void handleImport(file);
     });
     input.click();
+  };
+
+  // "Ouvrir un fichier…" (V4) — the single entry point that folds the old
+  // *Importer* into *Ouvrir*: pick one file from the device, then route by
+  // format. A `.md` opens **in place** (single-file disk link on Chromium); a
+  // foreign format (`.docx`/`.html`/`.txt`) is imported as a Bibliothèque copy.
+  // Off Chromium, falls back to the <input> path (always a copy).
+  const openDeviceFile = async (): Promise<void> => {
+    if (!fsAccessAvailable()) {
+      triggerImportDialog();
+      return;
+    }
+    const fh = await pickImportableFileHandle();
+    if (!fh) return;
+    if (/\.(md|markdown)$/i.test(fh.name)) {
+      await linkDiskFileHandle(fh); // in-place, no mount needed (V4)
+    } else {
+      await handleImport(await fh.getFile()); // foreign → copy (V4)
+    }
   };
 
   const triggerSave = (): void => {
@@ -2093,7 +2119,6 @@ async function bootstrap(): Promise<void> {
           onDelete: () => {
             void deleteAndAdjust(currentDoc.uuid);
           },
-          onImport: triggerImportDialog,
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,

@@ -1,8 +1,10 @@
 /********************************* file-menu.ts ********************************
  *
  * Purpose: The `File ▾` dropdown — consolidates document lifecycle (New /
- *   Open… / Files… / Save / Save As / Revert), Import, and Export/Share into
- *   one menu (Phase 3d). Save / Revert only show when the doc is modified.
+ *   Open… / Save / Save As / Revert) and Export/Share into one menu (Phase 3d).
+ *   Opening a loose file (the old *Import*) now lives inside *Open* itself
+ *   ("Ouvrir un fichier…", VOLUMES-SPEC V4). Save / Revert only show when the
+ *   doc is modified.
  * How: Transient left-anchored `<div>`, same dismiss pattern as the other
  *   menus (outside-click / Escape / resize).
  *
@@ -26,7 +28,6 @@ export interface FileMenuOptions {
   onSaveAs(): void;
   onRevert(): void;
   onDelete(): void;
-  onImport(): void;
   onMarkdown(): void;
   onPdf(): void;
   onLatex(): void;
@@ -110,8 +111,6 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('file-menu.delete-doc'), '', opts.onDelete),
   );
   menu.append(
-    sep(),
-    item(t('file-menu.import'), '', opts.onImport),
     sep(),
     item(t('export-menu.markdown'), '', opts.onMarkdown),
     item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),

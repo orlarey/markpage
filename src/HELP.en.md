@@ -136,8 +136,10 @@ A quoted title adds a numbered caption (*Figure N*).
 At the top of the screen, a handful of buttons:
 
 - **File ▾** — everything about the document: *New*, *Open…*, *Save* /
-  *Save As…*, *Move to Trash*, *Import a file*, export (Markdown / PDF /
-  LaTeX) and sharing (cf. *Opening, saving, sharing* below).
+  *Save As…*, *Move to Trash*, export (Markdown / PDF / LaTeX) and
+  sharing (cf. *Opening, saving, sharing* below). Opening an external
+  file (`.docx`, `.html`…) happens **from *Open*** (the *Open a file…*
+  button), not via a separate command.
 - **The document name** (centred) — editable for a Library document;
   for a document linked to a volume, it shows its file name and an
   origin chip.
@@ -476,15 +478,22 @@ a soft, **reversible** delete. The Trash is a folder of the Library in
 the browser: there you **restore** or **delete permanently** each
 document, and you can **empty** it.
 
-#### Importing a file
+#### Opening a file from your device
 
-**File ▸ Import a file…** adds an external file as a **new document** in
-the Library. Formats: `.md`, `.txt`, `.html`, `.docx` (Word).
+In **Open**, the **Open a file…** button (at the bottom of the dialog)
+picks a file from your machine, with no volume to mount. Formats: `.md`,
+`.markdown`, `.txt`, `.html`, `.docx` (Word). What happens to the file
+**follows from its format**:
 
-> **Note about Word files**: when importing a `.docx`, the text,
+- a **`.md`** **opens in place** (on Chrome/Edge it stays linked to the
+  file on disk — *Save* writes straight back to it);
+- a **foreign format** (`.docx`, `.html`, `.txt`) is **converted** and
+  added as a **new document** in the Library (a copy).
+
+> **Note about Word files**: when opening a `.docx`, the text,
 > headings, lists, bold/italic, links and quotes are recovered, but
 > **not the images**. If your Word document contained photos, you'll
-> need to re-insert them manually after import.
+> need to re-insert them manually.
 
 #### Working with GitHub
 

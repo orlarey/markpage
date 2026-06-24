@@ -60,8 +60,13 @@ export async function pickDirectory(): Promise<FileSystemDirectoryHandle | null>
   }
 }
 
-/** Prompt for a Markdown file handle; null if the user cancels. */
-export async function pickMarkdownFileHandle(): Promise<FileSystemFileHandle | null> {
+/**
+ * Prompt for an importable file handle (Markdown opened in place, or a foreign
+ * format imported as a copy); null if the user cancels. The single "Ouvrir un
+ * fichier…" entry point of the unified browser — Chromium path. The caller
+ * decides in-place vs copy from the extension.
+ */
+export async function pickImportableFileHandle(): Promise<FileSystemFileHandle | null> {
   try {
     const [handle] = await (window as unknown as FsPickerWindow).showOpenFilePicker(
       {
@@ -71,10 +76,13 @@ export async function pickMarkdownFileHandle(): Promise<FileSystemFileHandle | n
         // "All files" option so nothing is ever un-selectable.
         types: [
           {
-            description: 'Markdown / text',
+            description: 'Markdown / text / documents',
             accept: {
               'text/markdown': ['.md', '.markdown'],
               'text/plain': ['.txt'],
+              'text/html': ['.html', '.htm'],
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                ['.docx'],
             },
           },
         ],

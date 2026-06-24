@@ -143,8 +143,10 @@ En haut de l'écran, quelques boutons :
 
 - **Fichier ▾** — tout ce qui touche au document : *Nouveau*, *Ouvrir…*,
   *Enregistrer* / *Enregistrer sous…*, *Mettre à la corbeille*,
-  *Importer un fichier*, l'export (Markdown / PDF / LaTeX) et le partage
-  (cf. *Ouvrir, enregistrer, partager* plus bas).
+  l'export (Markdown / PDF / LaTeX) et le partage
+  (cf. *Ouvrir, enregistrer, partager* plus bas). Ouvrir un fichier
+  externe (`.docx`, `.html`…) se fait **depuis *Ouvrir*** (bouton
+  *Ouvrir un fichier…*), pas par une commande séparée.
 - **Le nom du document** (au centre) — modifiable pour un document de la
   Bibliothèque ; pour un document lié à un volume, il affiche son nom de
   fichier et une pastille d'origine.
@@ -494,17 +496,23 @@ origine : `🐙 dépôt ▸ dossier/`, le dossier sur le disque, ou
 un dossier de la Bibliothèque dans le navigateur : on y **restaure** ou
 **supprime définitivement** chaque document, et on peut la **vider**.
 
-#### Importer un fichier
+#### Ouvrir un fichier de l'appareil
 
-**Fichier ▸ Importer un fichier…** ajoute un fichier externe comme
-**nouveau document** dans la Bibliothèque. Formats : `.md`, `.txt`,
-`.html`, `.docx` (Word).
+Dans **Ouvrir**, le bouton **Ouvrir un fichier…** (en bas du dialogue)
+choisit un fichier sur votre machine, sans monter de volume. Formats :
+`.md`, `.markdown`, `.txt`, `.html`, `.docx` (Word). Le sort du fichier
+**découle de son format** :
 
-> **À noter pour les fichiers Word** : à l'import d'un `.docx`, le
+- un **`.md`** s'**ouvre en place** (sur Chrome/Edge, il reste lié au
+  fichier sur le disque — *Enregistrer* y réécrit directement) ;
+- un **format étranger** (`.docx`, `.html`, `.txt`) est **converti** et
+  ajouté comme **nouveau document** dans la Bibliothèque (une copie).
+
+> **À noter pour les fichiers Word** : à l'ouverture d'un `.docx`, le
 > texte, les titres, les listes, le gras/italique, les liens et les
 > citations sont récupérés, mais **pas les images**. Si votre
 > document Word contenait des photos, vous devrez les réinsérer
-> manuellement après import.
+> manuellement.
 
 #### Travailler avec GitHub
 
