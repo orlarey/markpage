@@ -187,6 +187,40 @@ const TABLE: Record<string, string> = {
   '′': '\\prime ',
   '∠': '\\angle ',
   '°': '^\\circ ',
+
+  // ---- letterlike / constants --------------------------------------
+  'ℵ': '\\aleph ',
+  'ℏ': '\\hbar ',
+
+  // ---- more operators / shapes -------------------------------------
+  '•': '\\bullet ',
+  '⋆': '\\star ',
+  '⋄': '\\diamond ',
+  '†': '\\dagger ',
+  '‡': '\\ddagger ',
+  '△': '\\triangle ',
+  '□': '\\square ',
+  '∥': '\\parallel ',
+  '∋': '\\ni ',
+
+  // ---- Greek (omicron looks Latin but has a command) ---------------
+  'ο': '\\omicron ',
+
+  // ---- long arrows -------------------------------------------------
+  '⟶': '\\longrightarrow ',
+  '⟵': '\\longleftarrow ',
+  '⟷': '\\longleftrightarrow ',
+  '⟹': '\\Longrightarrow ',
+  '⟸': '\\Longleftarrow ',
+  '⟺': '\\Longleftrightarrow ',
+
+  // ---- negated relations (amssymb) ---------------------------------
+  '≮': '\\nless ',
+  '≯': '\\ngtr ',
+  '≰': '\\nleq ',
+  '≱': '\\ngeq ',
+  '≁': '\\nsim ',
+  '≇': '\\ncong ',
 };
 
 // Mathematical Double-Struck Capital A-Z (U+1D538-U+1D551), filling
@@ -198,6 +232,26 @@ for (let i = 0; i < 26; i += 1) {
   const letter = String.fromCodePoint(cp);
   const ascii = String.fromCodePoint(0x41 + i);
   TABLE[letter] = `\\mathbb{${ascii}}`;
+}
+
+// Single canonical command per glyph, used to clean a `\name ` form.
+const CLEAN_COMMAND_RE = /^\\([a-zA-Z]+) $/;
+
+/**
+ * Purpose: The inverse of `TABLE` (LaTeX command → Unicode glyph) for the
+ *   editor's `\`-command ligatures — so typing `\cmd ` inserts exactly the
+ *   glyph the LaTeX export turns back into `\cmd` (round-trip on one table).
+ * How: Keep only **plain symbol commands** — a single `\name` with a trailing
+ *   space. This drops, by construction, argument macros (`\sqrt`, `\mathbb{}`),
+ *   multi-command forms (`\not\equiv`) and non-command forms (`^\circ`).
+ */
+export function latexToUnicode(): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const [glyph, latex] of Object.entries(TABLE)) {
+    const match = CLEAN_COMMAND_RE.exec(latex);
+    if (match?.[1]) m.set(match[1], glyph);
+  }
+  return m;
 }
 
 /**

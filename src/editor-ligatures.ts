@@ -37,6 +37,7 @@
 import { syntaxTree } from '@codemirror/language';
 import { type EditorState, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { latexToUnicode } from './latex-math-symbols';
 
 // ---- Blackboard-bold letters ------------------------------------------
 
@@ -69,131 +70,38 @@ function blackboardBold(letter: string): string {
   );
 }
 
+
 // ---- Backslash commands -----------------------------------------------
 
-// Map from LaTeX command name (without the leading backslash) to its
-// Unicode glyph. The terminator-based trigger means we can have both
-// `\in` and `\int` without conflict — the user types `\in ` to get ∈
-// and `\int ` to get ∫, the space disambiguates.
+// LaTeX-style `\name` commands, fired by a non-letter terminator (space,
+// punctuation, operator, newline) so `\in` / `\int` / `\infty` coexist.
 //
-// Greek codepoints match MathJax's own rendering choices, so the
-// substituted source is visually identical to the LaTeX command in
-// math mode:
-//   - `\epsilon` → ϵ (lunate, U+03F5), `\varepsilon` → ε (U+03B5)
-//   - `\phi` → ϕ (stroked, U+03D5), `\varphi` → φ (loopy, U+03C6)
-const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
-  // ---- Greek lowercase
-  ['alpha', 'α'],
-  ['beta', 'β'],
-  ['gamma', 'γ'],
-  ['delta', 'δ'],
-  ['epsilon', 'ϵ'],
-  ['zeta', 'ζ'],
-  ['eta', 'η'],
-  ['theta', 'θ'],
-  ['iota', 'ι'],
-  ['kappa', 'κ'],
-  ['lambda', 'λ'],
-  ['mu', 'μ'],
-  ['nu', 'ν'],
-  ['xi', 'ξ'],
-  ['omicron', 'ο'],
-  ['pi', 'π'],
-  ['rho', 'ρ'],
-  ['sigma', 'σ'],
-  ['tau', 'τ'],
-  ['upsilon', 'υ'],
-  ['phi', 'ϕ'],
-  ['chi', 'χ'],
-  ['psi', 'ψ'],
-  ['omega', 'ω'],
-  // Greek variants
-  ['varepsilon', 'ε'],
-  ['varphi', 'φ'],
-  ['vartheta', 'ϑ'],
-  ['varpi', 'ϖ'],
-  ['varrho', 'ϱ'],
-  ['varsigma', 'ς'],
-  // Greek uppercase (only those that differ from the Latin glyph)
-  ['Gamma', 'Γ'],
-  ['Delta', 'Δ'],
-  ['Theta', 'Θ'],
-  ['Lambda', 'Λ'],
-  ['Xi', 'Ξ'],
-  ['Pi', 'Π'],
-  ['Sigma', 'Σ'],
-  ['Upsilon', 'Υ'],
-  ['Phi', 'Φ'],
-  ['Psi', 'Ψ'],
-  ['Omega', 'Ω'],
-
-  // ---- Set theory & quantifiers
-  ['in', '∈'],
-  ['notin', '∉'],
-  ['subset', '⊂'],
-  ['supset', '⊃'],
-  ['subseteq', '⊆'],
-  ['supseteq', '⊇'],
-  ['cup', '∪'],
-  ['cap', '∩'],
-  ['emptyset', '∅'],
-  ['forall', '∀'],
-  ['exists', '∃'],
-
-  // ---- Logic
+// Derived from the single canonical LaTeX↔Unicode table
+// (`latex-math-symbols.ts`): the editor accepts exactly the symbols the LaTeX
+// export round-trips — `\cmd ` → glyph → (export) → `\cmd`. Add a symbol to that
+// table and it works in BOTH the editor and the export. The table excludes, by
+// construction, character escapes (`\#`…), accents and argument macros
+// (`\sqrt`, `\mathbb{}`) — those aren't symbols.
+//
+// SYNONYMS are alternate command names for a glyph whose *canonical* command
+// (the one the export emits) differs — `\perp` for ⊥ (canonical `\bot`),
+// `\wedge` for ∧ (`\land`), … A synonym normalises to the canonical on export.
+const SYNONYMS: ReadonlyMap<string, string> = new Map([
   ['wedge', '∧'],
   ['vee', '∨'],
-  ['neg', '¬'],
-
-  // ---- Relations
-  ['approx', '≈'],
-  ['equiv', '≡'],
-  ['cong', '≅'],
-  ['sim', '∼'],
-  ['propto', '∝'],
   ['perp', '⊥'],
-  ['parallel', '∥'],
+  ['lnot', '¬'],
+  ['rightarrow', '→'],
+  ['gets', '←'],
+  ['owns', '∋'],
+  ['le', '≤'],
+  ['ge', '≥'],
+  ['ne', '≠'],
+]);
 
-  // ---- Operators
-  ['oplus', '⊕'],
-  ['otimes', '⊗'],
-  ['circ', '∘'],
-  ['bullet', '•'],
-  ['cdot', '⋅'],
-  ['times', '×'],
-  ['div', '÷'],
-
-  // ---- Calculus
-  ['partial', '∂'],
-  ['nabla', '∇'],
-  ['infty', '∞'],
-  ['sum', '∑'],
-  ['prod', '∏'],
-  ['int', '∫'],
-  ['oint', '∮'],
-
-  // ---- Constants
-  ['aleph', 'ℵ'],
-  ['hbar', 'ℏ'],
-
-  // ---- Dots
-  ['cdots', '⋯'],
-  ['vdots', '⋮'],
-  ['ddots', '⋱'],
-  ['ldots', '…'],
-
-  // ---- Arrows
-  ['mapsto', '↦'],
-  ['Leftarrow', '⇐'],
-  ['Rightarrow', '⇒'],
-  ['Leftrightarrow', '⇔'],
-
-  // ---- Angle brackets — the LaTeX command form is the only way to
-  // get them, mirroring how `\langle` / `\rangle` are written in
-  // proper math. Avoids ambiguities with `<<` / `>>` as e.g. bit-
-  // shift operators or arrow-stacking notations.
-  ['langle', '⟨'],
-  ['rangle', '⟩'],
+const BS_COMMANDS: ReadonlyMap<string, string> = new Map([
+  ...latexToUnicode(),
+  ...SYNONYMS,
 ]);
 
 // ---- Tail-match ligatures ---------------------------------------------

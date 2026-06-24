@@ -1433,6 +1433,15 @@ substituer. Vous tapez `\alpha` puis un espace : l'espace reste, et
 chevauchent (`\in`, `\int`, `\infty` ; `\subset`, `\subseteq`) de
 coexister sans qu'un préfixe ne court-circuite un nom plus long.
 
+> **La règle, en une phrase.** Tout symbole mathématique possède une
+> forme Unicode et une forme `\commande` équivalentes, reliées par une
+> table unique : l'éditeur convertit `\commande␣` en symbole Unicode,
+> et l'export LaTeX fait exactement l'inverse — sauf les échappements
+> (`\#`), les accents et le texte (`\sqrt`, `\text{}`) et les macros à
+> argument (`\mathbb{N}`), qui ne sont pas des symboles. Donc **tout**
+> symbole connu de l'export PDF/LaTeX est aussi une ligature. Les
+> listes ci-dessous sont une visite guidée, pas un catalogue exhaustif.
+
 **Lettres grecques** :
 
 | Tapez | Obtenez | Tapez | Obtenez | Tapez | Obtenez |

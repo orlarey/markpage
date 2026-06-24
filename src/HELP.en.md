@@ -1373,6 +1373,15 @@ rule lets overlapping names (`\in`, `\int`, `\infty`; `\subset`,
 `\subseteq`) coexist without a shorter prefix shadowing a longer
 command.
 
+> **The rule, in one sentence.** Every math symbol has an equivalent
+> Unicode form and `\command` form, tied together by a single table:
+> the editor turns `\command␣` into the Unicode symbol, and the LaTeX
+> export does the exact reverse — except escapes (`\#`), accents and
+> text (`\sqrt`, `\text{}`) and argument macros (`\mathbb{N}`), which
+> aren't symbols. So **any** symbol the PDF/LaTeX export knows is also
+> a ligature. The lists below are a guided tour, not an exhaustive
+> catalogue.
+
 **Greek letters**:
 
 | Type | Get | Type | Get | Type | Get |

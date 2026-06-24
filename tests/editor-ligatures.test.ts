@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { applyLigaturesToString } from '../src/editor-ligatures';
+import { latexToUnicode, mathBodyToLatex } from '../src/latex-math-symbols';
 
 describe('applyLigaturesToString — non-code text', () => {
   it('rewrites tail ligatures', () => {
@@ -17,6 +18,32 @@ describe('applyLigaturesToString — non-code text', () => {
   it('respects the same-first-char guard', () => {
     // `-->` should stay intact — common in Mermaid arrows.
     expect(applyLigaturesToString('a --> b')).toBe('a --> b');
+  });
+
+  it('accepts every symbol the LaTeX export round-trips', () => {
+    // The editor commands are derived from the export table, so commands
+    // that previously had no ligature (\star, \leq, \aleph, …) now fire.
+    expect(applyLigaturesToString('a \\star b')).toBe('a ⋆ b');
+    expect(applyLigaturesToString('x \\leq y')).toBe('x ≤ y');
+    expect(applyLigaturesToString('\\aleph_0')).toBe('ℵ₀');
+    expect(applyLigaturesToString('\\longrightarrow')).toBe('⟶');
+  });
+
+  it('accepts synonyms whose canonical export command differs', () => {
+    // \perp normalises to \bot, \wedge to \land, etc. — same glyph.
+    expect(applyLigaturesToString('A \\perp B')).toBe('A ⊥ B');
+    expect(applyLigaturesToString('p \\wedge q')).toBe('p ∧ q');
+    expect(applyLigaturesToString('p \\vee q')).toBe('p ∨ q');
+  });
+});
+
+describe('round-trip invariant — editor ⇄ export share one table', () => {
+  it('every editor command maps to a glyph the export turns back into a command', () => {
+    // The single-table design promise: \cmd → glyph → (export) → \cmd.
+    for (const [cmd, glyph] of latexToUnicode()) {
+      const back = mathBodyToLatex(glyph).text.trim();
+      expect(back, `glyph ${glyph} (from \\${cmd})`).toBe(`\\${cmd}`);
+    }
   });
 });
 
