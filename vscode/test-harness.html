@@ -34,6 +34,10 @@
       'Q1, 3',
       'Q2, 5',
       '```',
+      '',
+      'A claim with a footnote.[^a]',
+      '',
+      '[^a]: The footnote body, at the end.',
     ].join('\n');
     window.dispatchEvent(new MessageEvent('message', { data: { type: 'render', md, baseUri: '' } }));
   </script>

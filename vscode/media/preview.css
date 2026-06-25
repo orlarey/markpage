@@ -66,9 +66,33 @@ img, svg { max-width: 100%; height: auto; }
 .admonition-warning, .admonition-caution { border-left-color: #e0a030; }
 .admonition-important { border-left-color: #b070e0; }
 
-/* math (rendered to SVG by hydratePreview) + mermaid + figure captions */
+/* math (rendered to SVG by hydratePreview) + mermaid */
 .math-block { text-align: center; margin: 1em 0; }
 .math-error, .mermaid-error { color: #d04545; }
 .mermaid-block { text-align: center; margin: 1em 0; }
-figure { margin: 1em 0; text-align: center; }
-figcaption { font-size: 0.9em; color: var(--vscode-descriptionForeground); }
+
+/* figures + captions (chart / category / tree / algorithm blocks) */
+figure { margin: 1em 0; }
+figure.captioned { break-inside: avoid; }
+.caption, figcaption {
+  text-align: center;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* footnotes (ported from markpage's preview styles) */
+.footnote-ref { font-size: 0.75em; line-height: 0; vertical-align: super; }
+.footnote-ref a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.footnotes { margin-top: 2em; font-size: 0.9em; }
+.footnotes hr { border: none; border-top: 1px solid var(--vscode-panel-border, #8884); margin: 0.6em 0; }
+.footnotes ol { padding-left: 1.4em; }
+.footnotes li { margin: 0.3em 0; }
+.footnote-back { color: var(--vscode-textLink-foreground); text-decoration: none; }
+
+/* mosaic image gallery */
+.mosaic-block { margin: 1em 0; }
+.mosaic-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.mosaic-row-natural { justify-content: flex-start; }
+.mosaic-item { flex: 1 1 auto; min-width: 0; }
+.mosaic-item img { width: 100%; display: block; }
+.mosaic-missing, .mosaic-error { color: #d04545; font-size: 0.9em; }
