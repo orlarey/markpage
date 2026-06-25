@@ -9,6 +9,7 @@ import * as vscode from 'vscode';
 
 let panel: vscode.WebviewPanel | undefined;
 let trackedDoc: vscode.TextDocument | undefined;
+let suppressEditorScrollUntil = 0; // ignore the visible-range echo after a webview-driven reveal
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -34,6 +35,26 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
   );
+
+  // Scroll-sync: editor scroll → preview. (The reverse, preview → editor, is the
+  // webview's `revealLine` message, handled in openPreview.)
+  context.subscriptions.push(
+    vscode.window.onDidChangeTextEditorVisibleRanges((e) => {
+      if (!panel || e.textEditor.document !== trackedDoc) return;
+      if (Date.now() < suppressEditorScrollUntil) return; // our own echo
+      const top = e.visibleRanges[0]?.start.line ?? 0;
+      void panel.webview.postMessage({ type: 'scrollToLine', line: top });
+    }),
+  );
+}
+
+/** Preview → editor: reveal `line` in the tracked editor (guarded against echo). */
+function revealEditorLine(line: number): void {
+  const editor = vscode.window.visibleTextEditors.find((ed) => ed.document === trackedDoc);
+  if (!editor) return;
+  suppressEditorScrollUntil = Date.now() + 250;
+  const range = new vscode.Range(line, 0, line, 0);
+  editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
 }
 
 function openPreview(context: vscode.ExtensionContext): void {
@@ -63,6 +84,13 @@ function openPreview(context: vscode.ExtensionContext): void {
   panel.onDidDispose(() => {
     panel = undefined;
   });
+  panel.webview.onDidReceiveMessage(
+    (m: { type?: string; line?: number }) => {
+      if (m?.type === 'revealLine' && typeof m.line === 'number') revealEditorLine(m.line);
+    },
+    undefined,
+    context.subscriptions,
+  );
   panel.webview.html = htmlShell(context, panel.webview);
   update();
 }
