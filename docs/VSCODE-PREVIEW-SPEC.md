@@ -75,19 +75,17 @@ l'appli web **et** l'extension. API cible :
 
 ```ts
 // @orlarey/markpage-render
-export function renderMarkpageMarkdown(md: string, opts: RenderOptions): string;       // phase A
-export function hydratePreview(root: HTMLElement, opts: RuntimeOptions): Promise<void>; // phases B + C
+export function renderMarkpageMarkdown(md: string, opts?: RenderOptions): string;       // phase A — LIVRÉ
+export function rewriteImageSrc(html: string, resolve: (src: string) => string): string; // la couture — LIVRÉ
+export function hydratePreview(root: HTMLElement, opts: RuntimeOptions): Promise<void>; // phases B — à venir
 
 export interface RenderOptions {
-  style?: StylePreset;
-  mathFont?: MathFontSet;
-  header?: string; footer?: string;
-  numbering?: NumberingConfig;
+  resolveImageSrc?: (src: string) => string;  // la couture images (§5), appliquée sur la sortie
+  // style / mathFont / header / footer / numbering : à venir
 }
-export interface RuntimeOptions {
-  resolveImageSrc?: (ref: string) => string; // la couture (§5)
+export interface RuntimeOptions {            // phase B (hydrate), à venir
   mathFont?: MathFontSet;
-  assetBaseUrl?: string;                      // racine des fontes MathJax / assets
+  assetBaseUrl?: string;                     // racine des fontes MathJax / assets
 }
 ```
 
@@ -151,6 +149,15 @@ néanmoins le *point d'extension* pour que l'appli web continue de brancher sa
 résolution sha.
 :::
 
+::: tip [Réalisation (livrée)]
+L'analyse du code a confirmé que la **phase A ne touche pas aux images** : elle
+laisse les refs intactes. La couture est donc **réalisée en sortie** :
+`renderMarkpageMarkdown(md, { resolveImageSrc })` réécrit chaque `<img src>` via
+`rewriteImageSrc`. L'appli web **garde** sa résolution sha existante (au niveau
+du *texte*, avant `marked.parse`) — **inchangée** ; l'extension passera un
+résolveur « chemin → URI webview ». Une seule fonction, deux politiques.
+:::
+
 ## 6. Structure de l'extension VS Code
 
 ### Manifeste (`package.json`)
@@ -190,13 +197,16 @@ flowchart TD
 
 ## 7. Plan d'implémentation
 
-**Étape 1 — Extraire `@orlarey/markpage-render`.** Déplacer le Bucket A (+ B en
-second point d'entrée), faire que l'appli web l'**importe** (zéro changement
-fonctionnel côté markpage). *Vérif* : la suite de tests + l'aperçu web inchangés.
+**Étape 1 — Extraire `@orlarey/markpage-render` ✅ (livrée).** Bucket A déplacé
+hors de `src/` ; l'appli web l'**importe** (zéro changement fonctionnel).
+*Vérifié* : typecheck, build du package, build prod, 335 tests, aperçu live.
 
-**Étape 2 — Définir la couture.** Sortir la résolution d'images derrière
-`resolveImageSrc` ; l'appli web branche sa version sha, le package n'en dépend
-plus. *Vérif* : aperçu web toujours bon avec la résolution injectée.
+**Étape 2 — Entrée de rendu + couture ✅ (livrée).** `renderMarkpageMarkdown(md,
+{ resolveImageSrc })` + `rewriteImageSrc`. La phase A ne touchant pas aux images,
+la couture est réalisée **en sortie** ; l'appli web garde sa résolution sha
+**inchangée** (purement additif). *Vérifié* : 5 tests + suite à 340 verts.
+**Reste (étape 2b, à venir)** : extraire la **phase B** (`hydratePreview` —
+MathJax + Mermaid) en second point d'entrée.
 
 **Étape 3 — Coquille d'extension.** Scaffold (`yo code` ou minimal) : commande +
 WebviewPanel + CSP + `localResourceRoots`. Afficher un HTML statique. *Vérif* :
