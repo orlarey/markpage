@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { parseFrontmatter } from '@orlarey/markpage-render';
 
 import {
+  applyFrontmatterToSettings,
   DEFAULT_SETTINGS,
   mergeWithDefaults,
   validateLayoutSettings,
 } from '../src/settings';
+
+/** Parse a YAML frontmatter block and fold it onto DEFAULT_SETTINGS. */
+function applyYaml(yaml: string) {
+  const { meta } = parseFrontmatter(`---\n${yaml}\n---\n\nBody.\n`);
+  return { meta, settings: applyFrontmatterToSettings(DEFAULT_SETTINGS, meta) };
+}
 
 describe('DEFAULT_SETTINGS — layout fields (§9.5 / §9.6 / §9.7)', () => {
   it('seeds duplex / chapterBreak / marginMode to the backward-compatible defaults', () => {
@@ -28,6 +36,56 @@ describe('DEFAULT_SETTINGS — layout fields (§9.5 / §9.6 / §9.7)', () => {
 
   it("seeds notes.position to 'foot' (= the §17 footnote behaviour)", () => {
     expect(DEFAULT_SETTINGS.notes.position).toBe('foot');
+  });
+});
+
+describe('applyFrontmatterToSettings — per-doc layout/typography overrides', () => {
+  it('leaves settings untouched when no override keys are present', () => {
+    const { settings } = applyYaml('title: Hi\nauthor: Me');
+    expect(settings).toBe(DEFAULT_SETTINGS); // identity — no clone
+  });
+
+  it('maps page-size (case-insensitive), excluding SLIDES_16_9', () => {
+    expect(applyYaml('page-size: a5').settings.pageSize).toBe('A5');
+    expect(applyYaml('page-size: LETTER').settings.pageSize).toBe('LETTER');
+    // unknown / slides value ignored → keep the profile default
+    expect(applyYaml('page-size: SLIDES_16_9').settings.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
+    expect(applyYaml('page-size: nope').settings.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
+  });
+
+  it('expands margins shorthand (1 / 2 / 4 values) and forces manual mode', () => {
+    expect(applyYaml('margins: 20').settings.margins).toEqual({
+      top: 20, right: 20, bottom: 20, left: 20,
+    });
+    expect(applyYaml('margins: 25 35').settings.margins).toEqual({
+      top: 25, right: 35, bottom: 25, left: 35,
+    });
+    const four = applyYaml('margins: 10 20 30 40').settings;
+    expect(four.margins).toEqual({ top: 10, right: 20, bottom: 30, left: 40 });
+    expect(four.marginMode).toBe('manual');
+  });
+
+  it('toggles the footer page number via page-numbers', () => {
+    expect(applyYaml('page-numbers: false').settings.footer).toBe('');
+    expect(applyYaml('page-numbers: true').settings.footer).toContain('{page}');
+  });
+
+  it('overrides the three font slots', () => {
+    const s = applyYaml('font-body: Lora\nfont-heading: Inter\nfont-mono: Fira Code').settings;
+    expect(s.fonts.body).toBe('Lora');
+    expect(s.fonts.headings).toBe('Inter');
+    expect(s.fonts.code).toBe('Fira Code');
+  });
+
+  it('still honours slides, which wins over page-size and clamps margins', () => {
+    const s = applyYaml('page-size: A3\nmargins: 40\nslides: true').settings;
+    expect(s.pageSize).toBe('SLIDES_16_9');
+    expect(s.margins.top).toBeLessThanOrEqual(10); // slide vertical-margin cap
+  });
+
+  it('parser stores margins already expanded to a box', () => {
+    const { meta } = applyYaml('margins: 25 35');
+    expect(meta.margins).toEqual({ top: 25, right: 35, bottom: 25, left: 35 });
   });
 });
 

@@ -29,10 +29,74 @@ interface ScrollMessage {
   line: number;
 }
 
-// A4 page rules for the paginated mode (paged.js reads @page).
-const PAGE_CSS = `
-@page { size: 210mm 297mm; margin: 18mm 16mm; }
-`;
+// Page dimensions (mm) for the formats a `page-size:` frontmatter key may name.
+const PAGE_DIMS_MM: Record<string, [number, number]> = {
+  A3: [297, 420],
+  A4: [210, 297],
+  A5: [148, 210],
+  B5: [176, 250],
+  LETTER: [215.9, 279.4],
+  LEGAL: [215.9, 355.6],
+};
+
+// markpage's default profile (settings.ts DEFAULT_SETTINGS): A4, 25 mm top/
+// bottom, 35 mm left/right, footer page numbers on. Used when the document
+// doesn't override them via frontmatter — so the preview looks like the PDF.
+const DEFAULT_MARGINS = { top: 25, right: 35, bottom: 25, left: 35 };
+
+interface Layout {
+  pageW: number;
+  pageH: number;
+  margins: { top: number; right: number; bottom: number; left: number };
+  pageNumbers: boolean;
+  fonts: { body?: string; headings?: string; mono?: string };
+}
+
+/** Resolve the effective page layout from the document's frontmatter. */
+function layoutFromMeta(meta: ReturnType<typeof parseFrontmatter>['meta']): Layout {
+  const sizeKey = meta['page-size']?.trim().toUpperCase() ?? 'A4';
+  const [pageW, pageH] = PAGE_DIMS_MM[sizeKey] ?? PAGE_DIMS_MM.A4;
+  return {
+    pageW,
+    pageH,
+    margins: meta.margins ?? DEFAULT_MARGINS,
+    pageNumbers: meta['page-numbers'] ?? true,
+    fonts: { body: meta['font-body'], headings: meta['font-heading'], mono: meta['font-mono'] },
+  };
+}
+
+/** @page rules for the paginated mode (paged.js reads these): size, margins,
+ *  and a centred footer page number. */
+function pageCss(L: Layout): string {
+  const m = L.margins;
+  const numbers = L.pageNumbers
+    ? '@bottom-center { content: counter(page); font-size: 9pt; color: #555; }'
+    : '';
+  return `@page { size: ${L.pageW}mm ${L.pageH}mm; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; ${numbers} }`;
+}
+
+/** Apply the layout to the page sheet: font overrides always; in continuous
+ *  mode the sheet carries the page width + margins (paged.js owns them when
+ *  paginated, so we clear the inline box there). */
+function applyLayoutToRoot(L: Layout, paginated: boolean): void {
+  const setVar = (k: string, v?: string): void => {
+    if (v) root.style.setProperty(k, v);
+    else root.style.removeProperty(k);
+  };
+  setVar('--font-body', L.fonts.body);
+  setVar('--font-heading', L.fonts.headings);
+  setVar('--font-mono', L.fonts.mono);
+  if (paginated) {
+    for (const p of ['width', 'min-height', 'padding', 'max-width']) root.style.removeProperty(p);
+  } else {
+    const m = L.margins;
+    root.style.width = `${L.pageW}mm`;
+    root.style.minHeight = `${L.pageH}mm`;
+    root.style.padding = `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`;
+  }
+}
+
+let currentLayout: Layout = layoutFromMeta({ extra: {} });
 
 // Bridge to the extension host (absent in the plain-browser dev harness).
 const vscode =
@@ -87,6 +151,8 @@ async function render(msg: RenderMessage): Promise<void> {
   // mathjax-preamble. The body offset keeps scroll-sync line numbers correct.
   const { meta, body } = parseFrontmatter(msg.md);
   const lineOffset = countNewlines(msg.md.slice(0, msg.md.length - body.length));
+  currentLayout = layoutFromMeta(meta);
+  applyLayoutToRoot(currentLayout, msg.paginated);
   root.classList.remove('paginated');
   root.innerHTML =
     renderMetadataBlock(meta) +
@@ -116,9 +182,14 @@ async function paginate(token: number): Promise<void> {
   source.innerHTML = root.innerHTML;
   const { Previewer } = await import('pagedjs');
   if (token !== renderToken) return; // a newer render started while loading
+  // paged.js injects a generated <style> into <head> on every preview() and
+  // never removes it — across edits/toggles they pile up and stale rules
+  // (e.g. a previous run's @bottom-center page number) leak into the new
+  // pages. Drop them before re-paginating so each run starts from a clean slate.
+  document.querySelectorAll('style[data-pagedjs-inserted-styles]').forEach((s) => s.remove());
   root.classList.add('paginated');
   root.innerHTML = '';
-  await new Previewer().preview(source, [{ 'markpage-page.css': PAGE_CSS }], root);
+  await new Previewer().preview(source, [{ 'markpage-page.css': pageCss(currentLayout) }], root);
 }
 
 // ---- scroll-sync ----------------------------------------------------------

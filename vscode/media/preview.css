@@ -24,13 +24,15 @@ body {
   --text-muted: #666666;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-sans: var(--font-body);
+  --font-heading: var(--font-body);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* A4 page: 210 × 297 mm with realistic margins, centred on the backdrop.
-     Continuous scroll (no page breaks) — the PDF export does the real
-     pagination; this preview shows the page width and margins. min-height
-     keeps a full-page shape even for short documents. max-width lets it scale
-     down in a narrow split panel. */
+  /* A4 page: 210 × 297 mm with markpage's default margins (25 mm top/bottom,
+     35 mm left/right). These are fallbacks for first paint — the webview sets
+     width / min-height / padding inline from the document's effective layout
+     (page-size + margins frontmatter). Continuous scroll (no page breaks); the
+     paginated mode + PDF export do the real pagination. min-height keeps a
+     full-page shape for short docs; max-width scales down in a narrow split. */
   width: 210mm;
   max-width: 100%;
   min-height: 297mm;
@@ -41,14 +43,16 @@ body {
   font-family: var(--font-body);
   font-size: 11pt;
   line-height: 1.5;
-  padding: 20mm 18mm;
+  padding: 25mm 35mm;
   box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
 }
 
 #markpage-preview h1,
 #markpage-preview h2,
 #markpage-preview h3,
-#markpage-preview h4 { line-height: 1.25; font-weight: 600; color: #14223a; }
+#markpage-preview h4,
+#markpage-preview h5,
+#markpage-preview h6 { font-family: var(--font-heading); line-height: 1.25; font-weight: 600; color: #14223a; }
 #markpage-preview h1 { font-size: 1.9em; }
 #markpage-preview h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
 #markpage-preview h1.doc-title { text-align: center; }

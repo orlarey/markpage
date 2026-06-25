@@ -8,7 +8,7 @@
  *
  *******************************************************************************/
 
-import type { MathFontSet } from '@orlarey/markpage-render';
+import type { Frontmatter, MathFontSet } from '@orlarey/markpage-render';
 export type { MathFontSet };
 
 export type PageSize =
@@ -897,24 +897,73 @@ export interface MetadataLine {
  *   provided.
  */
 /**
- * Purpose: Return a settings copy with the frontmatter's per-doc
- *   overrides folded in. Currently: `slides: true` forces
- *   `pageSize: 'SLIDES_16_9'` so a single doc can opt into the
- *   slides format without rebinding its settings profile.
- * How: Shallow clone + targeted override. Returns the original when
- *   no override is in effect, so call sites stay cheap.
+ * Purpose: Return a settings copy with the frontmatter's per-doc overrides
+ *   folded in, so a document is self-describing — it renders the same in the
+ *   app and in any host that reads its frontmatter (e.g. the VS Code preview).
+ *   Handles `page-size`, `margins`, `page-numbers`, `font-*`, and `slides`.
+ * How: Layer the layout overrides on a shallow clone, then apply the slides
+ *   rule last (it forces SLIDES_16_9 + clamps vertical margins). Returns the
+ *   original when nothing is in effect, so call sites stay cheap.
  */
 export function applyFrontmatterToSettings(
   settings: PdfSettings,
-  frontmatter?: { slides?: boolean },
+  frontmatter?: Frontmatter,
 ): PdfSettings {
+  const s = frontmatter ? applyLayoutOverrides(settings, frontmatter) : settings;
   if (frontmatter?.slides) {
-    return slidesSettings({ ...settings, pageSize: 'SLIDES_16_9' });
+    return slidesSettings({ ...s, pageSize: 'SLIDES_16_9' });
   }
-  if (settings.pageSize === 'SLIDES_16_9') {
-    return slidesSettings(settings);
+  if (s.pageSize === 'SLIDES_16_9') {
+    return slidesSettings(s);
   }
-  return settings;
+  return s;
+}
+
+// Page formats a `page-size:` key may select. SLIDES_16_9 is intentionally
+// excluded — slides are opted into via the dedicated `slides:` key.
+const FRONTMATTER_PAGE_SIZES: PageSize[] = ['A3', 'A4', 'A5', 'B5', 'LETTER', 'LEGAL'];
+
+/**
+ * Purpose: Fold the frontmatter layout/typography overrides into the settings.
+ * How: Each present key replaces the corresponding profile field. `margins`
+ *   forces `marginMode: 'manual'` (derived mode would recompute and ignore
+ *   them); `page-numbers` rewrites the footer running content to carry — or
+ *   drop — the `{page}` token.
+ */
+function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettings {
+  let s = settings;
+
+  const sizeRaw = fm['page-size']?.trim().toUpperCase();
+  if (sizeRaw && (FRONTMATTER_PAGE_SIZES as string[]).includes(sizeRaw)) {
+    s = { ...s, pageSize: sizeRaw as PageSize };
+  }
+
+  if (fm.margins) {
+    const { top, right, bottom, left } = fm.margins;
+    s = { ...s, marginMode: 'manual', margins: { top, right, bottom, left } };
+  }
+
+  if (fm['page-numbers'] !== undefined) {
+    s = { ...s, footer: fm['page-numbers'] ? ' | {page} | ' : '' };
+  }
+
+  const fonts = { ...s.fonts };
+  let fontsChanged = false;
+  if (fm['font-body']) {
+    fonts.body = fm['font-body'];
+    fontsChanged = true;
+  }
+  if (fm['font-heading']) {
+    fonts.headings = fm['font-heading'];
+    fontsChanged = true;
+  }
+  if (fm['font-mono']) {
+    fonts.code = fm['font-mono'];
+    fontsChanged = true;
+  }
+  if (fontsChanged) s = { ...s, fonts };
+
+  return s;
 }
 
 /**

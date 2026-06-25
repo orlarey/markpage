@@ -25,7 +25,41 @@ export interface Frontmatter {
   // forces `pageSize: 'SLIDES_16_9'` so `## h2` starts a new slide
   // regardless of the active settings profile.
   slides?: boolean;
+
+  // --- Layout / typography overrides (SPEC: applied on top of the active
+  // profile by applyFrontmatterToSettings, and by the VS Code preview directly).
+  // These make a document self-describing so it renders the same in the app
+  // and in any host that reads the frontmatter. ---
+  // Page format name (A4 / A5 / LETTER / …); case-insensitive.
+  'page-size'?: string;
+  // Page margins in mm. Authored as a CSS-shorthand list (`25`, `25 35`,
+  // `20 30 25 30`) and stored already expanded to the four sides.
+  margins?: { top: number; right: number; bottom: number; left: number };
+  // Footer page numbers on/off (the default profile footer is ' | {page} | ').
+  'page-numbers'?: boolean;
+  // Font family overrides for the three slots (body / headings / monospace).
+  'font-body'?: string;
+  'font-heading'?: string;
+  'font-mono'?: string;
   extra: Record<string, string>;
+}
+
+/**
+ * Purpose: Expand a CSS-shorthand margin list (1/2/3/4 values, mm) into the
+ *   four explicit sides, so the app (→ PdfSettings.margins) and the VS Code
+ *   preview (→ @page / padding) both read `margins:` identically.
+ * How: CSS box model — [a]=all, [a,b]=(v,h), [a,b,c]=(t,h,b), [a,b,c,d]=(t,r,b,l).
+ *   Returns null when there's no usable number.
+ */
+function marginBox(
+  nums: number[],
+): { top: number; right: number; bottom: number; left: number } | null {
+  if (nums.length === 0) return null;
+  const [a, b = a, c = a, d = b] = nums;
+  if (nums.length === 2) return { top: a, right: b, bottom: a, left: b };
+  if (nums.length === 3) return { top: a, right: b, bottom: c, left: b };
+  if (nums.length >= 4) return { top: a, right: b, bottom: c, left: d };
+  return { top: a, right: a, bottom: a, left: a };
 }
 
 export interface ParseResult {
@@ -161,14 +195,38 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'organization':
     case 'date':
     case 'mathjax-preamble':
+    case 'page-size':
+    case 'font-body':
+    case 'font-heading':
+    case 'font-mono':
       meta[key] = value;
       break;
     case 'slides':
       meta.slides = parseBool(value);
       break;
+    case 'page-numbers':
+      meta['page-numbers'] = parseBool(value);
+      break;
+    case 'margins': {
+      const box = marginBox(parseNumbers(value));
+      if (box) meta.margins = box;
+      break;
+    }
     default:
       meta.extra[key] = value;
   }
+}
+
+/**
+ * Purpose: Parse a whitespace/comma-separated list of numbers (e.g. margins).
+ * How: split, coerce, drop non-finite tokens (so `25 35` → [25, 35]).
+ */
+function parseNumbers(value: string): number[] {
+  return value
+    .split(/[\s,]+/)
+    .filter((t) => t !== '')
+    .map((t) => Number(t))
+    .filter((n) => Number.isFinite(n));
 }
 
 /**
