@@ -1,96 +1,100 @@
-/* preview.css — minimal styling for the markpage preview webview.
- * Uses VS Code theme variables so it follows the editor's light/dark theme.
- * This is a starter sheet; markpage's full style presets can be layered in. */
+/* preview.css — the markpage preview is a preview of a printed PDF page, so it
+ * shows a white "sheet" on a neutral backdrop, with fixed paper colours,
+ * regardless of the editor's (possibly dark) theme. */
 
-:root {
-  color-scheme: light dark;
+:root { color-scheme: light; }
+
+html, body {
+  margin: 0;
+  background: #e9e9ec; /* neutral backdrop around the page */
 }
 
 body {
-  font-family: var(--vscode-font-family, system-ui, sans-serif);
-  font-size: var(--vscode-font-size, 14px);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
   line-height: 1.6;
-  color: var(--vscode-editor-foreground);
-  background: var(--vscode-editor-background);
-  margin: 0;
-  padding: 1.5rem clamp(1rem, 6vw, 4rem);
+  color: #1c1c1e;
+  padding: 1.6rem 1rem;
 }
 
+/* The page sheet. */
 #markpage-preview {
-  max-width: 46rem;
+  max-width: 44rem;
   margin: 0 auto;
+  background: #fff;
+  color: #1c1c1e;
+  padding: 3rem clamp(1.4rem, 5vw, 3.4rem);
+  border-radius: 2px;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.16);
 }
 
-h1, h2, h3, h4 { line-height: 1.25; font-weight: 600; }
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 600; color: #14223a; }
 h1 { font-size: 1.9em; }
-h2 { font-size: 1.5em; border-bottom: 1px solid var(--vscode-panel-border, #8884); padding-bottom: 0.2em; }
+h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
+h1.doc-title { text-align: center; }
 
-a { color: var(--vscode-textLink-foreground); }
+a { color: #0b5cad; }
 
-pre, code {
-  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
-}
+pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 pre {
-  background: var(--vscode-textCodeBlock-background, #8881);
+  background: #f5f5f7;
   padding: 0.8em 1em;
   border-radius: 6px;
   overflow: auto;
+  font-size: 0.9em;
 }
 :not(pre) > code {
-  background: var(--vscode-textCodeBlock-background, #8881);
-  padding: 0.15em 0.35em;
+  background: #f0f0f3;
+  padding: 0.12em 0.35em;
   border-radius: 4px;
+  font-size: 0.92em;
 }
 
 blockquote {
-  border-left: 3px solid var(--vscode-textBlockQuote-border, #8884);
+  border-left: 3px solid #d4d4d8;
   margin: 0;
   padding: 0.2em 1em;
-  color: var(--vscode-descriptionForeground);
+  color: #555;
 }
 
 table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid var(--vscode-panel-border, #8884); padding: 0.35em 0.6em; }
+th, td { border: 1px solid #e0e0e4; padding: 0.35em 0.6em; }
+th { background: #f6f6f8; }
 
 img, svg { max-width: 100%; height: auto; }
 
-/* markpage callouts */
+/* callouts */
 .admonition {
-  border: 1px solid var(--vscode-panel-border, #8884);
-  border-left: 4px solid var(--vscode-textLink-foreground, #4af);
+  border: 1px solid #e4e4e8;
+  border-left: 4px solid #2f6fdb;
   border-radius: 6px;
   padding: 0.2em 1em;
   margin: 1em 0;
+  background: #fafbfd;
 }
 .admonition-title { font-weight: 600; margin: 0.5em 0; }
-.admonition-warning, .admonition-caution { border-left-color: #e0a030; }
-.admonition-important { border-left-color: #b070e0; }
+.admonition-warning, .admonition-caution { border-left-color: #d98a1a; }
+.admonition-important { border-left-color: #8a52d6; }
 
-/* math (rendered to SVG by hydratePreview) + mermaid */
+/* math + mermaid */
 .math-block { text-align: center; margin: 1em 0; }
-.math-error, .mermaid-error { color: #d04545; }
+.math-error, .mermaid-error { color: #c23b3b; }
 .mermaid-block { text-align: center; margin: 1em 0; }
 
-/* figures + captions (chart / category / tree / algorithm blocks) */
+/* figures + captions */
 figure { margin: 1em 0; }
 figure.captioned { break-inside: avoid; }
-.caption, figcaption {
-  text-align: center;
-  font-size: 0.9em;
-  color: var(--vscode-descriptionForeground);
-}
+.caption, figcaption { text-align: center; font-size: 0.9em; color: #666; }
 
-/* footnotes (ported from markpage's preview styles). The pipeline also emits a
-   `.sidenote` (Tufte margin-note) variant for each footnote; the preview uses
-   foot-of-document notes by default, so the sidenotes stay hidden. */
+/* footnotes (foot-of-document; the .sidenote Tufte variant stays hidden) */
 .sidenote { display: none; }
 .footnote-ref { font-size: 0.75em; line-height: 0; vertical-align: super; }
-.footnote-ref a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.footnote-ref a { color: #0b5cad; text-decoration: none; }
 .footnotes { margin-top: 2em; font-size: 0.9em; }
-.footnotes hr { border: none; border-top: 1px solid var(--vscode-panel-border, #8884); margin: 0.6em 0; }
+.footnotes hr { border: none; border-top: 1px solid #e0e0e4; margin: 0.6em 0; }
 .footnotes ol { padding-left: 1.4em; }
 .footnotes li { margin: 0.3em 0; }
-.footnote-back { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.footnote-back { color: #0b5cad; text-decoration: none; }
 
 /* definition lists */
 dl { margin: 0.8em 0; }
@@ -100,18 +104,19 @@ dd { margin: 0.1em 0 0 1.6em; }
 
 /* diff blocks (@orlarey/blocks) */
 .diff-block {
-  background: var(--vscode-textCodeBlock-background, #8881);
+  background: #f5f5f7;
   border-radius: 6px;
   padding: 0.6em 0.9em;
   overflow: auto;
-  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
   line-height: 1.4;
 }
-.diff-add { color: var(--vscode-gitDecoration-addedResourceForeground, #2da44e); }
-.diff-del { color: var(--vscode-gitDecoration-deletedResourceForeground, #cf222e); }
-.diff-meta, .diff-hunk { color: var(--vscode-descriptionForeground); }
+.diff-add { color: #1a7f37; }
+.diff-del { color: #cf222e; }
+.diff-meta, .diff-hunk { color: #666; }
 
-/* native-SVG diagram wrappers centre their figure */
+/* native-SVG diagram wrappers */
 .tree-svg-wrap, .category-svg { text-align: center; }
 
 /* mosaic image gallery */
@@ -120,4 +125,4 @@ dd { margin: 0.1em 0 0 1.6em; }
 .mosaic-row-natural { justify-content: flex-start; }
 .mosaic-item { flex: 1 1 auto; min-width: 0; }
 .mosaic-item img { width: 100%; display: block; }
-.mosaic-missing, .mosaic-error { color: #d04545; font-size: 0.9em; }
+.mosaic-missing, .mosaic-error { color: #c23b3b; font-size: 0.9em; }
