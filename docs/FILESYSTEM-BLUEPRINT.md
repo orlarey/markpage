@@ -1,8 +1,8 @@
 ---
 title: Blueprint — Système de fichiers d'appli web sans serveur
 author: Yann Orlarey
-version: 0.1
-date: 2026-06-24
+version: 0.2
+date: 2026-06-25
 ---
 
 > **Statut :** blueprint réutilisable, extrait de markpage 0.32.x. Ce document
@@ -15,7 +15,10 @@ date: 2026-06-24
 > [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md) pour le détail interne). Une **version
 > autonome anglophone**, sans dépendance à markpage et en markdown portable
 > (prête à déposer à la racine d'un autre dépôt), est disponible :
-> [FILESYSTEM-BLUEPRINT.en.md](FILESYSTEM-BLUEPRINT.en.md).
+> [FILESYSTEM-BLUEPRINT.en.md](FILESYSTEM-BLUEPRINT.en.md). **La v0.2 intègre les
+> leçons d'une 2ᵉ implémentation** (faustcode : JS vanilla, sans build/tests,
+> sessions adressées par contenu) — les notes « **(réemploi)** » ci-dessous en
+> découlent.
 
 **Thèse.** Offrir, dans une **appli web statique** (pas de serveur, pas
 d'installation, données chez l'utilisateur), l'expérience d'une **application
@@ -80,6 +83,17 @@ Access), Dépôt GitHub (REST + Git Data API), OneDrive (Microsoft Graph). Les
 trois premiers backends **existaient déjà** : le modèle « volumes » est une
 **re-présentation unifiée** par-dessus, pas une réécriture (c'est la *voie A*,
 cf. §8).
+:::
+
+::: note [Stores adressés par contenu (réemploi)]
+Le modèle suppose un **document mutable à identité stable** dont *Enregistrer*
+réécrit l'origine. Si le store cible est **adressé par contenu / immuable**
+(chaque édition = nouvelle identité, p. ex. des sessions `sha1(code)`), l'origine
+ne peut pas vivre sur un enregistrement de document : elle vit en **état
+applicatif**, rattachée à la **session d'édition courante**, et **réinitialisée à
+chaque Ouvrir/Nouveau**. De même, la *copie de travail* = le **contenu courant
+committé de l'éditeur** ; dans un éditeur « à *submit* », *Enregistrer* écrit le
+dernier *submit* (pas les frappes non soumises).
 :::
 
 ## 2. Les contraintes du bac à sable (ce qui force le design)
@@ -154,14 +168,20 @@ commande, juste un *Ouvrir* d'un format étranger.
 
 **I5 — Enregistrer = (volume, chemin)** (V5). *Enregistrer sous* choisit un
 couple (volume, dossier, nom). La notion de « lier à un dépôt/disque »
-**disparaît** : lier, c'est enregistrer ailleurs.
+**disparaît** : lier, c'est enregistrer ailleurs. *(Réemploi)* Dans un store
+**adressé par contenu**, *Enregistrer sous* « une copie » au sein du **même**
+store ne crée un fichier distinct **que si le contenu diffère** (même contenu →
+même identité) ; une vraie copie/renommage suppose un volume **à chemins**.
 
 **I6 — Aucune perte, jamais** (R1–R4). Pour un volume distant et versionné :
 
 - **Verbatim** : le fichier écrit est exactement le document (octet pour
   octet), pas une re-sérialisation.
 - **Périmètre clos** : on publie le `.md` **et** ses ressources relatives,
-  ensemble.
+  ensemble. *(Réemploi)* Le périmètre est **spécifique au projet** et n'est pas
+  forcément une liste plate d'images : il faut **calculer sa clôture** (analyser
+  les `import`/inclusions/références — p. ex. les `.lib` d'un `.dsp`) **avant** le
+  commit atomique, pas la supposer.
 - **Divergence → fork non destructif** : si l'origine a avancé de son côté, on
   **n'écrase pas** — on écrit un **nouveau fichier** `foo-<sha>.md` et on
   relie le document à ce fork. La détection se fait par **identité de version**
@@ -228,7 +248,9 @@ Rôles génériques → fichier de référence dans markpage :
 | **Import (conséquence de format)** | Convertir un format étranger en markdown + hisser les images | `src/import.ts` |
 | **Orchestration** | Câble *Ouvrir/Enregistrer/Recharger/Délier*, l'indicateur d'origine, la scrutation | `src/main.ts` |
 
-L'interface minimale d'un volume (à reproduire) :
+L'interface minimale d'un volume (à reproduire). *(Réemploi)* Le TypeScript ci-
+dessous est **illustratif** : dans un projet JS vanilla, transposez-le en typedef
+JSDoc ; dans un autre langage, en son équivalent.
 
 ```ts
 interface Volume {
@@ -257,7 +279,10 @@ Les sélecteurs *File System Access* / `<input type=file>` **ne se pilotent pas*
 en test headless. On teste **unitairement les parties pures** (helpers de
 listing, sérialisation de bundle, feature-gating) ; les flux pick→write→read
 sont **vérifiés à la main** par un humain, sur un navigateur Chromium réel.
-Dire explicitement à l'IA de ne pas prétendre avoir testé ces flux.
+Dire explicitement à l'IA de ne pas prétendre avoir testé ces flux. *(Réemploi)*
+Si le projet **n'a pas de runner de test**, ajoutez-en un minimal (p. ex. un
+fichier `node:assert` lancé par `node`) **ou** marquez ces vérifs « manuelles » —
+ne présupposez pas un harnais existant.
 :::
 
 **Étape 0 — Cadrer.** Fixer le vocabulaire (§1) et les invariants (§3) dans un
@@ -302,6 +327,9 @@ calculer le **sha de blob** localement sur les **octets bruts** ; publier en un
 sur **divergence** (la ref a bougé), écrire **`foo-<sha>.md`** et relier — pas
 d'écrasement. Implémenter la **machine 2×2** du §4. *Vérif* manuelle : éditer la
 même origine depuis deux onglets → la divergence doit produire un fork.
+*(Réemploi)* Le **jeton (PAT)** en `localStorage` est **exposé au XSS** : prenez
+un jeton **fine-grained, limité au seul dépôt**, à durée bornée — et dites-le à
+l'utilisateur.
 
 **Étape 8 — Corbeille.** Suppression douce vers un lieu du FS privé ;
 restaurer / purger / vider. *Vérif* : un document supprimé est restaurable tant

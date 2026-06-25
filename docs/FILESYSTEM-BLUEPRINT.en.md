@@ -5,7 +5,10 @@ repository and hand it to an AI coding agent (e.g. Claude Code) as the spec for
 building the file system. It is written in portable Markdown (no special
 extensions) so it renders anywhere. Extracted from
 [markpage](https://github.com/orlarey/markpage), where it ships as of 0.32.x —
-markpage is cited as the worked example, but nothing here depends on it.*
+markpage is cited as the worked example, but nothing here depends on it. This
+revision folds in the lessons of a **second implementation** (a vanilla-JS app
+with no build/tests and content-addressed storage); those notes are tagged
+**(reuse)**.*
 
 ## Thesis
 
@@ -39,6 +42,15 @@ Fix this vocabulary before any code — give it to the AI as a preamble.
 - **Perimeter** — the set of files that "belong" to a document: the main file
   plus its resources (relative-path images). The perimeter is what travels when
   you save to a remote volume.
+
+> **Content-addressed stores (reuse).** This model assumes a **mutable document
+> with a stable identity** that *Save* rewrites in place. If the target store is
+> **content-addressed / immutable** (every edit is a new identity — e.g. sessions
+> keyed by `sha1(code)`), the origin can't live on a document record: it lives in
+> **app state**, bound to the **current editing session**, and **reset on
+> Open/New**. Likewise the *working copy* = the editor's **current committed
+> content**; a *submit*-based editor saves the last submit, not unsubmitted
+> keystrokes.
 
 ```mermaid
 flowchart TD
@@ -118,14 +130,20 @@ command, just an *Open* of a foreign format.
 
 **I5 — Save = (volume, path).** *Save As* picks a `(volume, folder, name)`
 target. The notion of "link to a repo/disk" **disappears**: linking is just
-saving elsewhere.
+saving elsewhere. *(Reuse)* In a **content-addressed** store, *Save As* "a copy"
+within the **same** store only yields a distinct file **when the content
+differs** (same content → same identity); a true copy/rename needs a
+**path-based** volume.
 
 **I6 — No data loss, ever.** For a remote, versioned volume:
 
 - **Verbatim** — the file written is exactly the document (byte for byte), not a
   re-serialization.
 - **Closed perimeter** — you publish the main file **and** its relative
-  resources, together.
+  resources, together. *(Reuse)* The perimeter is **project-specific** and not
+  necessarily a flat image list: **compute its closure** (parse
+  imports/includes/refs — e.g. the `.lib` files a `.dsp` pulls in) **before** the
+  atomic commit; don't assume it.
 - **Divergence → non-destructive fork** — if the origin moved on its side, you
   **do not overwrite**: you write a **new file** `foo-<sha>.md` and re-link the
   document to that fork. Detection is by **version identity** (sha/ETag), never
@@ -188,7 +206,9 @@ Generic roles and the file you would create for each (names are suggestions):
 | **Import (format consequence)** | Convert a foreign format to the native one + hoist images | `import.ts` |
 | **Orchestration** | Wire *Open/Save/Reload/Unlink*, the origin indicator, the polling | `main.ts` |
 
-The minimal volume interface to reproduce:
+The minimal volume interface to reproduce. *(Reuse)* The TypeScript below is
+**illustrative** — in a vanilla-JS project use a JSDoc typedef; in another
+language, its equivalent.
 
 ```ts
 interface Volume {
@@ -217,6 +237,9 @@ agent §1–§5 as context, then these steps one at a time.
 > Unit-test the **pure parts** (listing helpers, bundle serialization, feature
 > gating); the pick→write→read flows are **verified by hand** by a human, in a
 > real Chromium browser. Instruct the agent not to claim it tested those flows.
+> *(Reuse)* If the project has **no test runner**, add a minimal one (e.g. a
+> `node:assert` file run with `node`) **or** mark these checks manual — don't
+> presuppose a harness exists.
 
 **Step 0 — Frame it.** Capture the vocabulary (§1) and invariants (§3) in a spec
 file. Everything else refers back to it.
@@ -255,7 +278,9 @@ path). A single *Reload* (pull, routed by origin), a single *Unlink*.
 → tree → commit → *conditional* ref update); on **divergence** (the ref moved),
 write **`foo-<sha>.md`** and re-link — no overwrite. Implement the **2×2 state
 machine** from §4. *Manual verify*: edit the same origin from two tabs →
-divergence must produce a fork.
+divergence must produce a fork. *(Reuse)* A **PAT in localStorage is
+XSS-exposed**: use a **fine-grained, single-repo** token with a bounded lifetime
+— and say so to the user.
 
 **Step 8 — Trash.** Soft delete to a place in the private FS; restore / purge /
 empty. *Verify*: a deleted document is restorable until the trash is emptied.
