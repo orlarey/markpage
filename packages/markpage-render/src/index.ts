@@ -15,6 +15,9 @@
 // on the shared marked instance. Must run before any marked.parse().
 import './marked-config';
 
+// The public render entry + the image-resolution seam.
+export { renderMarkpageMarkdown, rewriteImageSrc, type RenderOptions } from './render';
+
 // Rendering primitives reused outside the core pipeline (export-latex,
 // paginated preview, the showcase demo, unit tests).
 export { parseFenceInfo, resetCaptions, withCaption } from './captions';
