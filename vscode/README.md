@@ -11,7 +11,9 @@ footnotes, refs, …) inside VS Code, by reusing markpage's own render pipeline
 tables, footnotes, syntax-highlighted code, the block DSLs from `@orlarey/blocks`
 (`chart`, `bda`, `category`, `adt`, `diff`, `tree`), **MathJax** (`$…$` / `$$…$$`)
 and **Mermaid** diagrams. MathJax/Mermaid load as on-demand ESM chunks from
-`dist/chunks/` under the webview CSP (`'strict-dynamic'`).
+`dist/chunks/` under the webview CSP (`'strict-dynamic'`). Shows the document as
+an **A4 page** (white sheet, fixed paper theme) with **editor↔preview
+scroll-sync**, and a **paginated mode** (real paged.js A4 pages) for print/PDF.
 
 ## Run it (Extension Development Host)
 
@@ -26,6 +28,15 @@ Extension Development Host. Open a Markdown file and run **“markpage: Open
 Preview to the Side”** (or `Cmd/Ctrl+K V`, or the editor-title preview icon).
 
 `npm run watch` rebuilds on change.
+
+## Commands
+
+- **markpage: Open Preview to the Side** — the live preview (continuous A4 width).
+- **markpage: Toggle Pagination** — switch between the fast continuous view and
+  real **paged.js A4 pages** (page breaks, like the PDF). Continuous is best for
+  editing; paginated is best for checking the final layout.
+- **markpage: Print / Export PDF** — print the preview (→ “Save as PDF”); use it
+  in paginated mode for proper A4 pages.
 
 ## How it works
 

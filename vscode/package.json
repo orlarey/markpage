@@ -14,9 +14,21 @@
     "commands": [
       {
         "command": "markpage.openPreview",
-        "title": "markpage: Open Preview to the Side",
+        "title": "Open Preview to the Side",
         "category": "markpage",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "markpage.togglePagination",
+        "title": "Toggle Pagination (continuous ↔ A4 pages)",
+        "category": "markpage",
+        "icon": "$(book)"
+      },
+      {
+        "command": "markpage.print",
+        "title": "Print / Export PDF",
+        "category": "markpage",
+        "icon": "$(file-pdf)"
       }
     ],
     "menus": {
@@ -26,6 +38,10 @@
           "when": "editorLangId == markdown",
           "group": "navigation"
         }
+      ],
+      "commandPalette": [
+        { "command": "markpage.togglePagination" },
+        { "command": "markpage.print" }
       ]
     },
     "keybindings": [

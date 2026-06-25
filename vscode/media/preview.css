@@ -139,3 +139,25 @@ body {
 #markpage-preview .mosaic-item img { width: 100%; display: block; }
 #markpage-preview .mosaic-missing,
 #markpage-preview .mosaic-error { color: #c23b3b; font-size: 0.9em; }
+
+/* ---- Paginated mode (paged.js) ----------------------------------------
+   The container stops being a single A4 sheet; paged.js fills it with real
+   A4 page boxes (sized via @page), each styled as its own white sheet. */
+#markpage-preview.paginated {
+  width: auto;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#markpage-preview.paginated .pagedjs_pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+#markpage-preview.paginated .pagedjs_page {
+  background: #fff;
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
+}

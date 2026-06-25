@@ -10,10 +10,24 @@ import * as vscode from 'vscode';
 let panel: vscode.WebviewPanel | undefined;
 let trackedDoc: vscode.TextDocument | undefined;
 let suppressEditorScrollUntil = 0; // ignore the visible-range echo after a webview-driven reveal
+let paginated = false; // continuous (fast, live) vs paged.js A4 pages
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('markpage.openPreview', () => openPreview(context)),
+    // Toggle continuous ↔ paged.js A4 pages (the latter mirrors the PDF).
+    vscode.commands.registerCommand('markpage.togglePagination', () => {
+      paginated = !paginated;
+      void vscode.window.showInformationMessage(
+        `markpage preview: ${paginated ? 'paginated (A4 pages)' : 'continuous'}`,
+      );
+      update();
+    }),
+    // Print the preview (→ "Save as PDF"); best in paginated mode.
+    vscode.commands.registerCommand('markpage.print', () => {
+      if (!panel) return;
+      void panel.webview.postMessage({ type: 'print' });
+    }),
   );
 
   // Live update: re-render when the tracked document changes (debounced).
@@ -119,6 +133,7 @@ function update(): void {
     type: 'render',
     md: trackedDoc.getText(),
     baseUri,
+    paginated,
   });
 }
 
