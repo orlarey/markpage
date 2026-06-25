@@ -1,0 +1,40 @@
+{
+  "name": "@orlarey/markpage-render",
+  "version": "0.1.0",
+  "description": "markpage's Markdown render pipeline (fences, callouts, footnotes, refs) as a reusable marked setup — used by the web app and the VS Code preview.",
+  "license": "MIT",
+  "author": "Yann Orlarey",
+  "homepage": "https://markpage.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orlarey/markpage.git",
+    "directory": "packages/markpage-render"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@orlarey/blocks": "^0.1.1",
+    "ebnf2railroad": "^1.14.2",
+    "highlight.js": "^11.11.1",
+    "marked": ">=12"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

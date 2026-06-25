@@ -10,8 +10,7 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
-import { groupLetterheads } from './letterhead';
-import { applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter } from './page-running';
+import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter } from '@orlarey/markpage-render';
 import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,

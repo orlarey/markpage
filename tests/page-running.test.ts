@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyPageRunningRuns,
   renderPageRunning,
-} from '../src/page-running';
+} from '@orlarey/markpage-render';
 
 describe('renderPageRunning — sentinel emission', () => {
   it('emits a <style.page-running-fence> with data-kind=header (no @page wrapper)', () => {

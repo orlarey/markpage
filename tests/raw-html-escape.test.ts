@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import '../src/marked-config';
+import '@orlarey/markpage-render';
 import { renderPreview } from '../src/preview';
 
 /**

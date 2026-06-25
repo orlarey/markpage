@@ -4,7 +4,7 @@ import {
   packRows,
   parseMosaicBody,
   parseMosaicInfo,
-} from '../src/mosaic';
+} from '@orlarey/markpage-render';
 
 describe('parseMosaicInfo', () => {
   it('parses a bare fence (no title, default options)', () => {

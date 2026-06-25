@@ -22,7 +22,7 @@ import { collectImageRefs } from './image';
 import { getImage } from './image-store';
 import { renderMermaid } from './mermaid';
 import { renderChart } from '@orlarey/blocks';
-import { parseFenceInfo } from './captions';
+import { parseFenceInfo } from '@orlarey/markpage-render';
 
 /**
  * Purpose: Result of `exportLatex` — the `.tex` source plus its resource bundle.

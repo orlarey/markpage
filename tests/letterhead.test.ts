@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   groupLetterheads,
   renderLetterhead,
-} from '../src/letterhead';
+} from '@orlarey/markpage-render';
 import { keepLabelsWithNext } from '../src/preview-paginated';
 
 describe('renderLetterhead', () => {

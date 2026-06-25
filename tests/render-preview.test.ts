@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import '../src/marked-config';
+import '@orlarey/markpage-render';
 import { renderPreview, applyPreviewMetadata } from '../src/preview';
 import { TEST_SETTINGS } from './fixtures/settings';
 

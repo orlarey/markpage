@@ -32,7 +32,7 @@ import '@orlarey/blocks/styles.css';
 import './style.css';
 // Side-effect import: registers our marked extensions ($$math$$, …) on the
 // shared `marked` instance. Must run before any marked.parse / marked.lexer.
-import './marked-config';
+import '@orlarey/markpage-render';
 import {
   migrateIDBBranding,
   migrateLocalStorageBranding,
@@ -55,7 +55,7 @@ import {
   renderMathInlines,
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
-import { layoutMosaicBlocks } from './mosaic';
+import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,

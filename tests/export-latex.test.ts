@@ -37,7 +37,7 @@ vi.mock('../src/image-store', () => ({
   getImage: async () => IMAGE_STUB_BLOB,
 }));
 
-import '../src/marked-config';
+import '@orlarey/markpage-render';
 import { exportLatex } from '../src/export-latex';
 import { TEST_SETTINGS } from './fixtures/settings';
 

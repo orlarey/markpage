@@ -34,7 +34,7 @@ import '@fontsource/roboto/500.css';
 import 'highlight.js/styles/atom-one-light.css';
 import '@orlarey/blocks/styles.css';
 import './style.css';
-import './marked-config'; // side-effect: registers admonitions / math / etc.
+import '@orlarey/markpage-render'; // side-effect: registers admonitions / math / etc.
 
 import { registerFallbackFonts } from './fonts';
 import { loadFontTrio } from './font-loader';
@@ -49,7 +49,7 @@ import {
   renderPreview,
 } from './preview';
 import { parseFrontmatter } from './frontmatter';
-import { layoutMosaicBlocks } from './mosaic';
+import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import { pageContentGeomPx, paginate } from './preview-paginated';
 import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {

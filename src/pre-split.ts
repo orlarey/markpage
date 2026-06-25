@@ -15,7 +15,7 @@
  *
  *******************************************************************************/
 
-import { highlightCode, isKnownLanguage } from './highlight';
+import { highlightCode, isKnownLanguage } from '@orlarey/markpage-render';
 
 /** End-of-line state used to decide whether a line is a safe split point. */
 interface LineState {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { marked } from 'marked';
 
-import '../src/marked-config';
+import '@orlarey/markpage-render';
 
 /**
  * Purpose: Verify the §9.7.5 Pandoc-style trailing-attrs tokenizer
