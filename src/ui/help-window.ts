@@ -26,7 +26,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
   renderMermaidBlocks,
-} from '../preview';
+} from '@orlarey/markpage-render';
 import { openHelpModal, type HelpModalOptions } from './help-modal';
 import { getLanguage } from '../i18n/locale';
 import { t } from '../i18n/strings';

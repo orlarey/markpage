@@ -34,7 +34,7 @@ import {
 import {
   MATH_FONT_SETS,
   type MathFontSet,
-} from '../mathjax-fontsets';
+} from '@orlarey/markpage-render';
 import {
   FONT_PACKS,
   FONT_PACK_IDS,

@@ -20,7 +20,7 @@ import { formatDate, type PdfSettings } from './settings';
 import { mathBodyToLatex } from './latex-math-symbols';
 import { collectImageRefs } from './image';
 import { getImage } from './image-store';
-import { renderMermaid } from './mermaid';
+import { renderMermaid } from '@orlarey/markpage-render';
 import { renderChart } from '@orlarey/blocks';
 import { parseFenceInfo } from '@orlarey/markpage-render';
 

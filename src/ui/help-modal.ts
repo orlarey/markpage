@@ -13,7 +13,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
   renderMermaidBlocks,
-} from '../preview';
+} from '@orlarey/markpage-render';
 
 const OVERLAY_ID = 'help-overlay';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { voidTagsToXhtml } from '../src/mermaid';
+import { voidTagsToXhtml } from '@orlarey/markpage-render';
 
 /**
  * Purpose: Mermaid emits HTML5-style void tags (`<br>`, `<img …>`, etc.)

@@ -50,10 +50,12 @@ import {
   applyPreviewStyles,
   applyPreviewMetadata,
   annotateSourceLines,
+} from './preview';
+import {
   renderMermaidBlocks,
   renderMathBlocks,
   renderMathInlines,
-} from './preview';
+} from '@orlarey/markpage-render';
 import { parseFrontmatter } from './frontmatter';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {

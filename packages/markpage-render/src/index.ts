@@ -18,6 +18,18 @@ import './marked-config';
 // The public render entry + the image-resolution seam.
 export { renderMarkpageMarkdown, rewriteImageSrc, type RenderOptions } from './render';
 
+// Phase B — the DOM hydrate (MathJax + Mermaid) and the underlying renderers.
+export {
+  hydratePreview,
+  renderMathInlines,
+  renderMathBlocks,
+  renderMermaidBlocks,
+  type HydrateOptions,
+} from './hydrate';
+export { renderMath } from './math';
+export { renderMermaid, voidTagsToXhtml, type MermaidResult } from './mermaid';
+export { type MathFontSet, FONT_SETS, MATH_FONT_SETS } from './mathjax-fontsets';
+
 // Rendering primitives reused outside the core pipeline (export-latex,
 // paginated preview, the showcase demo, unit tests).
 export { parseFenceInfo, resetCaptions, withCaption } from './captions';

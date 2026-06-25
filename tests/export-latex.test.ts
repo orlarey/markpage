@@ -27,9 +27,10 @@ const { MERMAID_STUB_SVG, CHART_STUB_SVG, IMAGE_STUB_BLOB } = vi.hoisted(
   }),
 );
 
-vi.mock('../src/mermaid', () => ({
-  renderMermaid: async () => ({ ok: true, svg: MERMAID_STUB_SVG }),
-}));
+vi.mock('@orlarey/markpage-render', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orlarey/markpage-render')>();
+  return { ...actual, renderMermaid: async () => ({ ok: true, svg: MERMAID_STUB_SVG }) };
+});
 vi.mock('../src/chart', () => ({
   renderChart: () => CHART_STUB_SVG,
 }));

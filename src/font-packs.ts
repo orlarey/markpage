@@ -9,7 +9,7 @@
  *
  *******************************************************************************/
 
-import type { MathFontSet } from './mathjax-fontsets';
+import type { MathFontSet } from '@orlarey/markpage-render';
 import type { FontTrio, PdfSettings } from './settings';
 
 export type FontPackId = 'roboto-condensed' | 'fira' | 'stix2';

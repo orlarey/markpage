@@ -8,7 +8,7 @@
  *
  *******************************************************************************/
 
-import type { MathFontSet } from './mathjax-fontsets';
+import type { MathFontSet } from '@orlarey/markpage-render';
 export type { MathFontSet };
 
 export type PageSize =

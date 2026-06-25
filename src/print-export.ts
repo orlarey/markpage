@@ -17,11 +17,13 @@
 
 import {
   applyPreviewMetadata,
+  renderPreview,
+} from './preview';
+import {
   renderMathBlocks,
   renderMathInlines,
   renderMermaidBlocks,
-  renderPreview,
-} from './preview';
+} from '@orlarey/markpage-render';
 import { parseFrontmatter } from './frontmatter';
 import { paginateOnce } from './preview-paginated';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';

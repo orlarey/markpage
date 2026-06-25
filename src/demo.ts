@@ -43,11 +43,13 @@ import {
   annotateSourceLines,
   applyPreviewMetadata,
   applyPreviewStyles,
+  renderPreview,
+} from './preview';
+import {
   renderMathBlocks,
   renderMathInlines,
   renderMermaidBlocks,
-  renderPreview,
-} from './preview';
+} from '@orlarey/markpage-render';
 import { parseFrontmatter } from './frontmatter';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import { pageContentGeomPx, paginate } from './preview-paginated';
