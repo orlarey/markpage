@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Dev harness: load the built webview bundle and feed it a sample document,
+     to verify the markpage render pipeline runs in a real browser (the same
+     engine VS Code webviews use). Not shipped. Open via a static server. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="media/preview.css">
+</head>
+<body>
+  <div id="markpage-preview"></div>
+  <script src="dist/webview.js"></script>
+  <script>
+    const md = [
+      '# markpage preview',
+      '',
+      '::: note',
+      'A callout rendered by marked-config.',
+      ':::',
+      '',
+      'Some **bold**, a footnote[^a], and inline code `x = 1`.',
+      '',
+      '| a | b |',
+      '|---|---|',
+      '| 1 | 2 |',
+      '',
+      '```chart bar Sales',
+      'Q1, 3',
+      'Q2, 5',
+      'Q3, 4',
+      '```',
+      '',
+      '```python',
+      'def f(x): return x * x',
+      '```',
+      '',
+      '[^a]: the footnote.',
+    ].join('\n');
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'render', md, baseUri: '' } }));
+  </script>
+</body>
+</html>

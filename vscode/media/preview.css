@@ -1,0 +1,73 @@
+/* preview.css — minimal styling for the markpage preview webview.
+ * Uses VS Code theme variables so it follows the editor's light/dark theme.
+ * This is a starter sheet; markpage's full style presets can be layered in. */
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 14px);
+  line-height: 1.6;
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-editor-background);
+  margin: 0;
+  padding: 1.5rem clamp(1rem, 6vw, 4rem);
+}
+
+#markpage-preview {
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 600; }
+h1 { font-size: 1.9em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--vscode-panel-border, #8884); padding-bottom: 0.2em; }
+
+a { color: var(--vscode-textLink-foreground); }
+
+pre, code {
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+}
+pre {
+  background: var(--vscode-textCodeBlock-background, #8881);
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  overflow: auto;
+}
+:not(pre) > code {
+  background: var(--vscode-textCodeBlock-background, #8881);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+blockquote {
+  border-left: 3px solid var(--vscode-textBlockQuote-border, #8884);
+  margin: 0;
+  padding: 0.2em 1em;
+  color: var(--vscode-descriptionForeground);
+}
+
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid var(--vscode-panel-border, #8884); padding: 0.35em 0.6em; }
+
+img, svg { max-width: 100%; height: auto; }
+
+/* markpage callouts */
+.admonition {
+  border: 1px solid var(--vscode-panel-border, #8884);
+  border-left: 4px solid var(--vscode-textLink-foreground, #4af);
+  border-radius: 6px;
+  padding: 0.2em 1em;
+  margin: 1em 0;
+}
+.admonition-title { font-weight: 600; margin: 0.5em 0; }
+.admonition-warning, .admonition-caution { border-left-color: #e0a030; }
+.admonition-important { border-left-color: #b070e0; }
+
+/* math placeholders (phase B not wired yet) + figure captions */
+.math-inline[data-math]::before, .math-block[data-math]::before { content: '$'; opacity: 0.5; }
+.math-inline[data-math]::after, .math-block[data-math]::after { content: '$'; opacity: 0.5; }
+figure { margin: 1em 0; text-align: center; }
+figcaption { font-size: 0.9em; color: var(--vscode-descriptionForeground); }
