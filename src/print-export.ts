@@ -23,9 +23,10 @@ import {
   renderMathBlocks,
   renderMathInlines,
   renderMermaidBlocks,
+  layoutMosaicBlocks,
 } from '@orlarey/markpage-render';
 import { parseFrontmatter } from './frontmatter';
-import { paginateOnce } from './preview-paginated';
+import { paginateOnce, pageContentGeomPx } from './preview-paginated';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
@@ -123,6 +124,10 @@ async function buildPrintContent(
     renderMermaidBlocks(el),
     renderMathBlocks(el, effectiveSettings.mathFontSet, preamble),
     renderMathInlines(el, effectiveSettings.mathFontSet, preamble),
+    // Justify mosaic rows like the preview does — otherwise the images keep
+    // their flat un-laid-out form and stack at print time (geometry from the
+    // print page, computed deterministically from settings).
+    layoutMosaicBlocks(el, pageContentGeomPx(effectiveSettings)),
   ]);
   return { el, effectiveSettings };
 }
