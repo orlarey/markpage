@@ -50,7 +50,7 @@ import {
   renderMathInlines,
   renderMermaidBlocks,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter } from './frontmatter';
+import { parseFrontmatter } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import { pageContentGeomPx, paginate } from './preview-paginated';
 import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';

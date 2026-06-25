@@ -14,6 +14,7 @@
 
 import { marked } from 'marked';
 import './marked-config'; // ensure the extensions are registered (idempotent)
+import type { Frontmatter } from './frontmatter';
 
 export interface RenderOptions {
   /**
@@ -43,4 +44,50 @@ export function renderMarkpageMarkdown(md: string, opts: RenderOptions = {}): st
   let html = marked.parse(md, { async: false }) as string;
   if (opts.resolveImageSrc) html = rewriteImageSrc(html, opts.resolveImageSrc);
   return html;
+}
+
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+};
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => HTML_ESCAPES[c]);
+}
+
+/**
+ * Render the document-title + author / organization / date header from parsed
+ * frontmatter, mirroring the web app's `renderPreview` (doc-title h1) +
+ * `applyPreviewMetadata` (centered metadata block). Hosts without the app's
+ * `PdfSettings` (the VS Code preview) call this to get the same header markpage
+ * shows: `title` → a centered `<h1 class="doc-title">`, then author + org (bold)
+ * and date (plain) inside `.preview-metadata`. Returns '' when there's nothing
+ * to show. The block is meant to be PREPENDED to `renderMarkpageMarkdown(body)`
+ * output; scroll-sync code should skip `.preview-metadata` (it has no source
+ * line). The values are HTML-escaped here since they come from the parser as
+ * plain text.
+ */
+export function renderMetadataBlock(meta: Frontmatter): string {
+  const title = meta.title?.trim();
+  const lines: { text: string; bold: boolean }[] = [];
+  const author = meta.author?.trim();
+  if (author) lines.push({ text: author, bold: true });
+  const org = meta.organization?.trim();
+  if (org) lines.push({ text: org, bold: true });
+  const date = meta.date?.trim();
+  if (date) lines.push({ text: date, bold: false });
+
+  if (!title && lines.length === 0) return '';
+
+  const parts: string[] = [];
+  if (title) parts.push(`<h1 class="doc-title">${escapeHtml(title)}</h1>`);
+  if (lines.length > 0) {
+    const divs = lines
+      .map((l) => `<div${l.bold ? ' class="bold"' : ''}>${escapeHtml(l.text)}</div>`)
+      .join('');
+    parts.push(`<div class="preview-metadata">${divs}</div>`);
+  }
+  return parts.join('');
 }

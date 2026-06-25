@@ -53,6 +53,16 @@ body {
 #markpage-preview h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
 #markpage-preview h1.doc-title { text-align: center; }
 
+/* Frontmatter metadata header (author / organization / date), mirroring the
+   markpage app's .preview-metadata block under the title. */
+#markpage-preview .preview-metadata {
+  text-align: center;
+  margin: 0 0 1.5rem;
+  line-height: 1.4;
+}
+#markpage-preview .preview-metadata div { margin: 0.1em 0; }
+#markpage-preview .preview-metadata div.bold { font-weight: 500; }
+
 #markpage-preview a { color: #0b5cad; }
 
 #markpage-preview pre {

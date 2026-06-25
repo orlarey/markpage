@@ -5,7 +5,12 @@
 // Scroll-sync: every top-level block is tagged with its source line (data-line)
 // so the host can scroll the preview to the editor's position and vice versa.
 
-import { renderMarkpageMarkdown, hydratePreview } from '@orlarey/markpage-render';
+import {
+  renderMarkpageMarkdown,
+  renderMetadataBlock,
+  parseFrontmatter,
+  hydratePreview,
+} from '@orlarey/markpage-render';
 import { marked } from 'marked';
 // Bundled into dist/webview.css by esbuild — the hljs colour theme markpage uses
 // (light) and the @orlarey/blocks DSL styles. media/preview.css adds the paper
@@ -77,14 +82,20 @@ async function render(msg: RenderMessage): Promise<void> {
   toggleBtn.classList.toggle('active', msg.paginated);
   const token = (renderToken += 1);
   const base = msg.baseUri ? msg.baseUri.replace(/\/?$/, '/') : '';
-  const { body, lineOffset } = stripFrontmatter(msg.md);
+  // Same frontmatter handling as the markpage app: parse the YAML, render a
+  // doc-title + author/org/date header (renderMetadataBlock), apply a per-doc
+  // mathjax-preamble. The body offset keeps scroll-sync line numbers correct.
+  const { meta, body } = parseFrontmatter(msg.md);
+  const lineOffset = countNewlines(msg.md.slice(0, msg.md.length - body.length));
   root.classList.remove('paginated');
-  root.innerHTML = renderMarkpageMarkdown(body, {
-    resolveImageSrc: (src) => resolveSrc(src, base),
-  });
+  root.innerHTML =
+    renderMetadataBlock(meta) +
+    renderMarkpageMarkdown(body, {
+      resolveImageSrc: (src) => resolveSrc(src, base),
+    });
   annotateSourceLines(root, body, lineOffset);
   try {
-    await hydratePreview(root, { fontSet: 'newcm' });
+    await hydratePreview(root, { fontSet: 'newcm', preamble: meta['mathjax-preamble'] ?? '' });
   } catch (err) {
     console.error('[markpage] hydrate failed', err);
   }
@@ -161,8 +172,13 @@ function reportTopLine(): void {
 /** Tag each top-level rendered block with its source line (+ frontmatter offset). */
 function annotateSourceLines(target: HTMLElement, source: string, offset: number): void {
   const tokens = marked.lexer(source);
+  // The frontmatter header (doc-title h1 + .preview-metadata) has no source
+  // line — skip it so body tokens still align with their rendered elements.
   const elements = Array.from(target.children).filter(
-    (el): el is HTMLElement => el instanceof HTMLElement,
+    (el): el is HTMLElement =>
+      el instanceof HTMLElement &&
+      !el.classList.contains('preview-metadata') &&
+      !el.classList.contains('doc-title'),
   );
   let i = 0;
   let line = 0;
@@ -194,13 +210,6 @@ function resolveSrc(src: string, base: string): string {
   } catch {
     return src;
   }
-}
-
-/** Drop a leading YAML frontmatter block; return the body + how many lines it spanned. */
-function stripFrontmatter(md: string): { body: string; lineOffset: number } {
-  const m = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(md);
-  if (!m) return { body: md, lineOffset: 0 };
-  return { body: md.slice(m[0].length), lineOffset: countNewlines(m[0]) };
 }
 
 // VS Code injects this into webview scripts.

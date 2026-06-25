@@ -16,7 +16,15 @@
 import './marked-config';
 
 // The public render entry + the image-resolution seam.
-export { renderMarkpageMarkdown, rewriteImageSrc, type RenderOptions } from './render';
+export {
+  renderMarkpageMarkdown,
+  renderMetadataBlock,
+  rewriteImageSrc,
+  type RenderOptions,
+} from './render';
+
+// Frontmatter parsing (title / author / date / mathjax-preamble / slides …).
+export { parseFrontmatter, type Frontmatter, type ParseResult } from './frontmatter';
 
 // Phase B — the DOM hydrate (MathJax + Mermaid) and the underlying renderers.
 export {

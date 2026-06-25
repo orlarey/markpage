@@ -25,7 +25,7 @@ import {
   renderMermaidBlocks,
   layoutMosaicBlocks,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter } from './frontmatter';
+import { parseFrontmatter } from '@orlarey/markpage-render';
 import { paginateOnce, pageContentGeomPx } from './preview-paginated';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 

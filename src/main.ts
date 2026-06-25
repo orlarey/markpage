@@ -56,7 +56,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter } from './frontmatter';
+import { parseFrontmatter } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,

@@ -9,7 +9,7 @@
 
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
-import { parseFrontmatter, type Frontmatter } from './frontmatter';
+import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
 
