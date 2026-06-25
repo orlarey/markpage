@@ -43,6 +43,15 @@ const webviewConfig = {
   splitting: true, // lazy MathJax/Mermaid imports → on-demand chunks
   // Resolve @orlarey/markpage-render (+ deps) to their TS sources.
   conditions: ['development', 'browser', 'import', 'default'],
+  // The webview only ever requests the default MathJax font set (newcm). Mark the
+  // other four external so esbuild doesn't emit ~300 unused font chunks — their
+  // `import()`s are never executed at runtime (fontSet is hard-coded to newcm).
+  external: [
+    '@mathjax/mathjax-fira-font/*',
+    '@mathjax/mathjax-asana-font/*',
+    '@mathjax/mathjax-stix2-font/*',
+    '@mathjax/mathjax-tex-font/*',
+  ],
 };
 
 async function run() {
