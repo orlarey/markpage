@@ -7,6 +7,11 @@
 
 import { renderMarkpageMarkdown, hydratePreview } from '@orlarey/markpage-render';
 import { marked } from 'marked';
+// Bundled into dist/webview.css by esbuild — the hljs colour theme markpage uses
+// (light) and the @orlarey/blocks DSL styles. media/preview.css adds the paper
+// look + the CSS variables these need, and loads after to win overrides.
+import 'highlight.js/styles/atom-one-light.css';
+import '@orlarey/blocks/styles.css';
 
 interface RenderMessage {
   type: 'render';

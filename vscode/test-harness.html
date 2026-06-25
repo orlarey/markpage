@@ -5,7 +5,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="media/preview.css?v=paper">
+  <link rel="stylesheet" href="dist/webview.css?v=2">
+  <link rel="stylesheet" href="media/preview.css?v=hljs">
 </head>
 <body>
   <div id="markpage-preview"></div>
@@ -49,6 +50,11 @@
       '```diff',
       '- old line',
       '+ new line',
+      '```',
+      '',
+      '```python',
+      'def square(x):',
+      '    return x * x  # comment',
       '```',
       '',
       'Term',

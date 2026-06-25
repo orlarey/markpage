@@ -1,6 +1,10 @@
 /* preview.css — the markpage preview is a preview of a printed PDF page, so it
  * shows a white "sheet" on a neutral backdrop, with fixed paper colours,
- * regardless of the editor's (possibly dark) theme. */
+ * regardless of the editor's (possibly dark) theme.
+ *
+ * Loaded AFTER dist/webview.css (the hljs colour theme + @orlarey/blocks styles)
+ * so it wins overrides. Content rules are scoped under #markpage-preview so they
+ * beat any element-level styles VS Code injects into the webview. */
 
 :root { color-scheme: light; }
 
@@ -10,61 +14,76 @@ html, body {
 }
 
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
-  color: #1c1c1e;
   padding: 1.6rem 1rem;
 }
 
-/* The page sheet. */
+/* The page sheet — also defines the CSS variables @orlarey/blocks/styles.css uses. */
 #markpage-preview {
+  --bg: #ffffff;
+  --text: #1c1c1e;
+  --text-muted: #666666;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-body);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
   max-width: 44rem;
   margin: 0 auto;
   background: #fff;
   color: #1c1c1e;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
   padding: 3rem clamp(1.4rem, 5vw, 3.4rem);
   border-radius: 2px;
   box-shadow: 0 1px 10px rgba(0, 0, 0, 0.16);
 }
 
-h1, h2, h3, h4 { line-height: 1.25; font-weight: 600; color: #14223a; }
-h1 { font-size: 1.9em; }
-h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
-h1.doc-title { text-align: center; }
+#markpage-preview h1,
+#markpage-preview h2,
+#markpage-preview h3,
+#markpage-preview h4 { line-height: 1.25; font-weight: 600; color: #14223a; }
+#markpage-preview h1 { font-size: 1.9em; }
+#markpage-preview h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
+#markpage-preview h1.doc-title { text-align: center; }
 
-a { color: #0b5cad; }
+#markpage-preview a { color: #0b5cad; }
 
-pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-pre {
+#markpage-preview pre {
   background: #f5f5f7;
+  color: #1c1c1e;
   padding: 0.8em 1em;
   border-radius: 6px;
   overflow: auto;
   font-size: 0.9em;
+  font-family: var(--font-mono);
 }
-:not(pre) > code {
+#markpage-preview :not(pre) > code {
   background: #f0f0f3;
+  color: #1c1c1e;
   padding: 0.12em 0.35em;
   border-radius: 4px;
   font-size: 0.92em;
+  font-family: var(--font-mono);
 }
 
-blockquote {
+#markpage-preview blockquote {
+  background: transparent;
   border-left: 3px solid #d4d4d8;
   margin: 0;
   padding: 0.2em 1em;
   color: #555;
 }
 
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #e0e0e4; padding: 0.35em 0.6em; }
-th { background: #f6f6f8; }
+#markpage-preview table { border-collapse: collapse; width: 100%; }
+#markpage-preview th,
+#markpage-preview td { border: 1px solid #e0e0e4; padding: 0.35em 0.6em; }
+#markpage-preview th { background: #f6f6f8; }
 
-img, svg { max-width: 100%; height: auto; }
+#markpage-preview img,
+#markpage-preview svg { max-width: 100%; height: auto; }
 
-/* callouts */
-.admonition {
+/* callouts (markpage marked-config, not in @orlarey/blocks) */
+#markpage-preview .admonition {
   border: 1px solid #e4e4e8;
   border-left: 4px solid #2f6fdb;
   border-radius: 6px;
@@ -72,57 +91,44 @@ img, svg { max-width: 100%; height: auto; }
   margin: 1em 0;
   background: #fafbfd;
 }
-.admonition-title { font-weight: 600; margin: 0.5em 0; }
-.admonition-warning, .admonition-caution { border-left-color: #d98a1a; }
-.admonition-important { border-left-color: #8a52d6; }
+#markpage-preview .admonition-title { font-weight: 600; margin: 0.5em 0; }
+#markpage-preview .admonition-warning,
+#markpage-preview .admonition-caution { border-left-color: #d98a1a; }
+#markpage-preview .admonition-important { border-left-color: #8a52d6; }
 
 /* math + mermaid */
-.math-block { text-align: center; margin: 1em 0; }
-.math-error, .mermaid-error { color: #c23b3b; }
-.mermaid-block { text-align: center; margin: 1em 0; }
+#markpage-preview .math-block { text-align: center; margin: 1em 0; }
+#markpage-preview .math-error,
+#markpage-preview .mermaid-error { color: #c23b3b; }
+#markpage-preview .mermaid-block { text-align: center; margin: 1em 0; }
 
 /* figures + captions */
-figure { margin: 1em 0; }
-figure.captioned { break-inside: avoid; }
-.caption, figcaption { text-align: center; font-size: 0.9em; color: #666; }
+#markpage-preview figure { margin: 1em 0; }
+#markpage-preview figure.captioned { break-inside: avoid; }
+#markpage-preview .caption,
+#markpage-preview figcaption { text-align: center; font-size: 0.9em; color: #666; }
 
 /* footnotes (foot-of-document; the .sidenote Tufte variant stays hidden) */
-.sidenote { display: none; }
-.footnote-ref { font-size: 0.75em; line-height: 0; vertical-align: super; }
-.footnote-ref a { color: #0b5cad; text-decoration: none; }
-.footnotes { margin-top: 2em; font-size: 0.9em; }
-.footnotes hr { border: none; border-top: 1px solid #e0e0e4; margin: 0.6em 0; }
-.footnotes ol { padding-left: 1.4em; }
-.footnotes li { margin: 0.3em 0; }
-.footnote-back { color: #0b5cad; text-decoration: none; }
+#markpage-preview .sidenote { display: none; }
+#markpage-preview .footnote-ref { font-size: 0.75em; line-height: 0; vertical-align: super; }
+#markpage-preview .footnote-ref a { color: #0b5cad; text-decoration: none; }
+#markpage-preview .footnotes { margin-top: 2em; font-size: 0.9em; }
+#markpage-preview .footnotes hr { border: none; border-top: 1px solid #e0e0e4; margin: 0.6em 0; }
+#markpage-preview .footnotes ol { padding-left: 1.4em; }
+#markpage-preview .footnotes li { margin: 0.3em 0; }
+#markpage-preview .footnote-back { color: #0b5cad; text-decoration: none; }
 
 /* definition lists */
-dl { margin: 0.8em 0; }
-dt { font-weight: 600; margin-top: 0.6em; }
-dt:first-child { margin-top: 0; }
-dd { margin: 0.1em 0 0 1.6em; }
+#markpage-preview dl { margin: 0.8em 0; }
+#markpage-preview dt { font-weight: 600; margin-top: 0.6em; }
+#markpage-preview dt:first-child { margin-top: 0; }
+#markpage-preview dd { margin: 0.1em 0 0 1.6em; }
 
-/* diff blocks (@orlarey/blocks) */
-.diff-block {
-  background: #f5f5f7;
-  border-radius: 6px;
-  padding: 0.6em 0.9em;
-  overflow: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.9em;
-  line-height: 1.4;
-}
-.diff-add { color: #1a7f37; }
-.diff-del { color: #cf222e; }
-.diff-meta, .diff-hunk { color: #666; }
-
-/* native-SVG diagram wrappers */
-.tree-svg-wrap, .category-svg { text-align: center; }
-
-/* mosaic image gallery */
-.mosaic-block { margin: 1em 0; }
-.mosaic-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-.mosaic-row-natural { justify-content: flex-start; }
-.mosaic-item { flex: 1 1 auto; min-width: 0; }
-.mosaic-item img { width: 100%; display: block; }
-.mosaic-missing, .mosaic-error { color: #c23b3b; font-size: 0.9em; }
+/* mosaic image gallery (markpage, not in @orlarey/blocks) */
+#markpage-preview .mosaic-block { margin: 1em 0; }
+#markpage-preview .mosaic-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+#markpage-preview .mosaic-row-natural { justify-content: flex-start; }
+#markpage-preview .mosaic-item { flex: 1 1 auto; min-width: 0; }
+#markpage-preview .mosaic-item img { width: 100%; display: block; }
+#markpage-preview .mosaic-missing,
+#markpage-preview .mosaic-error { color: #c23b3b; font-size: 0.9em; }

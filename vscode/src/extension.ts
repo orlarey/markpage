@@ -134,6 +134,10 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.js'),
   );
+  // Bundled CSS (hljs theme + @orlarey/blocks styles), then the paper theme.
+  const bundledCssUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.css'),
+  );
   const styleUri = webview.asWebviewUri(
     vscode.Uri.joinPath(context.extensionUri, 'media', 'preview.css'),
   );
@@ -152,11 +156,12 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="${styleUri}">
+  <link rel="stylesheet" href="${bundledCssUri}?v=${n}">
+  <link rel="stylesheet" href="${styleUri}?v=${n}">
 </head>
 <body>
   <div id="markpage-preview"></div>
-  <script type="module" nonce="${n}" src="${scriptUri}"></script>
+  <script type="module" nonce="${n}" src="${scriptUri}?v=${n}"></script>
 </body>
 </html>`;
 }
