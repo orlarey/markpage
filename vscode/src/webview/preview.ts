@@ -1,11 +1,8 @@
 // preview.ts — runs inside the webview. Renders the document text with
-// @orlarey/markpage-render (phase A) and resolves image srcs to webview URIs.
-//
-// v0.1: transform only. Phase B (MathJax / Mermaid via hydratePreview) is the
-// next increment — math shows as placeholders and mermaid as a code block until
-// then.
+// @orlarey/markpage-render: phase A (transform) then phase B (hydratePreview —
+// MathJax + Mermaid). MathJax/Mermaid load as on-demand ESM chunks.
 
-import { renderMarkpageMarkdown } from '@orlarey/markpage-render';
+import { renderMarkpageMarkdown, hydratePreview } from '@orlarey/markpage-render';
 
 interface RenderMessage {
   type: 'render';
@@ -14,15 +11,28 @@ interface RenderMessage {
 }
 
 const root = document.getElementById('markpage-preview') as HTMLElement;
+let renderToken = 0;
 
 window.addEventListener('message', (e: MessageEvent) => {
   const msg = e.data as RenderMessage | undefined;
   if (!msg || msg.type !== 'render') return;
+  void render(msg);
+});
+
+async function render(msg: RenderMessage): Promise<void> {
+  const token = (renderToken += 1);
   const base = msg.baseUri ? msg.baseUri.replace(/\/?$/, '/') : '';
   root.innerHTML = renderMarkpageMarkdown(stripFrontmatter(msg.md), {
     resolveImageSrc: (src) => resolveSrc(src, base),
   });
-});
+  // Phase B is async (lazy MathJax/Mermaid). Bail if a newer render started.
+  try {
+    await hydratePreview(root, { fontSet: 'newcm' });
+  } catch (err) {
+    console.error('[markpage] hydrate failed', err);
+  }
+  if (token !== renderToken) return; // superseded — leave the newer render alone
+}
 
 /** Resolve a relative image src against the document folder's webview URI. */
 function resolveSrc(src: string, base: string): string {

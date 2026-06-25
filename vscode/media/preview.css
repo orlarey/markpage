@@ -66,8 +66,9 @@ img, svg { max-width: 100%; height: auto; }
 .admonition-warning, .admonition-caution { border-left-color: #e0a030; }
 .admonition-important { border-left-color: #b070e0; }
 
-/* math placeholders (phase B not wired yet) + figure captions */
-.math-inline[data-math]::before, .math-block[data-math]::before { content: '$'; opacity: 0.5; }
-.math-inline[data-math]::after, .math-block[data-math]::after { content: '$'; opacity: 0.5; }
+/* math (rendered to SVG by hydratePreview) + mermaid + figure captions */
+.math-block { text-align: center; margin: 1em 0; }
+.math-error, .mermaid-error { color: #d04545; }
+.mermaid-block { text-align: center; margin: 1em 0; }
 figure { margin: 1em 0; text-align: center; }
 figcaption { font-size: 0.9em; color: var(--vscode-descriptionForeground); }

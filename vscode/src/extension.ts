@@ -114,7 +114,9 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
     `img-src ${webview.cspSource} https: data:`,
     `style-src ${webview.cspSource} 'unsafe-inline'`,
     `font-src ${webview.cspSource} data:`,
-    `script-src 'nonce-${n}'`,
+    // The webview bundle is an ES module that lazy-imports MathJax/Mermaid
+    // chunks; 'strict-dynamic' lets the nonced root module load them.
+    `script-src 'nonce-${n}' 'strict-dynamic'`,
   ].join('; ');
   return `<!DOCTYPE html>
 <html lang="en">
@@ -126,7 +128,7 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
 </head>
 <body>
   <div id="markpage-preview"></div>
-  <script nonce="${n}" src="${scriptUri}"></script>
+  <script type="module" nonce="${n}" src="${scriptUri}"></script>
 </body>
 </html>`;
 }

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- Dev harness: load the built webview bundle and feed it a sample document,
-     to verify the markpage render pipeline runs in a real browser (the same
-     engine VS Code webviews use). Not shipped. Open via a static server. -->
+     to verify the markpage render pipeline (incl. phase-B MathJax/Mermaid) runs
+     in a real browser. Not shipped. Open via a static server. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -9,32 +9,31 @@
 </head>
 <body>
   <div id="markpage-preview"></div>
-  <script src="dist/webview.js"></script>
-  <script>
+  <!-- ESM module: attaches the message listener. -->
+  <script type="module" src="dist/webview.js"></script>
+  <!-- Runs after the module above (modules execute in order), then posts. -->
+  <script type="module">
     const md = [
       '# markpage preview',
       '',
       '::: note',
-      'A callout rendered by marked-config.',
+      'A callout, with inline math $a^2 + b^2 = c^2$.',
       ':::',
       '',
-      'Some **bold**, a footnote[^a], and inline code `x = 1`.',
+      'Block math:',
       '',
-      '| a | b |',
-      '|---|---|',
-      '| 1 | 2 |',
+      '$$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$',
+      '',
+      '```mermaid',
+      'graph LR',
+      '  A[Edit] --> B[Render]',
+      '  B --> C[Preview]',
+      '```',
       '',
       '```chart bar Sales',
       'Q1, 3',
       'Q2, 5',
-      'Q3, 4',
       '```',
-      '',
-      '```python',
-      'def f(x): return x * x',
-      '```',
-      '',
-      '[^a]: the footnote.',
     ].join('\n');
     window.dispatchEvent(new MessageEvent('message', { data: { type: 'render', md, baseUri: '' } }));
   </script>

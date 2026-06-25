@@ -7,11 +7,11 @@ footnotes, refs, …) inside VS Code, by reusing markpage's own render pipeline
 
 ## Status
 
-**v0.1 — phase A (transform) only.** Renders headings, callouts (`::: note`),
-tables, footnotes, syntax-highlighted code, and the block DSLs from
-`@orlarey/blocks` (`chart`, `bda`, `category`, `adt`, `diff`, `tree`). Math shows
-as placeholders and `mermaid` as a code block until **phase B**
-(`hydratePreview` — MathJax + Mermaid) is wired in.
+**v0.1 — full pipeline (phase A + B).** Renders headings, callouts (`::: note`),
+tables, footnotes, syntax-highlighted code, the block DSLs from `@orlarey/blocks`
+(`chart`, `bda`, `category`, `adt`, `diff`, `tree`), **MathJax** (`$…$` / `$$…$$`)
+and **Mermaid** diagrams. MathJax/Mermaid load as on-demand ESM chunks from
+`dist/chunks/` under the webview CSP (`'strict-dynamic'`).
 
 ## Run it (Extension Development Host)
 
@@ -50,7 +50,7 @@ npm run build && python3 -m http.server 8090
 
 ## Next
 
-- **Phase B**: wire `hydratePreview` (MathJax + Mermaid). The heavy part is
-  shipping the MathJax font chunks under the webview CSP / `localResourceRoots`.
+- Trim the bundle: the lazy MathJax imports emit ~400 font chunks (all sets);
+  restrict to the default set, or pre-pick per the document's `mathjax` setting.
 - Layer in markpage's style presets; map VS Code light/dark theme.
 - Scroll-sync (the render already annotates source lines).

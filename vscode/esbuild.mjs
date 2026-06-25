@@ -2,9 +2,13 @@
 //
 // The webview bundles @orlarey/markpage-render. We resolve it (and its deps)
 // from the parent monorepo's node_modules, using the package's `development`
-// export condition so we bundle the TypeScript sources directly. v0.1 wires the
-// phase-A transform only (renderMarkpageMarkdown); MathJax/Mermaid (phase B,
-// hydratePreview) are a follow-up — esbuild tree-shakes them out for now.
+// export condition so we bundle the TypeScript sources directly.
+//
+// The webview is built as ESM with code-splitting so MathJax / Mermaid (lazy
+// `import()`s under hydratePreview) become on-demand chunks instead of bloating
+// the main bundle — only the default font set (and mermaid, when present) load
+// at runtime. The chunks sit in dist/ (a webview localResourceRoot); the loader
+// `<script type="module" nonce>` plus CSP `'strict-dynamic'` lets them load.
 
 import { build, context } from 'esbuild';
 
@@ -31,9 +35,12 @@ const extensionConfig = {
 const webviewConfig = {
   ...common,
   entryPoints: ['src/webview/preview.ts'],
-  outfile: 'dist/webview.js',
+  outdir: 'dist',
+  entryNames: 'webview',
+  chunkNames: 'chunks/[name]-[hash]',
   platform: 'browser',
-  format: 'iife',
+  format: 'esm',
+  splitting: true, // lazy MathJax/Mermaid imports → on-demand chunks
   // Resolve @orlarey/markpage-render (+ deps) to their TS sources.
   conditions: ['development', 'browser', 'import', 'default'],
 };
