@@ -80,7 +80,10 @@ figure.captioned { break-inside: avoid; }
   color: var(--vscode-descriptionForeground);
 }
 
-/* footnotes (ported from markpage's preview styles) */
+/* footnotes (ported from markpage's preview styles). The pipeline also emits a
+   `.sidenote` (Tufte margin-note) variant for each footnote; the preview uses
+   foot-of-document notes by default, so the sidenotes stay hidden. */
+.sidenote { display: none; }
 .footnote-ref { font-size: 0.75em; line-height: 0; vertical-align: super; }
 .footnote-ref a { color: var(--vscode-textLink-foreground); text-decoration: none; }
 .footnotes { margin-top: 2em; font-size: 0.9em; }
@@ -88,6 +91,28 @@ figure.captioned { break-inside: avoid; }
 .footnotes ol { padding-left: 1.4em; }
 .footnotes li { margin: 0.3em 0; }
 .footnote-back { color: var(--vscode-textLink-foreground); text-decoration: none; }
+
+/* definition lists */
+dl { margin: 0.8em 0; }
+dt { font-weight: 600; margin-top: 0.6em; }
+dt:first-child { margin-top: 0; }
+dd { margin: 0.1em 0 0 1.6em; }
+
+/* diff blocks (@orlarey/blocks) */
+.diff-block {
+  background: var(--vscode-textCodeBlock-background, #8881);
+  border-radius: 6px;
+  padding: 0.6em 0.9em;
+  overflow: auto;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  line-height: 1.4;
+}
+.diff-add { color: var(--vscode-gitDecoration-addedResourceForeground, #2da44e); }
+.diff-del { color: var(--vscode-gitDecoration-deletedResourceForeground, #cf222e); }
+.diff-meta, .diff-hunk { color: var(--vscode-descriptionForeground); }
+
+/* native-SVG diagram wrappers centre their figure */
+.tree-svg-wrap, .category-svg { text-align: center; }
 
 /* mosaic image gallery */
 .mosaic-block { margin: 1em 0; }
