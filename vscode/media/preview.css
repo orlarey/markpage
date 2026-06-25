@@ -161,3 +161,25 @@ body {
   background: #fff;
   box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
 }
+
+/* ---- Floating widget (top-right of the preview viewport) ---------------- */
+.mp-toolbar {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 1000;
+  display: flex;
+  gap: 6px;
+}
+.mp-toggle {
+  font: 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 6px 10px;
+  border: 1px solid #c9c9cf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.mp-toggle:hover { background: #f4f4f6; }
+.mp-toggle.active { background: #2f6fdb; color: #fff; border-color: #2f6fdb; }

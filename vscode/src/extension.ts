@@ -101,6 +101,10 @@ function openPreview(context: vscode.ExtensionContext): void {
   panel.webview.onDidReceiveMessage(
     (m: { type?: string; line?: number }) => {
       if (m?.type === 'revealLine' && typeof m.line === 'number') revealEditorLine(m.line);
+      else if (m?.type === 'togglePagination') {
+        paginated = !paginated;
+        update();
+      }
     },
     undefined,
     context.subscriptions,

@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="media/preview.css?v=hljs">
 </head>
 <body>
-  <button id="toggle" style="position:fixed;top:8px;right:8px;z-index:9999;padding:4px 8px">Toggle pagination</button>
   <div id="markpage-preview"></div>
   <!-- ESM module: attaches the message listener. -->
   <script type="module" src="dist/webview.js"></script>
@@ -67,11 +66,8 @@
       '',
       '[^a]: The footnote body, at the end.',
     ].join('\n');
-    let paginated = false;
-    const rerender = () =>
-      window.dispatchEvent(new MessageEvent('message', { data: { type: 'render', md, baseUri: '', paginated } }));
-    document.getElementById('toggle').addEventListener('click', () => { paginated = !paginated; rerender(); });
-    rerender();
+    // Initial render; the floating widget (top-right) toggles pagination.
+    window.dispatchEvent(new MessageEvent('message', { data: { type: 'render', md, baseUri: '', paginated: false } }));
   </script>
 </body>
 </html>

@@ -36,6 +36,33 @@ const vscode =
 const root = document.getElementById('markpage-preview') as HTMLElement;
 let renderToken = 0;
 let suppressScroll = false; // ignore the scroll event our own scrollToLine causes
+let lastMsg: RenderMessage | undefined;
+
+// Floating widget (top-right, outside #markpage-preview so paged.js leaves it
+// alone): toggle pagination + print. In VS Code it drives the host (source of
+// truth); in the plain-browser harness it re-renders locally.
+const toggleBtn = makeToolbar();
+
+function makeToolbar(): HTMLButtonElement {
+  const bar = document.createElement('div');
+  bar.className = 'mp-toolbar';
+  const toggle = document.createElement('button');
+  toggle.className = 'mp-toggle';
+  toggle.title = 'Toggle pagination (continuous ↔ A4 pages)';
+  toggle.textContent = '▭ A4 pages';
+  toggle.addEventListener('click', () => {
+    if (vscode) vscode.postMessage({ type: 'togglePagination' });
+    else if (lastMsg) void render({ ...lastMsg, paginated: !lastMsg.paginated });
+  });
+  const print = document.createElement('button');
+  print.className = 'mp-toggle';
+  print.title = 'Print / Save as PDF';
+  print.textContent = '⎙ PDF';
+  print.addEventListener('click', () => window.print());
+  bar.append(toggle, print);
+  document.body.append(bar);
+  return toggle;
+}
 
 window.addEventListener('message', (e: MessageEvent) => {
   const msg = e.data as RenderMessage | ScrollMessage | { type: 'print' } | undefined;
@@ -46,6 +73,8 @@ window.addEventListener('message', (e: MessageEvent) => {
 });
 
 async function render(msg: RenderMessage): Promise<void> {
+  lastMsg = msg;
+  toggleBtn.classList.toggle('active', msg.paginated);
   const token = (renderToken += 1);
   const base = msg.baseUri ? msg.baseUri.replace(/\/?$/, '/') : '';
   const { body, lineOffset } = stripFrontmatter(msg.md);
