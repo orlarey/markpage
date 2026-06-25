@@ -205,17 +205,23 @@ hors de `src/` ; l'appli web l'**importe** (zéro changement fonctionnel).
 { resolveImageSrc })` + `rewriteImageSrc`. La phase A ne touchant pas aux images,
 la couture est réalisée **en sortie** ; l'appli web garde sa résolution sha
 **inchangée** (purement additif). *Vérifié* : 5 tests + suite à 340 verts.
-**Reste (étape 2b, à venir)** : extraire la **phase B** (`hydratePreview` —
-MathJax + Mermaid) en second point d'entrée.
 
-**Étape 3 — Coquille d'extension.** Scaffold (`yo code` ou minimal) : commande +
-WebviewPanel + CSP + `localResourceRoots`. Afficher un HTML statique. *Vérif* :
-le panneau s'ouvre, CSP sans erreur console.
+**Étape 2b — Extraire la phase B ✅ (livrée).** `hydratePreview` + math / mermaid
+dans le package (second jeu de fonctions). *Vérifié* : 340 tests + **rendu
+MathJax live** dans l'app dev.
 
-**Étape 4 — Brancher le rendu.** `renderMarkpageMarkdown` côté extension →
-`postMessage` → `hydratePreview` côté webview, avec `resolveImageSrc` =
-`asWebviewUri`. *Vérif manuelle* : un `.md` markpage (math, mermaid, chart,
-mosaïque, images) rendu fidèlement.
+**Étape 3 — Coquille d'extension ✅ (livrée, dossier `vscode/`).** Commande
+`markpage.openPreview` + WebviewPanel à côté de l'éditeur + CSP (nonce) +
+`localResourceRoots` ; bundle esbuild (hôte Node + webview navigateur) qui embarque
+`@orlarey/markpage-render`. **Rend déjà la phase A** (renderMarkpageMarkdown +
+`resolveImageSrc` → URI webview), mise à jour live à la frappe. *Vérifié* :
+typecheck, bundle esbuild, et **rendu live dans un navigateur** (callout, table,
+note, code coloré, fence `chart`). *Reste manuel* : F5 dans VS Code.
+
+**Étape 4 — Brancher la phase B (à venir).** Câbler `hydratePreview` côté webview
+(math + mermaid). Point délicat : livrer les **chunks de fontes MathJax** sous la
+CSP / `localResourceRoots` du webview. *Vérif manuelle* : un `.md` markpage
+(math, mermaid, chart, mosaïque, images) rendu fidèlement.
 
 **Étape 5 — Live + thème + packaging.** Mise à jour à la frappe, mapping de
 thème, bundle des fontes MathJax routées en URI webview. *Vérif manuelle* : édition
