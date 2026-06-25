@@ -26,16 +26,23 @@ body {
   --font-sans: var(--font-body);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  max-width: 44rem;
+  /* A4 page: 210 × 297 mm with realistic margins, centred on the backdrop.
+     Continuous scroll (no page breaks) — the PDF export does the real
+     pagination; this preview shows the page width and margins. min-height
+     keeps a full-page shape even for short documents. max-width lets it scale
+     down in a narrow split panel. */
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  box-sizing: border-box;
   margin: 0 auto;
   background: #fff;
   color: #1c1c1e;
   font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.6;
-  padding: 3rem clamp(1.4rem, 5vw, 3.4rem);
-  border-radius: 2px;
-  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.16);
+  font-size: 11pt;
+  line-height: 1.5;
+  padding: 20mm 18mm;
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
 }
 
 #markpage-preview h1,
