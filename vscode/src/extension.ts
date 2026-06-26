@@ -137,7 +137,13 @@ function openPreview(context: vscode.ExtensionContext): void {
 
 /** Allow loading the extension's bundle + the document's folder (for images). */
 function localRoots(context: vscode.ExtensionContext): vscode.Uri[] {
-  const roots = [vscode.Uri.joinPath(context.extensionUri, 'dist')];
+  // dist/ holds the bundled JS + CSS; media/ holds preview.css (the paper
+  // theme). Both must be allowed or the webview silently blocks the stylesheet
+  // and falls back to VS Code's dark default styles.
+  const roots = [
+    vscode.Uri.joinPath(context.extensionUri, 'dist'),
+    vscode.Uri.joinPath(context.extensionUri, 'media'),
+  ];
   const folder = docFolder();
   if (folder) roots.push(folder);
   const ws = vscode.workspace.workspaceFolders?.[0]?.uri;

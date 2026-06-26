@@ -2,7 +2,7 @@
   "name": "markpage-preview",
   "displayName": "markpage preview",
   "description": "Preview Markdown with all markpage extensions (fences, callouts, math, mermaid) — reuses @orlarey/markpage-render.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "orlarey",
   "license": "MIT",
   "repository": {
@@ -17,7 +17,10 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Visualization", "Other"],
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -49,8 +52,12 @@
         }
       ],
       "commandPalette": [
-        { "command": "markpage.togglePagination" },
-        { "command": "markpage.print" }
+        {
+          "command": "markpage.togglePagination"
+        },
+        {
+          "command": "markpage.print"
+        }
       ]
     },
     "keybindings": [
