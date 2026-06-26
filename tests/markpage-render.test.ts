@@ -83,4 +83,25 @@ describe('::: style — local typographic overrides (STYLE-SPEC)', () => {
     expect(rule).toContain('font-size:18pt !important');
     expect(rule).toContain('color:teal !important');
   });
+
+  it('nests with more colons on the outer fence (a 3-colon close does not close a 4-colon block)', () => {
+    const html = renderMarkpageMarkdown(
+      ':::: style color=red\n::: note\ninner callout\n:::\n::::',
+    );
+    expect(html).toContain('class="mp-style'); // the outer style block
+    expect(html).toContain('admonition-note'); // the inner callout survived nesting
+    // the inner note is INSIDE the styled block
+    const styleIdx = html.indexOf('mp-style');
+    const noteIdx = html.indexOf('admonition-note');
+    expect(styleIdx).toBeGreaterThanOrEqual(0);
+    expect(noteIdx).toBeGreaterThan(styleIdx);
+  });
+
+  it('reset form: an empty block (close right after the opening) is valid', () => {
+    const html = renderMarkpageMarkdown('::: background\n:::');
+    // background isn't a styled class yet, but the empty block must tokenize
+    // (not leak its `:::` as text) — it renders as a (neutral) admonition div.
+    expect(html).toContain('admonition');
+    expect(html).not.toMatch(/<p>:::/);
+  });
 });

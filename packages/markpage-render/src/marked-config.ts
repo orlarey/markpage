@@ -161,12 +161,13 @@ let inEndnotesRender = false;
 //     optional `[Title]` (callouts) or `key=value` attributes + bare flags
 //     (the `style` block; a future `background` block too). Parsed by
 //     parseAdmonitionInfo().
-//   - closing `:::` alone on its line (trailing tabs/spaces tolerated)
-//   - we do NOT support nesting in v1; a body `:::` would close the
-//     outer block. If a user needs that we'll add the multi-colon
-//     fence (`::::` opens, `:::` inside is fine) later.
-const ADMONITION_RE =
-  /^:::[ \t]+([A-Za-z][\w+-]*)([^\n]*)\n([\s\S]+?)\n:::[ \t]*(?=\n|$)/;
+//   - the fence may be 3+ colons; the block closes at a line of the SAME
+//     number of bare colons. Nesting uses MORE colons on the outer fence
+//     (Pandoc style): `:::: outer` … `::: inner` … `:::` … `::::`. A shorter
+//     inner close doesn't close a longer outer one.
+//   - the body may be empty (the close right after the opening line) — used by
+//     `::: background` as a reset.
+const ADMONITION_OPEN_RE = /^(:{3,})[ \t]+([A-Za-z][\w+-]*)([^\n]*)\n/;
 
 /**
  * Parse the part of a `::: class …` opening line that follows the class:
@@ -662,23 +663,38 @@ marked.use({
       name: 'admonition',
       level: 'block',
       start(src: string) {
-        if (/^:::[ \t]+/.test(src)) return 0;
-        const m = /\n:::[ \t]+/.exec(src);
+        if (/^:{3,}[ \t]+/.test(src)) return 0;
+        const m = /\n:{3,}[ \t]+/.exec(src);
         return m === null ? undefined : m.index + 1;
       },
       tokenizer(src: string) {
-        const match = ADMONITION_RE.exec(src);
-        if (!match) return undefined;
-        const klass = (match[1] ?? '').toLowerCase();
-        const info = parseAdmonitionInfo(match[2] ?? '');
-        const inner = match[3] ?? '';
-        // Recurse into the body so nested Markdown (paragraphs, lists,
-        // math, mermaid…) is parsed normally.
+        const open = ADMONITION_OPEN_RE.exec(src);
+        if (!open) return undefined;
+        const n = (open[1] ?? '').length; // fence length: close must match it
+        const klass = (open[2] ?? '').toLowerCase();
+        const info = parseAdmonitionInfo(open[3] ?? '');
+        // Find the closing fence — a line of exactly `n` bare colons. Allow an
+        // empty body (close right after the opening line).
+        const rest = src.slice(open[0].length);
+        const close = `:{${n}}[ \\t]*`;
+        let inner = '';
+        let rawLen = 0;
+        const emptyMatch = new RegExp(`^${close}(?=\\n|$)`).exec(rest);
+        if (emptyMatch) {
+          rawLen = open[0].length + emptyMatch[0].length;
+        } else {
+          const bodyMatch = new RegExp(`^([\\s\\S]*?)\\n${close}(?=\\n|$)`).exec(rest);
+          if (!bodyMatch) return undefined; // unterminated → not an admonition
+          inner = bodyMatch[1] ?? '';
+          rawLen = open[0].length + bodyMatch[0].length;
+        }
+        // Recurse into the body so nested Markdown (paragraphs, lists, math,
+        // and nested `:::` blocks with fewer colons) is parsed normally.
         const tokens: Tokens.Generic[] = [];
         this.lexer.blockTokens(inner, tokens);
         const token: AdmonitionToken = {
           type: 'admonition',
-          raw: match[0],
+          raw: src.slice(0, rawLen),
           klass,
           customTitle: info.title,
           attrs: info.attrs,
