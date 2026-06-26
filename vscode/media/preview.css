@@ -176,6 +176,21 @@ body {
   box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
 }
 
+/* ---- ::: background — per-page backdrop layer (BACKGROUND-SPEC) ---------- */
+/* applyBackgrounds() clones a .mp-bg-layer into each page box, behind content.
+   Full bleed by default (covers the whole page box). */
+#markpage-preview .pagedjs_pagebox { position: relative; }
+#markpage-preview .pagedjs_page_content { position: relative; z-index: 1; }
+#markpage-preview .mp-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+#markpage-preview .mp-bg-item { position: absolute; }
+#markpage-preview .mp-bg-item.mp-bg-full { inset: 0; }
+
 /* ---- Floating widget (top-right of the preview viewport) ---------------- */
 .mp-toolbar {
   position: fixed;

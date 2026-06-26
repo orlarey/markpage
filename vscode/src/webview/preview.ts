@@ -10,6 +10,7 @@ import {
   renderMetadataBlock,
   parseFrontmatter,
   hydratePreview,
+  applyBackgrounds,
 } from '@orlarey/markpage-render';
 import { marked } from 'marked';
 import { parseProfile, profileToCss, type Profile } from './profile-css';
@@ -372,6 +373,8 @@ async function paginate(token: number): Promise<void> {
   root.classList.add('paginated');
   root.innerHTML = '';
   await new Previewer().preview(source, [{ 'markpage-page.css': pageCss(currentLayout) }], root);
+  // Clone `::: background` backdrops onto each page of their run (behind content).
+  applyBackgrounds(root);
 }
 
 // ---- scroll-sync ----------------------------------------------------------
