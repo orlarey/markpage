@@ -1271,6 +1271,79 @@ fonctionne en mode paginé comme en mode slides ; le bloc reste sur une
 seule page, donc gardez-le assez court pour tenir (sur une slide c'est
 automatique). À l'export LaTeX, les colonnes sont empilées.
 
+### Style local (`::: style`) \label{sec:style}
+
+La typographie vient surtout de votre **profil de style** (Réglages),
+qui s'applique à *tous* les éléments d'un même type. Pour un réglage
+local — un grand titre coloré sur une couverture, une légende centrée —
+enveloppez le contenu dans un bloc `::: style` :
+
+```
+::: style color=#0b3d91 size=22pt align=center weight=700
+Un titre bleu, 22 points, centré, gras
+:::
+```
+
+Les paramètres (une liste fixe et sûre — pas de CSS ni HTML arbitraire) :
+
+- `color=` — `#rrggbb` ou un nom de couleur CSS (`teal`, `navy`…)
+- `size=` — taille en points (`28pt`, ou simplement `28`)
+- `font=` — une famille (`font="Source Serif 4"`)
+- `weight=` — graisse, 100–900
+- `align=` — `left` / `center` / `right` / `justify`
+- `italic`, `underline` — seuls (sans `=`)
+- `line-height=` — multiplicateur d'interligne (`1.3`)
+
+L'intérieur est du Markdown ordinaire, et le style s'applique à tout —
+il surcharge le profil localement, même la taille d'un titre ou
+l'alignement d'un paragraphe. Imbriquez un `::: style` dans un autre
+pour un réglage plus fin ; l'interne l'emporte.
+
+### Fonds de page (`::: background`) \label{sec:background}
+
+Un bloc `::: background` place du contenu **derrière** la page — pour
+une couverture, une affiche, ou un gabarit de slide récurrent. Chaque
+bloc est une petite « minipage » Markdown dessinée sur le fond de la
+page ; votre document se rend par-dessus.
+
+```
+::: background fill=#0b1f3a
+:::
+::: background at=0.5,0.4 size=0.7
+Un bloc titre centré
+:::
+```
+
+- **`fill=`** — une couleur de fond. *Sans* `size`, le bloc remplit
+  **toute la page** ; *avec* `size`, c'est une minipage positionnée.
+- **`at=x,y`** — où le placer, en fractions de `0` à `1` (`0,0` = coin
+  haut-gauche de la feuille, `1,1` = bas-droite). Le même point de la
+  minipage rejoint ce point de la page : `0,0` se cale dans le coin,
+  `0.5,0.5` au centre, `1,1` en bas à droite.
+- **`size=`** — la largeur de la minipage, en fraction de la page (la
+  hauteur s'adapte au contenu).
+- **`first`** — cette page seulement (une couverture distincte). Sinon
+  le fond **se reporte sur les pages suivantes** (comme un en-tête /
+  pied) jusqu'à un nouveau `::: background` ; un `::: background`
+  **vide** l'efface.
+
+L'ordre source est l'ordre d'empilement — écrivez le `fill` *avant* ce
+qui se pose dessus. Pour un titre clair sur un fond sombre, mettez un
+`::: style` *dans* un fond ; comme un bloc `:::` se ferme à la ligne
+`:::` suivante, donnez **quatre deux-points** à celui de
+**l'extérieur** :
+
+```
+:::: background first at=0.5,0.4 size=0.8
+::: style color=#ffffff align=center size=34pt
+Rapport annuel
+:::
+::::
+```
+
+Les fonds apparaissent dans l'**aperçu paginé** et le PDF (pas dans la
+vue d'édition continue).
+
 ### Graphiques \label{sec:charts}
 
 Pour tracer une courbe ou un diagramme à partir de données, utilisez

@@ -1220,6 +1220,78 @@ and slides modes; the block stays on a single page, so keep it short
 enough to fit (on a slide that's automatic). At LaTeX export the
 columns degrade to stacked content.
 
+### Local styling (`::: style`) \label{sec:style}
+
+Most typography comes from your **style profile** (Settings), which
+applies to *every* element of a kind. When you need a local override —
+a big coloured title on a cover, a centred caption — wrap the content
+in a `::: style` block:
+
+```
+::: style color=#0b3d91 size=22pt align=center weight=700
+A blue, 22-point, centred, bold heading
+:::
+```
+
+The parameters (a fixed, safe list — no arbitrary CSS or HTML):
+
+- `color=` — `#rrggbb` or a CSS colour name (`teal`, `navy`…)
+- `size=` — point size (`28pt`, or just `28`)
+- `font=` — a family name (`font="Source Serif 4"`)
+- `weight=` — boldness, 100–900
+- `align=` — `left` / `center` / `right` / `justify`
+- `italic`, `underline` — on their own (no `=`)
+- `line-height=` — line-spacing multiplier (`1.3`)
+
+The inside is ordinary Markdown, and the style applies to all of it —
+overriding the profile locally, even a heading's own size or a
+paragraph's alignment. Nest a `::: style` inside another for a finer
+override; the inner one wins.
+
+### Page backdrops (`::: background`) \label{sec:background}
+
+A `::: background` block places content **behind** the page — for a
+cover, a poster, or a recurring slide template. Each block is a small
+Markdown "minipage" drawn on the page's backdrop; your document flows
+on top.
+
+```
+::: background fill=#0b1f3a
+:::
+::: background at=0.5,0.4 size=0.7
+A centred title block
+:::
+```
+
+- **`fill=`** — a backdrop colour. *Without* `size` the block fills the
+  **whole page**; *with* `size` it's a positioned minipage.
+- **`at=x,y`** — where to place it, in fractions from `0` to `1`
+  (`0,0` = top-left corner of the sheet, `1,1` = bottom-right). The
+  same point of the minipage meets that point of the page, so `0,0`
+  sits flush in the corner, `0.5,0.5` is centred, `1,1` bottom-right.
+- **`size=`** — the minipage's width, as a fraction of the page (the
+  height adjusts to the content).
+- **`first`** — only this page (a distinct cover). Otherwise the
+  backdrop **carries over to the following pages** (like a header /
+  footer) until a new `::: background` replaces it; an **empty**
+  `::: background` clears it.
+
+Source order is the stacking order — write the `fill` *before* what
+sits on it. For a light title on a dark backdrop, put a `::: style`
+*inside* a background; since a `:::` block ends at the next `:::`
+line, give the **outer** one **four colons**:
+
+```
+:::: background first at=0.5,0.4 size=0.8
+::: style color=#ffffff align=center size=34pt
+Annual report
+:::
+::::
+```
+
+Backdrops appear in the **paginated preview** and the PDF (not the
+continuous editing view).
+
 ### Charts \label{sec:charts}
 
 To draw a curve or chart from data, use a `chart` *fenced block*:
