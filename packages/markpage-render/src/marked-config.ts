@@ -217,6 +217,35 @@ function cssFromStyleAttrs(attrs: Record<string, string>): string {
   return css.join(';');
 }
 
+// `::: background` — parse the placement attributes (BACKGROUND-SPEC §3) into a
+// validated, JSON-serialisable record. All coordinates are clamped to [0,1].
+interface BackgroundSpec {
+  at: [number, number] | null;
+  size: number | null;
+  anchor: [number, number] | null;
+  fill: string | null;
+  first: boolean;
+  margins: boolean;
+}
+function parseBackgroundAttrs(attrs: Record<string, string>): BackgroundSpec {
+  const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
+  const pair = (s: string | undefined): [number, number] | null => {
+    const m = s ? /^(\d*\.?\d+),(\d*\.?\d+)$/.exec(s) : null;
+    return m ? [clamp01(Number(m[1])), clamp01(Number(m[2]))] : null;
+  };
+  const sizeM = attrs.size ? /^(\d*\.?\d+)$/.exec(attrs.size) : null;
+  const fill =
+    attrs.fill && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/.test(attrs.fill) ? attrs.fill : null;
+  return {
+    at: pair(attrs.at),
+    size: sizeM ? Math.max(0, Number(sizeM[1])) : null,
+    anchor: pair(attrs.anchor),
+    fill,
+    first: 'first' in attrs,
+    margins: 'margins' in attrs,
+  };
+}
+
 // ---- `::: toc+` (augmented table of contents) -------------------------
 // Build the TOC HTML from the block body: a (possibly nested) list whose
 // nesting maps to heading depth. Each item is "title — intention"; only the
@@ -732,6 +761,21 @@ marked.use({
             .join(';');
           const rule = `<style>.${id},.${id} *{${important}}</style>`;
           return injectSource(`<div class="mp-style ${id}">${rule}${body}</div>\n`, t.raw);
+        }
+        // `::: background` — a page backdrop minipage (BACKGROUND-SPEC). Emitted
+        // as a hidden, zero-height sentinel that stays in the flow (so it lands
+        // on a page); applyBackgrounds() then clones it into each page of its
+        // run (cascade) after pagination.
+        if (t.klass === 'background') {
+          const spec = parseBackgroundAttrs(t.attrs);
+          const body = this.parser.parse(t.tokens);
+          // Inline height:0 so paged.js lays it out as a zero-height marker (no
+          // flow box, no fragmentation) — applyBackgrounds reads it post-layout.
+          return injectSource(
+            `<div class="mp-bg" data-bg="${escapeHtml(JSON.stringify(spec))}"` +
+              ` style="display:block;height:0;overflow:hidden" aria-hidden="true">${body}</div>\n`,
+            t.raw,
+          );
         }
         // `::: columns` is a layout container, not a callout: split the
         // body into columns at top-level `---` (`hr`) separators and lay

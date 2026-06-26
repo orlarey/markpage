@@ -10,7 +10,7 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
-import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter } from '@orlarey/markpage-render';
+import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds } from '@orlarey/markpage-render';
 import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,
@@ -216,6 +216,8 @@ export async function paginate(
   // by default via CSS). Toggling the `.debug-layout` class on the
   // render container flips visibility without re-running paginate().
   injectGuidesSvg(renderTo, settings.duplex);
+  // Clone `::: background` backdrops onto each page of their run (behind content).
+  applyBackgrounds(renderTo);
   currentPreviewer = previewer;
 }
 
@@ -247,6 +249,7 @@ export async function paginateOnce(
     ],
     renderTo,
   );
+  applyBackgrounds(renderTo);
   return () => {
     teardownPreviewer(previewer);
   };

@@ -284,6 +284,22 @@ body,
   zoom: var(--mp-fit-zoom, 1);
 }
 
+/* ::: background — per-page backdrop layer (BACKGROUND-SPEC). The marked
+   renderer emits a hidden zero-height `.mp-bg` sentinel in the flow;
+   applyBackgrounds() clones a `.mp-bg-layer` into each page's box, behind the
+   content. Full bleed by default (covers the whole page box). */
+:is(#preview-pane, #markpage-print-target) .pagedjs_pagebox { position: relative; }
+:is(#preview-pane, #markpage-print-target) .pagedjs_page_content { position: relative; z-index: 1; }
+.mp-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0; /* behind the page content */
+  overflow: hidden;
+  pointer-events: none;
+}
+.mp-bg-item { position: absolute; }
+.mp-bg-item.mp-bg-full { inset: 0; } /* no `size` → fill the page */
+
 /* Presentation mode (toolbar [Présenter] + Cmd/Ctrl+Shift+Enter). The
    same paged.js render is reused: main.ts puts the pane into native
    fullscreen, adds `.presentation`, and tags the visible page

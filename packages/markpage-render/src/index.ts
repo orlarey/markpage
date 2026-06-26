@@ -63,3 +63,4 @@ export {
   resetPageRunningCounter,
 } from './page-running';
 export { anchorId } from './refs';
+export { applyBackgrounds } from './background';

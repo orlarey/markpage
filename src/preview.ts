@@ -65,7 +65,11 @@ export function renderPreview(target: HTMLElement, source: string): void {
     h1.textContent = meta.title;
     target.prepend(h1);
   } else {
-    const first = target.querySelector('h1');
+    // Skip h1s inside a `::: background` minipage — those are backdrop content,
+    // not the document title.
+    const first = [...target.querySelectorAll<HTMLElement>('h1')].find(
+      (h) => !h.closest('.mp-bg'),
+    );
     if (first) first.classList.add('doc-title');
   }
 }
@@ -95,7 +99,9 @@ export function applyPreviewMetadata(
     block.appendChild(div);
   }
 
-  const firstH1 = target.querySelector('h1');
+  const firstH1 = [...target.querySelectorAll<HTMLElement>('h1')].find(
+    (h) => !h.closest('.mp-bg'),
+  );
   if (firstH1) {
     firstH1.after(block);
   } else {

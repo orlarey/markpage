@@ -97,11 +97,54 @@ describe('::: style — local typographic overrides (STYLE-SPEC)', () => {
     expect(noteIdx).toBeGreaterThan(styleIdx);
   });
 
-  it('reset form: an empty block (close right after the opening) is valid', () => {
+  it('reset form: an empty ::: background tokenizes (no leaked `:::`)', () => {
     const html = renderMarkpageMarkdown('::: background\n:::');
-    // background isn't a styled class yet, but the empty block must tokenize
-    // (not leak its `:::` as text) — it renders as a (neutral) admonition div.
-    expect(html).toContain('admonition');
+    expect(html).toContain('class="mp-bg"');
     expect(html).not.toMatch(/<p>:::/);
+  });
+});
+
+describe('::: background — page backdrop sentinel (BACKGROUND-SPEC)', () => {
+  const specOf = (html: string): Record<string, unknown> => {
+    const raw = /data-bg="([^"]*)"/.exec(html)?.[1] ?? '{}';
+    const json = raw
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+    return JSON.parse(json);
+  };
+
+  it('emits a hidden sentinel with the parsed, validated spec', () => {
+    const html = renderMarkpageMarkdown(
+      '::: background at=0.5,0.4 size=0.7 fill=#0b1f3a\nTitre\n:::',
+    );
+    expect(html).toContain('class="mp-bg"');
+    expect(html).toContain('height:0'); // hidden in flow
+    const spec = specOf(html);
+    expect(spec.at).toEqual([0.5, 0.4]);
+    expect(spec.size).toBe(0.7);
+    expect(spec.fill).toBe('#0b1f3a');
+    expect(spec.first).toBe(false);
+  });
+
+  it('full-page form: no size, fill only', () => {
+    const spec = specOf(renderMarkpageMarkdown('::: background fill=#fff first\n:::'));
+    expect(spec.size).toBeNull();
+    expect(spec.at).toBeNull();
+    expect(spec.fill).toBe('#fff');
+    expect(spec.first).toBe(true);
+  });
+
+  it('clamps over-range coordinates to [0,1] and rejects an invalid fill', () => {
+    const spec = specOf(renderMarkpageMarkdown('::: background at=1.5,2 fill=red;}evil\nx\n:::'));
+    expect(spec.at).toEqual([1, 1]);
+    expect(spec.fill).toBeNull();
+  });
+
+  it('renders the body recursively (the minipage content)', () => {
+    const html = renderMarkpageMarkdown('::: background at=0.5,0.5 size=0.6\n# Grand titre\n:::');
+    expect(html).toContain('<h1');
+    expect(html).toContain('Grand titre');
   });
 });
