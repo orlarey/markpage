@@ -146,6 +146,95 @@ which publishes the static build to GitHub Pages.
 To enable Pages on a fresh fork: **Settings → Pages → Source:
 GitHub Actions**.
 
+## Project structure
+
+markpage is an **npm-workspaces monorepo**. Several deliverables share one
+render core, so a document looks the same wherever it is rendered:
+
+- the **web app** (`src/`) — the editor + paginated preview, built with Vite;
+- three **npm packages** (`packages/*`) — the reusable rendering stack;
+- a **VS Code extension** (`vscode/`) — a live preview that reuses that core;
+- a **Go MCP bridge** (`mcp/`) — lets an AI client drive the web app in-browser;
+- **specs, skill, templates** (`docs/`, `skill/`, `templates/`).
+
+The keystone is **`@orlarey/markpage-render`**: the Markdown → HTML pipeline,
+consumed **both** by the web app and the VS Code extension. `@orlarey/blocks` is
+the dependency-free base; `@orlarey/marked` is a separate, lightweight plugin for
+third-party pipelines (see *Use the fences in your own pipeline* below).
+
+```mermaid
+flowchart TB
+  subgraph pkgs["packages/ — reusable npm stack"]
+    blocks["@orlarey/blocks<br/>fence renderers (HTML/SVG)"]
+    marked["@orlarey/marked<br/>marked plugin (standalone)"]
+    core["@orlarey/markpage-render<br/>full pipeline + MathJax/Mermaid hydrate"]
+    blocks --> marked
+    blocks --> core
+  end
+  app["Web app — src/ (Vite)<br/>editor + paginated preview, storage, volumes"]
+  ext["VS Code extension — vscode/<br/>live preview (webview, esbuild)"]
+  mcp["markpage-mcp — mcp/ (Go)<br/>MCP ↔ WebSocket bridge"]
+  ai["AI client<br/>(Claude Code / Desktop)"]
+  core --> app
+  core --> ext
+  ai -->|"stdio (MCP)"| mcp
+  mcp -->|"ws 127.0.0.1:7878"| app
+```
+
+### Directory map
+
+```
+markpage/
+├── src/              Web app — editor + preview (Vite, TypeScript)
+├── packages/         Reusable npm packages (the rendering stack)
+│   ├── blocks/          @orlarey/blocks — framework-agnostic fence renderers
+│   ├── marked/          @orlarey/marked — marked plugin wrapping the renderers
+│   └── markpage-render/ @orlarey/markpage-render — the full render pipeline
+├── vscode/           VS Code extension — live markpage preview (esbuild)
+├── mcp/              markpage-mcp — Go MCP bridge (stdio MCP ↔ WebSocket)
+├── skill/            "markpage-specs" authoring skill (SKILL.md)
+├── docs/             Specs & design docs (SPEC, MCP-SPEC, FRONTMATTER-SPEC, …)
+├── templates/        Ready-to-use documents (+ style profiles)
+├── tests/            Vitest regression corpus
+├── e2e/              Playwright end-to-end tests
+├── patches/          patch-package patches (paged.js null-deref fixes)
+└── public/           Static assets served as-is
+```
+
+### The rendering stack
+
+| Package | Path | Role |
+| :------ | :--- | :--- |
+| **`@orlarey/blocks`** | [`packages/blocks/`](packages/blocks/) | The base layer — framework-agnostic renderers for the fenced blocks (`chart`, `bda`, `category`, `adt`, `diff`, `tree`) → self-contained HTML/SVG, plus a portable stylesheet. No dependencies. |
+| **`@orlarey/marked`** | [`packages/marked/`](packages/marked/) | A [marked](https://marked.js.org) plugin (`marked.use(markpageBlocks())`) for dropping the fences into any third-party Markdown toolchain. Peers: `@orlarey/blocks`, `marked`. |
+| **`@orlarey/markpage-render`** | [`packages/markpage-render/`](packages/markpage-render/) | The app's full pipeline — fences, callouts, footnotes, refs, frontmatter parsing + the phase-B DOM hydrate (MathJax 4, Mermaid). Registers the blocks via its own marked config. **Consumed by both the web app and the VS Code extension.** |
+
+### How the pieces fit
+
+- **Shared core, two front-ends.** The web app and the extension both import
+  `@orlarey/markpage-render`, so the editor preview, the PDF, and the VS Code
+  preview agree on rendering. The app adds storage / volumes / settings /
+  pagination; the extension adds a webview and translates a document's
+  [frontmatter profile](docs/FRONTMATTER-SPEC.md) into CSS.
+- **Dev vs publish.** In development the app (Vite) and the extension (esbuild)
+  consume the packages' **TypeScript sources** through the `development` export
+  condition — no build step between edits. The `dist/` (tsc) output is only
+  needed for an npm publish. `postinstall` runs `patch-package` (the paged.js
+  fixes in [`patches/`](patches/)).
+- **The MCP bridge is a separate Go binary.** It speaks MCP over stdio to the AI
+  client and WebSocket to one markpage browser tab; two tools answer from
+  embedded docs without a tab. See [`mcp/README.md`](mcp/README.md) and
+  [`MCP-SPEC.md`](docs/MCP-SPEC.md).
+
+### Build
+
+```sh
+npm run build:packages   # tsc each package → its dist/
+npm run build            # build:packages, then tsc --noEmit, then vite build (app)
+node vscode/esbuild.mjs  # bundle the VS Code extension
+make -C mcp build        # build the Go MCP bridge → mcp/markpage-mcp
+```
+
 ## Documentation
 
 Specs and design docs live in [`docs/`](docs/) (with an index). Quick links:
