@@ -267,22 +267,35 @@ function applyZoom(): void {
   root.style.setProperty('zoom', String(Math.min(zoom, panelWidth() / wp)));
 }
 
-/** The element whose side edges are the draggable page borders: the sheet in
- *  continuous mode, the first paged.js page in paginated mode. */
-function pageElement(): HTMLElement {
-  if (root.classList.contains('paginated')) {
-    return (root.querySelector('.pagedjs_page') as HTMLElement | null) ?? root;
-  }
-  return root;
+// Page side edges are computed from first principles in client coordinates,
+// NOT from the zoomed element's getBoundingClientRect — under CSS `zoom` the
+// VS Code webview's Chromium reports a rect that doesn't match `clientX`, which
+// mis-placed the edge (and the drag centre) by the zoom factor. The page is
+// centred in the body content box (un-zoomed, reliable) and its on-screen width
+// is naturalWidth × appliedZoom.
+
+/** Page centre x, in client px (page is centred in the body content box). */
+function pageCenterX(): number {
+  const cs = getComputedStyle(document.body);
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padR = parseFloat(cs.paddingRight) || 0;
+  const left = document.body.getBoundingClientRect().left + padL;
+  return left + (document.body.clientWidth - padL - padR) / 2;
 }
 
-/** Is the cursor in the hot zone around a page side edge? (page x-edges, full
- *  preview height so the edge is grabbable anywhere down the column). */
+/** Half the page's on-screen width, in client px = naturalWidth × appliedZoom / 2. */
+function pageHalfWidth(): number {
+  const r = parseFloat(root.style.zoom) || 1;
+  return (naturalPageWidth() * r) / 2;
+}
+
+/** Is the cursor in the hot zone around a page side edge? (grabbable at any
+ *  height of the preview). */
 function nearEdge(clientX: number, clientY: number): boolean {
-  const xr = pageElement().getBoundingClientRect();
-  const yr = root.getBoundingClientRect();
-  const inV = clientY >= yr.top && clientY <= yr.bottom;
-  return inV && (Math.abs(clientX - xr.left) <= EDGE_PX || Math.abs(clientX - xr.right) <= EDGE_PX);
+  if (clientY < 0 || clientY > window.innerHeight) return false;
+  const c = pageCenterX();
+  const h = pageHalfWidth();
+  return Math.abs(clientX - (c - h)) <= EDGE_PX || Math.abs(clientX - (c + h)) <= EDGE_PX;
 }
 
 let dragging = false;
@@ -314,8 +327,7 @@ window.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerdown', (e) => {
   if (!nearEdge(e.clientX, e.clientY)) return;
-  const xr = pageElement().getBoundingClientRect();
-  centerX = xr.left + xr.width / 2;
+  centerX = pageCenterX();
   // Anchor the leaf element under the cursor (sampled at the page centre) + the
   // cursor's offset within it, to keep it opposite the cursor while zooming.
   anchorR0 = parseFloat(root.style.zoom) || 1;
