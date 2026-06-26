@@ -300,11 +300,16 @@ function nearEdge(clientX: number, clientY: number): boolean {
 
 let dragging = false;
 let centerX = 0; // page centre (px) captured at drag start — the page stays centred
-// Anchored zoom: the leaf element grabbed under the cursor, kept opposite the
-// cursor as the zoom changes (reading its real post-zoom rect avoids drift).
-let anchorEl: Element | null = null;
-let anchorR0 = 1; // applied zoom when grabbed
-let anchorGrab = 0; // cursor offset within the anchor element (px) at grab time
+// Anchored zoom: the grabbed content point, in natural (un-zoomed) px, kept
+// opposite the cursor as the zoom changes. Computed in scroll space only
+// (window.scrollY / clientY / body padding-top) — NO getBoundingClientRect,
+// which the webview's Chromium reports inconsistently under `zoom`.
+let anchorNatY = 0;
+
+/** Body content-box top offset (padding-top), in px — reliable (un-zoomed). */
+function bodyPadTop(): number {
+  return parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+}
 
 window.addEventListener('pointermove', (e) => {
   if (dragging) {
@@ -314,11 +319,9 @@ window.addEventListener('pointermove', (e) => {
     zoom = Math.max(Z_MIN, Math.min(Z_MAX, (2 * half) / naturalPageWidth()));
     const r = Math.min(zoom, panelWidth() / naturalPageWidth());
     root.style.setProperty('zoom', String(r));
-    // Keep the grabbed line opposite the cursor (anchored zoom).
-    if (anchorEl) {
-      const top = anchorEl.getBoundingClientRect().top;
-      window.scrollBy(0, top + anchorGrab * (r / anchorR0) - e.clientY);
-    }
+    // Keep the grabbed line opposite the cursor: a point at natural Y appears at
+    // padTop + Y·r − scrollY, so solving for the cursor gives this scroll.
+    window.scrollTo(window.scrollX, bodyPadTop() + anchorNatY * r - e.clientY);
     e.preventDefault();
     return;
   }
@@ -328,12 +331,9 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerdown', (e) => {
   if (!nearEdge(e.clientX, e.clientY)) return;
   centerX = pageCenterX();
-  // Anchor the leaf element under the cursor (sampled at the page centre) + the
-  // cursor's offset within it, to keep it opposite the cursor while zooming.
-  anchorR0 = parseFloat(root.style.zoom) || 1;
-  const a = document.elementFromPoint(centerX, e.clientY);
-  anchorEl = a && root.contains(a) && a !== root ? a : null;
-  anchorGrab = anchorEl ? e.clientY - anchorEl.getBoundingClientRect().top : 0;
+  // Anchor the content point under the cursor, in natural (un-zoomed) px.
+  const r0 = parseFloat(root.style.zoom) || 1;
+  anchorNatY = (e.clientY + window.scrollY - bodyPadTop()) / r0;
   dragging = true;
   document.body.style.cursor = 'ew-resize';
   e.preventDefault(); // suppress text selection while dragging
