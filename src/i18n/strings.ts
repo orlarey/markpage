@@ -120,6 +120,9 @@ const FR = {
   'export-menu.markdown': 'Markdown (.md)',
   'export-menu.pdf': 'PDF (.pdf)',
   'export-menu.latex': 'LaTeX (.tex)',
+  'export-menu.embed-profile': 'Intégrer le profil de style',
+  'export-menu.embed-profile-hint': 'dans le frontmatter',
+  'export-menu.embed-profile-done': 'Profil de style intégré au frontmatter du document.',
   'export-menu.onedrive': 'OneDrive…',
   'onedrive.uploaded': 'Document envoyé sur OneDrive (dossier Apps/markpage).',
   'onedrive.uploaded-with-link':
@@ -533,6 +536,9 @@ const EN: Record<keyof typeof FR, string> = {
   'export-menu.markdown': 'Markdown (.md)',
   'export-menu.pdf': 'PDF (.pdf)',
   'export-menu.latex': 'LaTeX (.tex)',
+  'export-menu.embed-profile': 'Embed style profile',
+  'export-menu.embed-profile-hint': 'into the frontmatter',
+  'export-menu.embed-profile-done': "Style profile embedded into the document's frontmatter.",
   'export-menu.onedrive': 'OneDrive…',
   'onedrive.uploaded': 'Document uploaded to OneDrive (folder Apps/markpage).',
   'onedrive.uploaded-with-link':

@@ -67,7 +67,7 @@ const SELECTORS: Record<string, string> = {
   quote: `${ROOT} blockquote`,
   'math-block': `${ROOT} .math-block`,
   mermaid: `${ROOT} .mermaid`,
-  callout: `${ROOT} .callout`,
+  callout: `${ROOT} .admonition`,
   table: `${ROOT} table`,
   caption: `${ROOT} figcaption, ${ROOT} .caption`,
 };

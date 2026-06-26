@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parseFrontmatter } from '@orlarey/markpage-render';
+import { parseFrontmatter, embedProfileInFrontmatter } from '@orlarey/markpage-render';
 
 import {
   applyFrontmatterToSettings,
   DEFAULT_SETTINGS,
   mergeWithDefaults,
+  serializeProfile,
   validateLayoutSettings,
 } from '../src/settings';
 
@@ -86,6 +87,46 @@ describe('applyFrontmatterToSettings — per-doc layout/typography overrides', (
   it('parser stores margins already expanded to a box', () => {
     const { meta } = applyYaml('margins: 25 35');
     expect(meta.margins).toEqual({ top: 25, right: 35, bottom: 25, left: 35 });
+  });
+});
+
+describe('serializeProfile + embedProfileInFrontmatter — portable style profile', () => {
+  it('serializes the style-relevant settings as parseable JSON', () => {
+    const json = serializeProfile(DEFAULT_SETTINGS);
+    const obj = JSON.parse(json);
+    expect(obj.fonts).toEqual(DEFAULT_SETTINGS.fonts);
+    expect(obj.styles).toEqual(DEFAULT_SETTINGS.styles);
+    expect(obj.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
+    expect(obj.pageNumbers).toBe(true); // default footer ' | {page} | '
+  });
+
+  it('embeds the profile into a doc with no frontmatter, preserving the body', () => {
+    const out = embedProfileInFrontmatter('# Hello\n\nBody.\n', '{"a":1}');
+    const { meta, body } = parseFrontmatter(out);
+    expect(meta['markpage-profile']).toBe('{"a":1}');
+    expect(body).toBe('# Hello\n\nBody.\n');
+  });
+
+  it('keeps existing frontmatter keys when embedding', () => {
+    const src = '---\ntitle: Doc\nauthor: Me\n---\n\nBody.\n';
+    const { meta } = parseFrontmatter(embedProfileInFrontmatter(src, '{"a":1}'));
+    expect(meta.title).toBe('Doc');
+    expect(meta.author).toBe('Me');
+    expect(meta['markpage-profile']).toBe('{"a":1}');
+  });
+
+  it('replaces (does not duplicate) a prior profile on re-embed', () => {
+    const once = embedProfileInFrontmatter('Body.\n', '{"v":1}');
+    const twice = embedProfileInFrontmatter(once, '{"v":2}');
+    expect((twice.match(/markpage-profile:/g) ?? []).length).toBe(1);
+    expect(parseFrontmatter(twice).meta['markpage-profile']).toBe('{"v":2}');
+  });
+
+  it('round-trips a real profile through embed → parse → JSON', () => {
+    const json = serializeProfile(DEFAULT_SETTINGS);
+    const out = embedProfileInFrontmatter('# T\n', json);
+    const back = JSON.parse(parseFrontmatter(out).meta['markpage-profile'] as string);
+    expect(back.styles.body).toEqual(DEFAULT_SETTINGS.styles.body);
   });
 });
 

@@ -919,6 +919,23 @@ export function applyFrontmatterToSettings(
   return s;
 }
 
+/**
+ * Purpose: Serialize the style-relevant parts of the settings as JSON, for the
+ *   `markpage-profile` frontmatter block — so external renderers (the VS Code
+ *   preview) can reproduce the document's full per-element typography + layout.
+ * How: Emit `fonts`, the per-element `styles` record, and the layout (pageSize,
+ *   margins, whether the footer carries a page number). Compact JSON, one line.
+ */
+export function serializeProfile(s: PdfSettings): string {
+  return JSON.stringify({
+    fonts: s.fonts,
+    styles: s.styles,
+    pageSize: s.pageSize,
+    margins: s.margins,
+    pageNumbers: s.footer.includes('{page}'),
+  });
+}
+
 // Page formats a `page-size:` key may select. SLIDES_16_9 is intentionally
 // excluded — slides are opted into via the dedicated `slides:` key.
 const FRONTMATTER_PAGE_SIZES: PageSize[] = ['A3', 'A4', 'A5', 'B5', 'LETTER', 'LEGAL'];

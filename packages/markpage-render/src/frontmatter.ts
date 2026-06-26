@@ -106,6 +106,50 @@ export function parseFrontmatter(source: string): ParseResult {
   return { meta, body: lines.slice(bodyStart).join('\n') };
 }
 
+const PROFILE_KEY = 'markpage-profile';
+
+/**
+ * Purpose: Insert or replace the `markpage-profile` block in a document's
+ *   frontmatter (creating the frontmatter if absent), carrying a serialized
+ *   style profile for external renderers. Pure text transform — leaves the rest
+ *   of the frontmatter and the body untouched.
+ * How: Emit the JSON as a one-line `| ` block scalar. If frontmatter exists,
+ *   strip any prior `markpage-profile` (key line + its indented block) and
+ *   append the fresh one before the closing fence; otherwise prepend a new
+ *   fenced block.
+ */
+export function embedProfileInFrontmatter(source: string, profileJson: string): string {
+  const block = [`${PROFILE_KEY}: |`, `  ${profileJson}`];
+
+  if (!FENCE_RE.test(source)) {
+    return ['---', ...block, '---', '', source].join('\n');
+  }
+  const lines = source.split(/\r?\n/);
+  let end = -1;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i]?.trim() === '---') {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) return ['---', ...block, '---', '', source].join('\n');
+
+  // Rebuild the keys between the fences, dropping any existing profile block.
+  const kept: string[] = [];
+  for (let i = 1; i < end; i += 1) {
+    const m = /^([A-Za-z_][\w-]*)\s*:/.exec(lines[i] ?? '');
+    if (m && m[1] === PROFILE_KEY) {
+      // Skip the key line and its indented / blank continuation lines.
+      let j = i + 1;
+      while (j < end && (lines[j] === '' || /^\s/.test(lines[j] ?? ''))) j += 1;
+      i = j - 1;
+      continue;
+    }
+    kept.push(lines[i] ?? '');
+  }
+  return ['---', ...kept, ...block, '---', ...lines.slice(end + 1)].join('\n');
+}
+
 /**
  * Purpose: Parse the YAML-subset we accept: `key: value` and `key: |` blocks.
  * How: Linear scan. Quoted values are unquoted; block scalars accumulate

@@ -56,7 +56,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter } from '@orlarey/markpage-render';
+import { parseFrontmatter, embedProfileInFrontmatter } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
@@ -177,7 +177,7 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applyFrontmatterToSettings, type PdfSettings } from './settings';
+import { applyFrontmatterToSettings, serializeProfile, type PdfSettings } from './settings';
 import {
   createProfile,
   deleteProfile,
@@ -2133,6 +2133,17 @@ async function bootstrap(): Promise<void> {
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
+          onEmbedProfile: () => {
+            // Stamp the active style profile into the doc's frontmatter so an
+            // external renderer (the VS Code preview) reproduces the typography.
+            const view = editor.view;
+            const next = embedProfileInFrontmatter(
+              view.state.doc.toString(),
+              serializeProfile(state.settings),
+            );
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
+            globalThis.alert(t('export-menu.embed-profile-done'));
+          },
           onShareLink: triggerShareLink,
           onShareEmail: triggerShareEmail,
         });

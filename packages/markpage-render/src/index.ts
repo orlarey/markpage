@@ -25,7 +25,12 @@ export {
 
 // Frontmatter parsing (title / author / date / mathjax-preamble / slides …)
 // + the layout overrides (page-size / margins / page-numbers / fonts).
-export { parseFrontmatter, type Frontmatter, type ParseResult } from './frontmatter';
+export {
+  parseFrontmatter,
+  embedProfileInFrontmatter,
+  type Frontmatter,
+  type ParseResult,
+} from './frontmatter';
 
 // Phase B — the DOM hydrate (MathJax + Mermaid) and the underlying renderers.
 export {
