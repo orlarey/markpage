@@ -164,7 +164,7 @@ function buildStandaloneHtml(): string {
   html, body { background: #fff !important; margin: 0; }
   .mp-toolbar { display: none !important; }
   @page { size: ${L.pageW}mm ${L.pageH}mm; margin: 0; }
-  #markpage-preview { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
+  #markpage-preview { box-shadow: none !important; margin: 0 !important; max-width: none !important; zoom: 1 !important; }
   .pagedjs_page { box-shadow: none !important; margin: 0 !important; break-after: page; }
 }`;
   return `<!DOCTYPE html>
@@ -212,7 +212,29 @@ async function render(msg: RenderMessage): Promise<void> {
       console.error('[markpage] pagination failed', err);
     }
   }
+  fitWidth();
 }
+
+// ---- fit-to-width ---------------------------------------------------------
+// Scale the page sheet so its full width always fits the panel (no horizontal
+// scroll), like a PDF viewer's "fit width". Uses the `zoom` property (Chromium,
+// which the VS Code webview is) so layout reflows and scrollbars stay correct.
+// Capped at 1 — we shrink a too-wide page but never upscale past 100%.
+
+function fitWidth(): void {
+  const styles = getComputedStyle(document.body);
+  const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+  const avail = document.body.clientWidth - padX;
+  const pageWidthPx = (currentLayout.pageW * 96) / 25.4;
+  const scale = pageWidthPx > 0 ? Math.min(1, avail / pageWidthPx) : 1;
+  root.style.setProperty('zoom', String(scale));
+}
+
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+window.addEventListener('resize', () => {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(fitWidth, 100);
+});
 
 /** Paginated mode: fragment the rendered content into A4 pages via paged.js. */
 async function paginate(token: number): Promise<void> {
