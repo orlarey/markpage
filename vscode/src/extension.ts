@@ -6,6 +6,8 @@
 // against the document's folder as webview URIs.
 
 import * as vscode from 'vscode';
+import * as os from 'os';
+import * as path from 'path';
 
 let panel: vscode.WebviewPanel | undefined;
 let trackedDoc: vscode.TextDocument | undefined;
@@ -71,6 +73,24 @@ function revealEditorLine(line: number): void {
   editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
 }
 
+/** Write the rendered HTML to a temp file and open it in the system browser,
+ *  where Print → Save as PDF works (VS Code webviews can't print reliably). */
+async function exportHtmlToBrowser(html: string): Promise<void> {
+  try {
+    const base = trackedDoc
+      ? path.basename(trackedDoc.uri.fsPath).replace(/\.[^.]+$/, '')
+      : 'markpage';
+    const file = vscode.Uri.file(path.join(os.tmpdir(), `${base}-preview.html`));
+    await vscode.workspace.fs.writeFile(file, Buffer.from(html, 'utf8'));
+    await vscode.env.openExternal(file);
+    void vscode.window.showInformationMessage(
+      'markpage: opened in your browser — use Print → Save as PDF.',
+    );
+  } catch (err) {
+    void vscode.window.showErrorMessage(`markpage: PDF export failed — ${String(err)}`);
+  }
+}
+
 function openPreview(context: vscode.ExtensionContext): void {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== 'markdown') {
@@ -99,11 +119,13 @@ function openPreview(context: vscode.ExtensionContext): void {
     panel = undefined;
   });
   panel.webview.onDidReceiveMessage(
-    (m: { type?: string; line?: number }) => {
+    (m: { type?: string; line?: number; html?: string }) => {
       if (m?.type === 'revealLine' && typeof m.line === 'number') revealEditorLine(m.line);
       else if (m?.type === 'togglePagination') {
         paginated = !paginated;
         update();
+      } else if (m?.type === 'exportHtml' && typeof m.html === 'string') {
+        void exportHtmlToBrowser(m.html);
       }
     },
     undefined,

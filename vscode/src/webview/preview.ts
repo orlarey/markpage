@@ -125,9 +125,9 @@ function makeToolbar(): HTMLButtonElement {
   });
   const print = document.createElement('button');
   print.className = 'mp-toggle';
-  print.title = 'Print / Save as PDF';
+  print.title = 'Open in browser to Save as PDF (best in A4 pages mode)';
   print.textContent = '⎙ PDF';
-  print.addEventListener('click', () => window.print());
+  print.addEventListener('click', requestExport);
   bar.append(toggle, print);
   document.body.append(bar);
   return toggle;
@@ -138,8 +138,47 @@ window.addEventListener('message', (e: MessageEvent) => {
   if (!msg) return;
   if (msg.type === 'render') void render(msg);
   else if (msg.type === 'scrollToLine') scrollToLine(msg.line);
-  else if (msg.type === 'print') window.print();
+  else if (msg.type === 'print') requestExport();
 });
+
+// ---- PDF export -----------------------------------------------------------
+// VS Code webviews can't reliably window.print(), so the "PDF" button serializes
+// the current render to a self-contained HTML document and hands it to the host,
+// which opens it in the system browser (Cmd/Ctrl-P → Save as PDF).
+
+/** Build a standalone HTML doc of the current render, with all CSS inlined. */
+function buildStandaloneHtml(): string {
+  let css = '';
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      for (const rule of Array.from(sheet.cssRules)) css += `${rule.cssText}\n`;
+    } catch {
+      /* a cross-origin sheet we can't read — skip it */
+    }
+  }
+  const L = currentLayout;
+  // Print rules: hide the widget, drop shadows, and set the page box. In
+  // paginated mode each .pagedjs_page is a physical sheet (margins baked in →
+  // @page margin 0); in continuous mode the single sheet keeps its padding.
+  const printCss = `@media print {
+  html, body { background: #fff !important; margin: 0; }
+  .mp-toolbar { display: none !important; }
+  @page { size: ${L.pageW}mm ${L.pageH}mm; margin: 0; }
+  #markpage-preview { box-shadow: none !important; margin: 0 !important; max-width: none !important; }
+  .pagedjs_page { box-shadow: none !important; margin: 0 !important; break-after: page; }
+}`;
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>markpage — PDF</title>
+<style>${css}\n${printCss}</style></head>
+<body>${root.outerHTML}</body></html>`;
+}
+
+/** Hand the standalone HTML to the host (→ system browser); harness falls back
+ *  to the browser's own print. */
+function requestExport(): void {
+  if (vscode) vscode.postMessage({ type: 'exportHtml', html: buildStandaloneHtml() });
+  else window.print();
+}
 
 async function render(msg: RenderMessage): Promise<void> {
   lastMsg = msg;
