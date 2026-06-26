@@ -492,13 +492,19 @@ async function bootstrap(): Promise<void> {
   let slideIndex = 0;
   let returnMode: 'editor' | 'preview' = 'editor';
 
-  // Auto-fit-to-width: shrink the paginated pages so a page fits the preview
-  // pane — never upscale past 100% (wide screens keep the natural centred
-  // look; narrow panes / phones stop overflowing). Driven by the
-  // `--mp-fit-zoom` CSS var (applied to `.pagedjs_page` via `zoom`), so the
-  // page flow reflows and vertical-scroll / click-to-source stay correct.
-  // No-op outside preview and during fullscreen presentation (its own scaling).
+  // Page zoom. Invariant: the FULL page width is always visible — pages render
+  // at r = min(z, W_v / W_p), where z (`previewZoom`) is the user's absolute
+  // zoom (1 = 100% of the natural page width, the default) and the min() caps
+  // it at the pane width so a page never overflows. Default z = 1 reproduces
+  // the old auto-fit (shrink to fit, never upscale past 100%). The user changes
+  // z by dragging a page side edge (see below). Driven by the `--mp-fit-zoom`
+  // CSS var (applied to `.pagedjs_page` via `zoom`), so the page flow reflows
+  // and vertical-scroll / click-to-source stay correct. No-op outside preview
+  // and during fullscreen presentation (its own scaling).
   const PREVIEW_FIT_GUTTER = 28; // px breathing room + scrollbar allowance
+  let previewZoom = 1; // z — the user's absolute page zoom
+  const previewFillFactor = (natural: number): number =>
+    (previewEl.clientWidth - PREVIEW_FIT_GUTTER) / natural; // W_v / W_p
   const fitPreviewWidth = (): void => {
     const firstPage = previewEl.querySelector<HTMLElement>('.pagedjs_page');
     if (!firstPage) return;
@@ -509,12 +515,77 @@ async function bootstrap(): Promise<void> {
     previewEl.style.setProperty('--mp-fit-zoom', '1'); // reset to read natural width
     const natural = firstPage.getBoundingClientRect().width;
     if (natural === 0) return;
-    const factor = Math.min(
-      1,
-      (previewEl.clientWidth - PREVIEW_FIT_GUTTER) / natural,
+    previewEl.style.setProperty(
+      '--mp-fit-zoom',
+      String(Math.min(previewZoom, previewFillFactor(natural))),
     );
-    previewEl.style.setProperty('--mp-fit-zoom', String(factor));
   };
+
+  // Drag-to-zoom: hover a page side edge → ew-resize cursor; drag → set z so the
+  // edge tracks the cursor (page stays centred); double-click an edge → z = 1.
+  const PREVIEW_EDGE_PX = 8; // hot zone (px) around a page side
+  let previewDragging = false;
+  let previewDragNatural = 0; // W_p captured at drag start
+  let previewDragCenter = 0; // page centre x (px) at drag start
+  const previewPageRect = (): DOMRect | undefined =>
+    previewEl.querySelector<HTMLElement>('.pagedjs_page')?.getBoundingClientRect();
+  const nearPreviewEdge = (x: number, y: number): boolean => {
+    if (presenting || viewMode !== 'preview') return false;
+    const pr = previewPageRect();
+    if (!pr) return false;
+    const vr = previewEl.getBoundingClientRect(); // grab the edge anywhere down the pane
+    const inV = y >= vr.top && y <= vr.bottom;
+    return (
+      inV && (Math.abs(x - pr.left) <= PREVIEW_EDGE_PX || Math.abs(x - pr.right) <= PREVIEW_EDGE_PX)
+    );
+  };
+  previewEl.addEventListener('pointermove', (e) => {
+    if (previewDragging) return; // the window handler drives the drag
+    previewEl.style.cursor = nearPreviewEdge(e.clientX, e.clientY) ? 'ew-resize' : '';
+  });
+  previewEl.addEventListener('pointerdown', (e) => {
+    if (!nearPreviewEdge(e.clientX, e.clientY)) return;
+    const pr = previewPageRect();
+    if (!pr) return;
+    // Back-compute the natural width from the currently-applied zoom (no flicker).
+    const cur = parseFloat(previewEl.style.getPropertyValue('--mp-fit-zoom')) || 1;
+    previewDragNatural = pr.width / cur;
+    previewDragCenter = pr.left + pr.width / 2;
+    previewDragging = true;
+    previewEl.style.cursor = 'ew-resize';
+    e.preventDefault();
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!previewDragging) return;
+    const half = Math.abs(e.clientX - previewDragCenter);
+    previewZoom = Math.max(0.2, Math.min(3, (2 * half) / previewDragNatural));
+    previewEl.style.setProperty(
+      '--mp-fit-zoom',
+      String(Math.min(previewZoom, previewFillFactor(previewDragNatural))),
+    );
+    e.preventDefault();
+  });
+  window.addEventListener('pointerup', () => {
+    if (!previewDragging) return;
+    previewDragging = false;
+    previewEl.style.cursor = '';
+  });
+  previewEl.addEventListener('dblclick', (e) => {
+    if (!nearPreviewEdge(e.clientX, e.clientY)) return;
+    previewZoom = 1;
+    fitPreviewWidth();
+  });
+  // Don't let an edge click fall through to the click-to-source handler.
+  previewEl.addEventListener(
+    'click',
+    (e) => {
+      if (nearPreviewEdge(e.clientX, e.clientY)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    },
+    true, // capture — runs before the source-jump click handler
+  );
 
   // Builds the rendered DOM subtree (Markdown + post-processing) and
   // hands it to paged.js. Called only when entering preview mode (or on

@@ -276,9 +276,11 @@ body,
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   margin: 0 auto 24px;
-  /* Auto-fit-to-width: main.ts sets --mp-fit-zoom (≤ 1) so a page never
-     overflows a narrow pane. `zoom` reflows, so vertical scroll and
-     click-to-source stay correct. Default 1 = natural size. */
+  /* Page zoom: main.ts sets --mp-fit-zoom = min(z, paneWidth/pageWidth) so a
+     page never overflows the pane (full width always visible). z is the user's
+     drag-to-zoom factor (default 1 = natural size); the var may exceed 1 when
+     zooming in on a wide pane. `zoom` reflows, so vertical scroll and
+     click-to-source stay correct. */
   zoom: var(--mp-fit-zoom, 1);
 }
 
