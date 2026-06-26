@@ -41,6 +41,11 @@ export interface Frontmatter {
   'font-body'?: string;
   'font-heading'?: string;
   'font-mono'?: string;
+  // A full style profile serialized as JSON (markpage's per-element `styles` +
+  // fonts + layout), written by markpage for external renderers (the VS Code
+  // preview) so a document carries its complete typography. Authored as a
+  // `markpage-profile: |` block scalar. The flat keys above take precedence.
+  'markpage-profile'?: string;
   extra: Record<string, string>;
 }
 
@@ -199,6 +204,7 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'font-body':
     case 'font-heading':
     case 'font-mono':
+    case 'markpage-profile':
       meta[key] = value;
       break;
     case 'slides':

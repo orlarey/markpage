@@ -12,6 +12,7 @@ import {
   hydratePreview,
 } from '@orlarey/markpage-render';
 import { marked } from 'marked';
+import { parseProfile, profileToCss, type Profile } from './profile-css';
 // Bundled into dist/webview.css by esbuild — the hljs colour theme markpage uses
 // (light) and the @orlarey/blocks DSL styles. media/preview.css adds the paper
 // look + the CSS variables these need, and loads after to win overrides.
@@ -52,15 +53,23 @@ interface Layout {
   fonts: { body?: string; headings?: string; mono?: string };
 }
 
-/** Resolve the effective page layout from the document's frontmatter. */
-function layoutFromMeta(meta: ReturnType<typeof parseFrontmatter>['meta']): Layout {
-  const sizeKey = meta['page-size']?.trim().toUpperCase() ?? 'A4';
+/** Resolve the effective page layout: flat frontmatter keys win, then the
+ *  embedded profile's layout, then the defaults. */
+function layoutFromMeta(
+  meta: ReturnType<typeof parseFrontmatter>['meta'],
+  profile: Profile | null,
+): Layout {
+  const sizeKey = (meta['page-size'] ?? profile?.pageSize)?.trim().toUpperCase() ?? 'A4';
   const [pageW, pageH] = PAGE_DIMS_MM[sizeKey] ?? PAGE_DIMS_MM.A4;
+  const pm = profile?.margins;
+  const profileMargins = pm
+    ? { top: pm.top, right: pm.right, bottom: pm.bottom, left: pm.left }
+    : undefined;
   return {
     pageW,
     pageH,
-    margins: meta.margins ?? DEFAULT_MARGINS,
-    pageNumbers: meta['page-numbers'] ?? true,
+    margins: meta.margins ?? profileMargins ?? DEFAULT_MARGINS,
+    pageNumbers: meta['page-numbers'] ?? profile?.pageNumbers ?? true,
     fonts: { body: meta['font-body'], headings: meta['font-heading'], mono: meta['font-mono'] },
   };
 }
@@ -96,7 +105,14 @@ function applyLayoutToRoot(L: Layout, paginated: boolean): void {
   }
 }
 
-let currentLayout: Layout = layoutFromMeta({ extra: {} });
+let currentLayout: Layout = layoutFromMeta({ extra: {} }, null);
+
+// Holds the CSS translated from the document's `markpage-profile` (per-element
+// typography). Appended after the linked stylesheets so it wins the cascade;
+// the flat font-* keys (set inline on the root) still win over it.
+const profileStyle = document.createElement('style');
+profileStyle.id = 'mp-profile';
+document.head.append(profileStyle);
 
 // Bridge to the extension host (absent in the plain-browser dev harness).
 const vscode =
@@ -190,7 +206,9 @@ async function render(msg: RenderMessage): Promise<void> {
   // mathjax-preamble. The body offset keeps scroll-sync line numbers correct.
   const { meta, body } = parseFrontmatter(msg.md);
   const lineOffset = countNewlines(msg.md.slice(0, msg.md.length - body.length));
-  currentLayout = layoutFromMeta(meta);
+  const profile = parseProfile(meta['markpage-profile']);
+  currentLayout = layoutFromMeta(meta, profile);
+  profileStyle.textContent = profileToCss(profile);
   applyLayoutToRoot(currentLayout, msg.paginated);
   root.classList.remove('paginated');
   root.innerHTML =
