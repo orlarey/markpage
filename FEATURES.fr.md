@@ -66,8 +66,10 @@ Liste exhaustive, par famille :
   de définitions**
 - **Figures en marge** `{.margin}`, légendes de figures, `\label` / `\ref`
   (références croisées numérotées)
-- **Frontmatter YAML** : `title`, `author`, `date`, `slides`, `mathjax-preamble`
-  (macros TeX par document)
+- **Frontmatter YAML** : métadonnées (`title`, `author`, `date`), comportement
+  (`slides`, `mathjax-preamble`), et mise en page/typographie portables
+  (`page-size`, `margins`, `page-numbers`, `font-*`, `markpage-profile`) —
+  voir [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md)
 - **Ligatures de saisie** : `\commande␣` → symbole Unicode (table unique
   partagée avec l'export LaTeX), séquences `->` `<=` `[[`, indices/exposants
   `_N`/`^N`, blackboard `|N`→ℕ

@@ -1365,10 +1365,25 @@ Recognised keys:
   here and use them in every formula. Cached per (preamble,
   source) pair.
 
+Layout / typography keys (make the document self-describing for
+external renderers like the VS Code preview):
+
+- `page-size` — `A4` (default), `A5`, `A3`, `B5`, `LETTER`,
+  `LEGAL`. Use `slides: true` for 16:9.
+- `margins` — millimetres, CSS shorthand: `25` (all), `25 35`
+  (v / h), or `10 20 30 40` (t / r / b / l).
+- `page-numbers` — `true` (default) / `false` to toggle the
+  footer page number.
+- `font-body`, `font-heading`, `font-mono` — font family per slot.
+- `markpage-profile` — a JSON block markpage writes (File →
+  "Embed style profile") carrying the full per-element typography;
+  for external renderers, not authored by hand.
+
 Any other key is preserved in `meta.extra` for inspection but
 isn't wired to a renderer. Subset of YAML: scalar key-value pairs
 only, plus the `|` block-scalar for multi-line values like
-`mathjax-preamble`. No lists, no nested dicts.
+`mathjax-preamble`. No lists, no nested dicts. The complete,
+authoritative reference is [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md).
 
 ---
 

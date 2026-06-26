@@ -64,8 +64,10 @@ The full list, by family:
 - **Footnotes** `[^id]`, Pandoc-lite **citations** `[@key]`, **definition lists**
 - **Margin figures** `{.margin}`, figure captions, `\label` / `\ref`
   (numbered cross-references)
-- **YAML frontmatter**: `title`, `author`, `date`, `slides`, `mathjax-preamble`
-  (per-document TeX macros)
+- **YAML frontmatter**: metadata (`title`, `author`, `date`), behaviour
+  (`slides`, `mathjax-preamble`), and portable layout/typography
+  (`page-size`, `margins`, `page-numbers`, `font-*`, `markpage-profile`) —
+  see [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md)
 - **Input ligatures**: `\command␣` → Unicode symbol (single table shared with the
   LaTeX export), sequences `->` `<=` `[[`, sub/superscripts `_N`/`^N`,
   blackboard `|N`→ℕ
