@@ -1,0 +1,68 @@
+name: Release VS Code extension
+
+# Packages and publishes the markpage-preview extension to the VS Code
+# Marketplace. The .vsix is self-contained: `vsce` runs `vscode:prepublish`
+# (esbuild --production), which bundles @orlarey/markpage-render + deps from
+# their TS sources — so nothing on npm needs (re)publishing.
+#
+# The extension version (vscode/package.json) is INDEPENDENT of the app's
+# `v*` tags (which drive deploy.yml + mcp-release.yml). It rides its own
+# `vscode-v*` tags so the two release cadences never collide — the Marketplace
+# refuses to republish an existing version.
+#
+#   1. bump `version` in vscode/package.json
+#   2. git commit, then: git tag vscode-v0.2.0 && git push origin vscode-v0.2.0
+#
+# Or run manually from the Actions tab (workflow_dispatch) once the version is
+# bumped on the default branch.
+#
+# Requires a repo secret VSCE_PAT: an Azure DevOps PAT (scope Marketplace >
+# Manage) for the `orlarey` publisher. (Add OVSX_PAT + uncomment the last step
+# to also publish to Open VSX for VSCodium/Cursor/etc.)
+
+on:
+  push:
+    tags: ['vscode-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: package · publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      # Root install: provides the @orlarey/* workspace symlinks + the render
+      # package's transitive deps that esbuild resolves by walking up from vscode/.
+      - run: npm ci
+      # The extension's own toolchain (esbuild, typescript) lives in vscode/.
+      - run: npm ci
+        working-directory: vscode
+
+      # Guard: a `vscode-v*` tag must match vscode/package.json (vsce would fail
+      # later on a mismatch anyway, but fail early with a clear message).
+      - name: Check tag matches version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          PKG=$(node -p "require('./vscode/package.json').version")
+          TAG="${GITHUB_REF_NAME#vscode-v}"
+          [ "$PKG" = "$TAG" ] || { echo "tag $TAG != package.json $PKG"; exit 1; }
+
+      - name: Publish to VS Code Marketplace
+        working-directory: vscode
+        run: npx --yes @vscode/vsce publish -p "$VSCE_PAT"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      # Optional — also publish to Open VSX (VSCodium, Cursor, Gitpod, …):
+      # - name: Publish to Open VSX
+      #   working-directory: vscode
+      #   run: npx --yes ovsx publish -p "$OVSX_PAT"
+      #   env:
+      #     OVSX_PAT: ${{ secrets.OVSX_PAT }}
