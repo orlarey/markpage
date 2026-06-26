@@ -61,6 +61,11 @@ The full list, by family:
   `definition`, `proof`, `example`, `remark`
 - `::: toc+` — augmented table of contents (with outline)
 - `::: columns` — multi-column layout
+- `::: style` — local typographic overrides (colour, size, font, weight, align…)
+  on recursive content — see [STYLE-SPEC](docs/STYLE-SPEC.md)
+- `::: background` — page backdrop layer (positioned markdown minipages, full-page
+  fill, cascading like `header`/`footer`) for covers & slide templates — see
+  [BACKGROUND-SPEC](docs/BACKGROUND-SPEC.md)
 - **Footnotes** `[^id]`, Pandoc-lite **citations** `[@key]`, **definition lists**
 - **Margin figures** `{.margin}`, figure captions, `\label` / `\ref`
   (numbered cross-references)

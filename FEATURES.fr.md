@@ -62,6 +62,11 @@ Liste exhaustive, par famille :
   `corollary`, `definition`, `proof`, `example`, `remark`
 - `::: toc+` — table des matières augmentée (avec plan)
 - `::: columns` — mise en colonnes
+- `::: style` — réglages typographiques locaux (couleur, taille, police, graisse,
+  alignement…) sur du contenu récursif — voir [STYLE-SPEC](docs/STYLE-SPEC.md)
+- `::: background` — calque de fond de page (minipages markdown positionnées, fond
+  plein, cascade comme `header`/`footer`) pour couvertures & gabarits de slide —
+  voir [BACKGROUND-SPEC](docs/BACKGROUND-SPEC.md)
 - **Notes de bas de page** `[^id]`, **citations** Pandoc-lite `[@clé]`, **listes
   de définitions**
 - **Figures en marge** `{.margin}`, légendes de figures, `\label` / `\ref`

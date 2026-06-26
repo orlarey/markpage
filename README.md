@@ -282,12 +282,12 @@ as reference + history:
 - [`FRONTMATTER-SPEC.md`](docs/FRONTMATTER-SPEC.md) — the frontmatter contract:
   accepted YAML subset, the full key catalogue (metadata / layout / typography /
   the `markpage-profile` JSON), precedence, the portable-profile model.
-- [`BACKGROUND-SPEC.md`](docs/BACKGROUND-SPEC.md) — *(draft)* a proposed
-  `::: background` block: a page **backdrop layer** of positioned markdown
-  minipages (cascading like `header`/`footer`) for covers and slide templates.
-- [`STYLE-SPEC.md`](docs/STYLE-SPEC.md) — *(draft)* a proposed `::: style`
-  companion block: local, controlled typographic overrides on recursive markdown
-  content (colour, size, font, weight, align…).
+- [`BACKGROUND-SPEC.md`](docs/BACKGROUND-SPEC.md) — the `::: background` block: a
+  page **backdrop layer** of positioned markdown minipages (full-page fill,
+  cascading like `header`/`footer`) for covers and slide templates.
+- [`STYLE-SPEC.md`](docs/STYLE-SPEC.md) — the `::: style` companion block: local,
+  controlled typographic overrides on recursive markdown content (colour, size,
+  font, weight, align…).
 
 ## Use the fences in your own Markdown pipeline
 

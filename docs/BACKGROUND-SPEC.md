@@ -5,20 +5,20 @@ version: 0.2 (brouillon)
 date: 2026-06-26
 ---
 
-> **Statut :** **design exploratoire, non figé.** Ce document propose un bloc
-> ` ::: background ` qui pose un **calque de fond** sur la page : des **minipages
-> markdown** (contenu récursif) placées à des **coordonnées relatives**, derrière
-> le contenu du document. Méthodo **pilotée par invariants** (comme
-> [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md) / [VOLUMES-SPEC](VOLUMES-SPEC.md)) :
-> B1–B5 (§1) sont la source de vérité.
+> **Statut :** **livré** (markpage 0.33.x — appli **et** extension VS Code). Ce
+> document décrit le bloc ` ::: background ` : un **calque de fond** sur la page —
+> des **minipages markdown** (contenu récursif) placées à des **coordonnées
+> relatives [0,1]²** (ancre auto-alignée), derrière le contenu, avec **cascade
+> par page** (façon `header`/`footer`) et **reset par bloc vide**. Méthodo
+> **pilotée par invariants** : B1–B5 (§1) sont la source de vérité. Référencé
+> depuis [AI-AUTHORING.md](../AI-AUTHORING.md) et [FEATURES.md](../FEATURES.md).
 >
-> **La v0.2 remplace le modèle de la v0.1** (un fence ` ```background ` à corps
-> DSL `image`/`text`/`fill`) par un modèle plus *markpage-native* : un **bloc
-> `:::`** dont le corps est du **markdown récursif** (une *minipage* à la LaTeX),
-> un **construct unique** (pas de conteneur), des coordonnées **[0,1]²** avec
-> **ancre auto-alignée**, et un **reset par bloc vide**. **Rien n'est implémenté ;
-> le nom (`background`) reste révisable** (§9). À terme, référencer depuis
-> [AI-AUTHORING.md](../AI-AUTHORING.md) et [FEATURES.md](../FEATURES.md).
+> **Différés** (cf. §8) : le repère **`margins`** (zone de contenu — *full bleed*
+> seulement pour l'instant), l'image plein cadre **`fit cover`**, et l'ergonomie
+> du z-order de couverture. Implémentation : renderer
+> [`marked-config.ts`](../packages/markpage-render/src/marked-config.ts)
+> (sentinelle `.mp-bg`) + cascade/injection par page
+> [`background.ts`](../packages/markpage-render/src/background.ts) (`applyBackgrounds`).
 
 **Objet :** offrir une **mise en page libre** dans markpage — placer des blocs de
 contenu (texte, images, et n'importe quel construct markpage) à des positions

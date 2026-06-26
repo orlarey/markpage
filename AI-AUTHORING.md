@@ -34,6 +34,8 @@ further down.
 | Compact 2-3 column table              | pipe table                         |
 | Note, warning, theorem, definition, … | `::: class` callout                |
 | Side-by-side content (2+ columns)     | `::: columns` (split by `---`)     |
+| Local typography (colour, size, font) | `::: style`                        |
+| Page backdrop / cover / slide template | `::: background`                   |
 | Table of contents + document plan     | `::: toc+`                         |
 | Term + gloss pairs                    | Pandoc definition list             |
 | Bibliographic citation                | `[@key]`                           |
@@ -651,6 +653,82 @@ a slide.
 The block stays on a single page (it does not fragment), so keep it short
 enough to fit — automatic on a slide, a constraint to respect in a long
 paged document. At LaTeX export the columns degrade to stacked content.
+
+---
+
+## Local typography (`::: style`)
+
+Override the typography of a span of content with `::: style`, a recursive
+fenced div. Use it where the per-element Settings profile can't reach — a big
+coloured title on a cover, a centred caption.
+
+```
+::: style color=#0b3d91 size=22pt align=center font="Inter" weight=700
+A blue, 22 pt, centred, bold heading
+:::
+```
+
+Allowed parameters (a fixed, validated allowlist — never raw CSS):
+
+- `color=` — `#rrggbb` or a CSS colour name
+- `size=` — point size (`28pt`, or a bare number = pt)
+- `font=` — family name (quote it if it has spaces: `font="Source Serif 4"`)
+- `weight=` — 100–900
+- `align=` — `left` / `center` / `right` / `justify`
+- `italic`, `underline` — bare flags (no `=`)
+- `line-height=` — multiplier (`1.3`)
+
+The body is full Markdown (headings, lists, math…) and the style applies to the
+whole subtree, overriding element defaults (a heading's size, a paragraph's
+alignment). Nest `::: style` for finer scope — the inner one wins. It's a
+deliberate, controlled exception to markpage's "no inline styles" rule: only the
+named parameters above, never arbitrary CSS or HTML. Full reference:
+`STYLE-SPEC.md`.
+
+---
+
+## Page backdrops (`::: background`)
+
+Place content *behind* the page — covers, posters, recurring slide templates.
+Each `::: background` block is a Markdown minipage on the page's backdrop layer;
+the document content renders on top.
+
+```
+::: background fill=#0b1f3a
+:::
+::: background at=0.5,0.4 size=0.7
+A centred title block
+:::
+```
+
+- `fill=color` — backdrop colour. **Without `size` the block covers the whole
+  page** (a full-bleed fill); **with `size` it's a minipage** of that width
+  (fraction of the page), placed by `at`.
+- `at=x,y` — position in [0,1]² (0,0 = top-left of the sheet, 1,1 = bottom-right)
+  with a **self-aligning anchor**: the page's (x, y) point meets the minipage's
+  same point, so `at=0,0` sits flush in the corner, `0.5,0.5` is centred, `1,1`
+  bottom-right — placing in a corner never overflows.
+- `size=w` — minipage width as a fraction of the page; height is automatic.
+- `first` — apply to **this page only** (a distinct cover). Otherwise the
+  backdrop **cascades** to the following pages (like `header` / `footer`) until a
+  new `::: background` replaces it; an **empty `::: background` clears** the layer.
+- **Source order is z-order** — write the `fill` before the elements that sit on
+  top of it.
+
+For a light title on a dark backdrop, nest a `::: style` inside. The body of a
+`:::` block closes at the next line of the same number of colons, so give the
+**outer fence four colons**:
+
+```
+:::: background first at=0.5,0.4 size=0.8
+::: style color=#ffffff align=center size=34pt
+Annual report
+:::
+::::
+```
+
+Backdrops appear in the paginated preview / PDF (not the continuous editor view).
+Full reference: `BACKGROUND-SPEC.md`.
 
 ---
 

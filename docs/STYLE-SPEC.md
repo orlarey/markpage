@@ -5,14 +5,16 @@ version: 0.1 (brouillon)
 date: 2026-06-26
 ---
 
-> **Statut :** **design exploratoire, non figé.** **Compagnon** de
-> [BACKGROUND-SPEC](BACKGROUND-SPEC.md) (qui s'en sert pour styler le titre d'une
-> couverture). Ce document propose un bloc ` ::: style ` qui applique des
-> **overrides typographiques locaux** à son contenu **markdown récursif**.
-> Méthodo **pilotée par invariants** (comme [GITHUB-SYNC-SPEC](GITHUB-SYNC-SPEC.md)
-> / [VOLUMES-SPEC](VOLUMES-SPEC.md)) : S1–S4 (§1) sont la source de vérité.
-> **Rien n'est implémenté.** À terme, référencer depuis
-> [AI-AUTHORING.md](../AI-AUTHORING.md) et [FEATURES.md](../FEATURES.md).
+> **Statut :** **livré** (markpage 0.33.x — appli **et** extension VS Code).
+> **Compagnon** de [BACKGROUND-SPEC](BACKGROUND-SPEC.md) (qui s'en sert pour
+> styler le titre d'une couverture). Ce document décrit le bloc ` ::: style ` qui
+> applique des **overrides typographiques locaux** à son contenu **markdown
+> récursif**. Méthodo **pilotée par invariants** : S1–S4 (§1) sont la source de
+> vérité. Référencé depuis [AI-AUTHORING.md](../AI-AUTHORING.md) et
+> [FEATURES.md](../FEATURES.md). Implémentation : renderer
+> [`marked-config.ts`](../packages/markpage-render/src/marked-config.ts)
+> (`::: style` → règle CSS scoped `!important`, allowlist validé).
+> **Différés** (§7) : style *inline*, style de boîte, styles nommés.
 
 **Objet :** pouvoir **régler localement la typographie** d'un fragment de
 document — couleur, taille, police, graisse, alignement… — sans passer par le
