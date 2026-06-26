@@ -50,6 +50,10 @@ interface AdmonitionToken {
   raw: string;
   klass: string;
   customTitle: string | null;
+  // key=value attributes + bare flags from the info-string (used by `style`;
+  // a future `background` block shares the same parsing). Empty for plain
+  // callouts, which carry a `[Title]` instead.
+  attrs: Record<string, string>;
   tokens: Tokens.Generic[];
 }
 
@@ -138,6 +142,8 @@ const footnoteSeen: string[] = [];
 // rather than superscript `¹`.
 const citationDefs = new Map<string, string>();
 const citationSeen: string[] = [];
+// Per-parse counter for `::: style` scoped-rule ids (reset in preprocess).
+let styleBlockCounter = 0;
 // Re-entrance guard. The postprocess hook calls `marked.parseInline()`
 // to render each footnote / citation body as Markdown — but parseInline
 // re-enters the preprocess/postprocess hooks, which would otherwise
@@ -151,13 +157,64 @@ let inEndnotesRender = false;
 //   - class name is a single identifier (letters / digits / hyphen /
 //     underscore). The Pandoc curly-brace form `{.cls #id}` is not
 //     supported in v1 — keep it simple
-//   - optional title in square brackets, single line, no nested `]`
+//   - after the class, the rest of the line is the "info" — either an
+//     optional `[Title]` (callouts) or `key=value` attributes + bare flags
+//     (the `style` block; a future `background` block too). Parsed by
+//     parseAdmonitionInfo().
 //   - closing `:::` alone on its line (trailing tabs/spaces tolerated)
 //   - we do NOT support nesting in v1; a body `:::` would close the
 //     outer block. If a user needs that we'll add the multi-colon
 //     fence (`::::` opens, `:::` inside is fine) later.
 const ADMONITION_RE =
-  /^:::[ \t]+([A-Za-z][\w+-]*)(?:[ \t]+\[([^\]\n]+)\])?[ \t]*\n([\s\S]+?)\n:::[ \t]*(?=\n|$)/;
+  /^:::[ \t]+([A-Za-z][\w+-]*)([^\n]*)\n([\s\S]+?)\n:::[ \t]*(?=\n|$)/;
+
+/**
+ * Parse the part of a `::: class …` opening line that follows the class:
+ * either a single `[Title]` (callouts) or a sequence of `key=value` pairs and
+ * bare flags (e.g. `color=#fff size=28pt align=center italic`). Returns the
+ * title (or null) and an attribute map (flags map to '').
+ */
+function parseAdmonitionInfo(rest: string): {
+  title: string | null;
+  attrs: Record<string, string>;
+} {
+  const s = rest.trim();
+  if (s === '') return { title: null, attrs: {} };
+  const titleMatch = /^\[([^\]]+)\]$/.exec(s);
+  if (titleMatch) return { title: titleMatch[1] ?? null, attrs: {} };
+  const attrs: Record<string, string> = {};
+  const re = /([A-Za-z][\w-]*)(?:=("[^"]*"|\S+))?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    attrs[m[1]] = m[2] === undefined ? '' : m[2].replace(/^"|"$/g, '');
+  }
+  return { title: null, attrs };
+}
+
+// `::: style` — local typographic overrides. An allowlist of validated
+// typographic properties → inline CSS (STYLE-SPEC §2/§4): no arbitrary CSS,
+// no free property names, values validated so nothing can break out of the
+// `style="…"` attribute. Unknown / invalid attributes are silently dropped.
+function cssFromStyleAttrs(attrs: Record<string, string>): string {
+  const css: string[] = [];
+  const color = attrs.color;
+  if (color && /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+)$/.test(color)) css.push(`color:${color}`);
+  const sizeMatch = attrs.size ? /^(\d+(?:\.\d+)?)(?:pt)?$/.exec(attrs.size) : null;
+  if (sizeMatch) css.push(`font-size:${sizeMatch[1]}pt`);
+  // Single-quote the family: the whole declaration lives inside a double-quoted
+  // style="…" attribute, so a double quote here would close it.
+  if (attrs.font && /^[\w ()-]+$/.test(attrs.font)) css.push(`font-family:'${attrs.font}'`);
+  if (attrs.weight && /^[1-9]00$/.test(attrs.weight)) css.push(`font-weight:${attrs.weight}`);
+  if ('italic' in attrs) css.push('font-style:italic');
+  if ('underline' in attrs) css.push('text-decoration:underline');
+  if (attrs.align && /^(left|center|right|justify)$/.test(attrs.align)) {
+    css.push(`text-align:${attrs.align}`);
+  }
+  if (attrs['line-height'] && /^\d+(?:\.\d+)?$/.test(attrs['line-height'])) {
+    css.push(`line-height:${attrs['line-height']}`);
+  }
+  return css.join(';');
+}
 
 // ---- `::: toc+` (augmented table of contents) -------------------------
 // Build the TOC HTML from the block body: a (possibly nested) list whose
@@ -527,6 +584,7 @@ marked.use({
       footnoteSeen.length = 0;
       citationDefs.clear();
       citationSeen.length = 0;
+      styleBlockCounter = 0;
       resetCaptions();
       // Pre-scan the whole source so `\ref{}` can resolve forward refs
       // to labels that appear later in the doc. Populates the registry
@@ -612,7 +670,7 @@ marked.use({
         const match = ADMONITION_RE.exec(src);
         if (!match) return undefined;
         const klass = (match[1] ?? '').toLowerCase();
-        const customTitle = match[2] ?? null;
+        const info = parseAdmonitionInfo(match[2] ?? '');
         const inner = match[3] ?? '';
         // Recurse into the body so nested Markdown (paragraphs, lists,
         // math, mermaid…) is parsed normally.
@@ -622,7 +680,8 @@ marked.use({
           type: 'admonition',
           raw: match[0],
           klass,
-          customTitle,
+          customTitle: info.title,
+          attrs: info.attrs,
           tokens,
         };
         return token as unknown as Tokens.Generic;
@@ -636,6 +695,27 @@ marked.use({
         // in preview-paginated.ts, which matches titles to real headings.
         if (t.klass === 'toc+') {
           return injectSource(renderTocPlus(t.tokens), t.raw);
+        }
+        // `::: style` — local typographic overrides on its recursive markdown
+        // body (STYLE-SPEC). Allowlist → validated inline CSS; the body
+        // inherits via the cascade.
+        if (t.klass === 'style') {
+          const decls = cssFromStyleAttrs(t.attrs);
+          const body = this.parser.parse(t.tokens);
+          if (!decls) return injectSource(`<div class="mp-style">${body}</div>\n`, t.raw);
+          // Scope the (validated) declarations to the block AND all its
+          // descendants with !important, so an explicit local override wins over
+          // element-level rules — e.g. a paragraph's justified text-align or a
+          // heading's own size. Only the properties the author set are forced;
+          // nested `::: style` (later in source order) overrides this one.
+          const id = `mp-style-${(styleBlockCounter += 1)}`;
+          const important = decls
+            .split(';')
+            .filter(Boolean)
+            .map((d) => `${d} !important`)
+            .join(';');
+          const rule = `<style>.${id},.${id} *{${important}}</style>`;
+          return injectSource(`<div class="mp-style ${id}">${rule}${body}</div>\n`, t.raw);
         }
         // `::: columns` is a layout container, not a callout: split the
         // body into columns at top-level `---` (`hr`) separators and lay
