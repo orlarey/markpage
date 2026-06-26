@@ -230,28 +230,102 @@ async function render(msg: RenderMessage): Promise<void> {
       console.error('[markpage] pagination failed', err);
     }
   }
-  fitWidth();
+  applyZoom();
 }
 
-// ---- fit-to-width ---------------------------------------------------------
-// Scale the page sheet so its full width always fits the panel (no horizontal
-// scroll), like a PDF viewer's "fit width". Uses the `zoom` property (Chromium,
+// ---- zoom (fit-to-width + drag-to-zoom) -----------------------------------
+// Invariant: the FULL page width is always visible — the page is shown at
+//   r = min(z, W_v / W_p)
+// where z is the user's absolute zoom (1 = 100% of the natural page width, the
+// default), W_p the natural page width and W_v the panel's content width. The
+// min() guarantees the page never gets wider than the panel (no horizontal
+// scroll). Dragging a side border sets z so the edge tracks the cursor;
+// double-clicking a border resets z = 1. Uses the `zoom` CSS property (Chromium,
 // which the VS Code webview is) so layout reflows and scrollbars stay correct.
-// Capped at 1 — we shrink a too-wide page but never upscale past 100%.
 
-function fitWidth(): void {
+const Z_MIN = 0.2;
+const Z_MAX = 3;
+const EDGE_PX = 8; // hot zone (px) around a page side for the resize cursor
+let zoom = 1; // z — the user's absolute zoom factor
+
+/** Panel content width W_v (px). */
+function panelWidth(): number {
   const styles = getComputedStyle(document.body);
   const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-  const avail = document.body.clientWidth - padX;
-  const pageWidthPx = (currentLayout.pageW * 96) / 25.4;
-  const scale = pageWidthPx > 0 ? Math.min(1, avail / pageWidthPx) : 1;
-  root.style.setProperty('zoom', String(scale));
+  return document.body.clientWidth - padX;
 }
+
+/** Natural (unzoomed) page width W_p (px). */
+function naturalPageWidth(): number {
+  return (currentLayout.pageW * 96) / 25.4;
+}
+
+/** Apply r = min(z, W_v / W_p) via the `zoom` property. */
+function applyZoom(): void {
+  const wp = naturalPageWidth();
+  if (wp <= 0) return;
+  root.style.setProperty('zoom', String(Math.min(zoom, panelWidth() / wp)));
+}
+
+/** The element whose side edges are the draggable page borders: the sheet in
+ *  continuous mode, the first paged.js page in paginated mode. */
+function pageElement(): HTMLElement {
+  if (root.classList.contains('paginated')) {
+    return (root.querySelector('.pagedjs_page') as HTMLElement | null) ?? root;
+  }
+  return root;
+}
+
+/** Is the cursor in the hot zone around a page side edge? (page x-edges, full
+ *  preview height so the edge is grabbable anywhere down the column). */
+function nearEdge(clientX: number, clientY: number): boolean {
+  const xr = pageElement().getBoundingClientRect();
+  const yr = root.getBoundingClientRect();
+  const inV = clientY >= yr.top && clientY <= yr.bottom;
+  return inV && (Math.abs(clientX - xr.left) <= EDGE_PX || Math.abs(clientX - xr.right) <= EDGE_PX);
+}
+
+let dragging = false;
+let centerX = 0; // page centre (px) captured at drag start — the page stays centred
+
+window.addEventListener('pointermove', (e) => {
+  if (dragging) {
+    // On-screen half-width = |cursor − centre| ⇒ z = (2·half) / W_p. The edge
+    // can't pass the panel border: applyZoom's min(z, fill) caps it there.
+    const half = Math.abs(e.clientX - centerX);
+    zoom = Math.max(Z_MIN, Math.min(Z_MAX, (2 * half) / naturalPageWidth()));
+    applyZoom();
+    e.preventDefault();
+    return;
+  }
+  document.body.style.cursor = nearEdge(e.clientX, e.clientY) ? 'ew-resize' : '';
+});
+
+window.addEventListener('pointerdown', (e) => {
+  if (!nearEdge(e.clientX, e.clientY)) return;
+  const xr = pageElement().getBoundingClientRect();
+  centerX = xr.left + xr.width / 2;
+  dragging = true;
+  document.body.style.cursor = 'ew-resize';
+  e.preventDefault(); // suppress text selection while dragging
+});
+
+window.addEventListener('pointerup', () => {
+  if (!dragging) return;
+  dragging = false;
+  document.body.style.cursor = '';
+});
+
+window.addEventListener('dblclick', (e) => {
+  if (!nearEdge(e.clientX, e.clientY)) return;
+  zoom = 1; // reset to natural-or-fill
+  applyZoom();
+});
 
 let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 window.addEventListener('resize', () => {
   if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(fitWidth, 100);
+  resizeTimer = setTimeout(applyZoom, 100);
 });
 
 /** Paginated mode: fragment the rendered content into A4 pages via paged.js. */
