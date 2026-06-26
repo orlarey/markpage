@@ -4,3 +4,8 @@ esbuild.mjs
 tsconfig.json
 .gitignore
 **/*.map
+# dev-only artifacts — keep them out of the published extension (README.md ships)
+.vscode/**
+FILESYSTEM-BLUEPRINT.md
+sample.md
+test-harness.html

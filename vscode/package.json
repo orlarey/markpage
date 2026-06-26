@@ -5,6 +5,15 @@
   "version": "0.1.0",
   "publisher": "orlarey",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/orlarey/markpage.git",
+    "directory": "vscode"
+  },
+  "homepage": "https://github.com/orlarey/markpage/tree/main/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/orlarey/markpage/issues"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },

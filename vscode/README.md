@@ -3,7 +3,7 @@
 Preview Markdown with **all markpage extensions** (fenced DSLs, callouts,
 footnotes, refs, …) inside VS Code, by reusing markpage's own render pipeline
 (`@orlarey/markpage-render`) in a webview — see
-[`docs/VSCODE-PREVIEW-SPEC.md`](../docs/VSCODE-PREVIEW-SPEC.md).
+[`docs/VSCODE-PREVIEW-SPEC.md`](https://github.com/orlarey/markpage/blob/main/docs/VSCODE-PREVIEW-SPEC.md).
 
 ## Status
 
