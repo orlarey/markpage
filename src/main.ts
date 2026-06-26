@@ -527,6 +527,11 @@ async function bootstrap(): Promise<void> {
   let previewDragging = false;
   let previewDragNatural = 0; // W_p captured at drag start
   let previewDragCenter = 0; // page centre x (px) at drag start
+  // Anchored zoom: the leaf element grabbed under the cursor, kept opposite the
+  // cursor as the zoom changes (reading its real post-zoom rect avoids drift).
+  let previewAnchorEl: Element | null = null;
+  let previewAnchorR0 = 1; // applied zoom when grabbed
+  let previewAnchorGrab = 0; // cursor offset within the anchor element (px)
   const previewPageRect = (): DOMRect | undefined =>
     previewEl.querySelector<HTMLElement>('.pagedjs_page')?.getBoundingClientRect();
   const nearPreviewEdge = (x: number, y: number): boolean => {
@@ -551,6 +556,14 @@ async function bootstrap(): Promise<void> {
     const cur = parseFloat(previewEl.style.getPropertyValue('--mp-fit-zoom')) || 1;
     previewDragNatural = pr.width / cur;
     previewDragCenter = pr.left + pr.width / 2;
+    // Anchor the leaf element under the cursor (sampled at the page centre) + the
+    // cursor's offset within it, to keep it opposite the cursor while zooming.
+    previewAnchorR0 = cur;
+    const a = document.elementFromPoint(previewDragCenter, e.clientY);
+    previewAnchorEl = a && previewEl.contains(a) && a !== previewEl ? a : null;
+    previewAnchorGrab = previewAnchorEl
+      ? e.clientY - previewAnchorEl.getBoundingClientRect().top
+      : 0;
     previewDragging = true;
     previewEl.style.cursor = 'ew-resize';
     e.preventDefault();
@@ -559,10 +572,15 @@ async function bootstrap(): Promise<void> {
     if (!previewDragging) return;
     const half = Math.abs(e.clientX - previewDragCenter);
     previewZoom = Math.max(0.2, Math.min(3, (2 * half) / previewDragNatural));
-    previewEl.style.setProperty(
-      '--mp-fit-zoom',
-      String(Math.min(previewZoom, previewFillFactor(previewDragNatural))),
-    );
+    const r = Math.min(previewZoom, previewFillFactor(previewDragNatural));
+    previewEl.style.setProperty('--mp-fit-zoom', String(r));
+    // Keep the grabbed line opposite the cursor (anchored zoom) so the document
+    // doesn't slide while resizing. Reading the element's real post-zoom rect
+    // avoids cumulative `zoom` rounding drift.
+    if (previewAnchorEl) {
+      const top = previewAnchorEl.getBoundingClientRect().top;
+      previewEl.scrollTop += top + previewAnchorGrab * (r / previewAnchorR0) - e.clientY;
+    }
     e.preventDefault();
   });
   window.addEventListener('pointerup', () => {

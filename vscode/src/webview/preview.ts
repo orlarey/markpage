@@ -287,14 +287,25 @@ function nearEdge(clientX: number, clientY: number): boolean {
 
 let dragging = false;
 let centerX = 0; // page centre (px) captured at drag start — the page stays centred
+// Anchored zoom: the leaf element grabbed under the cursor, kept opposite the
+// cursor as the zoom changes (reading its real post-zoom rect avoids drift).
+let anchorEl: Element | null = null;
+let anchorR0 = 1; // applied zoom when grabbed
+let anchorGrab = 0; // cursor offset within the anchor element (px) at grab time
 
 window.addEventListener('pointermove', (e) => {
   if (dragging) {
     // On-screen half-width = |cursor − centre| ⇒ z = (2·half) / W_p. The edge
-    // can't pass the panel border: applyZoom's min(z, fill) caps it there.
+    // can't pass the panel border: min(z, fill) caps it there.
     const half = Math.abs(e.clientX - centerX);
     zoom = Math.max(Z_MIN, Math.min(Z_MAX, (2 * half) / naturalPageWidth()));
-    applyZoom();
+    const r = Math.min(zoom, panelWidth() / naturalPageWidth());
+    root.style.setProperty('zoom', String(r));
+    // Keep the grabbed line opposite the cursor (anchored zoom).
+    if (anchorEl) {
+      const top = anchorEl.getBoundingClientRect().top;
+      window.scrollBy(0, top + anchorGrab * (r / anchorR0) - e.clientY);
+    }
     e.preventDefault();
     return;
   }
@@ -305,6 +316,12 @@ window.addEventListener('pointerdown', (e) => {
   if (!nearEdge(e.clientX, e.clientY)) return;
   const xr = pageElement().getBoundingClientRect();
   centerX = xr.left + xr.width / 2;
+  // Anchor the leaf element under the cursor (sampled at the page centre) + the
+  // cursor's offset within it, to keep it opposite the cursor while zooming.
+  anchorR0 = parseFloat(root.style.zoom) || 1;
+  const a = document.elementFromPoint(centerX, e.clientY);
+  anchorEl = a && root.contains(a) && a !== root ? a : null;
+  anchorGrab = anchorEl ? e.clientY - anchorEl.getBoundingClientRect().top : 0;
   dragging = true;
   document.body.style.cursor = 'ew-resize';
   e.preventDefault(); // suppress text selection while dragging
