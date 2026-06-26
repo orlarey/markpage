@@ -299,6 +299,12 @@ body,
 }
 .mp-bg-item { position: absolute; }
 .mp-bg-item.mp-bg-full { inset: 0; } /* no `size` → fill the page */
+/* Collapse the minipage's edge margins so its content sits flush at the anchor
+   point (a `![](logo)` renders as <p><img>, whose paragraph margin would
+   otherwise push it off the corner). */
+.mp-bg-item > :first-child { margin-top: 0; }
+.mp-bg-item > :last-child { margin-bottom: 0; }
+.mp-bg-item img { display: block; } /* drop the inline baseline gap under images */
 
 /* Presentation mode (toolbar [Présenter] + Cmd/Ctrl+Shift+Enter). The
    same paged.js render is reused: main.ts puts the pane into native

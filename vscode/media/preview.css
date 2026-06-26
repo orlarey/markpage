@@ -190,6 +190,12 @@ body {
 }
 #markpage-preview .mp-bg-item { position: absolute; }
 #markpage-preview .mp-bg-item.mp-bg-full { inset: 0; }
+/* Collapse the minipage's edge margins (a `![](logo)` is <p><img>, whose
+   paragraph margin would push it off the anchor corner) + drop the inline
+   baseline gap under images. */
+#markpage-preview .mp-bg-item > :first-child { margin-top: 0; }
+#markpage-preview .mp-bg-item > :last-child { margin-bottom: 0; }
+#markpage-preview .mp-bg-item img { display: block; }
 
 /* ---- Floating widget (top-right of the preview viewport) ---------------- */
 .mp-toolbar {
