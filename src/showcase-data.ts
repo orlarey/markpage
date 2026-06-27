@@ -384,7 +384,7 @@ bottom-right. The footer also shows the copyright line on the left.
     description:
       'Three dedicated fences for correspondence: ```sender (top-left), ```recipient (DL-window positioned by default — calibrated for the FR envelope window — `flow` for a right-column flex layout), ```signature (right-aligned at the end, with its left edge aligned on the recipient column). A `::: background` drops the m|p logo into the top-right corner as a letterhead mark.',
     sourceLang: 'markdown',
-    source: `::: background at=0.0,0.0 size=0.1
+    source: `::: background at=0.5,0.0 size=0.1
 ![](${logoUrl})
 :::
 
