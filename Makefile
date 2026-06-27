@@ -12,7 +12,10 @@ STUB       := $(abspath skill/SKILL.md)
 .DEFAULT_GOAL := help
 
 .PHONY: help dev build packages preview typecheck test test-watch test-snap \
-        e2e e2e-headed e2e-report check clean publish install uninstall
+        e2e e2e-headed e2e-report check clean publish vscode install uninstall
+
+# VS Code extension release: which part of the version to bump (patch|minor|major).
+BUMP := patch
 
 help: ## List the available commands
 	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -64,6 +67,19 @@ clean: ## Remove build artifacts (dist, package dist, vite cache)
 publish: ## Publish @orlarey/blocks then @orlarey/marked (runs the build)
 	npm publish -w @orlarey/blocks
 	npm publish -w @orlarey/marked
+
+## ---- VS Code extension release ----------------------------------------
+vscode: ## Release the VS Code extension: bump (BUMP=patch|minor|major), commit, tag vscode-v* + push (CI publishes to the Marketplace)
+	@cd vscode && npm version $(BUMP) --no-git-tag-version >/dev/null
+	@v=$$(node -p "require('./vscode/package.json').version"); \
+	 echo "Releasing markpage-preview v$$v ($(BUMP))"; \
+	 git add vscode/package.json vscode/package-lock.json; \
+	 git commit -q -m "vscode: $$v"; \
+	 git push; \
+	 git tag "vscode-v$$v"; \
+	 git push origin "vscode-v$$v"; \
+	 echo "Pushed tag vscode-v$$v -> GitHub Actions will build & publish to the Marketplace."; \
+	 echo "Watch: gh run watch --workflow=vscode-release.yml"
 
 ## ---- Claude skill (markpage-specs) ------------------------------------
 install: ## Install/refresh the markpage-specs Claude skill (copies AI-AUTHORING.md)
