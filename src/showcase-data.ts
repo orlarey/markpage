@@ -30,6 +30,7 @@ import mosaic2Url from './assets/mosaic-tile-2.svg';
 import mosaic3Url from './assets/mosaic-tile-3.svg';
 import mosaic4Url from './assets/mosaic-tile-4.svg';
 import mosaic5Url from './assets/mosaic-tile-5.svg';
+import logoUrl from './assets/favicon.svg';
 import type { ShowcaseEntry } from './showcase-types';
 
 /**
@@ -381,9 +382,11 @@ bottom-right. The footer also shows the copyright line on the left.
     id: 'letterhead',
     title: 'Letters, quotes, invoices',
     description:
-      'Three dedicated fences for correspondence: ```sender (top-left), ```recipient (DL-window positioned by default — calibrated for the FR envelope window — `flow` for a right-column flex layout), ```signature (right-aligned at the end, with its left edge aligned on the recipient column).',
+      'Three dedicated fences for correspondence: ```sender (top-left), ```recipient (DL-window positioned by default — calibrated for the FR envelope window — `flow` for a right-column flex layout), ```signature (right-aligned at the end, with its left edge aligned on the recipient column). A `::: background` drops the m|p logo into the top-right corner as a letterhead mark.',
     sourceLang: 'markdown',
-    source: `## A short business letter
+    source: `::: background at=0.9,0.08 size=0.13
+![](${logoUrl})
+:::
 
 \`\`\`sender
 **Cabinet Dupont & Associés**
