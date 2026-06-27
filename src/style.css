@@ -241,11 +241,21 @@ body,
   display: grid;
   grid-template-columns: 1fr;
   min-height: 0;
+  /* Anchor for the floating preview toggles (.mp-preview-toolbar). */
+  position: relative;
 }
 
-#panes[data-view='editor'] #preview-pane,
-#panes[data-view='preview'] #editor-pane {
+/* `editor` view = editor only (preview hidden). `preview` view is now a
+   SPLIT: editor + live preview side by side — the editor stays visible
+   and editable. */
+#panes[data-view='editor'] #preview-pane {
   display: none;
+}
+#panes[data-view='preview'] {
+  grid-template-columns: 1fr 1fr;
+}
+#panes[data-view='preview'] #preview-pane {
+  border-left: 1px solid #d0d0d6;
 }
 
 #editor-pane {
@@ -270,6 +280,60 @@ body,
   min-height: 0;
   background: #e9eaee;
   padding: 24px 0;
+}
+
+/* Continuous (non-paginated) live preview: the rendered content flows in a
+   single white sheet of page width — no paged.js, so it re-renders fast on
+   every keystroke. Page geometry (width + margin padding) is set inline by
+   renderContinuous() from the document's effective settings. */
+#preview-pane.continuous {
+  padding: 24px 12px;
+}
+#preview-pane.continuous .mp-continuous-sheet {
+  background: #fff;
+  margin: 0 auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Floating preview toggles — top-left of the panes area, always visible (so
+   "Aperçu" can re-open a hidden preview). Mirrors the VS Code extension's
+   widget. */
+.mp-preview-toolbar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  display: flex;
+  gap: 6px;
+}
+.mp-preview-toggle {
+  font: 12px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  padding: 6px 10px;
+  border: 1px solid #c9c9cf;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #333;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.mp-preview-toggle:hover {
+  background: #f4f4f6;
+}
+.mp-preview-toggle.active {
+  background: #2f6fdb;
+  color: #fff;
+  border-color: #2f6fdb;
+}
+.mp-preview-toggle[hidden] {
+  display: none;
+}
+/* Clear room at the editor's top so the floating toggles (top-left) don't
+   cover the first line. The padding scrolls with the content, so further down
+   the text passes under the widget — like the VS Code preview's widget. */
+#editor-pane .cm-scroller {
+  padding-top: 40px;
 }
 
 #preview-pane .pagedjs_page {

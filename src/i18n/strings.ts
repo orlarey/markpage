@@ -27,6 +27,12 @@ const FR = {
   'toolbar.preview': 'Aperçu',
   'toolbar.preview-title':
     'Basculer entre éditeur et aperçu (Ctrl+Enter / Cmd+Enter)',
+  'preview-toggle.show': 'Aperçu',
+  'preview-toggle.show-title':
+    'Afficher / masquer l’aperçu en direct (Ctrl+Entrée / Cmd+Entrée)',
+  'preview-toggle.paginate': 'A4',
+  'preview-toggle.paginate-title':
+    'Aperçu : flux continu ↔ pages A4 paginées',
   'toolbar.present': 'Présenter',
   'toolbar.present-title':
     'Lancer la présentation plein écran (Ctrl+Maj+Entrée / Cmd+Maj+Entrée)',
@@ -446,6 +452,12 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.preview': 'Preview',
   'toolbar.preview-title':
     'Toggle between editor and preview (Ctrl+Enter / Cmd+Enter)',
+  'preview-toggle.show': 'Preview',
+  'preview-toggle.show-title':
+    'Show / hide the live preview (Ctrl+Enter / Cmd+Enter)',
+  'preview-toggle.paginate': 'A4',
+  'preview-toggle.paginate-title':
+    'Preview: continuous flow ↔ paginated A4 pages',
   'toolbar.present': 'Present',
   'toolbar.present-title':
     'Start the fullscreen presentation (Ctrl+Shift+Enter / Cmd+Shift+Enter)',

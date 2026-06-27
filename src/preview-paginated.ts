@@ -1819,7 +1819,7 @@ function buildSidenoteCss(
  * Purpose: Map the PageSize enum to physical mm dimensions.
  * How: Switch over standard ISO + US sizes; matches pdfmake's table.
  */
-function pageSizeMm(s: PdfSettings): { w: number; h: number } {
+export function pageSizeMm(s: PdfSettings): { w: number; h: number } {
   switch (s.pageSize) {
     case 'A3':
       return { w: 297, h: 420 };

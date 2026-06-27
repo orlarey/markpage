@@ -196,7 +196,7 @@ import {
   setCurrentProfileId,
   type ProfileEntry,
 } from './settings-profiles';
-import { pageContentGeomPx, paginate } from './preview-paginated';
+import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
 import { initMcp } from './mcp';
@@ -472,7 +472,16 @@ async function bootstrap(): Promise<void> {
   // line. This decouples editing from pagination — re-paginate fires
   // only when the user explicitly enters preview mode (and the doc has
   // changed since the last render), never during a typing burst.
+  // `editor` = editor only. `preview` = the SPLIT (editor + live preview side
+  // by side, the editor stays visible). The floating toggles drive both.
   let viewMode: 'editor' | 'preview' = 'editor';
+  // Preview UI prefs in localStorage — distinct from the per-doc PdfSettings.
+  // PREF_VISIBLE: is the split shown. PREF_PAGINATED: A4 paged.js pages (true)
+  // vs a fast continuous flow (false, the live-typing default).
+  const PREF_VISIBLE = 'markpage:preview-visible';
+  const PREF_PAGINATED = 'markpage:preview-paginated';
+  let previewPaginated = localStorage.getItem(PREF_PAGINATED) === '1';
+  const previewVisiblePref = localStorage.getItem(PREF_VISIBLE) === '1';
   // True when the on-screen preview is out of date with the current
   // editor state or settings. Set on every doc/settings change, cleared
   // after a successful paginate.
@@ -605,10 +614,16 @@ async function bootstrap(): Promise<void> {
     true, // capture — runs before the source-jump click handler
   );
 
-  // Builds the rendered DOM subtree (Markdown + post-processing) and
-  // hands it to paged.js. Called only when entering preview mode (or on
-  // settings change while in preview); never during typing.
-  const updatePreview = async (source: string): Promise<void> => {
+  // Builds the rendered DOM subtree (Markdown + post-processing) shared by
+  // both render modes. Returns null if a newer request superseded this one
+  // (stale-guard via previewReqId), so callers can bail.
+  const buildPreviewDom = async (
+    source: string,
+  ): Promise<{
+    built: HTMLElement;
+    effectiveSettings: PdfSettings;
+    myReq: number;
+  } | null> => {
     const myReq = ++previewReqId;
     const resolved = await expandRefsToBlobUrls(source);
     const { meta } = parseFrontmatter(resolved);
@@ -631,9 +646,41 @@ async function bootstrap(): Promise<void> {
       renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
       layoutMosaicBlocks(built, mosaicGeom),
     ]);
-    if (myReq !== previewReqId) return;
-    await paginate(built, effectiveSettings, previewEl);
-    if (myReq !== previewReqId) return;
+    if (myReq !== previewReqId) return null;
+    return { built, effectiveSettings, myReq };
+  };
+
+  // Continuous (non-paginated) render: drop the built content into a single
+  // white sheet of page width — no paged.js, so it re-renders fast on every
+  // keystroke. The page geometry is taken from the document's settings.
+  const renderContinuous = (
+    built: HTMLElement,
+    effectiveSettings: PdfSettings,
+  ): void => {
+    const sheet = document.createElement('div');
+    sheet.className = 'mp-continuous-sheet';
+    const { w } = pageSizeMm(effectiveSettings);
+    const m = effectiveSettings.margins;
+    sheet.style.width = `${w}mm`;
+    sheet.style.padding = `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`;
+    while (built.firstChild) sheet.appendChild(built.firstChild);
+    previewEl.classList.add('continuous');
+    previewEl.replaceChildren(sheet);
+  };
+
+  // Render `source` into the preview pane, paginated (paged.js A4 pages) or
+  // continuous, per `previewPaginated`. Called when entering preview, on a
+  // settings change, and — debounced — live while typing.
+  const updatePreview = async (source: string): Promise<void> => {
+    const r = await buildPreviewDom(source);
+    if (!r) return;
+    if (previewPaginated) {
+      previewEl.classList.remove('continuous');
+      await paginate(r.built, r.effectiveSettings, previewEl);
+      if (r.myReq !== previewReqId) return;
+    } else {
+      renderContinuous(r.built, r.effectiveSettings);
+    }
     dirty = false;
     fitPreviewWidth();
   };
@@ -658,6 +705,24 @@ async function bootstrap(): Promise<void> {
     })();
   }, 200);
 
+  // Live preview while typing — only when the split is shown. Continuous
+  // re-renders fast on every keystroke (short debounce); A4 pagination is
+  // heavier, so it waits for a typing pause. The previewReqId stale-guard in
+  // buildPreviewDom drops any render a newer keystroke superseded.
+  const scheduleContinuousPreview = debounce(() => {
+    if (viewMode !== 'preview' || presenting || previewPaginated) return;
+    void updatePreview(editor.getValue());
+  }, 120);
+  const schedulePaginatedPreview = debounce(() => {
+    if (viewMode !== 'preview' || presenting || !previewPaginated) return;
+    void updatePreview(editor.getValue());
+  }, 500);
+  const scheduleLivePreview = (): void => {
+    if (viewMode !== 'preview' || presenting) return;
+    if (previewPaginated) schedulePaginatedPreview();
+    else scheduleContinuousPreview();
+  };
+
   applyPreviewStyles(state.settings);
 
   // Also bound inside the editor keymap (filled in below, after the action fns
@@ -668,10 +733,11 @@ async function bootstrap(): Promise<void> {
     editorEl,
     initialDoc,
     (doc) => {
-      // Edits mark the preview dirty (re-paginate on next toggle) and
+      // Edits mark the preview dirty, live-refresh the split (if shown), and
       // auto-persist the working copy.
       dirty = true;
       debouncedSaveDraft(currentDoc.uuid, doc);
+      scheduleLivePreview();
     },
     editorShortcuts,
   );
@@ -682,10 +748,16 @@ async function bootstrap(): Promise<void> {
   // chance to fire setViewMode().
   let toolbarCtrl!: ToolbarControl;
 
+  // Reassigned once the floating toggles are built (just below); a no-op until
+  // then so setViewMode can call it unconditionally.
+  let updatePreviewToggleUI: () => void = () => {};
+
   const setViewMode = (mode: 'editor' | 'preview'): void => {
     viewMode = mode;
     panesEl.dataset['view'] = mode;
     toolbarCtrl.setViewMode(mode);
+    localStorage.setItem(PREF_VISIBLE, mode === 'preview' ? '1' : '0');
+    updatePreviewToggleUI();
   };
 
   // editor → preview. Snapshot the cursor's anchor before flipping the
@@ -722,15 +794,59 @@ async function bootstrap(): Promise<void> {
     else enterEditor(null);
   };
 
-  // Click inside the preview returns to the editor at that source line —
-  // except when the click hits a real hyperlink (cross-ref, footnote
-  // ref, citation back-link, external link…). Then we honour the link:
-  // in-doc fragments scroll the preview, external URLs open in a new
-  // tab so markpage stays put.
+  // Switch the visible preview between continuous flow and paged A4, persist
+  // the choice, and re-render if the split is up.
+  const setPreviewPaginated = (on: boolean): void => {
+    if (previewPaginated === on) return;
+    previewPaginated = on;
+    localStorage.setItem(PREF_PAGINATED, on ? '1' : '0');
+    updatePreviewToggleUI();
+    if (viewMode === 'preview' && !presenting) {
+      dirty = true;
+      void updatePreview(editor.getValue());
+    }
+  };
+
+  // ---- Floating preview toggles (top-left of the panes) ------------------
+  // "Aperçu" shows/hides the split (= toggleView); "A4" flips the visible
+  // preview between continuous flow and paged A4 pages. The A4 button is
+  // hidden while the preview is off. The widget stays visible so a hidden
+  // preview can be reopened.
+  const previewToolbar = document.createElement('div');
+  previewToolbar.className = 'mp-preview-toolbar';
+  const showToggleBtn = document.createElement('button');
+  showToggleBtn.className = 'mp-preview-toggle';
+  showToggleBtn.textContent = t('preview-toggle.show');
+  showToggleBtn.title = t('preview-toggle.show-title');
+  const paginateToggleBtn = document.createElement('button');
+  paginateToggleBtn.className = 'mp-preview-toggle';
+  paginateToggleBtn.textContent = t('preview-toggle.paginate');
+  paginateToggleBtn.title = t('preview-toggle.paginate-title');
+  previewToolbar.append(showToggleBtn, paginateToggleBtn);
+  panesEl.append(previewToolbar);
+
+  updatePreviewToggleUI = (): void => {
+    const on = viewMode === 'preview';
+    showToggleBtn.classList.toggle('active', on);
+    paginateToggleBtn.hidden = !on;
+    paginateToggleBtn.classList.toggle('active', on && previewPaginated);
+  };
+
+  showToggleBtn.addEventListener('click', () => toggleView());
+  paginateToggleBtn.addEventListener('click', () =>
+    setPreviewPaginated(!previewPaginated),
+  );
+  updatePreviewToggleUI();
+
+  // Click inside the preview jumps the editor's cursor to that source line
+  // (the editor stays visible in the split) — except when the click hits a
+  // real hyperlink (cross-ref, footnote ref, citation back-link, external
+  // link…). Then we honour the link: in-doc fragments scroll the preview,
+  // external URLs open in a new tab so markpage stays put.
   previewEl.addEventListener('click', (e) => {
     if (viewMode !== 'preview') return;
     // While presenting, clicks advance the slideshow (handled by
-    // onPresentClick); don't bounce back to the editor.
+    // onPresentClick); don't jump the editor.
     if (presenting) return;
     const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>(
       'a[href]',
@@ -743,7 +859,10 @@ async function bootstrap(): Promise<void> {
       return;
     }
     const anchor = previewClickAnchor(e, previewEl);
-    if (anchor) enterEditor(anchor);
+    if (anchor) {
+      applyAnchorToEditor(editor.view, anchor);
+      editor.view.focus();
+    }
   });
 
   // ---- Presentation mode -------------------------------------------------
@@ -914,7 +1033,8 @@ async function bootstrap(): Promise<void> {
     const content = (await loadDocContent(target)) ?? '';
     editor.setValue(content);
     dirty = true;
-    if (viewMode === 'preview') setViewMode('editor');
+    // Keep the split open across doc switches — refresh it for the new doc.
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setDocName(target.name);
     toolbarCtrl.setModified(isModified(target));
     toolbarCtrl.setOrigin(originOf(target));
@@ -929,7 +1049,8 @@ async function bootstrap(): Promise<void> {
     await setCurrentDocId(entry.uuid);
     editor.setValue('');
     dirty = true;
-    if (viewMode === 'preview') setViewMode('editor');
+    // Keep the split open — refresh it for the new empty doc.
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
@@ -964,7 +1085,7 @@ async function bootstrap(): Promise<void> {
       editor.setValue((await loadDocContent(next)) ?? '');
     }
     dirty = true;
-    if (viewMode === 'preview') setViewMode('editor');
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
     toolbarCtrl.setOrigin(originOf(currentDoc));
@@ -989,7 +1110,7 @@ async function bootstrap(): Promise<void> {
     currentDoc = await revertDoc(currentDoc.uuid);
     editor.setValue((await loadCommittedContent(currentDoc)) ?? '');
     dirty = true;
-    if (viewMode === 'preview') setViewMode('editor');
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
   };
 
@@ -1358,7 +1479,7 @@ async function bootstrap(): Promise<void> {
       const linked = await setDocOneDriveLink(entry.uuid, { path, baselineEtag: etag });
       if (linked) currentDoc = linked;
       dirty = true;
-      if (viewMode === 'preview') setViewMode('editor');
+      if (viewMode === 'preview') void updatePreview(editor.getValue());
       toolbarCtrl.setModified(false);
       refreshLinkBadge();
     } catch (err) {
@@ -1433,7 +1554,7 @@ async function bootstrap(): Promise<void> {
     });
     if (linked) currentDoc = linked;
     dirty = true;
-    if (viewMode === 'preview') setViewMode('editor');
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(false);
     refreshLinkBadge();
@@ -1675,7 +1796,7 @@ async function bootstrap(): Promise<void> {
         currentDoc = created;
         await setCurrentDocId(created.uuid);
         editor.setValue(content);
-        if (viewMode === 'preview') setViewMode('editor');
+        if (viewMode === 'preview') void updatePreview(editor.getValue());
         toolbarCtrl.setDocName(currentDoc.name);
         toolbarCtrl.setModified(false);
         refreshLinkBadge();
@@ -1822,7 +1943,7 @@ async function bootstrap(): Promise<void> {
       // to see the markdown they just opened. The preview is dirty
       // and will repaginate on the next Cmd/Ctrl+Enter.
       dirty = true;
-      if (viewMode === 'preview') setViewMode('editor');
+      if (viewMode === 'preview') void updatePreview(editor.getValue());
       toolbarCtrl.setDocName(entry.name);
       toolbarCtrl.setOrigin(null);
       return entry;
@@ -2338,6 +2459,10 @@ async function bootstrap(): Promise<void> {
   toolbarCtrl.setOrigin(originOf(currentDoc));
   void checkSync();
 
+  // Restore the live preview if it was shown last session (toolbar is ready).
+  if (previewVisiblePref) void enterPreview();
+  else updatePreviewToggleUI();
+
   // Two-way sync polling (Phase 4). The File System Access API has no
   // file-watching, so we poll the linked file's mtime when the tab is visible —
   // on focus / visibility change (immediate when the user returns after editing
@@ -2421,7 +2546,7 @@ async function bootstrap(): Promise<void> {
       await setCurrentDocId(entry.uuid);
       editor.setValue(markdown);
       dirty = true;
-      if (viewMode === 'preview') setViewMode('editor');
+      if (viewMode === 'preview') void updatePreview(editor.getValue());
       toolbarCtrl.setDocName(entry.name);
       toolbarCtrl.setModified(false);
       toolbarCtrl.setOrigin(null);
