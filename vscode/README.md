@@ -1,67 +1,69 @@
-# markpage preview (VS Code extension)
+# markpage preview
 
-Preview Markdown with **all markpage extensions** (fenced DSLs, callouts,
-footnotes, refs, …) inside VS Code, by reusing markpage's own render pipeline
-(`@orlarey/markpage-render`) in a webview — see
-[`docs/VSCODE-PREVIEW-SPEC.md`](https://github.com/orlarey/markpage/blob/main/docs/VSCODE-PREVIEW-SPEC.md).
+Preview your Markdown the way **[markpage](https://markpage.org)** renders it —
+math, diagrams, callouts, and print-ready A4 pages — right inside VS Code.
 
-## Status
+Open the preview beside your editor and it updates live as you type: a clean
+white “paper” page that stays readable whatever your editor theme, using
+markpage’s full rendering pipeline.
 
-**v0.1 — full pipeline (phase A + B).** Renders headings, callouts (`::: note`),
-tables, footnotes, syntax-highlighted code, the block DSLs from `@orlarey/blocks`
-(`chart`, `bda`, `category`, `adt`, `diff`, `tree`), **MathJax** (`$…$` / `$$…$$`)
-and **Mermaid** diagrams. MathJax/Mermaid load as on-demand ESM chunks from
-`dist/chunks/` under the webview CSP (`'strict-dynamic'`). Shows the document as
-an **A4 page** (white sheet, fixed paper theme) with **editor↔preview
-scroll-sync**, and a **paginated mode** (real paged.js A4 pages) for print/PDF.
+## Features
 
-## Run it (Extension Development Host)
+- **Rich Markdown** — headings, tables, task lists, footnotes, cross-references,
+  and syntax-highlighted code (including Faust).
+- **Callouts** — `::: note`, `::: tip`, `::: warning`, `::: important`,
+  `::: caution`.
+- **Math** — inline `$…$` and display `$$…$$`, rendered with MathJax.
+- **Diagrams** — Mermaid, plus markpage’s own fenced DSLs: `chart`, `bda`,
+  `category`, `adt`, `tree`, `diff`, `mosaic`, …
+- **Layout & typography** — YAML frontmatter (title/author/date, page size,
+  margins, fonts), local styling with `::: style`, page backdrops with
+  `::: background`, and multi-column blocks.
+- **Two preview modes** — a fast continuous view for writing, and a paginated
+  **A4 page** view (real page breaks) to check the final layout.
+- **Export to PDF** — print the paginated preview straight to a PDF.
+- **Paper theme** — a white sheet on a neutral backdrop, independent of your
+  light or dark editor theme.
 
-```sh
-cd vscode
-npm install        # extension dev deps (esbuild, @types/vscode, typescript)
-npm run build      # bundles dist/extension.js + dist/webview.js
-```
+## Getting started
 
-Then in VS Code: open the `vscode/` folder and press **F5** to launch the
-Extension Development Host. Open a Markdown file and run **“markpage: Open
-Preview to the Side”** (or `Cmd/Ctrl+K V`, or the editor-title preview icon).
+1. Install the extension.
+2. Open any Markdown (`.md`) file.
+3. Run **markpage: Open Preview to the Side** — from the Command Palette
+   (`⇧⌘P` / `Ctrl+Shift+P`), the **preview icon** in the editor’s title bar, or
+   the shortcut `⌘K V` / `Ctrl+K V`.
 
-`npm run watch` rebuilds on change.
+The preview updates as you edit. Use the floating buttons at the top-right of the
+preview to toggle pagination, or drag the page edge to zoom.
 
 ## Commands
 
-- **markpage: Open Preview to the Side** — the live preview (continuous A4 width).
-- **markpage: Toggle Pagination** — switch between the fast continuous view and
-  real **paged.js A4 pages** (page breaks, like the PDF). Continuous is best for
-  editing; paginated is best for checking the final layout.
-- **markpage: Print / Export PDF** — print the preview (→ “Save as PDF”); use it
-  in paginated mode for proper A4 pages.
+| Command | Shortcut | What it does |
+| :-- | :-- | :-- |
+| **markpage: Open Preview to the Side** | `⌘K V` / `Ctrl+K V` | Opens the live preview next to your document. |
+| **markpage: Toggle Pagination** | — | Switches between the continuous view (best for writing) and real **A4 pages** with page breaks (best for checking layout). |
+| **markpage: Print / Export PDF** | — | Prints the preview — choose “Save as PDF”. Use it in paginated mode for proper A4 pages. |
 
-## How it works
+## Tips
 
-- `src/extension.ts` (host) — registers the command, opens a `WebviewPanel`
-  beside the editor with a strict CSP (nonce) and `localResourceRoots`, and
-  streams the document text + an image base URI to the webview on edit.
-- `src/webview/preview.ts` (webview) — renders with
-  `renderMarkpageMarkdown(md, { resolveImageSrc })`, resolving relative image
-  paths to webview URIs.
-- `esbuild.mjs` bundles `@orlarey/markpage-render` (resolved from the monorepo's
-  `node_modules`, via its `development` export → TS sources).
+- **Writing vs. layout.** Stay in the continuous view while drafting; switch to
+  paginated when you want to see exactly where pages break.
+- **Best PDFs.** Toggle pagination **on**, then run **Print / Export PDF** so the
+  output matches the on-screen A4 pages.
 
-## Dev harness (no VS Code needed)
+## About markpage
 
-`test-harness.html` loads the built `dist/webview.js` and feeds it a sample
-document, to check the render pipeline in a plain browser:
+markpage is a browser-based Markdown → PDF editor that turns Markdown into
+print-ready, typographically careful documents. This extension brings the same
+renderer into VS Code so you can preview your files without leaving your editor.
 
-```sh
-npm run build && python3 -m http.server 8090
-# open http://localhost:8090/test-harness.html
-```
+- Web app: **[markpage.org](https://markpage.org)**
+- Source & issues: **[github.com/orlarey/markpage](https://github.com/orlarey/markpage)**
 
-## Next
+## Requirements
 
-- Trim the bundle: the lazy MathJax imports emit ~400 font chunks (all sets);
-  restrict to the default set, or pre-pick per the document's `mathjax` setting.
-- Layer in markpage's style presets; map VS Code light/dark theme.
-- Scroll-sync (the render already annotates source lines).
+VS Code **1.85** or newer. No other setup — math, diagrams and fonts are bundled.
+
+## License
+
+[MIT](https://github.com/orlarey/markpage/blob/main/LICENSE)
