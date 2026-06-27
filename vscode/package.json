@@ -21,6 +21,7 @@
     "Visualization",
     "Other"
   ],
+  "icon": "media/icon.png",
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [

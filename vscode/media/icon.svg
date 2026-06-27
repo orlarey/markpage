@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- markpage Marketplace icon: the brand mark — `m` (Roboto Mono, brand
+       blue) | `p` (Roboto, black) — on a white "paper" tile. The m is centred
+       vertically; the thin divider is centred on the m; the p's leg overshoots
+       below. Rasterised to icon.png (256×256) for the Marketplace. -->
+  <rect width="256" height="256" rx="52" fill="#ffffff"/>
+  <rect x="3" y="3" width="250" height="250" rx="49" fill="none" stroke="#e6e6ea" stroke-width="3"/>
+  <text x="40" y="170"
+        font-family="'Roboto Mono', Menlo, Consolas, monospace"
+        font-weight="500" font-size="150" fill="#09438b">m</text>
+  <text x="138" y="170"
+        font-family="Roboto, system-ui, sans-serif"
+        font-weight="500" font-size="150" fill="#111111">p</text>
+  <line x1="133" y1="56" x2="133" y2="200" stroke="#9aa0a6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
