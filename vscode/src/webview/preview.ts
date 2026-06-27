@@ -82,7 +82,16 @@ function pageCss(L: Layout): string {
   const numbers = L.pageNumbers
     ? '@bottom-center { content: counter(page); font-size: 9pt; color: #555; }'
     : '';
-  return `@page { size: ${L.pageW}mm ${L.pageH}mm; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; ${numbers} }`;
+  return `@page { size: ${L.pageW}mm ${L.pageH}mm; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; ${numbers} }
+    /* Fragmentation policy (mirrors the app's preview-paginated.ts): keep a
+       heading with the content that follows it (no orphan title at a page
+       foot), and keep boxed/atomic blocks whole. Left unscoped — break-*
+       properties are inert outside a paginated context. */
+    h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+    h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + * { break-before: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    .math-block, .mermaid-block, img { break-inside: avoid; }
+    .admonition, .columns-block, figure.captioned { break-inside: avoid; }`;
 }
 
 /** Apply the layout to the page sheet: font overrides always; in continuous
