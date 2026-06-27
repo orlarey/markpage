@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Purpose: Smoke-test the debug-guides overlay — the Vue ▸ Guides menu item

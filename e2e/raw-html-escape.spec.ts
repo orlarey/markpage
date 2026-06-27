@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Purpose: End-to-end XSS smoke check. Pasting raw HTML into the

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Purpose: Smoke test for the end-to-end Playwright setup. Asserts that

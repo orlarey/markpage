@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 /**
  * Purpose: End-to-end check of the §9.6.6 / §9.5.4 slot auto-swap
