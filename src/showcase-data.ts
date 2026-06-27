@@ -177,8 +177,7 @@ $O(n^2)$ on already-sorted input unless a randomised pivot is used[^rand].
 The median-of-three heuristic is a popular middle ground.
 
 [^avg]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal.
-[^rand]: Sedgewick proposed shuffling the array as a guard. Linear
-    expected time, no worst-case pathology.
+[^rand]: Sedgewick proposed shuffling the array as a guard. Linear expected time, no worst-case pathology.
 `,
   },
   {
@@ -424,8 +423,7 @@ Under the *Édition critique* preset, the note slides into the outer
 gutter at this exact line and shows its number both inline and at the
 start of the marginal note.
 
-[^clt]: De Moivre-Laplace for the binomial case, generalised by
-    Lyapunov then Lindeberg.
+[^clt]: De Moivre-Laplace for the binomial case, generalised by Lyapunov then Lindeberg.
 `,
   },
   {
