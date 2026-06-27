@@ -10,7 +10,7 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
-import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds } from '@orlarey/markpage-render';
+import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss } from '@orlarey/markpage-render';
 import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,
@@ -1385,33 +1385,18 @@ export function pagedCss(s: PdfSettings): string {
     }
     ${TOC} nav.toc-plus a.toc-missing .toc-dots { display: none; }
 
-    /* Fragmentation policy — left unscoped on purpose. paged.js's
-       break-rule processor naively splits the selector list by comma
-       before calling querySelectorAll, which corrupts CSS pseudo-class
-       lists like :where(a, b) :is(c, d). break-* properties are inert
-       outside a paginated context anyway, so leaking them globally is
-       harmless. */
-    h1, h2, h3, h4 { break-after: avoid; }
-    h1 + *, h2 + *, h3 + *, h4 + * { break-before: avoid; }
-    /* Reliable keep-with-next: paginate() wraps each label with its
-       next sibling in a div carrying this class (reverse-iteration so
-       chains of headings nest). */
-    .keep-with-next { break-inside: avoid; }
-    .math-block, .mermaid-block, img { break-inside: avoid; }
+    /* Fragmentation policy (headings, tables, atomic blocks, orphans/widows)
+       — shared with the VS Code extension via @orlarey/markpage-render's
+       paginationCss(), so the policy lives in one place and can't drift.
+       Unscoped on purpose: paged.js corrupts :is()/:where() in break
+       selectors, and break-* is inert outside a paginated context. */
+    ${paginationCss()}
     ${slidesBreakCss(s)}
     ${slidesFigureCss(s)}
     /* MathJax SVGs are sized in ex units (relative to the container's
        font-size), so scaling the math wrappers' font-size resizes the
        glyphs without re-rendering. */
     ${SCOPE} :is(.math-inline, .math-block) { font-size: ${s.mathScale}em; }
-    /* Admonitions usually fit on a page (a paragraph or two); when
-       they don't, the user's prose is what should split, not the
-       boxed wrapper — keeping the colored bar and title together. */
-    .admonition { break-inside: avoid; }
-    /* Keep a ::: columns block whole on one page (unscoped, like the
-       rules above — paged.js corrupts :where() in break selectors). */
-    .columns-block { break-inside: avoid; }
-    p, li { orphans: 3; widows: 3; }
   `;
 }
 

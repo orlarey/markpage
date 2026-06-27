@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkpageMarkdown, rewriteImageSrc } from '@orlarey/markpage-render';
+import { renderMarkpageMarkdown, rewriteImageSrc, paginationCss } from '@orlarey/markpage-render';
 
 describe('renderMarkpageMarkdown — the package render entry', () => {
   it('applies markpage extensions (admonition callout)', () => {
@@ -146,5 +146,28 @@ describe('::: background — page backdrop sentinel (BACKGROUND-SPEC)', () => {
     const html = renderMarkpageMarkdown('::: background at=0.5,0.5 size=0.6\n# Grand titre\n:::');
     expect(html).toContain('<h1');
     expect(html).toContain('Grand titre');
+  });
+});
+
+describe('paginationCss — the shared fragmentation policy', () => {
+  const css = paginationCss();
+
+  it('keeps headings with the content that follows them', () => {
+    expect(css).toMatch(/h1, h2, h3, h4, h5, h6 \{ break-after: avoid; \}/);
+    expect(css).toContain('h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + * { break-before: avoid; }');
+  });
+
+  it('keeps a table header with its first row and never splits a row', () => {
+    expect(css).toMatch(/thead \{[^}]*break-after: avoid/);
+    expect(css).toMatch(/tr \{[^}]*break-inside: avoid/);
+  });
+
+  it('keeps atomic and boxed blocks whole', () => {
+    expect(css).toContain('.math-block, .mermaid-block, img { break-inside: avoid; }');
+    expect(css).toContain('.admonition, .columns-block, figure.captioned { break-inside: avoid; }');
+  });
+
+  it('forbids dangling paragraph/list lines', () => {
+    expect(css).toContain('p, li { orphans: 3; widows: 3; }');
   });
 });
