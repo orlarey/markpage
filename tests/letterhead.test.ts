@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   groupLetterheads,
   renderLetterhead,
+  keepLabelsWithNext,
 } from '@orlarey/markpage-render';
-import { keepLabelsWithNext } from '../src/preview-paginated';
 
 describe('renderLetterhead', () => {
   it('emits a sender block with no label and no positioning class', () => {

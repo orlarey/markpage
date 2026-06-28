@@ -10,7 +10,7 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
-import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss } from '@orlarey/markpage-render';
+import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext } from '@orlarey/markpage-render';
 import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,
@@ -723,43 +723,8 @@ function figureNaturalWidthPx(el: Element): number {
   return 200;
 }
 
-/**
- * Purpose: Wrap each "label" element with its next sibling so they can't be split.
- * How: Reverse-iterate elements; for each label, wrap (`<div class="keep-with-next">`).
- *   Skip when the next sibling is a letterhead-group: it already reserves
- *   its own vertical space via `min-height` and contains a
- *   `position: absolute` recipient whose containing block is the pagedjs
- *   pagebox. Wrapping in a `break-inside: avoid` div would turn the
- *   wrapper into a fragmentation context that becomes the new containing
- *   block for the absolute recipient, breaking the envelope-window
- *   coordinates (cf. SPEC §25.4).
- *
- *   In slides mode, skip h2 too. h2 carries `break-before: page` (per
- *   slidesBreakCss — each h2 starts a new slide). Wrapping it in a
- *   `break-inside: avoid` div produces conflicting break rules: the
- *   wrapper says "stay together" but the inner h2 says "split here".
- *   paged.js resolves this by splitting the wrapper into fragments —
- *   an empty stub on the current slide, the h2 alone on the next, and
- *   the trailing sibling on a third slide. Without the wrapper, the
- *   h2 simply starts a new slide and what follows fills the rest as
- *   long as it fits.
- */
-export function keepLabelsWithNext(root: HTMLElement, inSlidesMode = false): void {
-  const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
-  for (const el of all) {
-    if (!isLabel(el)) continue;
-    if (inSlidesMode && el.tagName.toLowerCase() === 'h2') continue;
-    const next = el.nextElementSibling;
-    if (!next) continue;
-    if (!el.parentElement) continue;
-    if (next.classList.contains('letterhead-group')) continue;
-    const wrapper = root.ownerDocument.createElement('div');
-    wrapper.className = 'keep-with-next';
-    el.before(wrapper);
-    wrapper.appendChild(el);
-    wrapper.appendChild(next);
-  }
-}
+// keepLabelsWithNext() + its isLabel/isPresentableBlock helpers now live in
+// @orlarey/markpage-render (shared with the VS Code extension); imported above.
 
 /**
  * Purpose: Wire a `::: toc+` block (TOC-PLUS-SPEC §5) to the document.
@@ -813,33 +778,6 @@ function sectionSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/**
- * Purpose: Decide whether an element acts as a "label" for the next block.
- * How: True for h1–h4, or a `<p>` directly preceding a presentable block.
- */
-function isLabel(el: Element): boolean {
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4') {
-    return true;
-  }
-  if (tag === 'p') {
-    const next = el.nextElementSibling;
-    return next ? isPresentableBlock(next) : false;
-  }
-  return false;
-}
-
-/**
- * Purpose: "Presentable block" = the kind a label is plausibly introducing.
- * How: Tag whitelist (pre/table/img) plus the math-block / mermaid-block classes.
- */
-function isPresentableBlock(el: Element): boolean {
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'pre' || tag === 'table' || tag === 'img') return true;
-  if (el.classList.contains('math-block')) return true;
-  if (el.classList.contains('mermaid-block')) return true;
-  return false;
-}
 
 /**
  * Purpose: Build the @page rules + minimal fragmentation policy from user settings.

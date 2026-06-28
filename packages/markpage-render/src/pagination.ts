@@ -43,3 +43,57 @@ export function paginationCss(): string {
     p, li { orphans: 3; widows: 3; }
   `;
 }
+
+/** A block that a heading / lead-in paragraph should not be split from — the
+ *  ones tall enough that `break-after: avoid` alone is honoured inconsistently
+ *  by paged.js (fenced code, table, image, math, mermaid). */
+function isPresentableBlock(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'pre' || tag === 'table' || tag === 'img') return true;
+  if (el.classList.contains('math-block')) return true;
+  if (el.classList.contains('mermaid-block')) return true;
+  return false;
+}
+
+/** A "label": a heading, or a paragraph that introduces a presentable block
+ *  (e.g. "Mesure réelle :" right before a code block). */
+function isLabel(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4') return true;
+  if (tag === 'p') {
+    const next = el.nextElementSibling;
+    return next ? isPresentableBlock(next) : false;
+  }
+  return false;
+}
+
+/**
+ * Purpose: Reliably keep a heading (or lead-in paragraph) with the content that
+ *   follows it — the JS half of the orphan-control policy. `break-after: avoid`
+ *   alone is honoured inconsistently by paged.js when the next block is tall, so
+ *   we wrap each label with its immediate next sibling in a `.keep-with-next`
+ *   div (paginationCss() marks that `break-inside: avoid`).
+ * How: Walk every element in REVERSE document order so chains of headings nest
+ *   (h2 then h3 then prose → the h3+prose wrapper becomes the h2's "next"). Skip
+ *   h2 in slides mode (it carries `break-before: page`) and letterhead groups.
+ *   Operates in place on `root`; run it on the render DOM before pagination.
+ */
+export function keepLabelsWithNext(
+  root: HTMLElement,
+  inSlidesMode = false,
+): void {
+  const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
+  for (const el of all) {
+    if (!isLabel(el)) continue;
+    if (inSlidesMode && el.tagName.toLowerCase() === 'h2') continue;
+    const next = el.nextElementSibling;
+    if (!next) continue;
+    if (!el.parentElement) continue;
+    if (next.classList.contains('letterhead-group')) continue;
+    const wrapper = root.ownerDocument.createElement('div');
+    wrapper.className = 'keep-with-next';
+    el.before(wrapper);
+    wrapper.appendChild(el);
+    wrapper.appendChild(next);
+  }
+}

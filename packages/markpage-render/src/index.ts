@@ -64,4 +64,4 @@ export {
 } from './page-running';
 export { anchorId } from './refs';
 export { applyBackgrounds } from './background';
-export { paginationCss } from './pagination';
+export { paginationCss, keepLabelsWithNext } from './pagination';

@@ -12,6 +12,7 @@ import {
   hydratePreview,
   applyBackgrounds,
   paginationCss,
+  keepLabelsWithNext,
 } from '@orlarey/markpage-render';
 import { marked } from 'marked';
 import { parseProfile, profileToCss, type Profile } from './profile-css';
@@ -368,6 +369,11 @@ async function paginate(token: number): Promise<void> {
   // Snapshot the hydrated content (SVGs included) as the paged.js source.
   const source = document.createElement('div');
   source.innerHTML = root.innerHTML;
+  // Keep each heading / lead-in with the block that follows it — the reliable
+  // half of the orphan-control policy (`break-after: avoid` alone is flaky in
+  // paged.js when the next block is tall). Pairs with `.keep-with-next` in
+  // paginationCss().
+  keepLabelsWithNext(source);
   const { Previewer } = await import('pagedjs');
   if (token !== renderToken) return; // a newer render started while loading
   // paged.js injects a generated <style> into <head> on every preview() and
