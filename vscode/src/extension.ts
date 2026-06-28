@@ -207,7 +207,7 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
   <link rel="stylesheet" href="${styleUri}?v=${n}">
 </head>
 <body>
-  <div id="markpage-preview"></div>
+  <div id="markpage-preview" class="markpage"></div>
   <script type="module" nonce="${n}" src="${scriptUri}?v=${n}"></script>
 </body>
 </html>`;
