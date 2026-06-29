@@ -454,6 +454,42 @@ qui `extends` le papier n'a qu'à redéfinir `--brand: "#1a5f3a"` et **tout le
 dérivé suit**. C'est le chaînon manquant du *DRY-dans-une-couche*.
 :::
 
+La syntaxe est **arrêtée** pour V1 :
+
+déclaration
+:   une **clé plate** préfixée `--`, valeur scalaire quelconque (`--brand:
+    "#0b3d91"`, `--measure: 66`). Reste dans le sous-ensemble *clés scalaires
+    plates* de [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md) — aucune clé markpage ne
+    commence par `--`, donc zéro collision. C'est la custom property CSS, telle
+    quelle.
+
+référence
+:   `var(--name)`, avec fallback optionnel `var(--name, défaut)`, admise dans
+    **n'importe quelle valeur** (couleur, taille, fonte, nombre…). Le token est
+    un scalaire **non typé** : la substitution a lieu, *puis* la validation
+    par-clé habituelle s'applique au résultat — un token couleur posé dans une
+    taille échoue exactement comme une mauvaise valeur écrite à la main.
+
+résolution
+:   au **rendu**, contre l'ensemble des tokens **après `deepMerge`** (l'enfant
+    gagne) — comme CSS résout les custom properties au *computed value*.
+    `flatten` (§4) reste donc **inchangé** : il fusionne, il ne résout pas.
+
+token → token
+:   `--accent: var(--brand)` est permis ; résolution itérative jusqu'au point
+    fixe, **cycle = erreur** (même politique que les cycles `extends`, §3.1 /
+    §7).
+
+token absent
+:   `var(--x)` sans fallback ni définition → **erreur visible** (les typos
+    remontent, comme un `\ref` cassé).
+
+````yaml
+--measure: 66
+measureChars: var(--measure)          # un token de taille, pas qu'une couleur
+styles.h1.color: var(--brand, #111)   # fallback si --brand n'est pas défini
+````
+
 ### 9.2. `revert` / `unset` / `initial` — dé-poser une valeur héritée
 
 Le `deepMerge` (§4) est **override-only** : un enfant peut *poser* une valeur,
@@ -520,9 +556,10 @@ shorthands ↔ longhands
 - **Fusion des listes** (`customFonts`, header/footer multiples…) : *append* ou
   *replace* ? Probablement *replace* (cohérent avec « l'enfant gagne »), avec une
   syntaxe d'*append* explicite plus tard.
-- **Syntaxe des tokens** (§9.1) : custom properties `--brand` à la CSS, ou un
-  bloc `tokens:` dédié ? Et `var(--x)` admis dans *toutes* les valeurs ou
-  seulement les couleurs / fontes ?
+- **Tokens dans `::: style`** : `var(--x)` est-il résolu aussi dans les
+  overrides locaux `::: style` (§5), dont l'allowlist STYLE-SPEC n'admet pas le
+  CSS brut ? (La déclaration `--name` et la portée *toute valeur* sont
+  **arrêtées**, §9.1.)
 - **Trous nommés** : `insert nom` côté cadre, `extends` + ciblage côté enfant —
   quelle syntaxe pour « ce contenu va dans tel trou » ?
 - **Résolution & partage** : comment l'appli résout `extends` et **garantit
