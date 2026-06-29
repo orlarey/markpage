@@ -1579,6 +1579,17 @@ Things to notice:
   captions take a quoted string + `\label{key}`; sections take
   `\label{key}`; `![alt](url){.margin}` is recognised as the only
   attribute for margin figures.)
+- **Two backtick-containing inline code spans in one paragraph** —
+  when you mention a fence *in running prose*, name it **bare**:
+  write the `ebnf` block, the `insert` key — **not** an inline code
+  span that wraps the literal fence (`` ` ```ebnf ` ``). Such a span
+  is a 1-backtick code span whose content holds a 3-backtick run;
+  valid CommonMark, but the underlying Markdown engine mis-pairs
+  emphasis when **two** of them land in the **same paragraph or
+  list item** — the surrounding `**bold**` then leaks as literal
+  asterisks. The bare name reads better and sidesteps it entirely.
+  (The full ` ```fence ` syntax is fine inside fenced **examples** —
+  there it's literal block text, not an inline code span.)
 
 ---
 
