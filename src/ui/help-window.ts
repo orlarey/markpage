@@ -36,6 +36,7 @@ import { makeLogo } from './logo';
 // consistent with the editor / preview without us hand-curating a
 // subset.
 import blocksCss from '@orlarey/blocks/styles.css?inline';
+import constructsCss from '@orlarey/markpage-render/constructs.css?inline';
 import appCss from '../style.css?inline';
 
 /**
@@ -132,6 +133,7 @@ function buildHelpWindow(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>${blocksCss}</style>
+    <style>${constructsCss}</style>
     <style>${appCss}</style>
     <style>${windowSpecificCss()}</style>
   `;

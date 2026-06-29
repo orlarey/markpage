@@ -21,6 +21,7 @@ import { parseProfile, profileToCss, type Profile } from './profile-css';
 // look + the CSS variables these need, and loads after to win overrides.
 import 'highlight.js/styles/atom-one-light.css';
 import '@orlarey/blocks/styles.css';
+import '@orlarey/markpage-render/constructs.css';
 
 interface RenderMessage {
   type: 'render';

@@ -18,11 +18,13 @@
       "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./constructs.css": "./styles/constructs.css"
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "styles"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

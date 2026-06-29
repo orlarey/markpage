@@ -33,6 +33,7 @@ import '@fontsource/roboto/500.css';
 
 import 'highlight.js/styles/atom-one-light.css';
 import '@orlarey/blocks/styles.css';
+import '@orlarey/markpage-render/constructs.css';
 import './style.css';
 import '@orlarey/markpage-render'; // side-effect: registers admonitions / math / etc.
 

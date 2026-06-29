@@ -26,6 +26,11 @@ body {
   --font-sans: var(--font-body);
   --font-heading: var(--font-body);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Extra tokens the shared @orlarey/markpage-render/constructs.css references
+     without a fallback (admonitions, ebnf rects, borders). */
+  --border: #d0d7de;
+  --bg-alt: #f6f8fa;
+  --accent: #0969da;
 
   /* A4 page: 210 × 297 mm with markpage's default margins (25 mm top/bottom,
      35 mm left/right). These are fallbacks for first paint — the webview sets
@@ -57,16 +62,6 @@ body {
 #markpage-preview h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
 #markpage-preview h1.doc-title { text-align: center; }
 
-/* Frontmatter metadata header (author / organization / date), mirroring the
-   markpage app's .preview-metadata block under the title. */
-#markpage-preview .preview-metadata {
-  text-align: center;
-  margin: 0 0 1.5rem;
-  line-height: 1.4;
-}
-#markpage-preview .preview-metadata div { margin: 0.1em 0; }
-#markpage-preview .preview-metadata div.bold { font-weight: 500; }
-
 #markpage-preview a { color: #0b5cad; }
 
 #markpage-preview pre {
@@ -95,74 +90,6 @@ body {
   color: #1c1c1e;
 }
 
-/* ---- EBNF railroad diagrams (```ebnf) -----------------------------------
-   ebnf2railroad SVGs ship loud defaults (green fills, black 3px strokes);
-   override them to match the paper preview. Mirrors src/style.css in the app —
-   without these rules the diagrams render as solid black shapes. */
-#markpage-preview .ebnf-block {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  align-items: start;
-  column-gap: 0.5em;
-  row-gap: 0.6em;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0.8em auto;
-  padding: 0;
-}
-#markpage-preview .ebnf-block dt,
-#markpage-preview .ebnf-block dd {
-  margin: 0;
-  min-height: 0;
-}
-#markpage-preview .ebnf-block dt {
-  font-family: var(--font-mono);
-  font-size: 0.95em;
-  color: #1c1c1e;
-  text-align: right;
-  white-space: nowrap;
-  padding-top: 1.55em;
-}
-#markpage-preview .ebnf-block dt::after {
-  content: ' =';
-  margin-left: 0.2em;
-  color: #666666;
-}
-#markpage-preview .ebnf-block dd {
-  margin: 0;
-  text-align: left;
-}
-#markpage-preview svg.railroad-diagram {
-  background: transparent;
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-#markpage-preview svg.railroad-diagram path {
-  stroke-width: 1.5;
-  stroke: #1c1c1e;
-  fill: none;
-}
-#markpage-preview svg.railroad-diagram text {
-  font: 12px var(--font-mono);
-  text-anchor: middle;
-  fill: #1c1c1e;
-}
-#markpage-preview svg.railroad-diagram rect {
-  stroke-width: 1.5;
-  stroke: #1c1c1e;
-  fill: #f6f8fa;
-}
-#markpage-preview .ebnf-error {
-  background: #ffebe9;
-  color: #cf222e;
-  border: 1px solid #cf222e;
-  border-radius: 6px;
-  padding: 0.6em 0.8em;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
-
 #markpage-preview blockquote {
   background: transparent;
   border-left: 3px solid #d4d4d8;
@@ -171,64 +98,14 @@ body {
   color: #555;
 }
 
-#markpage-preview table { border-collapse: collapse; width: 100%; }
-#markpage-preview th,
-#markpage-preview td { border: 1px solid #e0e0e4; padding: 0.35em 0.6em; }
-#markpage-preview th { background: #f6f6f8; }
-
 #markpage-preview img,
 #markpage-preview svg { max-width: 100%; height: auto; }
 
-/* callouts (markpage marked-config, not in @orlarey/blocks) */
-#markpage-preview .admonition {
-  border: 1px solid #e4e4e8;
-  border-left: 4px solid #2f6fdb;
-  border-radius: 6px;
-  padding: 0.2em 1em;
-  margin: 1em 0;
-  background: #fafbfd;
-}
-#markpage-preview .admonition-title { font-weight: 600; margin: 0.5em 0; }
-#markpage-preview .admonition-warning,
-#markpage-preview .admonition-caution { border-left-color: #d98a1a; }
-#markpage-preview .admonition-important { border-left-color: #8a52d6; }
-
-/* math + mermaid */
-#markpage-preview .math-block { text-align: center; margin: 1em 0; }
-#markpage-preview .math-error,
-#markpage-preview .mermaid-error { color: #c23b3b; }
-#markpage-preview .mermaid-block { text-align: center; margin: 1em 0; }
-
-/* figures + captions */
-#markpage-preview figure { margin: 1em 0; }
-#markpage-preview figure.captioned { break-inside: avoid; }
-#markpage-preview .caption,
-#markpage-preview figcaption { text-align: center; font-size: 0.9em; color: #666; }
-
-/* footnotes (foot-of-document; the .sidenote Tufte variant stays hidden) */
+/* The .sidenote Tufte footnote variant stays hidden (foot-of-document mode).
+   Every other render construct (tables, admonitions, math, mermaid, figures,
+   footnotes, definition lists, mosaic, ebnf, demo, …) now comes from the shared
+   @orlarey/markpage-render/constructs.css. */
 #markpage-preview .sidenote { display: none; }
-#markpage-preview .footnote-ref { font-size: 0.75em; line-height: 0; vertical-align: super; }
-#markpage-preview .footnote-ref a { color: #0b5cad; text-decoration: none; }
-#markpage-preview .footnotes { margin-top: 2em; font-size: 0.9em; }
-#markpage-preview .footnotes hr { border: none; border-top: 1px solid #e0e0e4; margin: 0.6em 0; }
-#markpage-preview .footnotes ol { padding-left: 1.4em; }
-#markpage-preview .footnotes li { margin: 0.3em 0; }
-#markpage-preview .footnote-back { color: #0b5cad; text-decoration: none; }
-
-/* definition lists */
-#markpage-preview dl { margin: 0.8em 0; }
-#markpage-preview dt { font-weight: 600; margin-top: 0.6em; }
-#markpage-preview dt:first-child { margin-top: 0; }
-#markpage-preview dd { margin: 0.1em 0 0 1.6em; }
-
-/* mosaic image gallery (markpage, not in @orlarey/blocks) */
-#markpage-preview .mosaic-block { margin: 1em 0; }
-#markpage-preview .mosaic-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-#markpage-preview .mosaic-row-natural { justify-content: flex-start; }
-#markpage-preview .mosaic-item { flex: 1 1 auto; min-width: 0; }
-#markpage-preview .mosaic-item img { width: 100%; display: block; }
-#markpage-preview .mosaic-missing,
-#markpage-preview .mosaic-error { color: #c23b3b; font-size: 0.9em; }
 
 /* ---- Paginated mode (paged.js) ----------------------------------------
    The container stops being a single A4 sheet; paged.js fills it with real
