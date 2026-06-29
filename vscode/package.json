@@ -77,7 +77,8 @@
     "build": "node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "vscode:prepublish": "node esbuild.mjs --production",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:render": "node esbuild.mjs --production && node test/render-corpus.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

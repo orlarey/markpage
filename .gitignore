@@ -17,3 +17,6 @@ packages/*/dist/
 PAT
 *.pat
 *.token
+
+# render-corpus webview screenshots (artifacts)
+vscode/test/__shots__/

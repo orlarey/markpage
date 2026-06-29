@@ -54,6 +54,17 @@ jobs:
           TAG="${GITHUB_REF_NAME#vscode-v}"
           [ "$PKG" = "$TAG" ] || { echo "tag $TAG != package.json $PKG"; exit 1; }
 
+      # Pre-publish gate: render every tests/corpus example through the real
+      # webview bundle (dist + preview.css, in #markpage-preview.markpage, with a
+      # simulated VS Code dark theme) and assert it's healthy — no black construct
+      # SVGs, no dark-theme bleed, no console errors. A broken render blocks the
+      # publish, catching the class of bugs that used to slip through to users.
+      - name: Install Playwright Chromium
+        run: npx --yes playwright install --with-deps chromium
+      - name: Render-check the webview against the corpus
+        working-directory: vscode
+        run: npm run test:render
+
       - name: Publish to VS Code Marketplace
         working-directory: vscode
         run: npx --yes @vscode/vsce publish -p "$VSCE_PAT"

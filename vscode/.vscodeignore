@@ -9,3 +9,4 @@ tsconfig.json
 FILESYSTEM-BLUEPRINT.md
 sample.md
 test-harness.html
+test/**
