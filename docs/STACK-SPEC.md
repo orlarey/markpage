@@ -141,7 +141,7 @@ quotedName     = '"', { character }, '"' ;
 identChar      = letter | digit | "-" | "_" | "/" | "." ;
 ```
 
-::: note [Résolution de la référence — esquisse, §11]
+::: note [Résolution de la référence — esquisse, §12]
 *Comment* `reference` désigne un document (nom dans la bibliothèque ? chemin ?
 URL ? bundle partagé ?) est **laissé ouvert** (lien avec
 [VOLUMES-SPEC](VOLUMES-SPEC.md) et le partage de `.md`). V1 pose la **sémantique**
@@ -161,7 +161,7 @@ fence       = "```" ;
 
 - **Corps vide** : c'est le **trou** (le cas V1). Le contenu de l'enfant le
   remplace.
-- `slotName` (**différé**, §10) : trous **nommés** multiples. V1 = **un seul**
+- `slotName` (**différé**, §11) : trous **nommés** multiples. V1 = **un seul**
   trou, le **premier** rencontré.
 
 ## 4. Aplatissement (règles de réécriture)
@@ -178,7 +178,7 @@ Output: document aplati (front-matter fusionné, corps replié), auto-suffisant
 chaine ← [L]                          ▷ … puis P1, P2, …, Pn (racine en dernier)
 n ← L
 while n possède une clé extends do
-  n ← resoudre(n.extends)             ▷ §11 ; ERREUR si cycle ou référence absente
+  n ← resoudre(n.extends)             ▷ §12 ; ERREUR si cycle ou référence absente
   chaine ← chaine ++ [n]
 end
 
@@ -214,7 +214,7 @@ attribut** — un parent qui fixe `styles.h1.color` et un enfant qui fixe
 clés plates `page-size`, `margins`, `font-*`) : l'enfant **remplace** — sauf les
 valeurs de reset `revert` / `unset` / `initial` (§9.2) qui **retirent** la clé
 héritée. La fusion des **listes** (`customFonts`…) — *append* vs *replace* — est
-une **question ouverte** (§11).
+une **question ouverte** (§12).
 :::
 
 ## 5. Précédence (vue d'ensemble)
@@ -375,11 +375,11 @@ cycle
 
 référence manquante
 :   `extends: inexistant` → **erreur** visible ; option de **fallback** (rendre
-    la feuille seule, sans cadre) — *à décider* (§10).
+    la feuille seule, sans cadre) — *à décider* (§11).
 
 plusieurs `insert`
 :   V1 : on remplit **le premier**, les autres restent vides (donc supprimés à
-    l'aplatissement). Trous **nommés** → différé (§10).
+    l'aplatissement). Trous **nommés** → différé (§11).
 
 absence de `insert`
 :   **concaténation** : corps du parent, puis corps de l'enfant (S5). C'est le
@@ -532,7 +532,68 @@ shorthands ↔ longhands
 :   sélecteurs / spécificité complète, `!important`, `@media`, `calc()` — markpage
     gagne à garder le modèle *par-élément* simple (le coût dépasse le bénéfice).
 
-## 10. Non-buts & différés
+## 10. Round-trip Réglages ↔ front-matter
+
+**Décision (V1) :** le panneau **Réglages** est un **éditeur structuré du
+front-matter du document courant** — *sa propre feuille*. Bouger un curseur
+écrit une clé dans le front-matter du `.md` actif ; éditer le texte du
+front-matter rafraîchit le panneau. La GUI et le texte sont **deux vues de la
+même couche**.
+
+Correspondance contrôle ↔ clé :
+
+clés plates
+:   page / fontes / numéros — `page-size`, `margins`, `font-body`,
+    `font-heading`, `font-mono`, `page-numbers` (déjà le langage de
+    [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)).
+
+matrice par-élément
+:   chaque attribut d'un élément → une clé **pointée** `styles.<élément>.<attr>`
+    (`styles.h1.color`, `styles.body.fontSize`, `styles.quote.borderColor`) —
+    les mêmes clés que le `deepMerge` (§4) fusionne, désormais **lisibles** dans
+    le front-matter au lieu de l'embed JSON opaque.
+
+tokens
+:   les `--name` (§9.1) remontent comme une petite palette « thème » qui pilote
+    plusieurs contrôles d'un coup.
+
+Ce qu'écrit le panneau dans la feuille, après quelques réglages :
+
+````yaml
+---
+page-size: A4
+margins: 25 35
+font-body: Lora
+styles.h1.color: "#14223a"
+styles.h1.fontSize: 22
+styles.body.align: justify
+---
+````
+
+::: tip [La dissolution du trou d'autonomie]
+Les trois mécanismes (Réglages / matrice Styles / front-matter) **cessent d'en
+être trois** : Réglages *est* l'édition du front-matter. Tout document devient
+**auto-suffisant** (S6) — son apparence vit dans son propre `.md`, en clair.
+L'embed `markpage-profile` JSON n'est plus qu'une sérialisation compacte
+alternative, plus l'unique voie vers l'autonomie.
+:::
+
+**Rapport à `extends` (V1).** L'édition atterrit **toujours sur la feuille**.
+Une couche de style partagée (papier à en-tête, preset…) est elle-même un
+`.md` : on l'édite en l'**ouvrant** (elle est alors *sa propre* feuille). Le
+panneau **n'écrit jamais en douce dans un parent** — donc aucun effet de bord
+sur les autres documents qui l'`extends`ent.
+
+::: note [Évolution différée — le modèle « DevTools » (D)]
+B est la **réduction à une seule couche** d'un modèle plus riche : vue
+**calculée** (l'aplati) + **provenance** par propriété (« vient de
+*papier-en-tête*, via `var(--brand)` ») + **sélecteur de couche cible**
+(feuille = override local, ancêtre = style partagé) + geste **« revenir à
+l'hérité »** (= écrit `revert` / `unset`, §9.2). Différé (§11) : V1 n'édite que
+la feuille, sans sélecteur ni provenance.
+:::
+
+## 11. Non-buts & différés
 
 ::: caution
 
@@ -543,11 +604,14 @@ shorthands ↔ longhands
 - **Boucles / conditionnels** dans les couches — **hors sujet** (ce n'est pas un
   langage de template).
 - **Résolution de la référence** (nom de bibliothèque vs chemin vs URL vs
-  bundle) — **esquissée** seulement (§3.1, §11) ; la sémantique d'aplatissement
+  bundle) — **esquissée** seulement (§3.1, §12) ; la sémantique d'aplatissement
   n'en dépend pas.
+- **Round-trip « DevTools » (modèle D)** — vue calculée + provenance + sélecteur
+  de couche cible + « revenir à l'hérité » — différé ; V1 = B, le panneau édite
+  **la feuille** (§10).
 :::
 
-## 11. Questions ouvertes
+## 12. Questions ouvertes
 
 - **Nom de la clé** : `extends` (retenu) vs `base` / `on` / `style` / `from`.
 - **Nom du bloc** : `insert` (retenu) vs `slot` / `content` / `body`.
@@ -565,11 +629,12 @@ shorthands ↔ longhands
 - **Résolution & partage** : comment l'appli résout `extends` et **garantit
   l'autonomie au partage** — *flatten automatique à l'export* ? bundle de la
   chaîne ? (lien [VOLUMES-SPEC](VOLUMES-SPEC.md)).
-- **Round-trip UI** : le panneau **Réglages** devient-il l'**éditeur d'une couche
-  de style** (le parent `extends`é), plutôt qu'un état d'appli séparé ? Ce serait
-  la dissolution complète du trou d'autonomie.
+- **Promotion vers une couche partagée** : depuis B (le panneau édite la
+  feuille, §10), quel **geste** extrait un réglage vers un parent `extends`é
+  (« créer un style à partir de ces réglages », « pousser cette couleur dans
+  *papier-en-tête* ») ? C'est le pont B → C/D, à dessiner.
 
-## 12. Esquisse d'implémentation
+## 13. Esquisse d'implémentation
 
 ::: caution [Conception, pas encore de code]
 Cette section esquisse *comment* on câblerait l'aplatissement ; elle n'engage
