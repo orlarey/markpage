@@ -295,6 +295,9 @@ body,
   max-width: 100%;
   box-sizing: border-box;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  /* Containing block for any absolutely-positioned content (e.g. a
+     letterhead-window recipient) so it stays within the sheet. */
+  position: relative;
 }
 
 /* Floating preview toggles — top-left of the panes area, always visible (so

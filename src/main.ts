@@ -658,6 +658,14 @@ async function bootstrap(): Promise<void> {
     built: HTMLElement,
     effectiveSettings: PdfSettings,
   ): void => {
+    // paged.js never removes the <style> blocks it injects; drop them so a
+    // prior A4 render's page-only rules — notably the `position: absolute`
+    // letterhead-window positioning — don't leak into the continuous sheet
+    // (where, with no positioned containing block, the recipient escaped onto
+    // the editor pane).
+    document
+      .querySelectorAll('style[data-pagedjs-inserted-styles]')
+      .forEach((s) => s.remove());
     const sheet = document.createElement('div');
     sheet.className = 'mp-continuous-sheet';
     const { w } = pageSizeMm(effectiveSettings);
@@ -669,6 +677,12 @@ async function bootstrap(): Promise<void> {
     previewEl.replaceChildren(sheet);
   };
 
+  // Serializes paged.js renders. Two concurrent `Previewer().preview()` calls on
+  // the same element interleave their DOM mutations and silently drop content
+  // (paragraphs vanish under rapid live edits). Each paginated render queues
+  // behind the previous one; superseded renders skip via the previewReqId guard.
+  let paginateLock: Promise<unknown> = Promise.resolve();
+
   // Render `source` into the preview pane, paginated (paged.js A4 pages) or
   // continuous, per `previewPaginated`. Called when entering preview, on a
   // settings change, and — debounced — live while typing.
@@ -676,14 +690,24 @@ async function bootstrap(): Promise<void> {
     const r = await buildPreviewDom(source);
     if (!r) return;
     if (previewPaginated) {
-      previewEl.classList.remove('continuous');
-      await paginate(r.built, r.effectiveSettings, previewEl);
-      if (r.myReq !== previewReqId) return;
+      // Queue behind any in-flight paginate so paged.js never runs twice over
+      // the same element at once. If a newer build superseded us while we
+      // waited (previewReqId advanced), skip — only the latest paginates.
+      const turn = paginateLock.then(async () => {
+        if (r.myReq !== previewReqId) return;
+        previewEl.classList.remove('continuous');
+        await paginate(r.built, r.effectiveSettings, previewEl);
+        if (r.myReq !== previewReqId) return;
+        dirty = false;
+        fitPreviewWidth();
+      });
+      paginateLock = turn.catch(() => {});
+      await turn;
     } else {
       renderContinuous(r.built, r.effectiveSettings);
+      dirty = false;
+      fitPreviewWidth();
     }
-    dirty = false;
-    fitPreviewWidth();
   };
 
   // Autosave writes the *working copy* (draft), never the committed content
