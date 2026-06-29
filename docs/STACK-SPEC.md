@@ -141,7 +141,7 @@ quotedName     = '"', { character }, '"' ;
 identChar      = letter | digit | "-" | "_" | "/" | "." ;
 ```
 
-::: note [Résolution de la référence — esquisse, §10]
+::: note [Résolution de la référence — esquisse, §11]
 *Comment* `reference` désigne un document (nom dans la bibliothèque ? chemin ?
 URL ? bundle partagé ?) est **laissé ouvert** (lien avec
 [VOLUMES-SPEC](VOLUMES-SPEC.md) et le partage de `.md`). V1 pose la **sémantique**
@@ -161,7 +161,7 @@ fence       = "```" ;
 
 - **Corps vide** : c'est le **trou** (le cas V1). Le contenu de l'enfant le
   remplace.
-- `slotName` (**différé**, §9) : trous **nommés** multiples. V1 = **un seul**
+- `slotName` (**différé**, §10) : trous **nommés** multiples. V1 = **un seul**
   trou, le **premier** rencontré.
 
 ## 4. Aplatissement (règles de réécriture)
@@ -178,7 +178,7 @@ Output: document aplati (front-matter fusionné, corps replié), auto-suffisant
 chaine ← [L]                          ▷ … puis P1, P2, …, Pn (racine en dernier)
 n ← L
 while n possède une clé extends do
-  n ← resoudre(n.extends)             ▷ §10 ; ERREUR si cycle ou référence absente
+  n ← resoudre(n.extends)             ▷ §11 ; ERREUR si cycle ou référence absente
   chaine ← chaine ++ [n]
 end
 
@@ -211,9 +211,10 @@ end
 `styles.h1.color`, `styles.body.fontSize`…) et fusionne **par élément et par
 attribut** — un parent qui fixe `styles.h1.color` et un enfant qui fixe
 `styles.h1.size` produisent un `h1` avec **les deux**. Les **scalaires** (et les
-clés plates `page-size`, `margins`, `font-*`) : l'enfant **remplace**. La fusion
-des **listes** (`customFonts`…) — *append* vs *replace* — est une **question
-ouverte** (§9).
+clés plates `page-size`, `margins`, `font-*`) : l'enfant **remplace** — sauf les
+valeurs de reset `revert` / `unset` / `initial` (§9.2) qui **retirent** la clé
+héritée. La fusion des **listes** (`customFonts`…) — *append* vs *replace* — est
+une **question ouverte** (§11).
 :::
 
 ## 5. Précédence (vue d'ensemble)
@@ -374,11 +375,11 @@ cycle
 
 référence manquante
 :   `extends: inexistant` → **erreur** visible ; option de **fallback** (rendre
-    la feuille seule, sans cadre) — *à décider* (§9).
+    la feuille seule, sans cadre) — *à décider* (§10).
 
 plusieurs `insert`
 :   V1 : on remplit **le premier**, les autres restent vides (donc supprimés à
-    l'aplatissement). Trous **nommés** → différé (§9).
+    l'aplatissement). Trous **nommés** → différé (§10).
 
 absence de `insert`
 :   **concaténation** : corps du parent, puis corps de l'enfant (S5). C'est le
@@ -421,7 +422,81 @@ embed `markpage-profile`
     le profil ; les deux satisfont S6 (autonomie). L'embed JSON devient un
     *détail de sérialisation* de l'aplati, plus l'unique voie vers l'autonomie.
 
-## 9. Non-buts & différés
+## 9. Rapport à CSS — emprunts
+
+Le front-matter markpage est déjà *CSS-flavored* : noms en kebab-case
+(`font-heading`, `line-height`, `page-numbers`), le **shorthand `margins`** (1 à
+4 valeurs, ordre CSS), couleurs `#rrggbb`, `weight` 100–900, `align`. Et la
+précédence *clé plate > profil > défaut*
+([FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)) **est** une cascade — que `extends`
+(S4) généralise. Trois emprunts CSS supplémentaires valent d'être notés : chacun
+comble un **trou du modèle actuel**.
+
+### 9.1. Tokens & `var()` — factoriser une valeur dans une couche
+
+Aujourd'hui une couche « papier à en-tête » **répète** `#0b3d91` partout (titres,
+filets, accent) : le `deepMerge` (§4) ne fusionne que des valeurs *concrètes*,
+jamais réutilisées. Les **custom properties** CSS résolvent exactement ça —
+définir un *token* une fois, le référencer par `var()` :
+
+````yaml
+# couche papier-en-tête
+--brand: "#0b3d91"
+--accent: "#c0392b"
+styles.h1.color: var(--brand)
+styles.h2.color: var(--brand)
+quote.borderColor: var(--accent)
+````
+
+::: tip [Pourquoi ça épouse la pile]
+Le token vit dans **une** couche, ses références dans une **autre**. Un courrier
+qui `extends` le papier n'a qu'à redéfinir `--brand: "#1a5f3a"` et **tout le
+dérivé suit**. C'est le chaînon manquant du *DRY-dans-une-couche*.
+:::
+
+### 9.2. `revert` / `unset` / `initial` — dé-poser une valeur héritée
+
+Le `deepMerge` (§4) est **override-only** : un enfant peut *poser* une valeur,
+jamais **dé-poser** celle d'un parent — une feuille est donc *prisonnière* des
+choix de ses ancêtres. CSS a le mot juste : des **valeurs de reset** qui
+*retirent* au lieu de remplacer.
+
+````yaml
+extends: papier-en-tete
+font-heading: revert      # PAS la police de titre du papier
+styles.h1.color: unset    # h1 revient au défaut, pas à la couleur héritée
+````
+
+À spécifier dans les règles de réécriture (§4) : `revert` / `unset` / `initial`
+sont des valeurs **reconnues** par `deepMerge` qui suppriment la clé héritée
+(retour au défaut markpage) plutôt que d'écrire une valeur concrète.
+
+### 9.3. `@layer` — le modèle formel de la pile
+
+Les **cascade layers** CSS (`@layer`) sont *littéralement* la STACK-SPEC : des
+couches **nommées, explicitement ordonnées**, la dernière l'emporte — et
+**orthogonalement** à la spécificité (une couche entière perd face à une couche
+postérieure, quel que soit le poids du sélecteur). C'est le bon vocabulaire pour
+décrire S4, et ça suggère qu'une couche pourrait déclarer son **rôle/nom** —
+utile pour déboguer l'aplati (« cette valeur vient de quelle couche ? »).
+
+### 9.4. À considérer plus tard / à laisser
+
+héritage (inherited vs non-inherited)
+:   Définir `body` comme **base** dont `h1…h6` héritent la police sauf override
+    — réduit la répétition. markpage le fait déjà à demi (`font-body` /
+    `font-heading`).
+
+shorthands ↔ longhands
+:   `margins` est déjà un shorthand ; un `font:` / `border:` suivrait le même
+    principe — avec le piège CSS qu'un shorthand **reset** les longhands non
+    cités.
+
+à laisser de côté
+:   sélecteurs / spécificité complète, `!important`, `@media`, `calc()` — markpage
+    gagne à garder le modèle *par-élément* simple (le coût dépasse le bénéfice).
+
+## 10. Non-buts & différés
 
 ::: caution
 
@@ -432,11 +507,11 @@ embed `markpage-profile`
 - **Boucles / conditionnels** dans les couches — **hors sujet** (ce n'est pas un
   langage de template).
 - **Résolution de la référence** (nom de bibliothèque vs chemin vs URL vs
-  bundle) — **esquissée** seulement (§3.1, §10) ; la sémantique d'aplatissement
+  bundle) — **esquissée** seulement (§3.1, §11) ; la sémantique d'aplatissement
   n'en dépend pas.
 :::
 
-## 10. Questions ouvertes
+## 11. Questions ouvertes
 
 - **Nom de la clé** : `extends` (retenu) vs `base` / `on` / `style` / `from`.
 - **Nom du bloc** : `insert` (retenu) vs `slot` / `content` / `body`.
@@ -445,6 +520,9 @@ embed `markpage-profile`
 - **Fusion des listes** (`customFonts`, header/footer multiples…) : *append* ou
   *replace* ? Probablement *replace* (cohérent avec « l'enfant gagne »), avec une
   syntaxe d'*append* explicite plus tard.
+- **Syntaxe des tokens** (§9.1) : custom properties `--brand` à la CSS, ou un
+  bloc `tokens:` dédié ? Et `var(--x)` admis dans *toutes* les valeurs ou
+  seulement les couleurs / fontes ?
 - **Trous nommés** : `insert nom` côté cadre, `extends` + ciblage côté enfant —
   quelle syntaxe pour « ce contenu va dans tel trou » ?
 - **Résolution & partage** : comment l'appli résout `extends` et **garantit
@@ -454,7 +532,7 @@ embed `markpage-profile`
   de style** (le parent `extends`é), plutôt qu'un état d'appli séparé ? Ce serait
   la dissolution complète du trou d'autonomie.
 
-## 11. Esquisse d'implémentation
+## 12. Esquisse d'implémentation
 
 ::: caution [Conception, pas encore de code]
 Cette section esquisse *comment* on câblerait l'aplatissement ; elle n'engage
