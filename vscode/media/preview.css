@@ -95,6 +95,74 @@ body {
   color: #1c1c1e;
 }
 
+/* ---- EBNF railroad diagrams (```ebnf) -----------------------------------
+   ebnf2railroad SVGs ship loud defaults (green fills, black 3px strokes);
+   override them to match the paper preview. Mirrors src/style.css in the app —
+   without these rules the diagrams render as solid black shapes. */
+#markpage-preview .ebnf-block {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: start;
+  column-gap: 0.5em;
+  row-gap: 0.6em;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.8em auto;
+  padding: 0;
+}
+#markpage-preview .ebnf-block dt,
+#markpage-preview .ebnf-block dd {
+  margin: 0;
+  min-height: 0;
+}
+#markpage-preview .ebnf-block dt {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+  color: #1c1c1e;
+  text-align: right;
+  white-space: nowrap;
+  padding-top: 1.55em;
+}
+#markpage-preview .ebnf-block dt::after {
+  content: ' =';
+  margin-left: 0.2em;
+  color: #666666;
+}
+#markpage-preview .ebnf-block dd {
+  margin: 0;
+  text-align: left;
+}
+#markpage-preview svg.railroad-diagram {
+  background: transparent;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+#markpage-preview svg.railroad-diagram path {
+  stroke-width: 1.5;
+  stroke: #1c1c1e;
+  fill: none;
+}
+#markpage-preview svg.railroad-diagram text {
+  font: 12px var(--font-mono);
+  text-anchor: middle;
+  fill: #1c1c1e;
+}
+#markpage-preview svg.railroad-diagram rect {
+  stroke-width: 1.5;
+  stroke: #1c1c1e;
+  fill: #f6f8fa;
+}
+#markpage-preview .ebnf-error {
+  background: #ffebe9;
+  color: #cf222e;
+  border: 1px solid #cf222e;
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 #markpage-preview blockquote {
   background: transparent;
   border-left: 3px solid #d4d4d8;
