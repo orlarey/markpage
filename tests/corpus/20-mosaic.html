@@ -1,0 +1,27 @@
+<h1 class="doc-title">Mosaic — justified image walls</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A <code>mosaic</code> fence packs whole images (never cropped) into full-width
+rows with no gaps — a clean rectangle. <code>height=</code> tunes the density;
+<code>gap=</code> adds a gutter.</p>
+<figure data-source="```mosaic &quot;A wall of pictures&quot;
+![](img-a.svg)
+![](img-b.svg)
+![](img-c.svg)
+![](img-d.svg)
+![](img-e.svg)
+```" class="captioned captioned-figure"><div class="mosaic-block" data-mosaic="" data-gap="0" data-last="justify"><img class="mosaic-item" src="img-a.svg" alt=""><img class="mosaic-item" src="img-b.svg" alt=""><img class="mosaic-item" src="img-c.svg" alt=""><img class="mosaic-item" src="img-d.svg" alt=""><img class="mosaic-item" src="img-e.svg" alt=""></div>
+
+<figcaption class="caption">Figure 1: A wall of pictures</figcaption></figure>
+<p>With a caption and a gutter:</p>
+<figure data-source="```mosaic &quot;Spaced out&quot; gap=8
+![](img-a.svg)
+![](img-c.svg)
+![](img-e.svg)
+```" class="captioned captioned-figure"><div class="mosaic-block" data-mosaic="" data-gap="8" data-last="justify"><img class="mosaic-item" src="img-a.svg" alt=""><img class="mosaic-item" src="img-c.svg" alt=""><img class="mosaic-item" src="img-e.svg" alt=""></div>
+
+<figcaption class="caption">Figure 2: Spaced out</figcaption></figure>
+<p>A missing image degrades gracefully:</p>
+<div data-source="```mosaic
+![](img-a.svg)
+![](does-not-exist.svg)
+```
+" class="mosaic-block" data-mosaic="" data-gap="0" data-last="justify"><img class="mosaic-item" src="img-a.svg" alt=""><img class="mosaic-item" src="does-not-exist.svg" alt=""></div>

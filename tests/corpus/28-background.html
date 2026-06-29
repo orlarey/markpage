@@ -1,0 +1,25 @@
+<h1 class="doc-title">Page backdrops — <code>::: background</code></h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A <code>::: background</code> block places content <em>behind</em> the page — a full-bleed
+fill, a positioned minipage, or a corner logo. Backdrops show in the
+paginated preview / PDF (not the continuous editor view).</p>
+<p>A full-page fill (no <code>size</code>):</p>
+<div data-source="::: background fill=#0b1f3a
+:::" class="mp-bg" data-bg="{&quot;at&quot;:null,&quot;size&quot;:null,&quot;anchor&quot;:null,&quot;fill&quot;:&quot;#0b1f3a&quot;,&quot;first&quot;:false,&quot;margins&quot;:false}" style="display:block;height:0;overflow:hidden" aria-hidden="true"></div>
+<p>A logo dropped into the top-right corner (<code>at=x,y</code> in [0,1]², <code>size</code> =
+fraction of the page width):</p>
+<div data-source="::: background at=0.92,0.06 size=0.12
+![](img-logo.svg)
+:::" class="mp-bg" data-bg="{&quot;at&quot;:[0.92,0.06],&quot;size&quot;:0.12,&quot;anchor&quot;:null,&quot;fill&quot;:null,&quot;first&quot;:false,&quot;margins&quot;:false}" style="display:block;height:0;overflow:hidden" aria-hidden="true"><p><img src="img-logo.svg" alt=""></p>
+</div>
+<p>A centred title block over a dark cover — a <code>::: style</code> nested inside a
+<code>::: background</code> (four colons on the outer fence so it closes correctly):</p>
+<div data-source=":::: background first at=0.5,0.42 size=0.8
+::: style color=#ffffff align=center size=34pt weight=700
+Annual report
+:::
+::::
+" class="mp-bg" data-bg="{&quot;at&quot;:[0.5,0.42],&quot;size&quot;:0.8,&quot;anchor&quot;:null,&quot;fill&quot;:null,&quot;first&quot;:true,&quot;margins&quot;:false}" style="display:block;height:0;overflow:hidden" aria-hidden="true"><div data-source="::: style color=#ffffff align=center size=34pt weight=700
+Annual report
+:::" class="mp-style mp-style-1"><style>.mp-style-1,.mp-style-1 *{color:#ffffff !important;font-size:34pt !important;font-weight:700 !important;text-align:center !important}</style><p>Annual report</p>
+</div>
+</div>

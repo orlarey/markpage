@@ -1,0 +1,46 @@
+<h1 class="doc-title">Columns — side-by-side layout</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A <code>::: columns</code> fenced div splits its content at each <code>---</code> into equal
+columns. Two <code>---</code> give three columns.</p>
+<div data-source="::: columns
+**Before**
+
+- slow
+- verbose
+- manual
+
+---
+
+**After**
+
+- fast
+- concise
+- automatic
+:::" class="columns-block" style="--columns-count:2"><div class="column"><p><strong>Before</strong></p>
+<ul>
+<li>slow</li>
+<li>verbose</li>
+<li>manual</li>
+</ul>
+</div><div class="column"><p><strong>After</strong></p>
+<ul>
+<li>fast</li>
+<li>concise</li>
+<li>automatic</li>
+</ul>
+</div></div>
+<p>Three columns:</p>
+<div data-source="::: columns
+Column one with a short paragraph.
+
+---
+
+Column two, also short.
+
+---
+
+Column three closes the row.
+:::
+" class="columns-block" style="--columns-count:3"><div class="column"><p>Column one with a short paragraph.</p>
+</div><div class="column"><p>Column two, also short.</p>
+</div><div class="column"><p>Column three closes the row.</p>
+</div></div>

@@ -1,0 +1,28 @@
+<h1 class="doc-title">Local styling — <code>::: style</code></h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A <code>::: style</code> block applies a fixed allowlist of typographic overrides
+(colour, size, font, weight, alignment, italic, underline, line-height)
+to its Markdown body — never arbitrary CSS or HTML.</p>
+<div data-source="::: style color=#0b3d91 size=22pt align=center weight=700
+A blue, 22-point, centred, bold title
+:::" class="mp-style mp-style-1"><style>.mp-style-1,.mp-style-1 *{color:#0b3d91 !important;font-size:22pt !important;font-weight:700 !important;text-align:center !important}</style><p>A blue, 22-point, centred, bold title</p>
+</div>
+<p>The body is ordinary Markdown, and the style cascades into it:</p>
+<div data-source="::: style font=&quot;Lora&quot; color=#333333
+This whole block is Lora grey.
+
+::: style size=20pt italic
+A nested aside — still Lora grey, but larger and italic (the inner
+block wins).
+:::
+" class="mp-style mp-style-2"><style>.mp-style-2,.mp-style-2 *{color:#333333 !important;font-family:'Lora' !important}</style><p>This whole block is Lora grey.</p>
+<p>::: style size=20pt italic
+A nested aside — still Lora grey, but larger and italic (the inner
+block wins).</p>
+</div>
+<p>:::</p>
+<p>A centred caption:</p>
+<div data-source="::: style align=center size=10pt color=#666666
+Figure 1 — a centred caption set small and grey.
+:::
+" class="mp-style mp-style-3"><style>.mp-style-3,.mp-style-3 *{color:#666666 !important;font-size:10pt !important;text-align:center !important}</style><p>Figure 1 — a centred caption set small and grey.</p>
+</div>

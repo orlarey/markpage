@@ -1,0 +1,42 @@
+<h1 class="doc-title">Demo — source beside its rendering</h1><div class="preview-metadata"><div class="bold">Test Author</div><div class="bold">Test Org</div><div>2026-01-01</div></div>
+<p>A <code>demo</code> fence shows a Markdown snippet and its live rendering side by
+side — handy for tutorials and feature showcases. The body is rendered
+through the same pipeline as the document.</p>
+<div data-source="```demo
+A paragraph with **bold**, *italic* and `inline code`, plus inline
+math $a^2 + b^2 = c^2$.
+```" class="demo-block" data-auto-zoom="1"><div class="demo-pane demo-pane-source"><pre><code class="language-markdown"><pre class="hljs"><code class="hljs language-markdown">A paragraph with <span class="hljs-strong">**bold**</span>, <span class="hljs-emphasis">*italic*</span> and <span class="hljs-code">`inline code`</span>, plus inline
+math $a^2 + b^2 = c^2$.</code></pre></code></pre></div><div class="demo-pane demo-pane-rendered"><p>A paragraph with <strong>bold</strong>, <em>italic</em> and <code>inline code</code>, plus inline
+math <span class="math-inline" data-math="a^2 + b^2 = c^2"></span>.</p>
+</div></div>
+<p>A demo of a callout:</p>
+<div data-source="```demo
+::: tip
+Pick the simpler block when two fit.
+:::
+```" class="demo-block" data-auto-zoom="1"><div class="demo-pane demo-pane-source"><pre><code class="language-markdown"><pre class="hljs"><code class="hljs language-markdown">::: tip
+Pick the simpler block when two fit.
+:::</code></pre></code></pre></div><div class="demo-pane demo-pane-rendered"><div data-source="::: tip
+Pick the simpler block when two fit.
+:::" class="admonition admonition-tip"><div class="admonition-title">Astuce</div><div class="admonition-body"><p>Pick the simpler block when two fit.</p>
+</div></div>
+</div></div>
+<p>A demo of a list:</p>
+<div data-source="```demo
+1. First
+2. Second
+   - nested
+   - items
+```
+" class="demo-block" data-auto-zoom="1"><div class="demo-pane demo-pane-source"><pre><code class="language-markdown"><pre class="hljs"><code class="hljs language-markdown"><span class="hljs-bullet">1.</span> First
+<span class="hljs-bullet">2.</span> Second
+<span class="hljs-bullet">   -</span> nested
+<span class="hljs-bullet">   -</span> items</code></pre></code></pre></div><div class="demo-pane demo-pane-rendered"><ol>
+<li>First</li>
+<li>Second<ul>
+<li>nested</li>
+<li>items</li>
+</ul>
+</li>
+</ol>
+</div></div>

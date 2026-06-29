@@ -1,0 +1,144 @@
+% Ce document inclut des diagrammes / graphiques au format SVG.
+% Le package `svg` est nécessaire et inkscape doit être accessible
+% en ligne de commande (passez `--shell-escape` à xelatex).
+
+% markpage — export LaTeX (cible : xelatex ou lualatex).
+% La compilation avec pdflatex échouera : fontspec + UTF-8 natif
+% dans les blocs de code requièrent xelatex / lualatex.
+\documentclass[11pt,a4paper]{article}
+\usepackage{fontspec}
+\IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{}
+\IfFontExistsTF{DejaVu Sans}{\setsansfont{DejaVu Sans}}{}
+\IfFontExistsTF{DejaVu Sans Mono}{\setmonofont{DejaVu Sans Mono}}{}
+\usepackage{svg}
+\IfFileExists{french.ldf}{\usepackage[french]{babel}}{}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage[export]{adjustbox}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[normalem]{ulem}
+\usepackage[breakable,skins]{tcolorbox}
+\usepackage{newunicodechar}
+
+% DejaVu Serif (our main text font) doesn't ship the Unicode
+% math-bracket / logic glyphs that show up in our prose (e.g.
+% explanations of the editor's ligatures). Redirect each known
+% glyph to its LaTeX command via \ensuremath, so it renders
+% from the math font even when typed in normal text.
+\newunicodechar{⟦}{\ensuremath{\llbracket}}
+\newunicodechar{⟧}{\ensuremath{\rrbracket}}
+\newunicodechar{⟨}{\ensuremath{\langle}}
+\newunicodechar{⟩}{\ensuremath{\rangle}}
+\newunicodechar{⊢}{\ensuremath{\vdash}}
+\newunicodechar{⊣}{\ensuremath{\dashv}}
+\newunicodechar{⊨}{\ensuremath{\models}}
+\newunicodechar{⊥}{\ensuremath{\bot}}
+\newunicodechar{⊤}{\ensuremath{\top}}
+\newunicodechar{∀}{\ensuremath{\forall}}
+\newunicodechar{∃}{\ensuremath{\exists}}
+\newunicodechar{∈}{\ensuremath{\in}}
+\newunicodechar{∉}{\ensuremath{\notin}}
+\newunicodechar{∅}{\ensuremath{\emptyset}}
+\newunicodechar{⊂}{\ensuremath{\subset}}
+\newunicodechar{⊆}{\ensuremath{\subseteq}}
+\newunicodechar{⊃}{\ensuremath{\supset}}
+\newunicodechar{⊇}{\ensuremath{\supseteq}}
+\newunicodechar{∪}{\ensuremath{\cup}}
+\newunicodechar{∩}{\ensuremath{\cap}}
+\newunicodechar{∧}{\ensuremath{\land}}
+\newunicodechar{∨}{\ensuremath{\lor}}
+\newunicodechar{¬}{\ensuremath{\neg}}
+\newunicodechar{★}{\ensuremath{\bigstar}}
+\newunicodechar{✓}{\ensuremath{\checkmark}}
+\newunicodechar{✗}{\ensuremath{\times}}
+\newunicodechar{♥}{\ensuremath{\heartsuit}}
+\newunicodechar{♦}{\ensuremath{\diamondsuit}}
+\newunicodechar{♠}{\ensuremath{\spadesuit}}
+\newunicodechar{♣}{\ensuremath{\clubsuit}}
+\newunicodechar{⚠}{\textbf{[!]}}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framesep=4pt,
+}
+
+% Theorem-like environments matching the ::: admonitions (§17 of
+% the markpage SPEC). The shared counter `theorem` keeps lemma /
+% proposition / corollary numbered in the same sequence as the
+% theorems themselves, which is the usual mathematical convention.
+\newtheorem{theorem}{Théorème}
+\newtheorem{lemma}[theorem]{Lemme}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollaire}
+\theoremstyle{definition}
+\newtheorem{definition}{Définition}
+\newtheorem{example}{Exemple}
+\newtheorem{remark}{Remarque}
+
+\title{Charts — native SVG plots}
+\author{Test Author \\ Test Org}
+\date{2026-01-01}
+
+\begin{document}
+\maketitle
+
+The \texttt{chart} fence draws a small SVG chart from inline data. The first
+token picks the kind (\texttt{line} / \texttt{bar}); a quoted title may follow.
+
+
+A bar chart:
+
+
+% chart source (chart bar "Quarterly sales"):
+% Q1, 3
+% Q2, 5
+% Q3, 4
+% Q4, 7
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/chart-1.svg}
+\end{adjustbox}
+\end{center}
+
+
+A line chart with options (\texttt{y-min} / \texttt{y-max}):
+
+
+% chart source (chart line "Temperature" y-min=0 y-max=30):
+% Mon, 12
+% Tue, 18
+% Wed, 21
+% Thu, 16
+% Fri, 24
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/chart-2.svg}
+\end{adjustbox}
+\end{center}
+
+
+A multi-series line chart:
+
+
+% chart source (chart line "Two series"):
+% x, a, b
+% 1, 2, 5
+% 2, 4, 3
+% 3, 6, 6
+% 4, 5, 8
+\begin{center}
+\begin{adjustbox}{max width=\textwidth, max totalheight=0.6\textheight}
+\includesvg{images/chart-3.svg}
+\end{adjustbox}
+\end{center}
+
+\end{document}
