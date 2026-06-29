@@ -81,10 +81,11 @@ des précédences déjà posées : *clés plates > profil*
 de l'enfant s'insère. **En l'absence** de `insert`, le corps de l'enfant
 est **concaténé** après celui du parent.
 
-**S6 — Autonomie par aplatissement.** On **édite** une pile concise (DRY) ; on
-**rend / exporte** l'**aplati**, qui est **autonome**. C'est la réponse au trou
-d'autonomie : la pile est pour l'auteur, l'aplati est pour le partage et le
-rendu.
+**S6 — Autonomie par aplatissement.** On **édite** une pile concise (DRY) ; le
+**rendu** travaille sur l'**aplati** autonome (`render(flatten(L))`). En V1,
+*Enregistrer* persiste la **source** (la pile, `extends` préservé) ; l'**export**
+d'un `.md` autonome — pour le partage — procède du même `flatten`, mais est
+**différé** (§11). La pile est pour l'auteur, l'aplati pour le rendu.
 
 ## 2. Le modèle — une pile de documents
 
@@ -141,11 +142,25 @@ quotedName     = '"', { character }, '"' ;
 identChar      = letter | digit | "-" | "_" | "/" | "." ;
 ```
 
-::: note [Résolution de la référence — esquisse, §12]
-*Comment* `reference` désigne un document (nom dans la bibliothèque ? chemin ?
-URL ? bundle partagé ?) est **laissé ouvert** (lien avec
-[VOLUMES-SPEC](VOLUMES-SPEC.md) et le partage de `.md`). V1 pose la **sémantique**
-(la chaîne, la fusion) indépendamment du **nommage**.
+**Résolution (décidée).** `reference` est un **nom/chemin dans l'espace de noms
+VOLUMES** ([VOLUMES-SPEC](VOLUMES-SPEC.md)), résolu **relativement au volume de
+la feuille** (V3) :
+
+Bibliothèque
+:   un **nom** de document (la Bibliothèque est plate, le nom est la clé) —
+    `extends: papier-en-tete`.
+
+Disque / Dépôt
+:   un **chemin relatif** dans le dossier monté ou le `repo@branche` —
+    `extends: styles/papier.md`.
+
+Le mécanisme **réutilise celui des images** (FILE-MANAGEMENT-SPEC) : la ref est
+résolue une fois, le **binding mémorisé**, avec un **prompt** si la cible est
+introuvable — aucun mécanisme nouveau.
+
+::: note [Différé — refs distantes & versionnage]
+Les refs **URL / distantes** (un « CDN de styles ») et l'**épinglage de
+version** d'un parent partagé sont **hors V1** (§11).
 :::
 
 ### 3.2. Le bloc `insert`
@@ -170,6 +185,14 @@ fence       = "```" ;
 de la feuille `L` vers la racine `Pₙ` ; les front-matters fusionnent **racine →
 feuille** (l'enfant écrase), les corps se replient **feuille → racine** (chaque
 ancêtre **enveloppe** l'accumulé).
+
+::: note [`flatten` est *render-time* — V1]
+`flatten` ne sert qu'au **rendu** (`render(flatten(L))`, S3) et **n'est jamais
+persisté** : *Enregistrer* écrit la **feuille telle quelle** (source, `extends`
+préservé). L'**export autonome** (flatten-on-export) et le **bundle de la
+clôture** `extends` pour partager les couches sont **différés** (§11) — V1
+sauvegarde le `.md` **non aplati**.
+:::
 
 ```algorithm "flatten(L) — calcul du document rendu" \label{alg:flatten}
 Input: document feuille L
@@ -603,9 +626,12 @@ la feuille, sans sélecteur ni provenance.
   différé ; V1 = composition de **contenu**, pas de **paramétrage**.
 - **Boucles / conditionnels** dans les couches — **hors sujet** (ce n'est pas un
   langage de template).
-- **Résolution de la référence** (nom de bibliothèque vs chemin vs URL vs
-  bundle) — **esquissée** seulement (§3.1, §12) ; la sémantique d'aplatissement
-  n'en dépend pas.
+- **Autonomie au partage** — *flatten-on-export* (produire un `.md` autonome) et
+  **bundle de la clôture `extends`** (partager les couches éditables) — différé ;
+  V1 = *Enregistrer* garde la **source non aplatie** (§4, S6). La **résolution**
+  de la référence, elle, est **arrêtée** (§3.1).
+- **Refs distantes & versionnage** — refs **URL** (« CDN de styles ») et
+  **épinglage** d'un parent partagé qui change après coup — hors V1 (§3.1).
 - **Round-trip « DevTools » (modèle D)** — vue calculée + provenance + sélecteur
   de couche cible + « revenir à l'hérité » — différé ; V1 = B, le panneau édite
   **la feuille** (§10).
@@ -626,9 +652,6 @@ la feuille, sans sélecteur ni provenance.
   **arrêtées**, §9.1.)
 - **Trous nommés** : `insert nom` côté cadre, `extends` + ciblage côté enfant —
   quelle syntaxe pour « ce contenu va dans tel trou » ?
-- **Résolution & partage** : comment l'appli résout `extends` et **garantit
-  l'autonomie au partage** — *flatten automatique à l'export* ? bundle de la
-  chaîne ? (lien [VOLUMES-SPEC](VOLUMES-SPEC.md)).
 - **Promotion vers une couche partagée** : depuis B (le panneau édite la
   feuille, §10), quel **geste** extrait un réglage vers un parent `extends`é
   (« créer un style à partir de ces réglages », « pousser cette couleur dans
@@ -642,11 +665,17 @@ pas l'API.
 :::
 
 - **Résolveur de chaîne** : à partir d'une feuille, suivre `extends` (détecter
-  cycles / références manquantes), renvoyer la liste `[L, P₁, …, Pₙ]`.
+  cycles / références manquantes), renvoyer la liste `[L, P₁, …, Pₙ]`. Chaque
+  `extends` est résolu dans l'**espace de noms VOLUMES** (relativement au volume
+  de la feuille, V3), binding mémorisé + prompt sur miss — la machinerie des
+  refs d'images (§3.1).
 - **Moteur d'aplatissement** : `deepMerge` des front-matters (racine → feuille)
   + repli des corps via `insert` (`insertInto`, §4). Fonction **pure**,
   testable au niveau parseur (corpus `tests/corpus/`).
 - **Intégration rendu** : `render(flatten(L))` partout — appli **et** extension
   VS Code, via [`@orlarey/markpage-render`](../packages/markpage-render/) (le
   même point de partage que `paginationCss` / `keepLabelsWithNext`).
-- **Export** : `flatten` est aussi l'opération « exporter un `.md` autonome ».
+- **Persistance (V1)** : *Enregistrer* écrit la **feuille telle quelle** (source,
+  `extends` préservé) ; `flatten` ne tourne qu'au rendu, jamais à la sauvegarde.
+- **Export autonome (différé)** : le même `flatten` produirait un `.md` autonome
+  à partager ; hors V1 (§11).
