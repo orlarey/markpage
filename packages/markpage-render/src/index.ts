@@ -55,7 +55,8 @@ export {
   layoutMosaicBlocks,
 } from './mosaic';
 export { highlightCode, isKnownLanguage } from './highlight';
-export { renderLetterhead, groupLetterheads } from './letterhead';
+export { renderLetterhead, groupLetterheads, letterheadCss } from './letterhead';
+export type { LetterheadGeom } from './letterhead';
 export {
   renderPageRunning,
   applyPageRunningRuns,

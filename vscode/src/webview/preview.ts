@@ -13,6 +13,8 @@ import {
   applyBackgrounds,
   paginationCss,
   keepLabelsWithNext,
+  groupLetterheads,
+  letterheadCss,
 } from '@orlarey/markpage-render';
 import { marked } from 'marked';
 import { parseProfile, profileToCss, type Profile } from './profile-css';
@@ -89,7 +91,8 @@ function pageCss(L: Layout): string {
   // orphans/widows) is shared with the host app via paginationCss() so the two
   // never drift apart.
   return `@page { size: ${L.pageW}mm ${L.pageH}mm; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; ${numbers} }
-    ${paginationCss()}`;
+    ${paginationCss()}
+    ${letterheadCss({ margins: m, pageW: L.pageW, pageH: L.pageH })}`;
 }
 
 /** Apply the layout to the page sheet: font overrides always; in continuous
@@ -370,6 +373,10 @@ async function paginate(token: number): Promise<void> {
   // Snapshot the hydrated content (SVGs included) as the paged.js source.
   const source = document.createElement('div');
   source.innerHTML = root.innerHTML;
+  // Wrap consecutive sender/recipient/signature blocks in a .letterhead-group
+  // (+ reserve vertical space for a window-positioned recipient) so the
+  // letterheadCss() rules apply — same DOM pass the host app runs.
+  groupLetterheads(source);
   // Keep each heading / lead-in with the block that follows it — the reliable
   // half of the orphan-control policy (`break-after: avoid` alone is flaky in
   // paged.js when the next block is tall). Pairs with `.keep-with-next` in

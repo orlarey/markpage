@@ -80,6 +80,112 @@ export function renderLetterhead(
 const IMAGE_LINE_RE = /^!\[[^\]\n]*\]\([^)\n]+\)$/;
 
 /**
+ * Page geometry the letterhead layout needs, in millimetres. `textBlockInner` /
+ * `liveAreaInner` are the Van de Graaf canon inner-margin widths used in
+ * derived margin mode to shift the signature / window recipient by the body's
+ * inner-gutter padding; pass `null`/omit in manual mode (no shift).
+ */
+export interface LetterheadGeom {
+  margins: { top: number; right: number; bottom: number; left: number };
+  pageW: number;
+  pageH: number;
+  textBlockInner?: number | null;
+  liveAreaInner?: number | null;
+}
+
+/**
+ * Purpose: the letterhead *layout* CSS (sender / recipient / signature
+ *   positioning) as a string to splice into the page stylesheet handed to
+ *   paged.js. Shared by the host app ([src/preview-paginated.ts]) and the
+ *   VS Code extension's webview so the two can't drift — the same drift that
+ *   left the extension rendering the recipient stacked under the sender
+ *   instead of at the FR DL envelope window.
+ * How: the positions are computed from the page geometry. The recipient
+ *   window sits at the norm's 110 mm / 40 mm from the A4 edge, resolved
+ *   against `.pagedjs_page_content` (paged.js positions it relative), so the
+ *   profile margins are subtracted. Scoped with `:where(…)` to the paged
+ *   containers of both consumers; `break-*` props inside are best-effort
+ *   (paged.js honours them inconsistently — the real keep is the group wrap).
+ */
+export function letterheadCss(g: LetterheadGeom): string {
+  const m = g.margins;
+  // Derived-mode inner-gutter compensation: how far the body's text block is
+  // pushed in past the live area. 0 in manual mode (canons absent).
+  const gutter =
+    g.textBlockInner != null && g.liveAreaInner != null
+      ? Math.max(0, g.textBlockInner - g.liveAreaInner)
+      : 0;
+  const sigLeft = Math.max(0, 110 - m.left - gutter);
+  const sigImgMaxW = (g.pageW - m.left - m.right) / 4;
+  const winLeft = Math.max(0, 110 - m.left);
+  const winTop = Math.max(0, 40 - m.top);
+  const S = ':where(#preview-pane, #markpage-print-target, #markpage-preview)';
+  return `
+    /* Letterhead — sender / recipient blocks for invoices, devis, courriers.
+       Adjacent siblings are wrapped in a .letterhead-group by groupLetterheads()
+       so the sender + an in-flow ('flow') recipient lay out side-by-side. The
+       default recipient is window-positioned (absolute, FR DL envelope window)
+       and lives outside the flex flow. */
+    ${S} .letterhead-group {
+      display: flex;
+      gap: 4mm;
+      align-items: flex-start;
+      margin: 0 0 1.4em;
+      break-inside: avoid;
+    }
+    ${S} .letterhead {
+      flex: 0 1 calc(50% - 2mm);
+      line-height: 1.4;
+    }
+    /* 'recipient flow' opt-out — recipient stays in the flex flow, right column. */
+    ${S} .letterhead-recipient.letterhead-flow {
+      margin-left: auto;
+    }
+    /* Signature block — left edge aligned with the FR DL window recipient
+       (110 mm from the page edge). position: relative + flex: 0 0 auto so it
+       sizes to its image; the caption overlays bottom-left inside it. */
+    ${S} .letterhead-signature {
+      position: relative;
+      flex: 0 0 auto;
+      margin-left: ${sigLeft}mm;
+      margin-top: 2em;
+      break-inside: avoid;
+    }
+    ${S} .letterhead-signature img {
+      max-width: ${sigImgMaxW}mm;
+      max-height: 30mm;
+    }
+    ${S} .letterhead-signature-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    /* Default recipient: absolute at the FR DL envelope window (left edge at
+       110 mm, top at 40 mm from the A4 edge; coords resolve against
+       .pagedjs_page_content, so subtract the profile margins). */
+    ${S} .letterhead-recipient.letterhead-window {
+      position: absolute;
+      left: ${winLeft}mm;
+      top: ${winTop}mm;
+      width: 85mm;
+      margin: 0;
+      flex: none;
+    }
+    /* The window recipient is out of flow — reserve 70 mm so following content
+       doesn't flow over it. display: block (not the inherited flex) so the
+       absolute recipient anchors on the page, not on the group's variable top. */
+    ${S} .letterhead-group--window {
+      display: block;
+      min-height: 70mm;
+    }
+    ${S} .letterhead-group--window > .letterhead-sender {
+      width: calc(50% - 2mm);
+    }`;
+}
+
+/**
  * Purpose: Wrap runs of consecutive `.letterhead` siblings under `root` in
  *   a `<div class="letterhead-group">` flex container so the sender and an
  *   in-flow recipient lay out side-by-side. If a window-positioned

@@ -10,7 +10,7 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily } from './font-loader';
-import { groupLetterheads, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext } from '@orlarey/markpage-render';
+import { groupLetterheads, letterheadCss, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext } from '@orlarey/markpage-render';
 import { splitLongPreBlocks } from './pre-split';
 import {
   computeCanonicalMargins,
@@ -1133,117 +1133,15 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .admonition { ${blockBoxCss(styles.callout)} ${inlineCss(styles.callout)} }
     ${SCOPE} table { border-collapse: collapse; ${inlineCss(styles.table)} ${blockBoxCss(styles.table)} }
 
-    /* Letterhead — sender / recipient blocks for invoices, devis,
-       courriers. Adjacent siblings are wrapped in a .letterhead-group
-       by groupLetterheads() so the sender + an in-flow ('flow')
-       recipient lay out side-by-side. The default recipient is
-       window-positioned (absolute, calibrated for FR DL envelope
-       window) and lives outside the flex flow. */
-    ${SCOPE} .letterhead-group {
-      display: flex;
-      gap: 4mm;
-      align-items: flex-start;
-      margin: 0 0 1.4em;
-      break-inside: avoid;
-    }
-    ${SCOPE} .letterhead {
-      flex: 0 1 calc(50% - 2mm);
-      line-height: 1.4;
-    }
-    /* 'recipient flow' opt-out — keeps the recipient in normal flex
-       flow as the right column, matching the pre-window default. */
-    ${SCOPE} .letterhead-recipient.letterhead-flow {
-      margin-left: auto;
-    }
-    /* Signature block — left edge aligned with the FR DL window
-       recipient (110 mm from the page edge, the absolute position used
-       by .letterhead-recipient.letterhead-window below). The signature
-       is in flow inside the .pagedjs_page_content wrapper, so the
-       margin-left compensates for both the @page left margin AND any
-       inner-gutter padding the derived-mode body applies on
-       .pagedjs_page_content. Extra top margin separates it from the
-       closing salutation; defensive break-inside: avoid in case the
-       group's own protection is bypassed (single-child groups still
-       get the rule via .letterhead-group).
-       position: relative + flex: 0 0 auto so the block sizes itself to
-       the image (when there is one) — the caption is positioned absolute
-       inside this rectangle (bottom-left), see .letterhead-signature-
-       caption below. Without an image, the renderer falls back to plain
-       br-joined text and the position rules are inert. */
-    ${SCOPE} .letterhead-signature {
-      position: relative;
-      flex: 0 0 auto;
-      margin-left: ${Math.max(
-        0,
-        110 -
-          m.left -
-          (textBlockCanon !== null && liveAreaCanon !== null
-            ? Math.max(0, textBlockCanon.inner - liveAreaCanon.inner)
-            : 0),
-      )}mm;
-      margin-top: 2em;
-      break-inside: avoid;
-    }
-    /* Signature image: cap at 25 % of the page's usable width and 30 mm
-       tall. Without this an A4-scanned signature (typically 100+ mm
-       across at native size) would dwarf the rest of the letter. The
-       existing img rule keeps display:block + object-fit:contain, so
-       width/height auto-scale together to preserve aspect ratio. */
-    ${SCOPE} .letterhead-signature img {
-      max-width: ${(sizeMm.w - m.left - m.right) / 4}mm;
-      max-height: 30mm;
-    }
-    /* Caption overlaid at the bottom-left of the image rectangle (the
-       whole signature block is anchored at the same x as the FR DL
-       window recipient via the .letterhead-signature rule above — so
-       the caption inherits that horizontal offset and only needs
-       left: 0 inside the wrapper).
-       white-space: nowrap stops narrow signatures from word-wrapping
-       each line — explicit <br> between caption lines is preserved.
-       The renderer only emits .letterhead-signature-caption when there
-       is at least one image line in the fence — so the absolute element
-       always has the image as its sibling defining the wrapper's box. */
-    ${SCOPE} .letterhead-signature-caption {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      white-space: nowrap;
-      line-height: 1.2;
-    }
-    /* Default for recipient in window mode: absolute position calibrated
-       for the FR DL envelope window (110x220 mm, fold in Z). The norm:
-       left edge of the address at 110 mm from the A4 edge, top edge at
-       40 mm. Coordinates resolve against .pagedjs_page_content (paged.js
-       positions it as relative natively), so we subtract the profile
-       margins to land at the right absolute spot. */
-    ${SCOPE} .letterhead-recipient.letterhead-window {
-      position: absolute;
-      left: ${Math.max(0, 110 - m.left)}mm;
-      top: ${Math.max(0, 40 - m.top)}mm;
-      width: 85mm;
-      margin: 0;
-      flex: none;
-    }
-    /* The window recipient is out of flow, so the group height is
-       driven by the sender alone. Following content would flow over
-       the recipient — we reserve 70 mm, enough for ~6 address lines
-       plus the 15 mm top offset of the window position.
-       display: block (instead of flex inherited from .letterhead-
-       group): per CSS Flex L1, a flex container is the containing
-       block of its absolutely-positioned children even when it is
-       itself static-positioned. With flex we'd see the recipient
-       anchor on the group (whose top depends on whatever precedes it
-       in the source), not on the page. block side-steps that. */
-    ${SCOPE} .letterhead-group--window {
-      display: block;
-      min-height: 70mm;
-    }
-    /* Without flex, the sender would default to 100 % width. Constrain
-       it explicitly so it can never extend past the recipient's left
-       edge (110 mm). */
-    ${SCOPE} .letterhead-group--window > .letterhead-sender {
-      width: calc(50% - 2mm);
-    }
+    /* Letterhead layout (sender / recipient / signature positioning) — shared
+       with the VS Code extension via letterheadCss() so the two never drift. */
+    ${letterheadCss({
+      margins: m,
+      pageW: sizeMm.w,
+      pageH: sizeMm.h,
+      textBlockInner: textBlockCanon?.inner ?? null,
+      liveAreaInner: liveAreaCanon?.inner ?? null,
+    })}
 
     /* Images: cap both width and height to the page's content area so
        paged.js can always fit them on a page. Without max-height,
