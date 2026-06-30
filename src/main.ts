@@ -1104,12 +1104,33 @@ async function bootstrap(): Promise<void> {
     void checkSync();
   };
 
+  // Default style for new documents (STACK-SPEC §3.4, Acte 5): a library doc the
+  // user designates; "Nouveau document" then seeds `extends: <its name>`. Stored
+  // by uuid (stable across renames); resolved to the current name at create time.
+  const DEFAULT_STYLE_KEY = 'markpage:default-style-uuid';
+  const getDefaultStyleUuid = (): string | null => localStorage.getItem(DEFAULT_STYLE_KEY);
+  const isDefaultStyle = (): boolean => getDefaultStyleUuid() === currentDoc.uuid;
+  const toggleDefaultStyle = (): void => {
+    if (isDefaultStyle()) localStorage.removeItem(DEFAULT_STYLE_KEY);
+    else localStorage.setItem(DEFAULT_STYLE_KEY, currentDoc.uuid);
+  };
+
+  // The starter content for a brand-new doc: empty, or `extends: <default style>`
+  // when one is set and still exists.
+  const newDocStarter = async (): Promise<string> => {
+    const uuid = getDefaultStyleUuid();
+    if (uuid === null) return '';
+    const def = (await listDocs()).find((d) => d.uuid === uuid);
+    return def ? `---\nextends: ${def.name}\n---\n\n` : '';
+  };
+
   const createNewDoc = async (): Promise<void> => {
     await flushSave();
-    const entry = await createDoc('Sans titre');
+    const content = await newDocStarter();
+    const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
-    editor.setValue('');
+    editor.setValue(content);
     dirty = true;
     // Keep the split open — refresh it for the new empty doc.
     if (viewMode === 'preview') void updatePreview(editor.getValue());
@@ -2434,6 +2455,10 @@ async function bootstrap(): Promise<void> {
           },
           onExtractStyle: () => {
             void extractCurrentStyle();
+          },
+          isDefaultStyle: isDefaultStyle(),
+          onToggleDefaultStyle: () => {
+            toggleDefaultStyle();
           },
           onOpen: () => {
             void triggerOpen();

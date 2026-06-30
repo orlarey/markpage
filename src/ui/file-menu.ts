@@ -25,6 +25,9 @@ export interface FileMenuOptions {
   onNew(): void;
   onNewFrom(): void;
   onExtractStyle(): void;
+  // Whether the current doc is the designated default style for new documents.
+  isDefaultStyle: boolean;
+  onToggleDefaultStyle(): void;
   onOpen(): void;
   onSave(): void;
   onSaveAs(): void;
@@ -96,6 +99,11 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('file-menu.new'), '', opts.onNew),
     item(t('file-menu.new-from'), '', opts.onNewFrom),
     item(t('file-menu.extract-style'), '', opts.onExtractStyle),
+    item(
+      opts.isDefaultStyle ? t('file-menu.unset-default-style') : t('file-menu.set-default-style'),
+      '',
+      opts.onToggleDefaultStyle,
+    ),
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
   );
   // Operations on the doc's origin volume (the link is created via Save As).
