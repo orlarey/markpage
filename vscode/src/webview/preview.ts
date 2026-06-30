@@ -15,9 +15,12 @@ import {
   keepLabelsWithNext,
   groupLetterheads,
   letterheadCss,
+  parseStackDoc,
+  resolveTokens,
+  denormalizeProfile,
 } from '@orlarey/markpage-render';
 import { marked } from 'marked';
-import { parseProfile, profileToCss, type Profile } from './profile-css';
+import { profileToCss, type Profile } from './profile-css';
 // Bundled into dist/webview.css by esbuild — the hljs colour theme markpage uses
 // (light) and the @orlarey/blocks DSL styles. media/preview.css adds the paper
 // look + the CSS variables these need, and loads after to win overrides.
@@ -207,6 +210,35 @@ function requestExport(): void {
   else window.print();
 }
 
+/**
+ * Build the per-element profile from the document stack: parse the front-matter
+ * (which explodes a `markpage-profile` embed into dotted keys), resolve
+ * `var(--token)` references, then rebuild a profile. This makes tokens + dotted
+ * `styles.<el>.<attr>` keys work in the preview, exactly as in the app — and
+ * still honours the legacy JSON embed. (Cross-document `extends` needs a file
+ * resolver the webview doesn't have yet, so it's left to the host app.)
+ * Returns null when the document carries no profile-relevant keys, or on a token
+ * error, so the preview falls back to its default theme.
+ */
+function profileFromStack(md: string): Profile | null {
+  let patch;
+  try {
+    patch = denormalizeProfile(resolveTokens(parseStackDoc(md, 'doc').frontmatter));
+  } catch {
+    return null; // undefined token / cycle → fall back to the default theme
+  }
+  if (
+    !patch.fonts &&
+    !patch.styles &&
+    patch.pageSize === undefined &&
+    !patch.margins &&
+    patch.pageNumbers === undefined
+  ) {
+    return null;
+  }
+  return patch as Profile;
+}
+
 async function render(msg: RenderMessage): Promise<void> {
   lastMsg = msg;
   toggleBtn.classList.toggle('active', msg.paginated);
@@ -217,7 +249,7 @@ async function render(msg: RenderMessage): Promise<void> {
   // mathjax-preamble. The body offset keeps scroll-sync line numbers correct.
   const { meta, body } = parseFrontmatter(msg.md);
   const lineOffset = countNewlines(msg.md.slice(0, msg.md.length - body.length));
-  const profile = parseProfile(meta['markpage-profile']);
+  const profile = profileFromStack(msg.md);
   currentLayout = layoutFromMeta(meta, profile);
   profileStyle.textContent = profileToCss(profile);
   applyLayoutToRoot(currentLayout, msg.paginated);

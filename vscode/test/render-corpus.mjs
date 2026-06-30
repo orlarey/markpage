@@ -148,6 +148,29 @@ for (const file of docs) {
   }
 }
 
+// ---- document-stack check: a var(--token) + dotted styles.* key must apply --
+{
+  const md = ['---', '--brand: "#0b3d91"', 'styles.h2.color: var(--brand)', '---', '## Sub', '', 'Body.'].join('\n');
+  await page.evaluate(
+    (m) =>
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { type: 'render', md: m, baseUri: '', paginated: false } }),
+      ),
+    md,
+  );
+  await page.waitForTimeout(800);
+  const color = await page.evaluate(() => {
+    const h2 = document.querySelector('#markpage-preview h2');
+    return h2 ? getComputedStyle(h2).color : null;
+  });
+  if (color === 'rgb(11, 61, 145)') {
+    console.log('  ✓ stack-tokens (var(--brand) → #0b3d91)');
+  } else {
+    failures.push({ name: 'stack-tokens', issues: [`h2 colour is ${color}, expected rgb(11, 61, 145)`] });
+    console.log(`  ✗ stack-tokens — h2 colour is ${color}`);
+  }
+}
+
 await browser.close();
 server.close();
 
