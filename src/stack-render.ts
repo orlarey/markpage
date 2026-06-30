@@ -26,6 +26,43 @@ import {
   type ProfilePatch,
 } from '@orlarey/markpage-render';
 
+/**
+ * Purpose: "Extraire un style" fallback — when the document carries no style
+ *   front-matter of its own (it was styled through the Réglages panel, i.e. the
+ *   active app profile), capture the active profile's *delta from the defaults*
+ *   into the new style layer, and re-parent the document to it.
+ * How: explode both profiles to dotted keys, keep only the keys where the active
+ *   profile differs from the defaults (the user's actual changes); the document
+ *   keeps all its front-matter and gains `extends: <styleName>` (an existing
+ *   chain is preserved as the new style's parent). Returns null when the active
+ *   profile equals the defaults (nothing was changed → nothing to extract).
+ */
+export function extractStyleFromSettings(
+  source: string,
+  styleName: string,
+  activeProfileJson: string,
+  defaultProfileJson: string,
+): { styleMd: string; leafMd: string } | null {
+  const active = normalizeProfile(activeProfileJson);
+  const defaults = normalizeProfile(defaultProfileJson);
+  const styleFm = new Map<string, string>();
+  for (const [key, value] of active) {
+    if (defaults.get(key) !== value) styleFm.set(key, value); // only the changes
+  }
+  if (styleFm.size === 0) return null;
+
+  const leaf = parseStackDoc(source, '__leaf__');
+  const parent = leaf.frontmatter.get('extends');
+  if (parent !== undefined) styleFm.set('extends', parent); // keep the chain
+  const leafFm = new Map(leaf.frontmatter);
+  leafFm.delete('extends');
+  leafFm.set('extends', styleName);
+  return {
+    styleMd: serializeStackDoc(styleFm, ''),
+    leafMd: serializeStackDoc(leafFm, leaf.body),
+  };
+}
+
 import { serializeProfile, type PdfSettings, type PageSize, type Style } from './settings';
 
 /** Resolve an `extends` reference (a document name) to its source, or null. */

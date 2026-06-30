@@ -179,8 +179,8 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applyFrontmatterToSettings, serializeProfile, type PdfSettings } from './settings';
-import { flattenForRender, applyProfilePatch } from './stack-render';
+import { applyFrontmatterToSettings, serializeProfile, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { flattenForRender, applyProfilePatch, extractStyleFromSettings } from './stack-render';
 import {
   createProfile,
   deleteProfile,
@@ -1165,7 +1165,17 @@ async function bootstrap(): Promise<void> {
   // it via `extends`. The current doc stays open as the (now thinner) leaf.
   const extractCurrentStyle = async (): Promise<void> => {
     const proposed = t('extract-style.name', { name: currentDoc.name });
-    const result = extractStyle(editor.getValue(), proposed);
+    const source = editor.getValue();
+    // First the document's own style front-matter; if it has none (it was styled
+    // through the Réglages panel), fall back to the active profile's delta.
+    const result =
+      extractStyle(source, proposed) ??
+      extractStyleFromSettings(
+        source,
+        proposed,
+        serializeProfile(state.settings),
+        serializeProfile(DEFAULT_SETTINGS),
+      );
     if (result === null) {
       globalThis.alert(t('extract-style.empty'));
       return;

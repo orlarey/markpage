@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
-import { flattenForRender, applyProfilePatch } from '../src/stack-render';
+import { flattenForRender, applyProfilePatch, extractStyleFromSettings } from '../src/stack-render';
 import { DEFAULT_SETTINGS } from '../src/settings';
 
 const T = '```'; // a fence, kept out of template literals
@@ -61,6 +61,34 @@ describe('flattenForRender', () => {
     await expect(
       flattenForRender(leaf, { settings: DEFAULT_SETTINGS, resolveByName: noResolve }),
     ).rejects.toThrow();
+  });
+});
+
+describe('extractStyleFromSettings', () => {
+  const defaults = JSON.stringify({
+    fonts: { body: 'Roboto' },
+    styles: { h1: { color: '#000000' } },
+    pageSize: 'A4',
+  });
+
+  it('extracts only the active profile’s delta from the defaults', () => {
+    const active = JSON.stringify({
+      fonts: { body: 'Roboto' },
+      styles: { h1: { color: '#ff0000' } }, // changed
+      pageSize: 'A4',
+    });
+    const r = extractStyleFromSettings('---\ntitle: X\n---\nBody', 'mon-style', active, defaults);
+    expect(r).not.toBeNull();
+    const style = parseStackDoc(r!.styleMd, 's');
+    const leaf = parseStackDoc(r!.leafMd, 'l');
+    expect(style.frontmatter.get('styles.h1.color')).toBe('"#ff0000"');
+    expect(style.frontmatter.has('page-size')).toBe(false); // unchanged → not in the delta
+    expect(leaf.frontmatter.get('title')).toBe('X');
+    expect(leaf.frontmatter.get('extends')).toBe('mon-style');
+  });
+
+  it('returns null when the active profile equals the defaults', () => {
+    expect(extractStyleFromSettings('Body', 'mon-style', defaults, defaults)).toBeNull();
   });
 });
 
