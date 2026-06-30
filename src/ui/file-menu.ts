@@ -24,6 +24,7 @@ export interface FileMenuOptions {
   onUnlink(): void;
   onNew(): void;
   onNewFrom(): void;
+  onExtractStyle(): void;
   onOpen(): void;
   onSave(): void;
   onSaveAs(): void;
@@ -94,6 +95,7 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
   menu.append(
     item(t('file-menu.new'), '', opts.onNew),
     item(t('file-menu.new-from'), '', opts.onNewFrom),
+    item(t('file-menu.extract-style'), '', opts.onExtractStyle),
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
   );
   // Operations on the doc's origin volume (the link is created via Save As).

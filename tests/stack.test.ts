@@ -10,6 +10,7 @@ import {
   denormalizeProfile,
   parseStackDoc,
   serializeStackDoc,
+  extractStyle,
   StackCycleError,
   StackMissingRefError,
   TokenMissingError,
@@ -215,6 +216,41 @@ describe('serializeStackDoc', () => {
 
   it('emits the body alone when the front-matter is empty', () => {
     expect(serializeStackDoc(new Map(), '# Hi')).toBe('# Hi');
+  });
+});
+
+describe('extractStyle', () => {
+  it('splits style keys into a new layer, keeping metadata + body in the leaf', () => {
+    const src = [
+      '---',
+      'title: My letter',
+      '--brand: "#0b3d91"',
+      'styles.h1.color: "#14223a"',
+      '---',
+      '# Body',
+    ].join('\n');
+    const r = extractStyle(src, 'mon-style');
+    expect(r).not.toBeNull();
+    const style = parseStackDoc(r!.styleMd, 's');
+    const leaf = parseStackDoc(r!.leafMd, 'l');
+    expect(style.frontmatter.get('--brand')).toBe('"#0b3d91"');
+    expect(style.frontmatter.get('styles.h1.color')).toBe('"#14223a"');
+    expect(style.frontmatter.has('title')).toBe(false);
+    expect(leaf.frontmatter.get('title')).toBe('My letter');
+    expect(leaf.frontmatter.get('extends')).toBe('mon-style');
+    expect(leaf.frontmatter.has('--brand')).toBe(false);
+    expect(leaf.body).toBe('# Body');
+  });
+
+  it('returns null when there is no style key to extract', () => {
+    expect(extractStyle(['---', 'title: Plain', '---', '# Body'].join('\n'), 's')).toBeNull();
+  });
+
+  it('preserves an existing chain (leaf → new style → former parent)', () => {
+    const src = ['---', 'extends: papier', 'styles.h1.color: "#000"', '---', 'X'].join('\n');
+    const r = extractStyle(src, 'mon-style');
+    expect(parseStackDoc(r!.styleMd, 's').frontmatter.get('extends')).toBe('papier');
+    expect(parseStackDoc(r!.leafMd, 'l').frontmatter.get('extends')).toBe('mon-style');
   });
 });
 

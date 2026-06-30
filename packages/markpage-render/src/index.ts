@@ -49,6 +49,7 @@ export {
   type ProfilePatch,
   parseStackDoc,
   serializeStackDoc,
+  extractStyle,
   StackCycleError,
   StackMissingRefError,
   TokenMissingError,

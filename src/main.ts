@@ -57,7 +57,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter, embedProfileInFrontmatter, parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
+import { parseFrontmatter, embedProfileInFrontmatter, parseStackDoc, extractStyle, type StackDoc } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
@@ -1137,6 +1137,27 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
+  };
+
+  // "Extraire un style" (STACK-SPEC §3.4, the B→C bridge): pull the document's
+  // style front-matter into a new reusable layer and re-parent the document to
+  // it via `extends`. The current doc stays open as the (now thinner) leaf.
+  const extractCurrentStyle = async (): Promise<void> => {
+    const proposed = t('extract-style.name', { name: currentDoc.name });
+    const result = extractStyle(editor.getValue(), proposed);
+    if (result === null) {
+      globalThis.alert(t('extract-style.empty'));
+      return;
+    }
+    const entry = await createDoc(proposed, result.styleMd); // the new style layer
+    const leafMd =
+      entry.name === proposed
+        ? result.leafMd
+        : result.leafMd.replace(`extends: ${proposed}`, `extends: ${entry.name}`);
+    editor.setValue(leafMd);
+    dirty = true;
+    if (viewMode === 'preview') void updatePreview(leafMd);
+    toolbarCtrl.setModified(true);
   };
 
   const renameCurrentDoc = async (newName: string): Promise<void> => {
@@ -2410,6 +2431,9 @@ async function bootstrap(): Promise<void> {
           },
           onNewFrom: () => {
             void createNewDocFrom();
+          },
+          onExtractStyle: () => {
+            void extractCurrentStyle();
           },
           onOpen: () => {
             void triggerOpen();

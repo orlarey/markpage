@@ -590,3 +590,56 @@ export function serializeStackDoc(fm: Map<string, string>, body: string): string
   out.push('---', '', body);
   return out.join('\n');
 }
+
+// ---- extract a style (the B → C bootstrap gesture, STACK-SPEC §3.4) --------
+
+const STYLE_FLAT_KEYS = new Set([
+  'font-body',
+  'font-heading',
+  'font-mono',
+  'page-size',
+  'margins',
+  'page-numbers',
+  'markpage-profile',
+]);
+
+/** Is this a style-bearing front-matter key (vs document metadata / body)? */
+function isStyleKey(key: string): boolean {
+  return key.startsWith('styles.') || key.startsWith('--') || STYLE_FLAT_KEYS.has(key);
+}
+
+/**
+ * Purpose: Split a document's style front-matter out into a reusable style layer
+ *   (STACK-SPEC §3.4 "Extraire un style"): the new style holds the style keys
+ *   (dotted `styles.*`, `--token`, fonts, layout — a `markpage-profile` embed is
+ *   exploded to dotted keys by parsing), the document keeps its metadata + body
+ *   and gains `extends: <styleName>`.
+ * How: partition the keys; a style chain is preserved — if the document already
+ *   `extends`ed something, the new style inherits that parent so the order stays
+ *   document → newStyle → former parent. Returns null when there is nothing to
+ *   extract (no style keys).
+ */
+export function extractStyle(
+  source: string,
+  styleName: string,
+): { styleMd: string; leafMd: string } | null {
+  const doc = parseStackDoc(source, '__leaf__');
+  const styleFm = new Map<string, string>();
+  const leafFm = new Map<string, string>();
+  let parent: string | undefined;
+  for (const [key, value] of doc.frontmatter) {
+    if (key === 'extends') {
+      parent = value;
+      continue;
+    }
+    if (isStyleKey(key)) styleFm.set(key, value);
+    else leafFm.set(key, value);
+  }
+  if (styleFm.size === 0) return null;
+  if (parent !== undefined) styleFm.set('extends', parent); // keep the chain
+  leafFm.set('extends', styleName);
+  return {
+    styleMd: serializeStackDoc(styleFm, ''),
+    leafMd: serializeStackDoc(leafFm, doc.body),
+  };
+}
