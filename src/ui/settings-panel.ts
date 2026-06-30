@@ -11,17 +11,10 @@
 // user keep the preview visible side-by-side and tweak settings in
 // real time. We only fall back here when the popup is blocked.
 
-import { buildSettingsForm, type SettingsProfileHandlers } from './settings-form';
-import type { PdfSettings } from '../settings';
+import { buildSettingsForm, type SettingsFormHandlers } from './settings-form';
 
-/**
- * Purpose: Modal-form callback set — same shape as the popup surface.
- * How: Extends `SettingsProfileHandlers` with `getSettings` + `onChange`.
- */
-export interface SettingsPanelHandlers extends SettingsProfileHandlers {
-  getSettings(): PdfSettings;
-  onChange(s: PdfSettings): void;
-}
+/** Modal-form callback set — the full settings-form handler set. */
+export type SettingsPanelHandlers = SettingsFormHandlers;
 
 /**
  * Purpose: Mount the in-app Réglages overlay, single-instance.

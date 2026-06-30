@@ -2041,6 +2041,22 @@ body,
    `buildLayoutValidationMessages` in settings-form.ts. Warnings are
    informational (the configuration still renders), errors block save
    in the §9.6 derived-margins flow. */
+/* "Style parent" (extends) control — STACK-SPEC §12.1. */
+.settings-panel .parent-style-intro {
+  margin: 0 0 0.6rem;
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.settings-panel .parent-style-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.settings-panel .parent-style-value {
+  font-weight: 600;
+}
+
 .settings-panel .field-warning,
 .settings-panel .field-error {
   margin: 0.2rem 0 0;

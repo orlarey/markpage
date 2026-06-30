@@ -89,6 +89,10 @@ export interface SettingsProfileHandlers {
 export interface SettingsFormHandlers extends SettingsProfileHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
+  // The document's parent style (its `extends`), and a request to change it —
+  // opens the layer picker and writes the leaf's front-matter (STACK-SPEC §12.1).
+  getParentStyle(): string | null;
+  onChangeParentStyle(): void;
 }
 
 /**
@@ -220,6 +224,12 @@ export function buildSettingsForm(
       {
         titleKey: 'rail.group.document',
         items: [
+          {
+            // "Style parent" (extends) — the document's place in the stack.
+            id: 'doc-style',
+            label: t('settings.section.parent-style'),
+            build: () => [buildParentStyleSection()],
+          },
           {
             // Single merged "Page" rail item: format + canon-driven
             // layout + the four mm margins live together because the
@@ -617,6 +627,34 @@ export function buildSettingsForm(
     span.textContent = label;
     wrap.append(span, control);
     return wrap;
+  }
+
+  // "Style parent" — the document's `extends` (STACK-SPEC §12.1). Surfaces the
+  // parent layer the document inherits from, with a button to change it (opens
+  // the layer picker, which writes the leaf's front-matter). Doesn't touch
+  // `current` (PdfSettings): the parent lives in the document's `.md`.
+  function buildParentStyleSection(): HTMLElement {
+    const parent = handlers.getParentStyle();
+    const value = doc.createElement('span');
+    value.className = 'parent-style-value';
+    value.textContent = parent ?? t('settings.parent-style.none');
+    const change = doc.createElement('button');
+    change.type = 'button';
+    change.textContent = t('settings.parent-style.change');
+    change.addEventListener('click', () => handlers.onChangeParentStyle());
+    const control = doc.createElement('div');
+    control.className = 'parent-style-control';
+    control.append(value, change);
+
+    const intro = doc.createElement('p');
+    intro.className = 'parent-style-intro';
+    intro.textContent = t('settings.parent-style.intro');
+
+    const sec = section(t('settings.section.parent-style'), [
+      row(t('settings.field.parent-style'), control),
+    ]);
+    sec.insertBefore(intro, sec.children[1] ?? null);
+    return sec;
   }
 
   // GitHub-sync section (docs/GITHUB-SYNC-SPEC.md, Phase 2). Unlike every

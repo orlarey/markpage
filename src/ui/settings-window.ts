@@ -15,22 +15,15 @@
 // Falls back to the in-app overlay (settings-panel.ts) when the
 // popup is blocked.
 
-import { buildSettingsForm, type SettingsProfileHandlers } from './settings-form';
+import { buildSettingsForm, type SettingsFormHandlers } from './settings-form';
 import { openSettingsPanel } from './settings-panel';
 import { t } from '../i18n/strings';
-import type { PdfSettings } from '../settings';
 // Bundling the whole app stylesheet keeps the popup visually
 // consistent with the parent — same colours, same field layout.
 import appCss from '../style.css?inline';
 
-/**
- * Purpose: Detached-window callback set — same shape as the modal surface.
- * How: Extends `SettingsProfileHandlers` with `getSettings` + `onChange`.
- */
-export interface SettingsWindowHandlers extends SettingsProfileHandlers {
-  getSettings(): PdfSettings;
-  onChange(s: PdfSettings): void;
-}
+/** Detached-window callback set — the full settings-form handler set. */
+export type SettingsWindowHandlers = SettingsFormHandlers;
 
 let currentWindow: Window | null = null;
 let currentRefresh: (() => void) | null = null;

@@ -14,11 +14,28 @@ import { t } from '../i18n/strings';
 
 const OVERLAY_ID = 'new-from-overlay';
 
-/** Resolve with the chosen document name, or null when cancelled. */
-export function openNewFromModal(docs: { uuid: string; name: string }[]): Promise<string | null> {
+/** Options for reusing the picker as a "Style parent" chooser. */
+export interface NewFromModalOptions {
+  /** Override the heading (default: the "Nouveau à partir de…" title). */
+  title?: string;
+  /** When set, a top entry that resolves with `''` (clear / no parent). */
+  noneLabel?: string;
+  /** Name of the currently-selected document, marked in the list. */
+  currentName?: string | null;
+}
+
+/**
+ * Resolve with the chosen document name, `''` when the "none" entry is picked
+ * (only when `noneLabel` is given), or `null` when cancelled.
+ */
+export function openNewFromModal(
+  docs: { uuid: string; name: string }[],
+  opts: NewFromModalOptions = {},
+): Promise<string | null> {
   document.getElementById(OVERLAY_ID)?.remove();
 
   return new Promise<string | null>((resolve) => {
+    const heading = opts.title ?? t('new-from.title');
     const overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
     overlay.className = 'missing-resources-overlay';
@@ -26,10 +43,10 @@ export function openNewFromModal(docs: { uuid: string; name: string }[]): Promis
     const panel = document.createElement('div');
     panel.className = 'missing-resources-panel';
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', t('new-from.title'));
+    panel.setAttribute('aria-label', heading);
 
     const title = document.createElement('h2');
-    title.textContent = t('new-from.title');
+    title.textContent = heading;
     panel.append(title);
 
     let done = false;
@@ -41,7 +58,18 @@ export function openNewFromModal(docs: { uuid: string; name: string }[]): Promis
       resolve(name);
     };
 
-    if (docs.length === 0) {
+    const entry = (label: string, value: string, marked: boolean): HTMLElement => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'file-menu-item';
+      btn.textContent = marked ? `✓ ${label}` : label;
+      btn.addEventListener('click', () => finish(value));
+      li.append(btn);
+      return li;
+    };
+
+    if (docs.length === 0 && opts.noneLabel === undefined) {
       const empty = document.createElement('p');
       empty.className = 'intro';
       empty.textContent = t('new-from.empty');
@@ -49,15 +77,11 @@ export function openNewFromModal(docs: { uuid: string; name: string }[]): Promis
     } else {
       const list = document.createElement('ul');
       list.className = 'missing-list';
+      if (opts.noneLabel !== undefined) {
+        list.append(entry(opts.noneLabel, '', !opts.currentName)); // '' = clear
+      }
       for (const doc of docs) {
-        const li = document.createElement('li');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'file-menu-item';
-        btn.textContent = doc.name;
-        btn.addEventListener('click', () => finish(doc.name));
-        li.append(btn);
-        list.append(li);
+        list.append(entry(doc.name, doc.name, doc.name === opts.currentName));
       }
       panel.append(list);
     }

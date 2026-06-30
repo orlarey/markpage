@@ -193,6 +193,13 @@ const FR = {
   'settings.section.math': 'Formules mathématiques',
   'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Langue du document',
+  'settings.section.parent-style': 'Style parent',
+  'settings.field.parent-style': 'Couche parente',
+  'settings.parent-style.none': 'Aucun (défauts)',
+  'settings.parent-style.change': 'Changer…',
+  'settings.parent-style.intro':
+    'Ce document hérite de l’apparence de sa couche parente (son `extends`). Change-la ici.',
+  'settings.parent-style.pick-title': 'Style parent du document',
   'settings.section.page-format': 'Format de page',
 
   // ---- layout section (SPEC §9.5 / §9.6 / §9.7) --------------------
@@ -621,6 +628,13 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.section.math': 'Math formulas',
   'settings.section.ui-language': 'Interface',
   'settings.field.doc-language': 'Document language',
+  'settings.section.parent-style': 'Parent style',
+  'settings.field.parent-style': 'Parent layer',
+  'settings.parent-style.none': 'None (defaults)',
+  'settings.parent-style.change': 'Change…',
+  'settings.parent-style.intro':
+    'This document inherits the look of its parent layer (its `extends`). Change it here.',
+  'settings.parent-style.pick-title': 'Document parent style',
   'settings.section.page-format': 'Page format',
 
   // ---- layout section (SPEC §9.5 / §9.6 / §9.7) --------------------

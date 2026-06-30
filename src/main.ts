@@ -180,7 +180,13 @@ import {
   writeFileHandle,
 } from './disk-link';
 import { applyFrontmatterToSettings, serializeProfile, DEFAULT_SETTINGS, type PdfSettings } from './settings';
-import { flattenForRender, applyProfilePatch, extractStyleFromSettings } from './stack-render';
+import {
+  flattenForRender,
+  applyProfilePatch,
+  extractStyleFromSettings,
+  getExtendsFromSource,
+  setExtendsInSource,
+} from './stack-render';
 import {
   createProfile,
   deleteProfile,
@@ -1137,6 +1143,24 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
+  };
+
+  // "Style parent" in Réglages (STACK-SPEC §12.1): pick the layer the current
+  // document `extends`, writing it into the leaf's front-matter (the round-trip).
+  const changeParentStyle = async (): Promise<void> => {
+    const docs = (await listDocs())
+      .filter((d) => d.uuid !== currentDoc.uuid)
+      .map((d) => ({ uuid: d.uuid, name: d.name }));
+    const picked = await openNewFromModal(docs, {
+      title: t('settings.parent-style.pick-title'),
+      noneLabel: t('settings.parent-style.none'),
+      currentName: getExtendsFromSource(editor.getValue()),
+    });
+    if (picked === null) return; // cancelled
+    editor.setValue(setExtendsInSource(editor.getValue(), picked === '' ? null : picked));
+    dirty = true;
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
+    refreshSettingsForm?.(); // reflect the new parent in the open form
   };
 
   // "Nouveau à partir de…" (STACK-SPEC §3.4): pick a library doc, create a new
@@ -2365,6 +2389,10 @@ async function bootstrap(): Promise<void> {
     const handle = openSettingsWindow({
       getSettings: () => state.settings,
       onChange: handleSettingsChange,
+      getParentStyle: () => getExtendsFromSource(editor.getValue()),
+      onChangeParentStyle: () => {
+        void changeParentStyle();
+      },
       ...profileHandlers,
     });
     refreshSettingsForm = handle?.refresh ?? null;

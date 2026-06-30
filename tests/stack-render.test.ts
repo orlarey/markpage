@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
-import { flattenForRender, applyProfilePatch, extractStyleFromSettings } from '../src/stack-render';
+import {
+  flattenForRender,
+  applyProfilePatch,
+  extractStyleFromSettings,
+  getExtendsFromSource,
+  setExtendsInSource,
+} from '../src/stack-render';
 import { DEFAULT_SETTINGS } from '../src/settings';
 
 const T = '```'; // a fence, kept out of template literals
@@ -89,6 +95,34 @@ describe('extractStyleFromSettings', () => {
 
   it('returns null when the active profile equals the defaults', () => {
     expect(extractStyleFromSettings('Body', 'mon-style', defaults, defaults)).toBeNull();
+  });
+});
+
+describe('getExtendsFromSource / setExtendsInSource', () => {
+  it('reads the extends value, or null', () => {
+    expect(getExtendsFromSource('---\nextends: papier\n---\nBody')).toBe('papier');
+    expect(getExtendsFromSource('---\ntitle: X\n---\nBody')).toBeNull();
+    expect(getExtendsFromSource('# No front-matter')).toBeNull();
+  });
+
+  it('sets extends — replacing, inserting, or creating the front-matter', () => {
+    // replace
+    expect(setExtendsInSource('---\nextends: old\ntitle: X\n---\nB', 'new')).toBe(
+      '---\nextends: new\ntitle: X\n---\nB',
+    );
+    // insert into existing front-matter (after the opening fence)
+    expect(setExtendsInSource('---\ntitle: X\n---\nB', 'papier')).toBe(
+      '---\nextends: papier\ntitle: X\n---\nB',
+    );
+    // create front-matter when absent
+    expect(setExtendsInSource('# Hi', 'papier')).toBe('---\nextends: papier\n---\n\n# Hi');
+  });
+
+  it('clears extends with null, leaving the rest intact', () => {
+    expect(setExtendsInSource('---\nextends: papier\ntitle: X\n---\nB', null)).toBe(
+      '---\ntitle: X\n---\nB',
+    );
+    expect(setExtendsInSource('---\ntitle: X\n---\nB', null)).toBe('---\ntitle: X\n---\nB');
   });
 });
 

@@ -122,6 +122,62 @@ export async function flattenForRender(
 }
 
 /**
+ * Purpose: Read a document's `extends` (its parent style), or null if it has none.
+ * How: a targeted scan of the front-matter block — no full re-parse, so it works
+ *   on the live editor text.
+ */
+export function getExtendsFromSource(source: string): string | null {
+  const lines = source.split('\n');
+  if (lines[0]?.trim() !== '---') return null;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') return null; // end of front-matter, not found
+    const m = /^extends\s*:\s*(.*)$/.exec(lines[i]);
+    if (m) return m[1].trim() || null;
+  }
+  return null;
+}
+
+/**
+ * Purpose: Set (or clear, with `null`) a document's `extends` key — the
+ *   round-trip write of the "Style parent" control (STACK-SPEC §12.1).
+ * How: a targeted front-matter edit that touches only the `extends:` line,
+ *   preserving the rest of the front-matter and the body verbatim. Creates the
+ *   front-matter block when absent and a parent is given.
+ */
+export function setExtendsInSource(source: string, parent: string | null): string {
+  const lines = source.split('\n');
+  const hasFm = lines[0]?.trim() === '---';
+  if (!hasFm) {
+    return parent === null ? source : `---\nextends: ${parent}\n---\n\n${source}`;
+  }
+  let end = -1;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') {
+      end = i;
+      break;
+    }
+  }
+  if (end === -1) {
+    return parent === null ? source : `---\nextends: ${parent}\n---\n\n${source}`;
+  }
+  let idx = -1;
+  for (let i = 1; i < end; i += 1) {
+    if (/^extends\s*:/.test(lines[i])) {
+      idx = i;
+      break;
+    }
+  }
+  if (parent === null) {
+    if (idx !== -1) lines.splice(idx, 1);
+  } else if (idx === -1) {
+    lines.splice(1, 0, `extends: ${parent}`); // right after the opening fence
+  } else {
+    lines[idx] = `extends: ${parent}`;
+  }
+  return lines.join('\n');
+}
+
+/**
  * Purpose: Fold a stack profile patch into PdfSettings — the per-element styles,
  *   fonts, and layout — so the existing renderer applies the stacked result.
  * How: shallow-merge fonts; deep-merge styles per element/attribute (the patch
