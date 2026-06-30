@@ -58,12 +58,14 @@ Le design évolue **par invariants**, posés un par un (méthodo
 **S1 — Tout est document.** Un style, un preset, un template, un papier à
 en-tête **est un document markpage ordinaire** (front-matter + corps), souvent
 **réduit à un front-matter**. **Aucun type spécial**, aucun nouveau format : les
-mêmes règles de rendu s'appliquent à une couche de style et à une lettre.
+mêmes règles de rendu s'appliquent à une couche de style et à une lettre. Même
+la **racine** est un document : `default.md` (§3.1).
 
-**S2 — Récursivité & chaînage.** Un document **référence un parent** par la clé
-de front-matter **`extends`**. La profondeur est **arbitraire** (lettre →
-courrier → papier à en-tête → …). La résolution **suit la chaîne** jusqu'à la
-**racine** (le document sans `extends`).
+**S2 — Récursivité & chaînage.** **Tout** document **référence un parent** par la
+clé de front-matter **`extends`** — un champ à **valeur par défaut** (`default.md`).
+La profondeur est **arbitraire** (lettre → courrier → papier à en-tête → …). La
+résolution **suit la chaîne** jusqu'à **`default.md`**, dont l'`extends` pointe
+sur **lui-même** (le point fixe, §3.1).
 
 **S3 — Aplatissement déterministe.** Le rendu d'une feuille `L` est
 `render(flatten(L))`, où **`flatten`** est une **fonction pure** (§5) produisant
@@ -118,9 +120,9 @@ couche (layer)
     trou `insert`).
 
 racine (root)
-:   La couche authorée **sans `extends`** — elle s'assied sur le **socle**
-    built-in (§3). Porte les défauts authorés les plus génériques et le cadre le
-    plus externe.
+:   **`default.md`** — le document dont l'`extends` pointe sur **lui-même** (le
+    point fixe). Tout document y aboutit ; il porte les défauts d'usine.
+    Auto-généré, lecture seule (§3.1).
 
 feuille (leaf)
 :   Le document qu'on **édite et rend**. Le plus spécifique ; **gagne** sur tous
@@ -128,14 +130,16 @@ feuille (leaf)
 
 ## 3. L'arbre des styles et le bootstrap
 
-Au-dessus du **socle** built-in, l'utilisateur **construit** ses documents
+Au-dessus de la racine `default.md`, l'utilisateur **construit** ses documents
 Markdown réutilisables — styles, papiers à en-tête, templates. Reliés par
 `extends` (**un seul parent** par document), ils forment un **arbre** dont la
-racine est le socle.
+racine est **`default.md`**.
 
 ```mermaid
 flowchart TB
-  socle["socle<br>(built-in, figé)"] --> sm["style-maison"]
+  default["default.md<br>(racine, lecture seule)"]
+  default -->|extends| default
+  default --> sm["style-maison"]
   sm --> pe["papier-en-tete"]
   pe --> ct["courrier-type"]
   ct --> l1["lettre au maire"]
@@ -144,8 +148,9 @@ flowchart TB
   ni --> cr["CR réunion du 12"]
 ```
 
-socle
-:   la **racine built-in, figée** (§3.1).
+`default.md`
+:   la **racine** — son `extends` pointe sur **lui-même** (le point fixe) ;
+    auto-généré, lecture seule (§3.1).
 
 `style-maison`, `papier-en-tete`, `courrier-type`, `note-interne`
 :   les **couches réutilisables** — le « dossier spécial » — à **toute
@@ -156,26 +161,33 @@ socle
     choisie. « Choisir un style » = choisir le **parent** d'une nouvelle feuille,
     pas se poser sur un nœud existant.
 
-`flatten`(ton doc) est le **chemin de ta feuille jusqu'au socle**, fusionné de
-haut en bas (§5).
+`flatten`(ton doc) est le **chemin de ta feuille jusqu'à `default.md`**, fusionné
+de haut en bas (§5).
 
-### 3.1. Le socle (racine built-in, figée)
+### 3.1. Le document racine `default.md`
 
-Le **socle** est l'ensemble des **défauts d'usine** de markpage (`page-size`,
-`margins`, fontes, la matrice de style par défaut). Il est **built-in**, **en
-lecture seule**, et **n'est pas un document** — c'est le **seul nœud
-non-document** de l'arbre, sa racine. *(L'unique entorse à S1 : tout ce qu'on*
-authore *est un `.md` ; le socle, lui, est le fond fourni par l'appli.)*
+La racine de l'arbre est un **vrai document**, `default.md`, **auto-généré** par
+l'appli à partir de ses **valeurs d'usine hard-codées**. Il fixe une valeur par
+défaut pour **chaque** champ de front-matter (`page-size`, `margins`, fontes, la
+matrice de style…) — *y compris* `extends`, dont le défaut est **`default.md`** :
+son `extends` **pointe sur lui-même**.
 
-Un document **sans `extends`** s'assied **directement** dessus :
-`flatten(socle → feuille)`. Un **doc vierge** a donc un front-matter **vide** et
-se rend entièrement depuis le socle — exactement le comportement actuel, enfin
-nommé. C'est le « défauts markpage » qu'affiche le panneau Réglages (§11).
+**Omettre** un champ = hériter de la valeur de `default.md`. Omettre `extends`
+vaut donc **`extends: default.md`** : tout document s'enracine dans `default.md`
+sans rien écrire. Un **doc vierge** a un front-matter **vide** et se rend
+entièrement depuis `default.md` — le comportement actuel, enfin nommé. C'est le
+« défauts markpage » qu'affiche le panneau Réglages (§11).
 
-::: note [Le socle n'est pas éditable]
-On ne modifie **jamais** le socle — sinon un `.md` ne se rendrait pareil que chez
-qui a le même socle, et on rouvrirait le trou d'autonomie. Pour un look
-personnel, on **construit au-dessus** (§3.3).
+Cette auto-référence est le **point fixe** de la résolution : la remontée de la
+chaîne s'y arrête (le **cas de base** — le seul cycle autorisé, §8). C'est le
+`/` de l'arbre des styles : le parent de `/` est `/`.
+
+::: note [`default.md` est géré par l'appli]
+`default.md` est **régénéré** depuis les valeurs hard-codées (à l'install, à
+chaque montée de version) et reste en **lecture seule** : on ne l'édite jamais —
+sinon un `.md` ne se rendrait pareil que chez qui a le même `default.md`, et le
+trou d'autonomie se rouvrirait. Pour un look personnel, on **construit au-dessus**
+(§3.3). **S1 reste pur** : même la racine est un document.
 :::
 
 ### 3.2. Étendre est universel ; « style » = curation
@@ -204,7 +216,7 @@ La **résolution** (§4.1) reste **par nom**, indépendante du drapeau.
 De l'install vierge à une bibliothèque réutilisable.
 
 **Acte 0 — Rien.** *Nouveau document* : front-matter **vide**, Réglages montre
-tout en « hérité » (du socle). On écrit.
+tout en « hérité » (de `default.md`). On écrit.
 
 **Acte 1 — Un *style maison*.** On règle titres / corps / accent dans Réglages
 (écrit dans la feuille, marqué « local »). Geste **« Extraire un style »** : le
@@ -232,7 +244,7 @@ ajoute `signature` + son propre `insert`.
 
 **Acte 4 — Réutiliser.** *Nouveau → à partir de `courrier-type`* → une feuille
 sous `courrier-type`, corps vide. On écrit la lettre. Rendu = lettre ⊂ courrier ⊂
-papier ⊂ style ⊂ socle.
+papier ⊂ style ⊂ `default.md`.
 
 **Acte 5 — Le défaut perso.** Si la plupart des docs partent de `style-maison`,
 on pose *« style par défaut des nouveaux documents = style-maison »* : *Nouveau
@@ -328,10 +340,10 @@ sauvegarde le `.md` **non aplati**.
 Input: document feuille L
 Output: document aplati (front-matter fusionné, corps replié), auto-suffisant
 
-chaine ← [L]                          ▷ … puis P1, P2, …, Pn (racine en dernier)
+chaine ← [L]                          ▷ … puis P1, …, default.md (en dernier)
 n ← L
-while n possède une clé extends do
-  n ← resoudre(n.extends)             ▷ §13 ; ERREUR si cycle ou référence absente
+while resoudre(n.extends) ≠ n do      ▷ s'arrête au point fixe : default.md extends lui-même
+  n ← resoudre(n.extends)             ▷ §13 ; ERREUR si cycle (autre que le point fixe) ou réf absente
   chaine ← chaine ++ [n]
 end
 
@@ -376,7 +388,7 @@ L'`extends` **étend** la chaîne de précédence existante, sans la contredire 
 
 ```mermaid
 flowchart LR
-  R["racine<br>(défauts)"] --> P["… ancêtres …"] --> F["feuille<br>(front-matter)"] --> S["::: style local<br>(intra-document)"]
+  R["default.md<br>(racine)"] --> P["… ancêtres …"] --> F["feuille<br>(front-matter)"] --> S["::: style local<br>(intra-document)"]
 ```
 
 Du **moins** au **plus** spécifique : **racine → … → feuille → `::: style`
@@ -524,7 +536,9 @@ signature (courrier). La **récursivité fait tout** — aucune option spéciale
 cycle
 :   `A extends B`, `B extends A` (ou plus long) → **erreur** signalée (bloc rouge
     type `::: caution`), pas de boucle infinie. `flatten` détecte le maillon déjà
-    vu.
+    vu. **Seule exception** : l'auto-référence `default.md extends default.md`,
+    qui est le **cas de base** de la résolution (le point fixe, §3.1) — pas une
+    erreur. Toute autre auto-référence ou cycle reste une erreur.
 
 référence manquante
 :   `extends: inexistant` → **erreur** visible ; option de **fallback** (rendre
@@ -690,8 +704,8 @@ shorthands ↔ longhands
 **Décision (V1).** Le panneau **Réglages** **lit la pile** et **écrit la
 feuille** :
 
-- **Affichage = valeurs calculées.** Le panneau montre `flatten`( défauts
-  markpage → ancêtres `extends` → feuille ) — le **même `flatten` que le rendu**
+- **Affichage = valeurs calculées.** Le panneau montre `flatten`( `default.md`
+  → ancêtres `extends` → feuille ) — le **même `flatten` que le rendu**
   (§5). Le front-matter de la feuille est le **delta du dessus**. Sans ça, un
   document qui `extends` une couche riche montrerait un panneau quasi **vide**,
   déconnecté de son rendu.
