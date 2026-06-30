@@ -95,6 +95,7 @@ import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
+import { openNewFromModal } from './ui/new-from-modal';
 import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
@@ -1111,6 +1112,27 @@ async function bootstrap(): Promise<void> {
     editor.setValue('');
     dirty = true;
     // Keep the split open — refresh it for the new empty doc.
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
+    toolbarCtrl.setModified(false);
+    toolbarCtrl.setOrigin(null);
+    toolbarCtrl.setDocName(entry.name);
+  };
+
+  // "Nouveau à partir de…" (STACK-SPEC §3.4): pick a library doc, create a new
+  // one that `extends` it — inheriting its frame + styles via the stack.
+  const createNewDocFrom = async (): Promise<void> => {
+    const docs = (await listDocs())
+      .filter((d) => d.uuid !== currentDoc.uuid)
+      .map((d) => ({ uuid: d.uuid, name: d.name }));
+    const parent = await openNewFromModal(docs);
+    if (parent === null) return;
+    await flushSave();
+    const content = `---\nextends: ${parent}\n---\n\n`;
+    const entry = await createDoc('Sans titre', content);
+    currentDoc = entry;
+    await setCurrentDocId(entry.uuid);
+    editor.setValue(content);
+    dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
@@ -2385,6 +2407,9 @@ async function bootstrap(): Promise<void> {
           },
           onNew: () => {
             void createNewDoc();
+          },
+          onNewFrom: () => {
+            void createNewDocFrom();
           },
           onOpen: () => {
             void triggerOpen();
