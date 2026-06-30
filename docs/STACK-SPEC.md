@@ -12,7 +12,7 @@ date: 2026-06-29
 > en généralise la précédence. Rien n'est implémenté ; on **spécifie**. À terme
 > référencé depuis [AI-AUTHORING.md](../AI-AUTHORING.md) et
 > [FEATURES.md](../FEATURES.md). Implémentation à venir : un **résolveur de
-> chaîne `extends`** + un **moteur d'aplatissement** (deepMerge des front-matters
+> chaîne `extends`** + un **moteur d'aplatissement** (merge des front-matters
 > + repli des corps via `insert`) dans
 > [`@orlarey/markpage-render`](../packages/markpage-render/), **partagé** appli
 > ↔ extension VS Code.
@@ -342,7 +342,7 @@ styles.quote.borderColor: "#888"
 
 C'est la **forme canonique** : elle reste dans le sous-ensemble *clés scalaires
 plates* de [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md) (une clé pointée **n'est pas**
-un dict imbriqué), elle est **lisible / greppable / diffable**, et le `deepMerge`
+un dict imbriqué), elle est **lisible / greppable / diffable**, et le `merge`
 (§5) fusionne **par attribut** sans effort (un parent qui pose `styles.h1.color`
 et un enfant qui pose `styles.h1.fontSize` donnent un `h1` avec les deux). Une
 **feuille** ne porte que ses **deltas** (`default.md` porte, lui, la matrice
@@ -358,9 +358,9 @@ désormais des clés pointées. C'est ce qui ferme l'opacité visée par le roun
 ## 5. Aplatissement (règles de réécriture)
 
 `flatten` est défini par deux règles de réécriture pures. La **chaîne** se lit
-de la feuille `L` vers la racine `Pₙ` ; les front-matters fusionnent **racine →
-feuille** (l'enfant écrase), les corps se replient **feuille → racine** (chaque
-ancêtre **enveloppe** l'accumulé).
+de la feuille `L` vers la racine `default.md` ; les front-matters fusionnent
+**racine → feuille** (l'enfant écrase), les corps se replient **feuille → racine**
+(chaque ancêtre **enveloppe** l'accumulé).
 
 ::: note [`flatten` est *render-time* — V1]
 `flatten` ne sert qu'au **rendu** (`render(flatten(L))`, S3) et **n'est jamais
@@ -381,13 +381,17 @@ while resoudre(n.extends) ≠ n do      ▷ s'arrête au point fixe : default.md
   chaine ← chaine ++ [n]
 end
 
+defaultFm ← frontMatter(dernier de chaine)   ▷ = default.md (les valeurs d'usine)
 fm ← {}                               ▷ S4 : l'enfant gagne
-for A in reverse(chaine) do           ▷ de la racine vers la feuille
-  fm ← deepMerge(fm, frontMatter(A) privé de la clé extends)
+for A in reverse(chaine) do           ▷ de default.md vers la feuille
+  fm ← merge(fm, frontMatter(A) privé de extends)   ▷ fusion plate, clé par clé
 end
+for K in fm tel que fm[K] ∈ {revert, unset, initial} do
+  fm[K] ← defaultFm[K]                ▷ passe de reset : retour à la valeur d'usine (§10.2)
+end                                   ▷ var(--…) reste non résolu : substitution au rendu (§10.1)
 
 corps ← body(L)                       ▷ S5 : chaque ancêtre enveloppe l'accumulé
-for A in chaine[2..] do               ▷ P1, …, Pn
+for A in chaine[2..] do               ▷ P1, …, default.md (corps vide → no-op)
   corps ← insertInto(body(A), corps)
 end
 
@@ -405,15 +409,21 @@ else
 end
 ```
 
-::: important [`deepMerge` — la matrice de style fusionne par feuille]
-`deepMerge` descend dans les **dictionnaires imbriqués** (la matrice de style :
-`styles.h1.color`, `styles.body.fontSize`…) et fusionne **par élément et par
-attribut** — un parent qui fixe `styles.h1.color` et un enfant qui fixe
-`styles.h1.size` produisent un `h1` avec **les deux**. Les **scalaires** (et les
-clés plates `page-size`, `margins`, `font-*`) : l'enfant **remplace** — sauf les
-valeurs de reset `revert` / `unset` / `initial` (§10.2) qui **retirent** la clé
-héritée. La fusion des **listes** (`customFonts`…) — *append* vs *replace* — est
-une **question ouverte** (§13).
+::: important [`merge` — fusion plate, l'enfant gagne]
+La matrice étant en **clés pointées** (§4.3), il n'y a **aucun dict imbriqué** à
+descendre : `merge` est une **fusion plate, clé par clé**, où l'**enfant
+remplace**. La granularité **par attribut** est automatique — `styles.h1.color`
+et `styles.h1.fontSize` sont deux clés distinctes : un parent et un enfant qui
+touchent chacun l'une **gardent les deux**. Deux valeurs ont un sens spécial :
+
+- **reset** — `revert` / `unset` / `initial` (§10.2) : la clé revient à la valeur
+  de **`default.md`** (on échappe ainsi aux ancêtres, l'intention de §10.2),
+  via la **passe de reset** de `flatten`. *(V1 confond les trois ; la distinction
+  fine CSS `revert` ≠ `unset` est différée.)*
+- **listes** — `customFonts`… : *append* vs *replace*, **question ouverte** (§13).
+
+*(`merge` ne résout pas `var(--…)` : la substitution des tokens est au **rendu**,
+§10.1.)*
 :::
 
 ## 6. Précédence (vue d'ensemble)
@@ -596,8 +606,9 @@ Cette pile **subsume** les notions actuelles de style / preset / template :
 
 profils & presets
 :   Un **profil** = une **couche parente** réduite à un front-matter de style.
-    Un **preset** (Classic, Rapport, Édition critique…) = une couche racine
-    fournie. « Appliquer un profil » = poser `extends: <profil>`.
+    Un **preset** (Classic, Rapport, Édition critique…) = une couche **fournie
+    dans Styles**, enfant de `default.md`. « Appliquer un profil » = poser
+    `extends: <profil>`.
 
 template
 :   = une couche parente avec un **cadre de corps** (un `insert` + du
@@ -636,7 +647,7 @@ comble un **trou du modèle actuel**.
 ### 10.1. Tokens & `var()` — factoriser une valeur dans une couche
 
 Aujourd'hui une couche « papier à en-tête » **répète** `#0b3d91` partout (titres,
-filets, accent) : le `deepMerge` (§5) ne fusionne que des valeurs *concrètes*,
+filets, accent) : le `merge` (§5) ne fusionne que des valeurs *concrètes*,
 jamais réutilisées. Les **custom properties** CSS résolvent exactement ça —
 définir un *token* une fois, le référencer par `var()` :
 
@@ -672,7 +683,7 @@ référence
     taille échoue exactement comme une mauvaise valeur écrite à la main.
 
 résolution
-:   au **rendu**, contre l'ensemble des tokens **après `deepMerge`** (l'enfant
+:   au **rendu**, contre l'ensemble des tokens **après `merge`** (l'enfant
     gagne) — comme CSS résout les custom properties au *computed value*.
     `flatten` (§5) reste donc **inchangé** : il fusionne, il ne résout pas.
 
@@ -693,7 +704,7 @@ styles.h1.color: var(--brand, #111)   # fallback si --brand n'est pas défini
 
 ### 10.2. `revert` / `unset` / `initial` — dé-poser une valeur héritée
 
-Le `deepMerge` (§5) est **override-only** : un enfant peut *poser* une valeur,
+Le `merge` (§5) est **override-only** : un enfant peut *poser* une valeur,
 jamais **dé-poser** celle d'un parent — une feuille est donc *prisonnière* des
 choix de ses ancêtres. CSS a le mot juste : des **valeurs de reset** qui
 *retirent* au lieu de remplacer.
@@ -704,9 +715,10 @@ font-heading: revert      # PAS la police de titre du papier
 styles.h1.color: unset    # h1 revient au défaut, pas à la couleur héritée
 ````
 
-À spécifier dans les règles de réécriture (§5) : `revert` / `unset` / `initial`
-sont des valeurs **reconnues** par `deepMerge` qui suppriment la clé héritée
-(retour au défaut markpage) plutôt que d'écrire une valeur concrète.
+**Spécifié** dans `flatten` (la **passe de reset**, §5) : `revert` / `unset` /
+`initial` ramènent la clé à la valeur de **`default.md`** — on échappe ainsi à
+ce qu'un ancêtre avait posé — au lieu d'écrire une valeur concrète. *(V1 confond
+les trois ; la nuance CSS `revert` ≠ `unset` est différée.)*
 
 ### 10.3. `@layer` — le modèle formel de la pile
 
@@ -766,7 +778,7 @@ matrice par-élément
 :   chaque attribut d'un élément → une clé **pointée** `styles.<élément>.<attr>`
     (`styles.h1.color`, `styles.body.fontSize`, `styles.quote.borderColor`) — la
     forme canonique (§4.3), **lisible** dans le front-matter au lieu de l'embed
-    JSON opaque, fusionnée par le `deepMerge` (§5).
+    JSON opaque, fusionnée par le `merge` (§5).
 
 tokens
 :   les `--name` (§10.1) remontent comme une petite palette « thème » qui pilote
@@ -856,14 +868,16 @@ Cette section esquisse *comment* on câblerait l'aplatissement ; elle n'engage
 pas l'API.
 :::
 
-- **Résolveur de chaîne** : à partir d'une feuille, suivre `extends` (détecter
-  cycles / références manquantes), renvoyer la liste `[L, P₁, …, Pₙ]`. Chaque
+- **Résolveur de chaîne** : à partir d'une feuille, suivre `extends` jusqu'au
+  **point fixe** (`default.md` qui s'`extends` lui-même), renvoyer la liste
+  `[L, …, default.md]` ; **erreur** sur tout autre cycle ou réf absente. Chaque
   `extends` est résolu dans l'**espace de noms VOLUMES** (relativement au volume
   de la feuille, V3), binding mémorisé + prompt sur miss — la machinerie des
   refs d'images (§4.1).
-- **Moteur d'aplatissement** : `deepMerge` des front-matters (racine → feuille)
-  + repli des corps via `insert` (`insertInto`, §5). Fonction **pure**,
-  testable au niveau parseur (corpus `tests/corpus/`).
+- **Moteur d'aplatissement** : `merge` **plat** des front-matters (racine →
+  feuille) + **passe de reset** (`revert`/`unset` → valeur de `default.md`) +
+  repli des corps via `insert` (`insertInto`, §5). Fonction **pure**, testable au
+  niveau parseur (corpus `tests/corpus/`).
 - **Intégration rendu** : `render(flatten(L))` partout — appli **et** extension
   VS Code, via [`@orlarey/markpage-render`](../packages/markpage-render/) (le
   même point de partage que `paginationCss` / `keepLabelsWithNext`).
