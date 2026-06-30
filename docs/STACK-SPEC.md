@@ -188,6 +188,12 @@ chaque montée de version) et reste en **lecture seule** : on ne l'édite jamais
 sinon un `.md` ne se rendrait pareil que chez qui a le même `default.md`, et le
 trou d'autonomie se rouvrirait. Pour un look personnel, on **construit au-dessus**
 (§3.3). **S1 reste pur** : même la racine est un document.
+
+**Contrat de stabilité.** `default.md` étant régénéré par version, une **source
+non aplatie** (V1) se rend contre le `default.md` de la **version courante** — une
+mise à jour de markpage peut donc en **changer le rendu**. L'**autonomie stricte**
+(rendu figé, insensible aux versions) passe par l'**export aplati** (§12), qui
+fige les valeurs d'usine dans le `.md`.
 :::
 
 ### 3.2. Étendre est universel ; « style » = curation
@@ -292,16 +298,18 @@ identChar      = letter | digit | "-" | "_" | "/" | "." ;
 ```
 
 **Résolution (décidée).** `reference` est un **nom/chemin dans l'espace de noms
-VOLUMES** ([VOLUMES-SPEC](VOLUMES-SPEC.md)), résolu **relativement au volume de
-la feuille** (V3) :
+VOLUMES** ([VOLUMES-SPEC](VOLUMES-SPEC.md)), résolu **relativement au document
+qui porte le `extends`** (comme un *import* : pas à la feuille initiale ni à la
+racine du volume) :
 
 Bibliothèque
 :   un **nom** de document (la Bibliothèque est plate, le nom est la clé) —
     `extends: papier-en-tete`.
 
 Disque / Dépôt
-:   un **chemin relatif** dans le dossier monté ou le `repo@branche` —
-    `extends: styles/papier.md`.
+:   un **chemin relatif au document porteur** (dans le dossier monté ou le
+    `repo@branche`) — `extends: ../styles/papier.md` se résout depuis le dossier
+    du document **qui écrit ce `extends`**, à chaque maillon de la chaîne.
 
 Le mécanisme **réutilise celui des images** (FILE-MANAGEMENT-SPEC) : la ref est
 résolue une fois, le **binding mémorisé**, avec un **prompt** si la cible est
@@ -340,19 +348,23 @@ styles.body.align:        justify
 styles.quote.borderColor: "#888"
 ````
 
-C'est la **forme canonique** : elle reste dans le sous-ensemble *clés scalaires
-plates* de [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md) (une clé pointée **n'est pas**
-un dict imbriqué), elle est **lisible / greppable / diffable**, et le `merge`
-(§5) fusionne **par attribut** sans effort (un parent qui pose `styles.h1.color`
-et un enfant qui pose `styles.h1.fontSize` donnent un `h1` avec les deux). Une
-**feuille** ne porte que ses **deltas** (`default.md` porte, lui, la matrice
-complète — verbeux mais auto-généré, §3.1).
+C'est la **forme canonique**. **Syntaxiquement**, une clé pointée reste une **clé
+scalaire plate** (ce **n'est pas** un dict imbriqué) — compatible avec la syntaxe
+de [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md) ; STACK-SPEC en **étend la grammaire
+des clés reconnues** à `styles.<élément>.<attr>` (et aux `--token`, §10.1). Elle
+est **lisible / greppable / diffable**, et le `merge` (§5) fusionne **par
+attribut** sans effort (un parent qui pose `styles.h1.color` et un enfant qui
+pose `styles.h1.fontSize` donnent un `h1` avec les deux). Une **feuille** ne
+porte que ses **deltas** (`default.md` porte, lui, la matrice complète — verbeux
+mais auto-généré, §3.1).
 
-::: note [L'embed JSON reste reconnu — en lecture]
+::: note [L'embed JSON — conversion & précédence]
 La clé `markpage-profile` (matrice en JSON, §9) est **toujours lue** (rétro-compat
-des `.md` existants), mais **n'est plus la forme émise** : markpage écrit
-désormais des clés pointées. C'est ce qui ferme l'opacité visée par le round-trip
-(§11).
+des `.md` existants) mais **n'est plus émise**. À la lecture, elle est **éclatée
+en clés pointées** *avant* le `merge` ; au sein d'un **même** document, une clé
+pointée explicite (`styles.h1.color`) **l'emporte** sur l'embed — cohérent avec
+*clé plate > embed* de FRONTMATTER-SPEC. C'est ce qui ferme l'opacité visée par
+le round-trip (§11).
 :::
 
 ## 5. Aplatissement (règles de réécriture)
@@ -657,7 +669,7 @@ définir un *token* une fois, le référencer par `var()` :
 --accent: "#c0392b"
 styles.h1.color: var(--brand)
 styles.h2.color: var(--brand)
-quote.borderColor: var(--accent)
+styles.quote.borderColor: var(--accent)
 ````
 
 ::: tip [Pourquoi ça épouse la pile]
@@ -670,10 +682,10 @@ La syntaxe est **arrêtée** pour V1 :
 
 déclaration
 :   une **clé plate** préfixée `--`, valeur scalaire quelconque (`--brand:
-    "#0b3d91"`, `--measure: 66`). Reste dans le sous-ensemble *clés scalaires
-    plates* de [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md) — aucune clé markpage ne
-    commence par `--`, donc zéro collision. C'est la custom property CSS, telle
-    quelle.
+    "#0b3d91"`, `--measure: 66`). **Syntaxiquement** une clé scalaire plate
+    (compatible FRONTMATTER-SPEC) ; STACK-SPEC **étend** sa grammaire de clés
+    reconnues aux clés `--token` (§4.3). Aucune clé markpage ne commence par
+    `--`, donc zéro collision. C'est la custom property CSS, telle quelle.
 
 référence
 :   `var(--name)`, avec fallback optionnel `var(--name, défaut)`, admise dans
@@ -763,9 +775,11 @@ feuille** :
 
 **Indice de provenance (léger, V1).** Les valeurs **héritées** s'affichent
 **atténuées**, les valeurs **posées localement** (feuille) sont **mises en
-avant**, avec un geste **« revenir à l'hérité »** (= écrit `revert` / `unset`,
-§10.2) qui retire l'override. Pas de « quel ancêtre » : la **provenance complète**
-(couche source, token) reste D (§12).
+avant**, avec un geste **« revenir à l'hérité »** = **supprimer la clé locale** :
+l'override disparaît et la valeur **héritée** réapparaît. *(À ne pas confondre
+avec `revert` / `unset`, qui ne suppriment pas mais **forcent** la valeur de
+`default.md` en échappant aux ancêtres — §10.2.)* Pas de « quel ancêtre » : la
+**provenance complète** (couche source, token) reste D (§12).
 
 Correspondance contrôle ↔ clé :
 
@@ -832,7 +846,10 @@ partagé), pas seulement la feuille. Différé (§12).
 - **Autonomie au partage** — *flatten-on-export* (produire un `.md` autonome) et
   **bundle de la clôture `extends`** (partager les couches éditables) — différé ;
   V1 = *Enregistrer* garde la **source non aplatie** (§5, S6). La **résolution**
-  de la référence, elle, est **arrêtée** (§4.1).
+  de la référence, elle, est **arrêtée** (§4.1). **Ressources** : `flatten` rend
+  le *Markdown* autonome mais pas les **assets** (un `![](logo.svg)` hérité du
+  papier reste une référence) — l'export autonome devra donc **`flatten` +
+  bundler / inliner les ressources de toute la pile**.
 - **Refs distantes & versionnage** — refs **URL** (« CDN de styles ») et
   **épinglage** d'un parent partagé qui change après coup — hors V1 (§4.1).
 - **Round-trip « DevTools » (modèle D)** — **provenance complète** (couche
@@ -843,8 +860,9 @@ partagé), pas seulement la feuille. Différé (§12).
 
 ## 13. Questions ouvertes
 
-- **Nom de la clé** : `extends` (retenu) vs `base` / `on` / `style` / `from`.
-- **Nom du bloc** : `insert` (retenu) vs `slot` / `content` / `body`.
+*(Les **noms** `extends` et `insert` sont **retenus** — alternatives `base` /
+`on` / `style`, `slot` / `content` écartées, §4.)*
+
 - **Sens de la concaténation** par défaut : *parent puis enfant* (proposé) — à
   confirmer (un cas où l'enfant doit précéder ?).
 - **Fusion des listes** (`customFonts`, header/footer multiples…) : *append* ou
@@ -871,9 +889,9 @@ pas l'API.
 - **Résolveur de chaîne** : à partir d'une feuille, suivre `extends` jusqu'au
   **point fixe** (`default.md` qui s'`extends` lui-même), renvoyer la liste
   `[L, …, default.md]` ; **erreur** sur tout autre cycle ou réf absente. Chaque
-  `extends` est résolu dans l'**espace de noms VOLUMES** (relativement au volume
-  de la feuille, V3), binding mémorisé + prompt sur miss — la machinerie des
-  refs d'images (§4.1).
+  `extends` est résolu dans l'**espace de noms VOLUMES** (relativement au
+  **document porteur**, §4.1), binding mémorisé + prompt sur miss — la machinerie
+  des refs d'images.
 - **Moteur d'aplatissement** : `merge` **plat** des front-matters (racine →
   feuille) + **passe de reset** (`revert`/`unset` → valeur de `default.md`) +
   repli des corps via `insert` (`insertInto`, §5). Fonction **pure**, testable au
