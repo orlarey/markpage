@@ -11,7 +11,9 @@ name: Release markpage-mcp
 
 on:
   push:
-    tags: ['v*']
+    # `v0.x.y` app tags only — the bracket excludes `vscode-v*` (extension)
+    # tags, which `v*` would otherwise also match (both start with "v").
+    tags: ['v[0-9]*']
   workflow_dispatch:
 
 permissions:
