@@ -178,6 +178,103 @@ export function setExtendsInSource(source: string, parent: string | null): strin
 }
 
 /**
+ * Purpose: Targeted multi-key front-matter write — upsert each `key: value` and
+ *   delete the listed keys, touching only those lines and leaving the rest of the
+ *   front-matter (and the body) verbatim. The write half of the round-trip.
+ * How: locate the front-matter block, then per key replace its line in place if
+ *   present, append inside the block if new, or splice it out (delete). Keys may
+ *   be dotted (`styles.h1.color`); values are already-serialized YAML scalars.
+ *   Creates the front-matter block when absent and there is something to upsert.
+ */
+export function setFrontmatterKeys(
+  source: string,
+  upserts: Map<string, string>,
+  deletes: Iterable<string> = [],
+): string {
+  const delSet = new Set(deletes);
+  const lines = source.split('\n');
+
+  const buildBlock = (): string | null => {
+    const entries = [...upserts].filter(([k]) => !delSet.has(k));
+    if (entries.length === 0) return null;
+    return `---\n${entries.map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n\n`;
+  };
+
+  if (lines[0]?.trim() !== '---') {
+    const block = buildBlock();
+    return block === null ? source : `${block}${source}`;
+  }
+  let end = -1;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') {
+      end = i;
+      break;
+    }
+  }
+  if (end === -1) {
+    const block = buildBlock();
+    return block === null ? source : `${block}${source}`;
+  }
+
+  const indexOfKey = (key: string): number => {
+    const re = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`);
+    for (let i = 1; i < end; i += 1) {
+      if (re.test(lines[i])) return i;
+    }
+    return -1;
+  };
+
+  // Deletes first so the block shrinks before we compute append positions.
+  for (const key of delSet) {
+    const idx = indexOfKey(key);
+    if (idx !== -1) {
+      lines.splice(idx, 1);
+      end -= 1;
+    }
+  }
+  for (const [key, value] of upserts) {
+    if (delSet.has(key)) continue;
+    const idx = indexOfKey(key);
+    if (idx !== -1) {
+      lines[idx] = `${key}: ${value}`;
+    } else {
+      lines.splice(end, 0, `${key}: ${value}`); // append at the end of the block
+      end += 1;
+    }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Purpose: The round-trip write (STACK-SPEC §12.1) — make a document carry its
+ *   own style as front-matter: every setting that deviates from the factory
+ *   defaults becomes a dotted/flat key on the leaf, and any setting back at its
+ *   default is removed (so reverting a control cleans up after itself). This is
+ *   what lets moving a Réglages slider land as a `styles.…` key in the document.
+ * How: normalize both the live settings and the defaults to the canonical key
+ *   space; upsert the keys that differ, delete the keys that match. `customFonts`
+ *   is left to the font machinery (its payload can be large) and never written
+ *   here. Pure: non-style keys (`extends`, `title`, …) are untouched.
+ */
+export function writeStyleToLeaf(
+  source: string,
+  settings: PdfSettings,
+  defaults: PdfSettings,
+): string {
+  const cur = normalizeProfile(serializeProfile(settings));
+  const def = normalizeProfile(serializeProfile(defaults));
+  const upserts = new Map<string, string>();
+  const deletes: string[] = [];
+  for (const key of new Set([...cur.keys(), ...def.keys()])) {
+    if (key === 'customFonts') continue; // font payloads travel by their own path
+    const cv = cur.get(key);
+    if (cv !== undefined && cv !== def.get(key)) upserts.set(key, cv);
+    else deletes.push(key);
+  }
+  return setFrontmatterKeys(source, upserts, deletes);
+}
+
+/**
  * Purpose: Fold a stack profile patch into PdfSettings — the per-element styles,
  *   fonts, and layout — so the existing renderer applies the stacked result.
  * How: shallow-merge fonts; deep-merge styles per element/attribute (the patch

@@ -186,6 +186,7 @@ import {
   extractStyleFromSettings,
   getExtendsFromSource,
   setExtendsInSource,
+  writeStyleToLeaf,
 } from './stack-render';
 import {
   createProfile,
@@ -496,6 +497,12 @@ async function bootstrap(): Promise<void> {
   // after a successful paginate.
   let dirty = true;
 
+  // Set while a settings-driven round-trip write replaces the editor text
+  // (writeStyleToLeaf): the editor's change callback still persists the new
+  // content, but skips its own live-preview — handleSettingsChange does the
+  // anchored render itself, so we'd otherwise paint twice.
+  let suppressEditorPreview = false;
+
   // We only show the latest paginate call's output. A previous in-flight
   // render must not overwrite a more recent one.
   let previewReqId = 0;
@@ -805,7 +812,7 @@ async function bootstrap(): Promise<void> {
       // auto-persist the working copy.
       dirty = true;
       debouncedSaveDraft(currentDoc.uuid, doc);
-      scheduleLivePreview();
+      if (!suppressEditorPreview) scheduleLivePreview();
     },
     editorShortcuts,
   );
@@ -2032,6 +2039,19 @@ async function bootstrap(): Promise<void> {
     void loadFontTrio(s.fonts).catch((err: unknown) => {
       console.error('Font load failed', err);
     });
+    // Round-trip write (STACK-SPEC §12.1): land the change in the document
+    // itself, as dotted style keys on the leaf, so the .md describes its own
+    // look (and a reverted control cleans its key back out). The profile save
+    // above stays for now — both agree, the stack patch equals the profile
+    // delta — until the profile store is retired. We replace the editor text
+    // in place; the editor callback persists it (preview suppressed: the block
+    // below does the anchored render with the fresh content).
+    const withStyle = writeStyleToLeaf(editor.getValue(), s, DEFAULT_SETTINGS);
+    if (withStyle !== editor.getValue()) {
+      suppressEditorPreview = true;
+      editor.setValue(withStyle);
+      suppressEditorPreview = false;
+    }
     // The @page CSS depends on settings (page size, margins, page-number
     // position). Mark dirty so we repaginate on the next toggle into
     // preview; if we're already in preview, refresh now. paged.js

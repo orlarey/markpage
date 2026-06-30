@@ -7,8 +7,12 @@ import {
   extractStyleFromSettings,
   getExtendsFromSource,
   setExtendsInSource,
+  setFrontmatterKeys,
+  writeStyleToLeaf,
 } from '../src/stack-render';
-import { DEFAULT_SETTINGS } from '../src/settings';
+import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
+
+const clone = (s: PdfSettings): PdfSettings => JSON.parse(JSON.stringify(s)) as PdfSettings;
 
 const T = '```'; // a fence, kept out of template literals
 const noResolve = async (): Promise<StackDoc | null> => null;
@@ -123,6 +127,68 @@ describe('getExtendsFromSource / setExtendsInSource', () => {
       '---\ntitle: X\n---\nB',
     );
     expect(setExtendsInSource('---\ntitle: X\n---\nB', null)).toBe('---\ntitle: X\n---\nB');
+  });
+});
+
+describe('setFrontmatterKeys', () => {
+  it('replaces a present key, appends a new one, deletes a listed one', () => {
+    const src = '---\ntitle: X\nstyles.h1.color: "#000000"\n---\nBody';
+    const out = setFrontmatterKeys(
+      src,
+      new Map([
+        ['styles.h1.color', '"#ff0000"'], // replace in place
+        ['page-size', 'A5'], // append
+      ]),
+      ['title'], // delete
+    );
+    expect(out).toBe('---\nstyles.h1.color: "#ff0000"\npage-size: A5\n---\nBody');
+  });
+
+  it('creates the front-matter block when absent', () => {
+    expect(setFrontmatterKeys('# Hi', new Map([['page-size', 'A5']]))).toBe(
+      '---\npage-size: A5\n---\n\n# Hi',
+    );
+    // nothing to write → source untouched
+    expect(setFrontmatterKeys('# Hi', new Map())).toBe('# Hi');
+  });
+
+  it('leaves unrelated keys and the body verbatim', () => {
+    const src = '---\nextends: papier\ntitle: X\n---\n\nThe body\n\nmore';
+    const out = setFrontmatterKeys(src, new Map([['styles.h2.color', '"#123456"']]));
+    expect(out).toContain('extends: papier');
+    expect(out).toContain('title: X');
+    expect(out).toContain('styles.h2.color: "#123456"');
+    expect(out).toContain('The body\n\nmore');
+  });
+});
+
+describe('writeStyleToLeaf', () => {
+  it('writes a changed setting as a dotted key, leaving extends/title intact', () => {
+    const settings = clone(DEFAULT_SETTINGS);
+    settings.styles.h1.color = '#abcdef';
+    const src = '---\nextends: papier\ntitle: Lettre\n---\nBody';
+    const out = writeStyleToLeaf(src, settings, DEFAULT_SETTINGS);
+    expect(out).toContain('extends: papier');
+    expect(out).toContain('title: Lettre');
+    expect(out).toContain('styles.h1.color: "#abcdef"');
+  });
+
+  it('removes a key once its control is back at the default', () => {
+    const src = '---\nstyles.h1.color: "#abcdef"\ntitle: X\n---\nBody';
+    const out = writeStyleToLeaf(src, DEFAULT_SETTINGS, DEFAULT_SETTINGS); // all at default
+    expect(out).not.toContain('styles.h1.color');
+    expect(out).toContain('title: X'); // non-style key kept
+  });
+
+  it('round-trips through the render path: the written key drives the patch', async () => {
+    const settings = clone(DEFAULT_SETTINGS);
+    settings.styles.h2.color = '#0b3d91';
+    const leaf = writeStyleToLeaf('---\ntitle: X\n---\nBody', settings, DEFAULT_SETTINGS);
+    const flat = await flattenForRender(leaf, {
+      settings: DEFAULT_SETTINGS,
+      resolveByName: noResolve,
+    });
+    expect(flat?.patch.styles?.h2?.color).toBe('#0b3d91');
   });
 });
 
