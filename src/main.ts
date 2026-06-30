@@ -57,7 +57,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter, embedProfileInFrontmatter } from '@orlarey/markpage-render';
+import { parseFrontmatter, embedProfileInFrontmatter, parseStackDoc, extractStyle, type StackDoc } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
@@ -95,6 +95,7 @@ import { openSettingsWindow } from './ui/settings-window';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
+import { openNewFromModal } from './ui/new-from-modal';
 import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
@@ -179,6 +180,7 @@ import {
   writeFileHandle,
 } from './disk-link';
 import { applyFrontmatterToSettings, serializeProfile, type PdfSettings } from './settings';
+import { flattenForRender, applyProfilePatch } from './stack-render';
 import {
   createProfile,
   deleteProfile,
@@ -615,6 +617,18 @@ async function bootstrap(): Promise<void> {
     true, // capture — runs before the source-jump click handler
   );
 
+  // Resolve a stack `extends` reference (a library doc name) to its parsed
+  // source, for the document-stack flatten. A doc can't be its own parent, so
+  // the current doc is excluded. Returns null when no doc bears that name.
+  const resolveByName = async (name: string): Promise<StackDoc | null> => {
+    for (const entry of await listDocs()) {
+      if (entry.name !== name || entry.uuid === currentDoc.uuid) continue;
+      const content = (await loadDocContent(entry)) ?? '';
+      return parseStackDoc(content, name);
+    }
+    return null;
+  };
+
   // Builds the rendered DOM subtree (Markdown + post-processing) shared by
   // both render modes. Returns null if a newer request superseded this one
   // (stale-guard via previewReqId), so callers can bail.
@@ -626,12 +640,31 @@ async function bootstrap(): Promise<void> {
     myReq: number;
   } | null> => {
     const myReq = ++previewReqId;
-    const resolved = await expandRefsToBlobUrls(source);
+    // Document-stack (STACK-SPEC): resolve the `extends` chain, flatten (merged
+    // front-matter + tokens + folded body) and keep the per-element style patch.
+    // Gated to documents that use a stack feature; guarded so any error (cycle,
+    // missing parent, undefined token) degrades to the un-flattened render.
+    let toRender = source;
+    let stylePatch = null as Awaited<ReturnType<typeof flattenForRender>>;
+    try {
+      const flat = await flattenForRender(source, {
+        settings: state.settings,
+        resolveByName,
+      });
+      if (flat) {
+        toRender = flat.md;
+        stylePatch = flat;
+      }
+    } catch (err) {
+      console.warn('[markpage] stack flatten failed', err);
+    }
+    const resolved = await expandRefsToBlobUrls(toRender);
     const { meta } = parseFrontmatter(resolved);
     // Frontmatter can override page-format-level settings (e.g.
     // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
     // effective settings once and use them for pagination.
-    const effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
+    let effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
+    if (stylePatch) effectiveSettings = applyProfilePatch(effectiveSettings, stylePatch.patch);
     const built = document.createElement('div');
     renderPreview(built, resolved);
     applyPreviewMetadata(built, effectiveSettings, meta);
@@ -704,6 +737,10 @@ async function bootstrap(): Promise<void> {
       paginateLock = turn.catch(() => {});
       await turn;
     } else {
+      // Continuous mode draws per-element styles from the injected stylesheet
+      // (not pagedCss), so refresh it from the per-doc effective settings —
+      // otherwise frontmatter / stack style overrides wouldn't show here.
+      applyPreviewStyles(r.effectiveSettings);
       renderContinuous(r.built, r.effectiveSettings);
       dirty = false;
       fitPreviewWidth();
@@ -1067,18 +1104,81 @@ async function bootstrap(): Promise<void> {
     void checkSync();
   };
 
+  // Default style for new documents (STACK-SPEC §3.4, Acte 5): a library doc the
+  // user designates; "Nouveau document" then seeds `extends: <its name>`. Stored
+  // by uuid (stable across renames); resolved to the current name at create time.
+  const DEFAULT_STYLE_KEY = 'markpage:default-style-uuid';
+  const getDefaultStyleUuid = (): string | null => localStorage.getItem(DEFAULT_STYLE_KEY);
+  const isDefaultStyle = (): boolean => getDefaultStyleUuid() === currentDoc.uuid;
+  const toggleDefaultStyle = (): void => {
+    if (isDefaultStyle()) localStorage.removeItem(DEFAULT_STYLE_KEY);
+    else localStorage.setItem(DEFAULT_STYLE_KEY, currentDoc.uuid);
+  };
+
+  // The starter content for a brand-new doc: empty, or `extends: <default style>`
+  // when one is set and still exists.
+  const newDocStarter = async (): Promise<string> => {
+    const uuid = getDefaultStyleUuid();
+    if (uuid === null) return '';
+    const def = (await listDocs()).find((d) => d.uuid === uuid);
+    return def ? `---\nextends: ${def.name}\n---\n\n` : '';
+  };
+
   const createNewDoc = async (): Promise<void> => {
     await flushSave();
-    const entry = await createDoc('Sans titre');
+    const content = await newDocStarter();
+    const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
-    editor.setValue('');
+    editor.setValue(content);
     dirty = true;
     // Keep the split open — refresh it for the new empty doc.
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
+  };
+
+  // "Nouveau à partir de…" (STACK-SPEC §3.4): pick a library doc, create a new
+  // one that `extends` it — inheriting its frame + styles via the stack.
+  const createNewDocFrom = async (): Promise<void> => {
+    const docs = (await listDocs())
+      .filter((d) => d.uuid !== currentDoc.uuid)
+      .map((d) => ({ uuid: d.uuid, name: d.name }));
+    const parent = await openNewFromModal(docs);
+    if (parent === null) return;
+    await flushSave();
+    const content = `---\nextends: ${parent}\n---\n\n`;
+    const entry = await createDoc('Sans titre', content);
+    currentDoc = entry;
+    await setCurrentDocId(entry.uuid);
+    editor.setValue(content);
+    dirty = true;
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
+    toolbarCtrl.setModified(false);
+    toolbarCtrl.setOrigin(null);
+    toolbarCtrl.setDocName(entry.name);
+  };
+
+  // "Extraire un style" (STACK-SPEC §3.4, the B→C bridge): pull the document's
+  // style front-matter into a new reusable layer and re-parent the document to
+  // it via `extends`. The current doc stays open as the (now thinner) leaf.
+  const extractCurrentStyle = async (): Promise<void> => {
+    const proposed = t('extract-style.name', { name: currentDoc.name });
+    const result = extractStyle(editor.getValue(), proposed);
+    if (result === null) {
+      globalThis.alert(t('extract-style.empty'));
+      return;
+    }
+    const entry = await createDoc(proposed, result.styleMd); // the new style layer
+    const leafMd =
+      entry.name === proposed
+        ? result.leafMd
+        : result.leafMd.replace(`extends: ${proposed}`, `extends: ${entry.name}`);
+    editor.setValue(leafMd);
+    dirty = true;
+    if (viewMode === 'preview') void updatePreview(leafMd);
+    toolbarCtrl.setModified(true);
   };
 
   const renameCurrentDoc = async (newName: string): Promise<void> => {
@@ -2349,6 +2449,16 @@ async function bootstrap(): Promise<void> {
           },
           onNew: () => {
             void createNewDoc();
+          },
+          onNewFrom: () => {
+            void createNewDocFrom();
+          },
+          onExtractStyle: () => {
+            void extractCurrentStyle();
+          },
+          isDefaultStyle: isDefaultStyle(),
+          onToggleDefaultStyle: () => {
+            toggleDefaultStyle();
           },
           onOpen: () => {
             void triggerOpen();

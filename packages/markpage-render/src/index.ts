@@ -32,6 +32,33 @@ export {
   type ParseResult,
 } from './frontmatter';
 
+// The document-stack engine (STACK-SPEC): resolve the `extends` chain to the
+// `default.md` fixpoint, then flatten (flat front-matter merge + reset pass +
+// body fold via ```insert). Pure — resolution is supplied as a callback.
+export {
+  ROOT_NAME,
+  resolveChain,
+  resolveChainAsync,
+  mergeFrontmatter,
+  insertInto,
+  foldBodies,
+  flatten,
+  resolveTokens,
+  normalizeProfile,
+  denormalizeProfile,
+  type ProfilePatch,
+  parseStackDoc,
+  serializeStackDoc,
+  extractStyle,
+  StackCycleError,
+  StackMissingRefError,
+  TokenMissingError,
+  TokenCycleError,
+  type StackDoc,
+  type ResolveDoc,
+  type FlatDoc,
+} from './stack';
+
 // Phase B — the DOM hydrate (MathJax + Mermaid) and the underlying renderers.
 export {
   hydratePreview,
