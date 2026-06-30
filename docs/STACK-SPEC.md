@@ -66,7 +66,7 @@ courrier → papier à en-tête → …). La résolution **suit la chaîne** jus
 **racine** (le document sans `extends`).
 
 **S3 — Aplatissement déterministe.** Le rendu d'une feuille `L` est
-`render(flatten(L))`, où **`flatten`** est une **fonction pure** (§4) produisant
+`render(flatten(L))`, où **`flatten`** est une **fonction pure** (§5) produisant
 **un seul** document `.md` **auto-suffisant**. Deux piles équivalentes donnent le
 même aplati ; l'aplati se rend identiquement partout (appli, extension, export).
 
@@ -85,7 +85,7 @@ est **concaténé** après celui du parent.
 **rendu** travaille sur l'**aplati** autonome (`render(flatten(L))`). En V1,
 *Enregistrer* persiste la **source** (la pile, `extends` préservé) ; l'**export**
 d'un `.md` autonome — pour le partage — procède du même `flatten`, mais est
-**différé** (§11). La pile est pour l'auteur, l'aplati pour le rendu.
+**différé** (§12). La pile est pour l'auteur, l'aplati pour le rendu.
 
 ## 2. Le modèle — une pile de documents
 
@@ -118,19 +118,149 @@ couche (layer)
     trou `insert`).
 
 racine (root)
-:   La couche **sans `extends`**. Porte les défauts les plus génériques et le
-    cadre le plus externe.
+:   La couche authorée **sans `extends`** — elle s'assied sur le **socle**
+    built-in (§3). Porte les défauts authorés les plus génériques et le cadre le
+    plus externe.
 
 feuille (leaf)
 :   Le document qu'on **édite et rend**. Le plus spécifique ; **gagne** sur tous
     ses ancêtres.
 
-## 3. Syntaxe
+## 3. L'arbre des styles et le bootstrap
+
+Au-dessus du **socle** built-in, l'utilisateur **construit** ses documents
+Markdown réutilisables — styles, papiers à en-tête, templates. Reliés par
+`extends` (**un seul parent** par document), ils forment un **arbre** dont la
+racine est le socle.
+
+```mermaid
+flowchart TB
+  socle["socle<br>(built-in, figé)"] --> sm["style-maison"]
+  sm --> pe["papier-en-tete"]
+  pe --> ct["courrier-type"]
+  ct --> l1["lettre au maire"]
+  ct --> l2["lettre à la préfecture"]
+  sm --> ni["note-interne"]
+  ni --> cr["CR réunion du 12"]
+```
+
+socle
+:   la **racine built-in, figée** (§3.1).
+
+`style-maison`, `papier-en-tete`, `courrier-type`, `note-interne`
+:   les **couches réutilisables** — le « dossier spécial » — à **toute
+    profondeur** (§3.2).
+
+`lettre au maire`, `lettre à la préfecture`, `CR réunion du 12`
+:   **tes documents** : des **feuilles greffées** par `extends` sous la couche
+    choisie. « Choisir un style » = choisir le **parent** d'une nouvelle feuille,
+    pas se poser sur un nœud existant.
+
+`flatten`(ton doc) est le **chemin de ta feuille jusqu'au socle**, fusionné de
+haut en bas (§5).
+
+### 3.1. Le socle (racine built-in, figée)
+
+Le **socle** est l'ensemble des **défauts d'usine** de markpage (`page-size`,
+`margins`, fontes, la matrice de style par défaut). Il est **built-in**, **en
+lecture seule**, et **n'est pas un document** — c'est le **seul nœud
+non-document** de l'arbre, sa racine. *(L'unique entorse à S1 : tout ce qu'on*
+authore *est un `.md` ; le socle, lui, est le fond fourni par l'appli.)*
+
+Un document **sans `extends`** s'assied **directement** dessus :
+`flatten(socle → feuille)`. Un **doc vierge** a donc un front-matter **vide** et
+se rend entièrement depuis le socle — exactement le comportement actuel, enfin
+nommé. C'est le « défauts markpage » qu'affiche le panneau Réglages (§11).
+
+::: note [Le socle n'est pas éditable]
+On ne modifie **jamais** le socle — sinon un `.md` ne se rendrait pareil que chez
+qui a le même socle, et on rouvrirait le trou d'autonomie. Pour un look
+personnel, on **construit au-dessus** (§3.3).
+:::
+
+### 3.2. Étendre est universel ; « style » = curation
+
+**Un document peut `extends` n'importe quel autre document.** Il n'y a pas de
+*type* « style » (S1) : un style n'est qu'un document que d'autres étendent.
+C'est ce qui permet qu'une « lettre au maire » devienne *de facto* un template,
+sans cérémonie. La seule interdiction structurelle est le **cycle** (§8).
+
+Le **« dossier spécial »** n'est donc **pas** un gating mais de la **curation** —
+la **découvrabilité** dans le sélecteur « Nouveau à partir de… » :
+
+| | mécanisme (`extends`) | curation (dossier spécial) |
+| :-- | :-- | :-- |
+| **quoi** | résout un **nom** dans l'espace de noms (§4.1) | un **drapeau « réutilisable »** sur un doc |
+| **rôle** | peut étendre **n'importe quel** doc | **propose** un sous-ensemble dans le picker |
+| **sans le drapeau** | marche (on nomme le doc) | le doc n'apparaît juste pas dans le picker |
+
+La **Bibliothèque est plate** (VOLUMES, « que des `.md` ») : le dossier spécial
+est donc une **collection virtuelle** (les docs portant le drapeau), *présentée*
+comme un dossier. Sur **Disque / Dépôt**, un vrai dossier `styles/` joue le rôle.
+La **résolution** (§4.1) reste **par nom**, indépendante du drapeau.
+
+### 3.3. Scénario de bootstrap
+
+De l'install vierge à une bibliothèque réutilisable.
+
+**Acte 0 — Rien.** *Nouveau document* : front-matter **vide**, Réglages montre
+tout en « hérité » (du socle). On écrit.
+
+**Acte 1 — Un *style maison*.** On règle titres / corps / accent dans Réglages
+(écrit dans la feuille, marqué « local »). Geste **« Extraire un style »** : le
+delta part dans un nouveau doc `style-maison`, la feuille le remplace par
+`extends`.
+
+````yaml
+# ta feuille, après « Extraire un style » :
+extends: style-maison
+````
+
+````yaml
+# style-maison.md (créé, marqué réutilisable) :
+font-heading: Source Serif 4
+styles.body.align: justify
+--accent: "#0b3d91"
+````
+
+**Acte 2 — Le *papier à en-tête*.** Nouveau doc `papier-en-tete`,
+`extends: style-maison` (il hérite la typo) ; on lui donne un **corps-cadre** :
+`sender`, `footer`, un `::: background` logo, et un `insert` (le trou).
+
+**Acte 3 — Le *courrier type*.** `courrier-type`, `extends: papier-en-tete` ; on
+ajoute `signature` + son propre `insert`.
+
+**Acte 4 — Réutiliser.** *Nouveau → à partir de `courrier-type`* → une feuille
+sous `courrier-type`, corps vide. On écrit la lettre. Rendu = lettre ⊂ courrier ⊂
+papier ⊂ style ⊂ socle.
+
+**Acte 5 — Le défaut perso.** Si la plupart des docs partent de `style-maison`,
+on pose *« style par défaut des nouveaux documents = style-maison »* : *Nouveau
+document* naît alors avec `extends: style-maison`.
+
+### 3.4. Les trois gestes
+
+Tout le bootstrap tient en trois gestes d'appli, **tous bâtis sur `extends`** :
+
+extraire un style
+:   promeut les **deltas locaux** de la feuille → un nouveau doc (marqué
+    réutilisable) et remplace par `extends`. Le pont feuille → couche partagée
+    (§13).
+
+nouveau à partir de `<couche>`
+:   crée une feuille avec `extends: <couche>` — *choisir un style* = choisir le
+    **parent** d'une nouvelle feuille.
+
+style par défaut des nouveaux documents
+:   un réglage qui nomme la couche `extends`ée d'office par *Nouveau document* —
+    le « défaut perso », sans machinerie neuve.
+
+## 4. Syntaxe
 
 Deux ajouts, tous deux **rétrocompatibles** (un `.md` sans `extends` ni
 `insert` se comporte comme aujourd'hui).
 
-### 3.1. La clé `extends`
+### 4.1. La clé `extends`
 
 Une **clé de front-matter** dont la valeur **référence** la couche parente.
 
@@ -160,10 +290,10 @@ introuvable — aucun mécanisme nouveau.
 
 ::: note [Différé — refs distantes & versionnage]
 Les refs **URL / distantes** (un « CDN de styles ») et l'**épinglage de
-version** d'un parent partagé sont **hors V1** (§11).
+version** d'un parent partagé sont **hors V1** (§12).
 :::
 
-### 3.2. Le bloc `insert`
+### 4.2. Le bloc `insert`
 
 Un fenced block de langage `insert`, **a priori vide**, qui marque **où** le
 corps de l'enfant s'insère dans le corps du parent.
@@ -176,10 +306,10 @@ fence       = "```" ;
 
 - **Corps vide** : c'est le **trou** (le cas V1). Le contenu de l'enfant le
   remplace.
-- `slotName` (**différé**, §11) : trous **nommés** multiples. V1 = **un seul**
+- `slotName` (**différé**, §12) : trous **nommés** multiples. V1 = **un seul**
   trou, le **premier** rencontré.
 
-## 4. Aplatissement (règles de réécriture)
+## 5. Aplatissement (règles de réécriture)
 
 `flatten` est défini par deux règles de réécriture pures. La **chaîne** se lit
 de la feuille `L` vers la racine `Pₙ` ; les front-matters fusionnent **racine →
@@ -190,7 +320,7 @@ ancêtre **enveloppe** l'accumulé).
 `flatten` ne sert qu'au **rendu** (`render(flatten(L))`, S3) et **n'est jamais
 persisté** : *Enregistrer* écrit la **feuille telle quelle** (source, `extends`
 préservé). L'**export autonome** (flatten-on-export) et le **bundle de la
-clôture** `extends` pour partager les couches sont **différés** (§11) — V1
+clôture** `extends` pour partager les couches sont **différés** (§12) — V1
 sauvegarde le `.md` **non aplati**.
 :::
 
@@ -201,7 +331,7 @@ Output: document aplati (front-matter fusionné, corps replié), auto-suffisant
 chaine ← [L]                          ▷ … puis P1, P2, …, Pn (racine en dernier)
 n ← L
 while n possède une clé extends do
-  n ← resoudre(n.extends)             ▷ §12 ; ERREUR si cycle ou référence absente
+  n ← resoudre(n.extends)             ▷ §13 ; ERREUR si cycle ou référence absente
   chaine ← chaine ++ [n]
 end
 
@@ -235,12 +365,12 @@ end
 attribut** — un parent qui fixe `styles.h1.color` et un enfant qui fixe
 `styles.h1.size` produisent un `h1` avec **les deux**. Les **scalaires** (et les
 clés plates `page-size`, `margins`, `font-*`) : l'enfant **remplace** — sauf les
-valeurs de reset `revert` / `unset` / `initial` (§9.2) qui **retirent** la clé
+valeurs de reset `revert` / `unset` / `initial` (§10.2) qui **retirent** la clé
 héritée. La fusion des **listes** (`customFonts`…) — *append* vs *replace* — est
-une **question ouverte** (§12).
+une **question ouverte** (§13).
 :::
 
-## 5. Précédence (vue d'ensemble)
+## 6. Précédence (vue d'ensemble)
 
 L'`extends` **étend** la chaîne de précédence existante, sans la contredire :
 
@@ -254,7 +384,7 @@ local**. Autrement dit, l'aplati produit un front-matter unique (par S4), puis
 les overrides **intra-document** de [STYLE-SPEC](STYLE-SPEC.md) restent le niveau
 **le plus fin**, inchangés.
 
-## 6. Exemples complets
+## 7. Exemples complets
 
 ::: caution [Affichage littéral]
 Les exemples sont dans des fences à **quatre backticks** : leur contenu (y
@@ -389,7 +519,7 @@ fond + expéditeur + pied (papier) → destinataire + objet + corps (lettre) →
 signature (courrier). La **récursivité fait tout** — aucune option spéciale.
 :::
 
-## 7. Cas-limites
+## 8. Cas-limites
 
 cycle
 :   `A extends B`, `B extends A` (ou plus long) → **erreur** signalée (bloc rouge
@@ -398,11 +528,11 @@ cycle
 
 référence manquante
 :   `extends: inexistant` → **erreur** visible ; option de **fallback** (rendre
-    la feuille seule, sans cadre) — *à décider* (§11).
+    la feuille seule, sans cadre) — *à décider* (§12).
 
 plusieurs `insert`
 :   V1 : on remplit **le premier**, les autres restent vides (donc supprimés à
-    l'aplatissement). Trous **nommés** → différé (§11).
+    l'aplatissement). Trous **nommés** → différé (§12).
 
 absence de `insert`
 :   **concaténation** : corps du parent, puis corps de l'enfant (S5). C'est le
@@ -412,7 +542,7 @@ front-matter racine vs feuille
 :   La racine pose les défauts ; chaque enfant **surcharge** (S4). Une feuille
     peut donc juste régler `title:` et hériter de toute la mise en page.
 
-## 8. Rapport aux mécanismes existants
+## 9. Rapport aux mécanismes existants
 
 Cette pile **subsume** les notions actuelles de style / preset / template :
 
@@ -433,19 +563,19 @@ template
 
 [STYLE-SPEC](STYLE-SPEC.md)
 :   `::: style` reste les overrides **intra-document**, le niveau **le plus
-    spécifique** (§5) — inchangé.
+    spécifique** (§6) — inchangé.
 
 [BACKGROUND-SPEC](BACKGROUND-SPEC.md) & letterhead
 :   `::: background`, `sender` / `recipient` / `signature`,
     `header` / `footer` sont les **contenus typiques** d'une couche
-    *papier à en-tête* — exactement l'exemple §6.
+    *papier à en-tête* — exactement l'exemple §7.
 
 embed `markpage-profile`
 :   L'**aplati** peut soit rester en **clés lisibles**, soit **auto-embarquer**
     le profil ; les deux satisfont S6 (autonomie). L'embed JSON devient un
     *détail de sérialisation* de l'aplati, plus l'unique voie vers l'autonomie.
 
-## 9. Rapport à CSS — emprunts
+## 10. Rapport à CSS — emprunts
 
 Le front-matter markpage est déjà *CSS-flavored* : noms en kebab-case
 (`font-heading`, `line-height`, `page-numbers`), le **shorthand `margins`** (1 à
@@ -455,10 +585,10 @@ précédence *clé plate > profil > défaut*
 (S4) généralise. Trois emprunts CSS supplémentaires valent d'être notés : chacun
 comble un **trou du modèle actuel**.
 
-### 9.1. Tokens & `var()` — factoriser une valeur dans une couche
+### 10.1. Tokens & `var()` — factoriser une valeur dans une couche
 
 Aujourd'hui une couche « papier à en-tête » **répète** `#0b3d91` partout (titres,
-filets, accent) : le `deepMerge` (§4) ne fusionne que des valeurs *concrètes*,
+filets, accent) : le `deepMerge` (§5) ne fusionne que des valeurs *concrètes*,
 jamais réutilisées. Les **custom properties** CSS résolvent exactement ça —
 définir un *token* une fois, le référencer par `var()` :
 
@@ -496,12 +626,12 @@ référence
 résolution
 :   au **rendu**, contre l'ensemble des tokens **après `deepMerge`** (l'enfant
     gagne) — comme CSS résout les custom properties au *computed value*.
-    `flatten` (§4) reste donc **inchangé** : il fusionne, il ne résout pas.
+    `flatten` (§5) reste donc **inchangé** : il fusionne, il ne résout pas.
 
 token → token
 :   `--accent: var(--brand)` est permis ; résolution itérative jusqu'au point
-    fixe, **cycle = erreur** (même politique que les cycles `extends`, §3.1 /
-    §7).
+    fixe, **cycle = erreur** (même politique que les cycles `extends`, §4.1 /
+    §8).
 
 token absent
 :   `var(--x)` sans fallback ni définition → **erreur visible** (les typos
@@ -513,9 +643,9 @@ measureChars: var(--measure)          # un token de taille, pas qu'une couleur
 styles.h1.color: var(--brand, #111)   # fallback si --brand n'est pas défini
 ````
 
-### 9.2. `revert` / `unset` / `initial` — dé-poser une valeur héritée
+### 10.2. `revert` / `unset` / `initial` — dé-poser une valeur héritée
 
-Le `deepMerge` (§4) est **override-only** : un enfant peut *poser* une valeur,
+Le `deepMerge` (§5) est **override-only** : un enfant peut *poser* une valeur,
 jamais **dé-poser** celle d'un parent — une feuille est donc *prisonnière* des
 choix de ses ancêtres. CSS a le mot juste : des **valeurs de reset** qui
 *retirent* au lieu de remplacer.
@@ -526,11 +656,11 @@ font-heading: revert      # PAS la police de titre du papier
 styles.h1.color: unset    # h1 revient au défaut, pas à la couleur héritée
 ````
 
-À spécifier dans les règles de réécriture (§4) : `revert` / `unset` / `initial`
+À spécifier dans les règles de réécriture (§5) : `revert` / `unset` / `initial`
 sont des valeurs **reconnues** par `deepMerge` qui suppriment la clé héritée
 (retour au défaut markpage) plutôt que d'écrire une valeur concrète.
 
-### 9.3. `@layer` — le modèle formel de la pile
+### 10.3. `@layer` — le modèle formel de la pile
 
 Les **cascade layers** CSS (`@layer`) sont *littéralement* la STACK-SPEC : des
 couches **nommées, explicitement ordonnées**, la dernière l'emporte — et
@@ -539,7 +669,7 @@ postérieure, quel que soit le poids du sélecteur). C'est le bon vocabulaire po
 décrire S4, et ça suggère qu'une couche pourrait déclarer son **rôle/nom** —
 utile pour déboguer l'aplati (« cette valeur vient de quelle couche ? »).
 
-### 9.4. À considérer plus tard / à laisser
+### 10.4. À considérer plus tard / à laisser
 
 héritage (inherited vs non-inherited)
 :   Définir `body` comme **base** dont `h1…h6` héritent la police sauf override
@@ -555,14 +685,14 @@ shorthands ↔ longhands
 :   sélecteurs / spécificité complète, `!important`, `@media`, `calc()` — markpage
     gagne à garder le modèle *par-élément* simple (le coût dépasse le bénéfice).
 
-## 10. Round-trip Réglages ↔ front-matter
+## 11. Round-trip Réglages ↔ front-matter
 
 **Décision (V1).** Le panneau **Réglages** **lit la pile** et **écrit la
 feuille** :
 
 - **Affichage = valeurs calculées.** Le panneau montre `flatten`( défauts
   markpage → ancêtres `extends` → feuille ) — le **même `flatten` que le rendu**
-  (§4). Le front-matter de la feuille est le **delta du dessus**. Sans ça, un
+  (§5). Le front-matter de la feuille est le **delta du dessus**. Sans ça, un
   document qui `extends` une couche riche montrerait un panneau quasi **vide**,
   déconnecté de son rendu.
 - **Édition = la feuille.** Bouger un curseur écrit une clé dans le front-matter
@@ -574,8 +704,8 @@ feuille** :
 **Indice de provenance (léger, V1).** Les valeurs **héritées** s'affichent
 **atténuées**, les valeurs **posées localement** (feuille) sont **mises en
 avant**, avec un geste **« revenir à l'hérité »** (= écrit `revert` / `unset`,
-§9.2) qui retire l'override. Pas de « quel ancêtre » : la **provenance complète**
-(couche source, token) reste D (§11).
+§10.2) qui retire l'override. Pas de « quel ancêtre » : la **provenance complète**
+(couche source, token) reste D (§12).
 
 Correspondance contrôle ↔ clé :
 
@@ -587,11 +717,11 @@ clés plates
 matrice par-élément
 :   chaque attribut d'un élément → une clé **pointée** `styles.<élément>.<attr>`
     (`styles.h1.color`, `styles.body.fontSize`, `styles.quote.borderColor`) —
-    les mêmes clés que le `deepMerge` (§4) fusionne, désormais **lisibles** dans
+    les mêmes clés que le `deepMerge` (§5) fusionne, désormais **lisibles** dans
     le front-matter au lieu de l'embed JSON opaque.
 
 tokens
-:   les `--name` (§9.1) remontent comme une petite palette « thème » qui pilote
+:   les `--name` (§10.1) remontent comme une petite palette « thème » qui pilote
     plusieurs contrôles d'un coup.
 
 Ce qu'écrit le panneau dans la feuille, après quelques réglages :
@@ -626,10 +756,10 @@ V1 fournit déjà la **vue calculée**, l'**indice hérité/local** et le geste
 **« revenir à l'hérité »**. **D** ajoute la **provenance complète** (quelle
 couche source, via quel token : « vient de *papier-en-tête*, via `var(--brand)`
 ») et un **sélecteur de couche cible** — écrire dans un **ancêtre** (style
-partagé), pas seulement la feuille. Différé (§11).
+partagé), pas seulement la feuille. Différé (§12).
 :::
 
-## 11. Non-buts & différés
+## 12. Non-buts & différés
 
 ::: caution
 
@@ -641,17 +771,17 @@ partagé), pas seulement la feuille. Différé (§11).
   langage de template).
 - **Autonomie au partage** — *flatten-on-export* (produire un `.md` autonome) et
   **bundle de la clôture `extends`** (partager les couches éditables) — différé ;
-  V1 = *Enregistrer* garde la **source non aplatie** (§4, S6). La **résolution**
-  de la référence, elle, est **arrêtée** (§3.1).
+  V1 = *Enregistrer* garde la **source non aplatie** (§5, S6). La **résolution**
+  de la référence, elle, est **arrêtée** (§4.1).
 - **Refs distantes & versionnage** — refs **URL** (« CDN de styles ») et
-  **épinglage** d'un parent partagé qui change après coup — hors V1 (§3.1).
+  **épinglage** d'un parent partagé qui change après coup — hors V1 (§4.1).
 - **Round-trip « DevTools » (modèle D)** — **provenance complète** (couche
   source, token) + **sélecteur de couche cible** (écrire dans un ancêtre) —
   différé. V1 a déjà la vue calculée, l'indice hérité/local et « revenir à
-  l'hérité » (§10).
+  l'hérité » (§11).
 :::
 
-## 12. Questions ouvertes
+## 13. Questions ouvertes
 
 - **Nom de la clé** : `extends` (retenu) vs `base` / `on` / `style` / `from`.
 - **Nom du bloc** : `insert` (retenu) vs `slot` / `content` / `body`.
@@ -661,17 +791,17 @@ partagé), pas seulement la feuille. Différé (§11).
   *replace* ? Probablement *replace* (cohérent avec « l'enfant gagne »), avec une
   syntaxe d'*append* explicite plus tard.
 - **Tokens dans `::: style`** : `var(--x)` est-il résolu aussi dans les
-  overrides locaux `::: style` (§5), dont l'allowlist STYLE-SPEC n'admet pas le
+  overrides locaux `::: style` (§6), dont l'allowlist STYLE-SPEC n'admet pas le
   CSS brut ? (La déclaration `--name` et la portée *toute valeur* sont
-  **arrêtées**, §9.1.)
+  **arrêtées**, §10.1.)
 - **Trous nommés** : `insert nom` côté cadre, `extends` + ciblage côté enfant —
   quelle syntaxe pour « ce contenu va dans tel trou » ?
 - **Promotion vers une couche partagée** : depuis B (le panneau édite la
-  feuille, §10), quel **geste** extrait un réglage vers un parent `extends`é
+  feuille, §11), quel **geste** extrait un réglage vers un parent `extends`é
   (« créer un style à partir de ces réglages », « pousser cette couleur dans
   *papier-en-tête* ») ? C'est le pont B → C/D, à dessiner.
 
-## 13. Esquisse d'implémentation
+## 14. Esquisse d'implémentation
 
 ::: caution [Conception, pas encore de code]
 Cette section esquisse *comment* on câblerait l'aplatissement ; elle n'engage
@@ -682,9 +812,9 @@ pas l'API.
   cycles / références manquantes), renvoyer la liste `[L, P₁, …, Pₙ]`. Chaque
   `extends` est résolu dans l'**espace de noms VOLUMES** (relativement au volume
   de la feuille, V3), binding mémorisé + prompt sur miss — la machinerie des
-  refs d'images (§3.1).
+  refs d'images (§4.1).
 - **Moteur d'aplatissement** : `deepMerge` des front-matters (racine → feuille)
-  + repli des corps via `insert` (`insertInto`, §4). Fonction **pure**,
+  + repli des corps via `insert` (`insertInto`, §5). Fonction **pure**,
   testable au niveau parseur (corpus `tests/corpus/`).
 - **Intégration rendu** : `render(flatten(L))` partout — appli **et** extension
   VS Code, via [`@orlarey/markpage-render`](../packages/markpage-render/) (le
@@ -692,4 +822,4 @@ pas l'API.
 - **Persistance (V1)** : *Enregistrer* écrit la **feuille telle quelle** (source,
   `extends` préservé) ; `flatten` ne tourne qu'au rendu, jamais à la sauvegarde.
 - **Export autonome (différé)** : le même `flatten` produirait un `.md` autonome
-  à partager ; hors V1 (§11).
+  à partager ; hors V1 (§12).
