@@ -7,6 +7,7 @@ import {
   flatten,
   resolveTokens,
   normalizeProfile,
+  denormalizeProfile,
   parseStackDoc,
   serializeStackDoc,
   StackCycleError,
@@ -292,6 +293,41 @@ describe('normalizeProfile', () => {
 
   it('returns no keys for a malformed embed', () => {
     expect(normalizeProfile('not json').size).toBe(0);
+  });
+});
+
+describe('denormalizeProfile', () => {
+  it('round-trips a profile through normalize → denormalize', () => {
+    const profile = {
+      fonts: { headings: 'Inter', body: 'Lora', code: 'Fira Code' },
+      styles: {
+        body: { fontSize: 11, align: 'justify', italic: false },
+        h1: { fontSize: 22, color: '#14223a' },
+        quote: { borderTop: true, borderWidth: 3 },
+      },
+      pageSize: 'A4',
+      margins: { top: 25, right: 35, bottom: 25, left: 35 },
+      pageNumbers: true,
+      customFonts: [{ family: 'Lora', sha: 'abc' }],
+    };
+    expect(denormalizeProfile(normalizeProfile(JSON.stringify(profile)))).toEqual(profile);
+  });
+
+  it('coerces values back to string / number / boolean', () => {
+    const p = denormalizeProfile(
+      new Map([
+        ['styles.h1.color', '"#000"'],
+        ['styles.h1.fontSize', '22'],
+        ['styles.h1.italic', 'true'],
+        ['font-body', '"Lora"'],
+        ['page-numbers', 'false'],
+        ['margins', '20 30'],
+      ]),
+    );
+    expect(p.styles?.h1).toEqual({ color: '#000', fontSize: 22, italic: true });
+    expect(p.fonts?.body).toBe('Lora');
+    expect(p.pageNumbers).toBe(false);
+    expect(p.margins).toEqual({ top: 20, right: 30, bottom: 20, left: 30 });
   });
 });
 

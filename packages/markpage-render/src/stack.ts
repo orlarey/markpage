@@ -428,6 +428,89 @@ function scalarValue(v: unknown): string {
   return typeof v === 'string' ? quoteScalar(v) : String(v);
 }
 
+/** The profile shape (= `serializeProfile`'s input) that flat keys rebuild into. */
+export interface ProfilePatch {
+  fonts?: { body?: string; headings?: string; code?: string };
+  styles?: Record<string, Record<string, string | number | boolean>>;
+  pageSize?: string;
+  margins?: { top: number; right: number; bottom: number; left: number };
+  pageNumbers?: boolean;
+  customFonts?: unknown[];
+}
+
+const STYLE_KEY_RE = /^styles\.([^.]+)\.(.+)$/;
+
+/**
+ * Purpose: The inverse of `normalizeProfile` — rebuild a profile object from a
+ *   (flattened) front-matter's flat & dotted keys, so the render path can apply
+ *   the stacked result through the existing per-element typography machinery.
+ * How: `font-*` → `fonts.*`, `styles.<el>.<attr>` → `styles[el][attr]` (values
+ *   coerced back: quoted→string, `true`/`false`→boolean, numeric→number),
+ *   `page-size`/`page-numbers`/`margins` → layout, `customFonts` → JSON array.
+ */
+export function denormalizeProfile(fm: Map<string, string>): ProfilePatch {
+  const patch: ProfilePatch = {};
+
+  const fonts: Record<string, string> = {};
+  for (const [slot, key] of Object.entries(FONT_SLOT_KEY)) {
+    const v = fm.get(key);
+    if (v !== undefined) fonts[slot] = unquoteScalar(v);
+  }
+  if (Object.keys(fonts).length > 0) patch.fonts = fonts;
+
+  const styles: Record<string, Record<string, string | number | boolean>> = {};
+  for (const [key, value] of fm) {
+    const m = STYLE_KEY_RE.exec(key);
+    if (!m) continue;
+    (styles[m[1]] ??= {})[m[2]] = coerceScalar(value);
+  }
+  if (Object.keys(styles).length > 0) patch.styles = styles;
+
+  const ps = fm.get('page-size');
+  if (ps !== undefined) patch.pageSize = unquoteScalar(ps);
+  const pn = fm.get('page-numbers');
+  if (pn !== undefined) patch.pageNumbers = pn.trim() === 'true';
+  const mg = fm.get('margins');
+  if (mg !== undefined) {
+    const n = mg.split(/[\s,]+/).filter((t) => t !== '').map(Number).filter(Number.isFinite);
+    if (n.length > 0) {
+      const [a, b = a, c = a, d = b] = n;
+      patch.margins = { top: a, right: b, bottom: c, left: d };
+    }
+  }
+  const cf = fm.get('customFonts');
+  if (cf !== undefined) {
+    try {
+      const arr: unknown = JSON.parse(cf);
+      if (Array.isArray(arr)) patch.customFonts = arr;
+    } catch {
+      /* malformed — drop */
+    }
+  }
+  return patch;
+}
+
+/** Strip surrounding ASCII quotes if present (else the bare value). */
+function unquoteScalar(s: string): string {
+  const t = s.trim();
+  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+    return t.slice(1, -1);
+  }
+  return t;
+}
+
+/** Coerce a raw front-matter value back to string / number / boolean. */
+function coerceScalar(raw: string): string | number | boolean {
+  const t = raw.trim();
+  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+    return t.slice(1, -1);
+  }
+  if (t === 'true') return true;
+  if (t === 'false') return false;
+  if (/^-?\d+(?:\.\d+)?$/.test(t)) return Number(t);
+  return t;
+}
+
 /**
  * Purpose: If a front-matter has a `markpage-profile` embed, replace it with its
  *   exploded dotted keys — but an explicit key (e.g. an authored

@@ -44,6 +44,8 @@ export {
   flatten,
   resolveTokens,
   normalizeProfile,
+  denormalizeProfile,
+  type ProfilePatch,
   parseStackDoc,
   serializeStackDoc,
   StackCycleError,
