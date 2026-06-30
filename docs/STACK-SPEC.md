@@ -87,7 +87,7 @@ est **concaténé** après celui du parent.
 **rendu** travaille sur l'**aplati** autonome (`render(flatten(L))`). En V1,
 *Enregistrer* persiste la **source** (la pile, `extends` préservé) ; l'**export**
 d'un `.md` autonome — pour le partage — procède du même `flatten`, mais est
-**différé** (§12). La pile est pour l'auteur, l'aplati pour le rendu.
+**différé** (§13). La pile est pour l'auteur, l'aplati pour le rendu.
 
 ## 2. Le modèle — une pile de documents
 
@@ -192,7 +192,7 @@ trou d'autonomie se rouvrirait. Pour un look personnel, on **construit au-dessus
 **Contrat de stabilité.** `default.md` étant régénéré par version, une **source
 non aplatie** (V1) se rend contre le `default.md` de la **version courante** — une
 mise à jour de markpage peut donc en **changer le rendu**. L'**autonomie stricte**
-(rendu figé, insensible aux versions) passe par l'**export aplati** (§12), qui
+(rendu figé, insensible aux versions) passe par l'**export aplati** (§13), qui
 fige les valeurs d'usine dans le `.md`.
 :::
 
@@ -271,7 +271,7 @@ extraire un style
 :   promeut les **deltas locaux** de la feuille → un nouveau doc (marqué
     réutilisable) et remplace par `extends`. C'est le pont feuille → **nouvelle**
     couche partagée ; pousser un réglage vers un ancêtre *existant* = modèle D
-    (§12).
+    (§13).
 
 nouveau à partir de `<couche>`
 :   crée une feuille avec `extends: <couche>` — *choisir un style* = choisir le
@@ -318,7 +318,7 @@ introuvable — aucun mécanisme nouveau.
 
 ::: note [Différé — refs distantes & versionnage]
 Les refs **URL / distantes** (un « CDN de styles ») et l'**épinglage de
-version** d'un parent partagé sont **hors V1** (§12).
+version** d'un parent partagé sont **hors V1** (§13).
 :::
 
 ### 4.2. Le bloc `insert`
@@ -334,7 +334,7 @@ fence       = "```" ;
 
 - **Corps vide** : c'est le **trou** (le cas V1). Le contenu de l'enfant le
   remplace.
-- `slotName` (**différé**, §12) : trous **nommés** multiples. V1 = **un seul**
+- `slotName` (**différé**, §13) : trous **nommés** multiples. V1 = **un seul**
   trou, le **premier** rencontré.
 
 ### 4.3. Les clés de la matrice de style
@@ -379,7 +379,7 @@ de la feuille `L` vers la racine `default.md` ; les front-matters fusionnent
 `flatten` ne sert qu'au **rendu** (`render(flatten(L))`, S3) et **n'est jamais
 persisté** : *Enregistrer* écrit la **feuille telle quelle** (source, `extends`
 préservé). L'**export autonome** (flatten-on-export) et le **bundle de la
-clôture** `extends` pour partager les couches sont **différés** (§12) — V1
+clôture** `extends` pour partager les couches sont **différés** (§13) — V1
 sauvegarde le `.md` **non aplati**.
 :::
 
@@ -600,11 +600,11 @@ cycle
 
 référence manquante
 :   `extends: inexistant` → **erreur** visible ; option de **fallback** (rendre
-    la feuille seule, sans cadre) — *à décider* (§12).
+    la feuille seule, sans cadre) — *à décider* (§13).
 
 plusieurs `insert`
 :   V1 : on remplit **le premier**, les autres restent vides (donc supprimés à
-    l'aplatissement). Trous **nommés** → différé (§12).
+    l'aplatissement). Trous **nommés** → différé (§13).
 
 absence de `insert`
 :   **concaténation** : corps du parent, puis corps de l'enfant (S5). C'est le
@@ -622,7 +622,8 @@ profils & presets
 :   Un **profil** = une **couche parente** réduite à un front-matter de style.
     Un **preset** (Classic, Rapport, Édition critique…) = une couche **fournie
     dans Styles**, enfant de `default.md`. « Appliquer un profil » = poser
-    `extends: <profil>`.
+    `extends: <profil>`. La pile **remplace** le système de profils — convergence
+    spécifiée en §12.
 
 template
 :   = une couche parente avec un **cadre de corps** (un `insert` + du
@@ -786,7 +787,7 @@ avant**, avec un geste **« revenir à l'hérité »** = **supprimer la clé loc
 l'override disparaît et la valeur **héritée** réapparaît. *(À ne pas confondre
 avec `revert` / `unset`, qui ne suppriment pas mais **forcent** la valeur de
 `default.md` en échappant aux ancêtres — §10.2.)* Pas de « quel ancêtre » : la
-**provenance complète** (couche source, token) reste D (§12).
+**provenance complète** (couche source, token) reste D (§13).
 
 Correspondance contrôle ↔ clé :
 
@@ -837,10 +838,80 @@ V1 fournit déjà la **vue calculée**, l'**indice hérité/local** et le geste
 **« revenir à l'hérité »**. **D** ajoute la **provenance complète** (quelle
 couche source, via quel token : « vient de *papier-en-tête*, via `var(--brand)`
 ») et un **sélecteur de couche cible** — écrire dans un **ancêtre** (style
-partagé), pas seulement la feuille. Différé (§12).
+partagé), pas seulement la feuille. Différé (§13).
 :::
 
-## 12. Non-buts & différés
+## 12. Convergence — la pile remplace les profils
+
+markpage a aujourd'hui un **système de profils** séparé : des profils **nommés**,
+multiples, un « courant », appliqué aux documents, édité par Réglages. C'est —
+trait pour trait — ce qu'une **couche-style** fait. Le §9 le notait ; cette
+section l'**acte** : la pile ne *complète* pas les profils, elle les **remplace**.
+
+::: important [Décision — un seul système de style]
+Le système de profils (store sha-blob) est **retiré** au profit de la pile. **Un
+profil = un document-style** ; **« appliquer un profil » = `extends`** ;
+**Réglages = l'éditeur de la pile** (§11). Fini les deux mécanismes parallèles :
+une seule apparence, vue et éditée au même endroit.
+:::
+
+Le mapping, un pour un :
+
+| Profils (retiré) | Pile (cible) |
+| :-- | :-- |
+| un **profil nommé** | un **document-style** du dossier Styles (§3.2) |
+| le **profil courant** d'un doc | le **`extends`** du doc (sa couche parente) |
+| le **profil par défaut** | le **style par défaut des nouveaux docs** (§3.4) |
+| le profil **d'usine** | la racine **`default.md`** (§3.1) |
+| Réglages écrit le **blob du profil** | Réglages écrit la **feuille** (§11) |
+| store **sha-blob** (`:index` / `:blob:`) | des **`.md`** dans la bibliothèque |
+
+Un profil n'était qu'un **cas particulier** de couche (réduit à un front-matter,
+sans cadre) — la pile est strictement plus générale, donc rien n'est perdu.
+
+### 12.1. Réglages devient la vue de la pile
+
+C'est le **round-trip** (§11) mené à sa conclusion : il n'y a plus de profil *à
+côté* à éditer. Sur un document, Réglages expose :
+
+champ « **Style parent** »
+:   affiche et permet de changer le **`extends`** du doc — un **sélecteur de
+    couche** (le même picker que « Nouveau à partir de… », §3.4). C'est `extends`
+    rendu **visible et manipulable** là où l'utilisateur l'attend.
+
+valeurs **calculées**
+:   chaque contrôle montre la valeur **héritée** de la pile (atténuée) ou **posée
+    localement** (mise en avant) — l'indice léger de §11.
+
+édition → la **feuille**
+:   bouger un curseur écrit une **clé pointée** dans le front-matter du doc
+    (§4.3) ; « revenir à l'hérité » la supprime (§11).
+
+« Extraire un style » et « Définir comme défaut » (§3.4) restent les gestes qui
+**créent** et **désignent** les couches.
+
+### 12.2. Migration des profils existants
+
+::: note [Rétro-compat — opération unique, idempotente]
+À la bascule, chaque **profil existant** (blob sha) est **converti en
+document-style** (`normalizeProfile` → clés pointées, §4.3) déposé dans le dossier
+Styles ; un document qui utilisait le profil *P* reçoit **`extends: P`**. Le store
+`:index` / `:blob:` est ensuite **abandonné** (lu le temps de la migration, puis
+supprimé). Le profil **d'usine** devient simplement `default.md` (§3.1).
+:::
+
+### 12.3. Ce qui disparaît
+
+- le **store de profils** sha-blob (`markpage:settings-profiles:*`) ;
+- la notion de **« profil courant »** globale → remplacée par le **`extends`** du
+  document + le **style par défaut** des nouveaux docs (§3.4) ;
+- l'**association doc → profil** séparée → le document porte son apparence dans
+  son **propre front-matter** (les deltas) + son `extends`.
+
+Le **panneau Réglages**, lui, **reste** — mais il édite désormais la **pile**, pas
+un profil parallèle.
+
+## 13. Non-buts & différés
 
 ::: caution
 
@@ -865,12 +936,12 @@ partagé), pas seulement la feuille. Différé (§12).
   l'hérité » (§11).
 :::
 
-## 13. Questions ouvertes
+## 14. Questions ouvertes
 
 Le **cadrage V1 est tranché** : noms `extends` / `insert` retenus (§4) ;
 concaténation **parent puis enfant** (§5) ; `customFonts` s'**unionne**, le reste
 remplace (§5) ; `var()` admis dans `::: style` (§10.1) ; promotion = « Extraire
-un style » (§3.4). Les **extensions hors V1** sont listées en §12 (export
+un style » (§3.4). Les **extensions hors V1** sont listées en §13 (export
 autonome + assets, refs distantes, trous nommés, modèle D).
 
 Restent deux **points fins** :
@@ -878,10 +949,10 @@ Restent deux **points fins** :
 - **Complétude de `default.md`** : sérialise-t-il *tous* les attributs, ou
   seulement ceux qu'expose le panneau Réglages (les autres tombant aux défauts de
   rendu) ? — un compromis verbosité / exhaustivité.
-- **Ciblage des trous nommés** (quand on les fera, §12) : `insert nom` côté cadre
+- **Ciblage des trous nommés** (quand on les fera, §13) : `insert nom` côté cadre
   + quelle syntaxe côté enfant pour « ce contenu va dans tel trou » ?
 
-## 14. Esquisse d'implémentation
+## 15. Esquisse d'implémentation
 
 ::: caution [Conception, pas encore de code]
 Cette section esquisse *comment* on câblerait l'aplatissement ; elle n'engage
@@ -904,4 +975,4 @@ pas l'API.
 - **Persistance (V1)** : *Enregistrer* écrit la **feuille telle quelle** (source,
   `extends` préservé) ; `flatten` ne tourne qu'au rendu, jamais à la sauvegarde.
 - **Export autonome (différé)** : le même `flatten` produirait un `.md` autonome
-  à partager ; hors V1 (§12).
+  à partager ; hors V1 (§13).
