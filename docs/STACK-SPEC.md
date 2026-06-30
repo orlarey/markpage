@@ -197,19 +197,26 @@ trou d'autonomie se rouvrirait. Pour un look personnel, on **construit au-dessus
 C'est ce qui permet qu'une « lettre au maire » devienne *de facto* un template,
 sans cérémonie. La seule interdiction structurelle est le **cycle** (§8).
 
-Le **« dossier spécial »** n'est donc **pas** un gating mais de la **curation** —
-la **découvrabilité** dans le sélecteur « Nouveau à partir de… » :
+Le **« dossier Styles »** n'est donc **pas** un gating mais de la **curation** :
+être un style = **y être enregistré**, ce qui rend le doc **découvrable** dans le
+sélecteur « Nouveau à partir de… » :
 
-| | mécanisme (`extends`) | curation (dossier spécial) |
+| | mécanisme (`extends`) | curation (dossier Styles) |
 | :-- | :-- | :-- |
-| **quoi** | résout un **nom** dans l'espace de noms (§4.1) | un **drapeau « réutilisable »** sur un doc |
-| **rôle** | peut étendre **n'importe quel** doc | **propose** un sous-ensemble dans le picker |
-| **sans le drapeau** | marche (on nomme le doc) | le doc n'apparaît juste pas dans le picker |
+| **quoi** | résout un **nom** dans l'espace de noms (§4.1) | l'**emplacement** du doc (dans Styles) |
+| **rôle** | peut étendre **n'importe quel** doc | **propose** les docs de Styles dans le picker |
+| **hors de Styles** | marche (on nomme le doc) | le doc n'apparaît juste pas dans le picker |
 
-La **Bibliothèque est plate** (VOLUMES, « que des `.md` ») : le dossier spécial
-est donc une **collection virtuelle** (les docs portant le drapeau), *présentée*
-comme un dossier. Sur **Disque / Dépôt**, un vrai dossier `styles/` joue le rôle.
-La **résolution** (§4.1) reste **par nom**, indépendante du drapeau.
+Le statut « style » est donc une affaire d'**emplacement**, **pas un champ** du
+front-matter : le document ne se *déclare* pas style, sa **place** le fait
+(cohérent avec « tout est document »). Le geste = *Enregistrer dans Styles* ;
+« Extraire un style » (§3.4) y enregistre directement.
+
+Sur **Disque / Dépôt** (vrais chemins), c'est un **vrai dossier `styles/`** :
+l'appartenance = l'emplacement, et elle **voyage** au partage. La **Bibliothèque
+est plate** (VOLUMES, « que des `.md` ») : « Styles » y est une **collection**
+(un marqueur d'appartenance dans l'index), *présentée* comme un dossier. La
+**résolution** (§4.1) reste **par nom**, indépendante de l'emplacement.
 
 ### 3.3. Scénario de bootstrap
 
@@ -320,6 +327,33 @@ fence       = "```" ;
   remplace.
 - `slotName` (**différé**, §12) : trous **nommés** multiples. V1 = **un seul**
   trou, le **premier** rencontré.
+
+### 4.3. Les clés de la matrice de style
+
+La matrice de style **par-élément** se sérialise en **clés plates pointées** —
+une clé scalaire par couple (élément, attribut) :
+
+````yaml
+styles.h1.color:          "#14223a"
+styles.h1.fontSize:       22
+styles.body.align:        justify
+styles.quote.borderColor: "#888"
+````
+
+C'est la **forme canonique** : elle reste dans le sous-ensemble *clés scalaires
+plates* de [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md) (une clé pointée **n'est pas**
+un dict imbriqué), elle est **lisible / greppable / diffable**, et le `deepMerge`
+(§5) fusionne **par attribut** sans effort (un parent qui pose `styles.h1.color`
+et un enfant qui pose `styles.h1.fontSize` donnent un `h1` avec les deux). Une
+**feuille** ne porte que ses **deltas** (`default.md` porte, lui, la matrice
+complète — verbeux mais auto-généré, §3.1).
+
+::: note [L'embed JSON reste reconnu — en lecture]
+La clé `markpage-profile` (matrice en JSON, §9) est **toujours lue** (rétro-compat
+des `.md` existants), mais **n'est plus la forme émise** : markpage écrit
+désormais des clés pointées. C'est ce qui ferme l'opacité visée par le round-trip
+(§11).
+:::
 
 ## 5. Aplatissement (règles de réécriture)
 
@@ -585,9 +619,9 @@ template
     *papier à en-tête* — exactement l'exemple §7.
 
 embed `markpage-profile`
-:   L'**aplati** peut soit rester en **clés lisibles**, soit **auto-embarquer**
-    le profil ; les deux satisfont S6 (autonomie). L'embed JSON devient un
-    *détail de sérialisation* de l'aplati, plus l'unique voie vers l'autonomie.
+:   forme **JSON compacte** de la matrice. **Lue** en rétro-compat, mais **plus
+    émise** : la forme canonique est désormais les **clés pointées** (§4.3). Elle
+    n'est donc plus l'unique voie vers l'autonomie — les clés lisibles suffisent.
 
 ## 10. Rapport à CSS — emprunts
 
@@ -730,9 +764,9 @@ clés plates
 
 matrice par-élément
 :   chaque attribut d'un élément → une clé **pointée** `styles.<élément>.<attr>`
-    (`styles.h1.color`, `styles.body.fontSize`, `styles.quote.borderColor`) —
-    les mêmes clés que le `deepMerge` (§5) fusionne, désormais **lisibles** dans
-    le front-matter au lieu de l'embed JSON opaque.
+    (`styles.h1.color`, `styles.body.fontSize`, `styles.quote.borderColor`) — la
+    forme canonique (§4.3), **lisible** dans le front-matter au lieu de l'embed
+    JSON opaque, fusionnée par le `deepMerge` (§5).
 
 tokens
 :   les `--name` (§10.1) remontent comme une petite palette « thème » qui pilote
