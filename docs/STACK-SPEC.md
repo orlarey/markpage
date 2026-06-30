@@ -557,11 +557,25 @@ shorthands ↔ longhands
 
 ## 10. Round-trip Réglages ↔ front-matter
 
-**Décision (V1) :** le panneau **Réglages** est un **éditeur structuré du
-front-matter du document courant** — *sa propre feuille*. Bouger un curseur
-écrit une clé dans le front-matter du `.md` actif ; éditer le texte du
-front-matter rafraîchit le panneau. La GUI et le texte sont **deux vues de la
-même couche**.
+**Décision (V1).** Le panneau **Réglages** **lit la pile** et **écrit la
+feuille** :
+
+- **Affichage = valeurs calculées.** Le panneau montre `flatten`( défauts
+  markpage → ancêtres `extends` → feuille ) — le **même `flatten` que le rendu**
+  (§4). Le front-matter de la feuille est le **delta du dessus**. Sans ça, un
+  document qui `extends` une couche riche montrerait un panneau quasi **vide**,
+  déconnecté de son rendu.
+- **Édition = la feuille.** Bouger un curseur écrit une clé dans le front-matter
+  du `.md` **courant** — même si la valeur affichée était **héritée** d'un
+  ancêtre (ça crée alors un **override local**). Éditer le texte du front-matter
+  de la feuille rafraîchit le panneau : pour ses **clés propres**, GUI et texte
+  sont deux vues de la même couche.
+
+**Indice de provenance (léger, V1).** Les valeurs **héritées** s'affichent
+**atténuées**, les valeurs **posées localement** (feuille) sont **mises en
+avant**, avec un geste **« revenir à l'hérité »** (= écrit `revert` / `unset`,
+§9.2) qui retire l'override. Pas de « quel ancêtre » : la **provenance complète**
+(couche source, token) reste D (§11).
 
 Correspondance contrôle ↔ clé :
 
@@ -608,12 +622,11 @@ panneau **n'écrit jamais en douce dans un parent** — donc aucun effet de bord
 sur les autres documents qui l'`extends`ent.
 
 ::: note [Évolution différée — le modèle « DevTools » (D)]
-B est la **réduction à une seule couche** d'un modèle plus riche : vue
-**calculée** (l'aplati) + **provenance** par propriété (« vient de
-*papier-en-tête*, via `var(--brand)` ») + **sélecteur de couche cible**
-(feuille = override local, ancêtre = style partagé) + geste **« revenir à
-l'hérité »** (= écrit `revert` / `unset`, §9.2). Différé (§11) : V1 n'édite que
-la feuille, sans sélecteur ni provenance.
+V1 fournit déjà la **vue calculée**, l'**indice hérité/local** et le geste
+**« revenir à l'hérité »**. **D** ajoute la **provenance complète** (quelle
+couche source, via quel token : « vient de *papier-en-tête*, via `var(--brand)`
+») et un **sélecteur de couche cible** — écrire dans un **ancêtre** (style
+partagé), pas seulement la feuille. Différé (§11).
 :::
 
 ## 11. Non-buts & différés
@@ -632,9 +645,10 @@ la feuille, sans sélecteur ni provenance.
   de la référence, elle, est **arrêtée** (§3.1).
 - **Refs distantes & versionnage** — refs **URL** (« CDN de styles ») et
   **épinglage** d'un parent partagé qui change après coup — hors V1 (§3.1).
-- **Round-trip « DevTools » (modèle D)** — vue calculée + provenance + sélecteur
-  de couche cible + « revenir à l'hérité » — différé ; V1 = B, le panneau édite
-  **la feuille** (§10).
+- **Round-trip « DevTools » (modèle D)** — **provenance complète** (couche
+  source, token) + **sélecteur de couche cible** (écrire dans un ancêtre) —
+  différé. V1 a déjà la vue calculée, l'indice hérité/local et « revenir à
+  l'hérité » (§10).
 :::
 
 ## 12. Questions ouvertes
