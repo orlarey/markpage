@@ -125,7 +125,43 @@ export function mergeFrontmatter(chain: StackDoc[]): Map<string, string> {
     if (factory !== undefined) fm.set(key, factory);
     else fm.delete(key);
   }
+
+  // `customFonts` is a *registry*, not a setting (STACK-SPEC §5): union it down
+  // the chain (deduped) instead of letting the child replace — otherwise a child
+  // that adds one font would drop the parent's. Any other list still replaces.
+  const fonts: unknown[] = [];
+  const seen = new Set<string>();
+  for (let i = chain.length - 1; i >= 0; i -= 1) {
+    const raw = chain[i].frontmatter.get('customFonts');
+    if (raw === undefined) continue;
+    let arr: unknown;
+    try {
+      arr = JSON.parse(raw);
+    } catch {
+      continue; // malformed — ignore this layer's customFonts
+    }
+    if (!Array.isArray(arr)) continue;
+    for (const el of arr) {
+      const key = fontIdentity(el);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fonts.push(el);
+    }
+  }
+  if (fonts.length > 0) fm.set('customFonts', JSON.stringify(fonts));
+  else fm.delete('customFonts');
+
   return fm;
+}
+
+/** Dedup key for a custom-font entry — by sha, then family, else the whole entry. */
+function fontIdentity(el: unknown): string {
+  if (el !== null && typeof el === 'object') {
+    const o = el as Record<string, unknown>;
+    if (typeof o.sha === 'string') return `sha:${o.sha}`;
+    if (typeof o.family === 'string') return `family:${o.family}`;
+  }
+  return JSON.stringify(el);
 }
 
 // ---- body fold ------------------------------------------------------------
@@ -196,6 +232,66 @@ export function flatten(leaf: StackDoc, resolve: ResolveDoc): FlatDoc {
   return { frontmatter: mergeFrontmatter(chain), body: foldBodies(chain) };
 }
 
+// ---- token resolution (render-time) ---------------------------------------
+
+/** Thrown when a `var(--x)` references an undefined token with no fallback. */
+export class TokenMissingError extends Error {
+  constructor(public readonly token: string) {
+    super(`undefined token ${token} (no fallback)`);
+    this.name = 'TokenMissingError';
+  }
+}
+
+/** Thrown when tokens reference each other in a cycle. */
+export class TokenCycleError extends Error {
+  constructor(public readonly token: string) {
+    super(`token cycle through ${token}`);
+    this.name = 'TokenCycleError';
+  }
+}
+
+const VAR_RE = /var\(\s*(--[\w-]+)\s*(?:,\s*([^)]*))?\)/g;
+
+/**
+ * Purpose: Resolve `var(--token)` references against the front-matter's own
+ *   `--token` declarations (STACK-SPEC §10.1) — the *render-time* step that
+ *   `flatten` deliberately skips.
+ * How: A token's value may itself reference tokens; resolution is recursive
+ *   and memoised, with a `resolving` set to detect cycles. `var(--x, fallback)`
+ *   uses the fallback when `--x` is undefined; without a fallback an undefined
+ *   token is an error. Substitution runs in *every* value (the token keys
+ *   included), so the result has no `var()` left.
+ */
+export function resolveTokens(fm: Map<string, string>): Map<string, string> {
+  const tokens = new Map<string, string>();
+  for (const [key, value] of fm) if (key.startsWith('--')) tokens.set(key, value);
+
+  const resolved = new Map<string, string>();
+  const resolving = new Set<string>();
+
+  const substitute = (value: string): string =>
+    value.replace(VAR_RE, (_m, name: string, fallback?: string) => {
+      if (tokens.has(name)) return resolveToken(name);
+      if (fallback !== undefined) return fallback.trim();
+      throw new TokenMissingError(name);
+    });
+
+  function resolveToken(name: string): string {
+    const memo = resolved.get(name);
+    if (memo !== undefined) return memo;
+    if (resolving.has(name)) throw new TokenCycleError(name);
+    resolving.add(name);
+    const out = substitute(tokens.get(name) ?? '');
+    resolving.delete(name);
+    resolved.set(name, out);
+    return out;
+  }
+
+  const out = new Map<string, string>();
+  for (const [key, value] of fm) out.set(key, substitute(value));
+  return out;
+}
+
 // ---- raw front-matter parse / serialize -----------------------------------
 
 const FENCE_RE = /^---\s*\r?\n/;
@@ -258,7 +354,95 @@ export function parseStackDoc(source: string, name: string): StackDoc {
 
   let bodyStart = end + 1;
   if (lines[bodyStart]?.trim() === '') bodyStart += 1;
-  return { name, frontmatter, body: lines.slice(bodyStart).join('\n') };
+  return { name, frontmatter: explodeProfile(frontmatter), body: lines.slice(bodyStart).join('\n') };
+}
+
+// ---- legacy markpage-profile embed (STACK-SPEC §4.3, §9) ------------------
+
+const FONT_SLOT_KEY: Record<string, string> = {
+  body: 'font-body',
+  headings: 'font-heading',
+  code: 'font-mono',
+};
+
+/**
+ * Purpose: Explode a `markpage-profile` JSON embed into the canonical flat /
+ *   dotted keys (STACK-SPEC §4.3) — the read-time, back-compat path. The
+ *   per-element matrix becomes `styles.<el>.<attr>` keys, fonts become
+ *   `font-*`, layout becomes `page-size` / `margins` / `page-numbers`, and
+ *   `customFonts` is carried as a JSON-array key for the union (§5).
+ * How: tolerant JSON parse (a malformed embed yields no keys rather than
+ *   throwing); string values are quoted, numbers / booleans bare.
+ */
+export function normalizeProfile(json: string): Map<string, string> {
+  const out = new Map<string, string>();
+  let p: unknown;
+  try {
+    p = JSON.parse(json);
+  } catch {
+    return out;
+  }
+  if (p === null || typeof p !== 'object') return out;
+  const prof = p as Record<string, unknown>;
+
+  const fonts = prof.fonts;
+  if (fonts !== null && typeof fonts === 'object') {
+    for (const [slot, key] of Object.entries(FONT_SLOT_KEY)) {
+      const v = (fonts as Record<string, unknown>)[slot];
+      if (typeof v === 'string' && v !== '') out.set(key, quoteScalar(v));
+    }
+  }
+
+  const styles = prof.styles;
+  if (styles !== null && typeof styles === 'object') {
+    for (const [el, attrs] of Object.entries(styles as Record<string, unknown>)) {
+      if (attrs === null || typeof attrs !== 'object') continue;
+      for (const [attr, val] of Object.entries(attrs as Record<string, unknown>)) {
+        out.set(`styles.${el}.${attr}`, scalarValue(val));
+      }
+    }
+  }
+
+  if (typeof prof.pageSize === 'string') out.set('page-size', prof.pageSize);
+  if (typeof prof.pageNumbers === 'boolean') out.set('page-numbers', String(prof.pageNumbers));
+  const m = prof.margins;
+  if (m !== null && typeof m === 'object') {
+    const mm = m as Record<string, unknown>;
+    if (['top', 'right', 'bottom', 'left'].every((k) => typeof mm[k] === 'number')) {
+      out.set('margins', `${mm.top} ${mm.right} ${mm.bottom} ${mm.left}`);
+    }
+  }
+  if (Array.isArray(prof.customFonts) && prof.customFonts.length > 0) {
+    out.set('customFonts', JSON.stringify(prof.customFonts));
+  }
+  return out;
+}
+
+/** Quote a string value (matching the authored `styles.h1.color: "#…"` form). */
+function quoteScalar(s: string): string {
+  return `"${s}"`;
+}
+
+/** Serialize a profile attribute value: strings quoted, numbers / booleans bare. */
+function scalarValue(v: unknown): string {
+  return typeof v === 'string' ? quoteScalar(v) : String(v);
+}
+
+/**
+ * Purpose: If a front-matter has a `markpage-profile` embed, replace it with its
+ *   exploded dotted keys — but an explicit key (e.g. an authored
+ *   `styles.h1.color`) in the same document **wins** over the embed
+ *   (STACK-SPEC §4.3, FRONTMATTER-SPEC *flat key > embed*).
+ */
+function explodeProfile(fm: Map<string, string>): Map<string, string> {
+  const embed = fm.get('markpage-profile');
+  if (embed === undefined) return fm;
+  const merged = normalizeProfile(embed); // exploded base
+  for (const [key, value] of fm) {
+    if (key === 'markpage-profile') continue; // consumed
+    merged.set(key, value); // explicit keys overlay (win)
+  }
+  return merged;
 }
 
 /** Strip the common leading indent from a block scalar; drop trailing blanks. */

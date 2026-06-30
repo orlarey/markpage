@@ -3,13 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   ROOT_NAME,
   resolveChain,
-  mergeFrontmatter,
   insertInto,
   flatten,
+  resolveTokens,
+  normalizeProfile,
   parseStackDoc,
   serializeStackDoc,
   StackCycleError,
   StackMissingRefError,
+  TokenMissingError,
+  TokenCycleError,
   type StackDoc,
   type ResolveDoc,
 } from '@orlarey/markpage-render';
@@ -211,5 +214,128 @@ describe('serializeStackDoc', () => {
 
   it('emits the body alone when the front-matter is empty', () => {
     expect(serializeStackDoc(new Map(), '# Hi')).toBe('# Hi');
+  });
+});
+
+// ---- token resolution (render-time) ---------------------------------------
+
+describe('resolveTokens', () => {
+  it('substitutes var(--x) in any value, using fallbacks for undefined tokens', () => {
+    const fm = new Map([
+      ['--brand', '"#0b3d91"'],
+      ['styles.h1.color', 'var(--brand)'],
+      ['measureChars', 'var(--measure, 66)'],
+    ]);
+    const out = resolveTokens(fm);
+    expect(out.get('styles.h1.color')).toBe('"#0b3d91"');
+    expect(out.get('measureChars')).toBe('66'); // --measure undefined → fallback
+  });
+
+  it('resolves token → token references', () => {
+    const fm = new Map([
+      ['--brand', '"#0b3d91"'],
+      ['--accent', 'var(--brand)'],
+      ['styles.quote.borderColor', 'var(--accent)'],
+    ]);
+    const out = resolveTokens(fm);
+    expect(out.get('--accent')).toBe('"#0b3d91"');
+    expect(out.get('styles.quote.borderColor')).toBe('"#0b3d91"');
+  });
+
+  it('throws on an undefined token without fallback', () => {
+    expect(() => resolveTokens(new Map([['x', 'var(--nope)']]))).toThrow(TokenMissingError);
+  });
+
+  it('throws on a token cycle', () => {
+    const fm = new Map([
+      ['--a', 'var(--b)'],
+      ['--b', 'var(--a)'],
+    ]);
+    expect(() => resolveTokens(fm)).toThrow(TokenCycleError);
+  });
+
+  it('leaves a literal value untouched', () => {
+    const out = resolveTokens(new Map([['styles.h1.color', '"#14223a"']]));
+    expect(out.get('styles.h1.color')).toBe('"#14223a"');
+  });
+});
+
+// ---- markpage-profile embed normalization ---------------------------------
+
+describe('normalizeProfile', () => {
+  it('explodes fonts / styles / layout / customFonts to flat & dotted keys', () => {
+    const json = JSON.stringify({
+      fonts: { headings: 'Inter', body: 'Lora', code: 'Fira Code' },
+      styles: {
+        body: { fontSize: 11, align: 'justify' },
+        h1: { fontSize: 22, color: '#14223a' },
+        quote: { borderTop: true, borderWidth: 3 },
+      },
+      pageSize: 'A4',
+      margins: { top: 25, right: 35, bottom: 25, left: 35 },
+      pageNumbers: true,
+      customFonts: [{ family: 'Lora', sha: 'abc' }],
+    });
+    const m = normalizeProfile(json);
+    expect(m.get('font-heading')).toBe('"Inter"');
+    expect(m.get('font-body')).toBe('"Lora"');
+    expect(m.get('font-mono')).toBe('"Fira Code"');
+    expect(m.get('styles.body.fontSize')).toBe('11');
+    expect(m.get('styles.body.align')).toBe('"justify"');
+    expect(m.get('styles.h1.color')).toBe('"#14223a"');
+    expect(m.get('styles.quote.borderTop')).toBe('true');
+    expect(m.get('page-size')).toBe('A4');
+    expect(m.get('margins')).toBe('25 35 25 35');
+    expect(m.get('page-numbers')).toBe('true');
+    expect(JSON.parse(m.get('customFonts') ?? '[]')).toEqual([{ family: 'Lora', sha: 'abc' }]);
+  });
+
+  it('returns no keys for a malformed embed', () => {
+    expect(normalizeProfile('not json').size).toBe(0);
+  });
+});
+
+describe('parseStackDoc — markpage-profile embed', () => {
+  it('explodes the embed, an explicit dotted key winning over it', () => {
+    const src = [
+      '---',
+      'markpage-profile: |',
+      '  {"fonts":{"headings":"Inter"},"styles":{"h1":{"color":"#14223a","fontSize":22}}}',
+      'styles.h1.color: "#000000"',
+      '---',
+      'Body',
+    ].join('\n');
+    const d = parseStackDoc(src, 'doc');
+    expect(d.frontmatter.has('markpage-profile')).toBe(false); // consumed
+    expect(d.frontmatter.get('font-heading')).toBe('"Inter"'); // from embed
+    expect(d.frontmatter.get('styles.h1.fontSize')).toBe('22'); // from embed
+    expect(d.frontmatter.get('styles.h1.color')).toBe('"#000000"'); // explicit > embed
+  });
+});
+
+// ---- customFonts union ----------------------------------------------------
+
+describe('mergeFrontmatter — customFonts union', () => {
+  it('unions custom fonts down the chain, deduped by sha', () => {
+    const def = mk(ROOT_NAME, {
+      extends: ROOT_NAME,
+      customFonts: JSON.stringify([{ family: 'Base', sha: 'base' }]),
+    });
+    const parent = mk('p', {
+      extends: ROOT_NAME,
+      customFonts: JSON.stringify([{ family: 'Lora', sha: 'lora' }]),
+    });
+    const leaf = mk('leaf', {
+      extends: 'p',
+      customFonts: JSON.stringify([
+        { family: 'Inter', sha: 'inter' },
+        { family: 'Lora', sha: 'lora' }, // duplicate of the parent's
+      ]),
+    });
+    const fm = flatten(leaf, resolver([def, parent, leaf])).frontmatter;
+    const shas = (JSON.parse(fm.get('customFonts') ?? '[]') as { sha: string }[])
+      .map((f) => f.sha)
+      .sort();
+    expect(shas).toEqual(['base', 'inter', 'lora']); // union of all, lora once
   });
 });
