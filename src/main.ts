@@ -179,6 +179,7 @@ import {
   writeFileHandle,
 } from './disk-link';
 import { applyFrontmatterToSettings, serializeProfile, type PdfSettings } from './settings';
+import { stylePatchFromSource, applyProfilePatch } from './stack-render';
 import {
   createProfile,
   deleteProfile,
@@ -631,7 +632,16 @@ async function bootstrap(): Promise<void> {
     // Frontmatter can override page-format-level settings (e.g.
     // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
     // effective settings once and use them for pagination.
-    const effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
+    let effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
+    // Document-stack (STACK-SPEC): fold in `var(--token)` + dotted `styles.*`
+    // keys as a profile patch. Gated to documents that use them (else a no-op),
+    // and guarded so a token error degrades to the un-patched render.
+    try {
+      const patch = stylePatchFromSource(resolved);
+      if (patch) effectiveSettings = applyProfilePatch(effectiveSettings, patch);
+    } catch (err) {
+      console.warn('[markpage] stack style resolution failed', err);
+    }
     const built = document.createElement('div');
     renderPreview(built, resolved);
     applyPreviewMetadata(built, effectiveSettings, meta);
@@ -704,6 +714,10 @@ async function bootstrap(): Promise<void> {
       paginateLock = turn.catch(() => {});
       await turn;
     } else {
+      // Continuous mode draws per-element styles from the injected stylesheet
+      // (not pagedCss), so refresh it from the per-doc effective settings —
+      // otherwise frontmatter / stack style overrides wouldn't show here.
+      applyPreviewStyles(r.effectiveSettings);
       renderContinuous(r.built, r.effectiveSettings);
       dirty = false;
       fitPreviewWidth();
