@@ -269,8 +269,9 @@ Tout le bootstrap tient en trois gestes d'appli, **tous bâtis sur `extends`** :
 
 extraire un style
 :   promeut les **deltas locaux** de la feuille → un nouveau doc (marqué
-    réutilisable) et remplace par `extends`. Le pont feuille → couche partagée
-    (§13).
+    réutilisable) et remplace par `extends`. C'est le pont feuille → **nouvelle**
+    couche partagée ; pousser un réglage vers un ancêtre *existant* = modèle D
+    (§12).
 
 nouveau à partir de `<couche>`
 :   crée une feuille avec `extends: <couche>` — *choisir un style* = choisir le
@@ -389,7 +390,7 @@ Output: document aplati (front-matter fusionné, corps replié), auto-suffisant
 chaine ← [L]                          ▷ … puis P1, …, default.md (en dernier)
 n ← L
 while resoudre(n.extends) ≠ n do      ▷ s'arrête au point fixe : default.md extends lui-même
-  n ← resoudre(n.extends)             ▷ §13 ; ERREUR si cycle (autre que le point fixe) ou réf absente
+  n ← resoudre(n.extends)             ▷ §8 : ERREUR si cycle (autre que le point fixe) ou réf absente
   chaine ← chaine ++ [n]
 end
 
@@ -432,7 +433,8 @@ touchent chacun l'une **gardent les deux**. Deux valeurs ont un sens spécial :
   de **`default.md`** (on échappe ainsi aux ancêtres, l'intention de §10.2),
   via la **passe de reset** de `flatten`. *(V1 confond les trois ; la distinction
   fine CSS `revert` ≠ `unset` est différée.)*
-- **listes** — `customFonts`… : *append* vs *replace*, **question ouverte** (§13).
+- **listes** — `customFonts` s'**unionne** (les polices s'accumulent le long de
+  la chaîne, dédupliquées) ; toute autre liste suit *l'enfant remplace*.
 
 *(`merge` ne résout pas `var(--…)` : la substitution des tokens est au **rendu**,
 §10.1.)*
@@ -714,6 +716,11 @@ measureChars: var(--measure)          # un token de taille, pas qu'une couleur
 styles.h1.color: var(--brand, #111)   # fallback si --brand n'est pas défini
 ````
 
+`var(--x)` est aussi résolu dans les overrides locaux **`::: style`** (§6) —
+substitué *avant* la validation de l'allowlist STYLE-SPEC (une petite extension
+de STYLE-SPEC). Ainsi `::: style color=var(--brand)` réutilise le thème sur une
+couverture, une légende, etc.
+
 ### 10.2. `revert` / `unset` / `initial` — dé-poser une valeur héritée
 
 Le `merge` (§5) est **override-only** : un enfant peut *poser* une valeur,
@@ -860,24 +867,19 @@ partagé), pas seulement la feuille. Différé (§12).
 
 ## 13. Questions ouvertes
 
-*(Les **noms** `extends` et `insert` sont **retenus** — alternatives `base` /
-`on` / `style`, `slot` / `content` écartées, §4.)*
+Le **cadrage V1 est tranché** : noms `extends` / `insert` retenus (§4) ;
+concaténation **parent puis enfant** (§5) ; `customFonts` s'**unionne**, le reste
+remplace (§5) ; `var()` admis dans `::: style` (§10.1) ; promotion = « Extraire
+un style » (§3.4). Les **extensions hors V1** sont listées en §12 (export
+autonome + assets, refs distantes, trous nommés, modèle D).
 
-- **Sens de la concaténation** par défaut : *parent puis enfant* (proposé) — à
-  confirmer (un cas où l'enfant doit précéder ?).
-- **Fusion des listes** (`customFonts`, header/footer multiples…) : *append* ou
-  *replace* ? Probablement *replace* (cohérent avec « l'enfant gagne »), avec une
-  syntaxe d'*append* explicite plus tard.
-- **Tokens dans `::: style`** : `var(--x)` est-il résolu aussi dans les
-  overrides locaux `::: style` (§6), dont l'allowlist STYLE-SPEC n'admet pas le
-  CSS brut ? (La déclaration `--name` et la portée *toute valeur* sont
-  **arrêtées**, §10.1.)
-- **Trous nommés** : `insert nom` côté cadre, `extends` + ciblage côté enfant —
-  quelle syntaxe pour « ce contenu va dans tel trou » ?
-- **Promotion vers une couche partagée** : depuis B (le panneau édite la
-  feuille, §11), quel **geste** extrait un réglage vers un parent `extends`é
-  (« créer un style à partir de ces réglages », « pousser cette couleur dans
-  *papier-en-tête* ») ? C'est le pont B → C/D, à dessiner.
+Restent deux **points fins** :
+
+- **Complétude de `default.md`** : sérialise-t-il *tous* les attributs, ou
+  seulement ceux qu'expose le panneau Réglages (les autres tombant aux défauts de
+  rendu) ? — un compromis verbosité / exhaustivité.
+- **Ciblage des trous nommés** (quand on les fera, §12) : `insert nom` côté cadre
+  + quelle syntaxe côté enfant pour « ce contenu va dans tel trou » ?
 
 ## 14. Esquisse d'implémentation
 
