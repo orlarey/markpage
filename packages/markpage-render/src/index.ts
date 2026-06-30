@@ -38,6 +38,7 @@ export {
 export {
   ROOT_NAME,
   resolveChain,
+  resolveChainAsync,
   mergeFrontmatter,
   insertInto,
   foldBodies,

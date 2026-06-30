@@ -1,36 +1,43 @@
 /********************************* stack-render.ts ****************************
  *
  * Purpose: Bridge the pure document-stack engine (@orlarey/markpage-render) into
- *   the app's render path. First increment — the *self-contained* features:
- *   `var(--token)` substitution and dotted `styles.<el>.<attr>` keys, applied as
- *   a profile patch on top of the document's effective settings.
- * How: parse the source's front-matter (which explodes any `markpage-profile`
- *   embed to dotted keys), resolve `var()` tokens, denormalise the dotted/flat
- *   keys back to a profile, then fold that profile into the PdfSettings the
- *   renderer already consumes.
- *
- * Scope: cross-document `extends` (chain resolution against the store + body
- *   folding) is a later increment — it needs an async store resolver and the
- *   auto-generated `default.md`. Here the chain is just the leaf, so the body is
- *   untouched and only the per-element typography is affected.
+ *   the app's render path — resolve a document's `extends` chain against the
+ *   library, flatten it (merge front-matter + reset + token resolution + body
+ *   fold), and hand back the flattened `.md` plus a profile patch the renderer
+ *   applies on top of the document's effective settings.
+ * How: the root of every chain is `default.md`, auto-generated from the active
+ *   settings (`serializeProfile` → `normalizeProfile`) with a self-`extends`
+ *   (the fixpoint). Resolution of named parents is delegated to an async
+ *   `resolveByName` callback (the store), so this stays testable in-memory.
  *
  *******************************************************************************/
 
 import {
   parseStackDoc,
+  resolveChainAsync,
+  mergeFrontmatter,
   resolveTokens,
+  foldBodies,
+  normalizeProfile,
   denormalizeProfile,
+  serializeStackDoc,
+  ROOT_NAME,
+  type StackDoc,
   type ProfilePatch,
 } from '@orlarey/markpage-render';
 
-import { type PdfSettings, type PageSize, type Style } from './settings';
+import { serializeProfile, type PdfSettings, type PageSize, type Style } from './settings';
+
+/** Resolve an `extends` reference (a document name) to its source, or null. */
+export type ResolveByName = (name: string) => Promise<StackDoc | null>;
 
 /**
- * Purpose: Does this document use the stack's self-contained features (tokens
- *   or dotted style keys)? Gate the new path so documents that don't are
- *   rendered byte-identically to before.
+ * Purpose: Does this document use any stack feature (extends, tokens, dotted
+ *   style keys)? Gate the new path so documents that use none render
+ *   byte-identically to before.
  */
 function usesStackFeatures(frontmatter: Map<string, string>): boolean {
+  if (frontmatter.has('extends')) return true;
   for (const [key, value] of frontmatter) {
     if (key.startsWith('--') || key.startsWith('styles.')) return true;
     if (value.includes('var(--')) return true;
@@ -39,23 +46,49 @@ function usesStackFeatures(frontmatter: Map<string, string>): boolean {
 }
 
 /**
- * Purpose: Compute the per-document style patch from its tokens + dotted keys,
- *   or `null` when the document uses none (→ caller skips, no behaviour change).
- * How: parseStackDoc (explodes a markpage-profile embed to dotted keys) →
- *   resolveTokens (`var()`) → denormalizeProfile. May throw on an undefined
- *   token or a token cycle — the caller decides how to surface that.
+ * Purpose: The root document `default.md` — markpage's defaults, as the canonical
+ *   dotted/flat keys, with a self-`extends` (the chain fixpoint).
+ * How: serialize the active settings to the profile JSON, explode it to keys.
+ *   (Transitional: the root mirrors the *active* settings so a stack-less doc
+ *   flattens to today's render; the factory-vs-active split lands with the
+ *   Réglages round-trip.)
  */
-export function stylePatchFromSource(source: string): ProfilePatch | null {
-  const leaf = parseStackDoc(source, 'doc');
+function defaultDoc(settings: PdfSettings): StackDoc {
+  const frontmatter = normalizeProfile(serializeProfile(settings));
+  frontmatter.set('extends', ROOT_NAME);
+  return { name: ROOT_NAME, frontmatter, body: '' };
+}
+
+/**
+ * Purpose: Flatten a document for rendering — or `null` when it uses no stack
+ *   feature (caller renders the source as-is, no behaviour change).
+ * How: parse the leaf, resolve its `extends` chain to `default.md`, merge +
+ *   resolve tokens, fold the bodies; return the flattened `.md` (folded body +
+ *   merged front-matter) and the per-element style patch to apply.
+ * Throws on a cycle, a missing parent, or an undefined token — the caller
+ *   decides how to surface that (it degrades to the un-flattened render).
+ */
+export async function flattenForRender(
+  source: string,
+  opts: { settings: PdfSettings; resolveByName: ResolveByName },
+): Promise<{ md: string; patch: ProfilePatch } | null> {
+  const leaf = parseStackDoc(source, '__leaf__');
   if (!usesStackFeatures(leaf.frontmatter)) return null;
-  return denormalizeProfile(resolveTokens(leaf.frontmatter));
+
+  const resolve = (name: string): Promise<StackDoc | null> =>
+    name === ROOT_NAME ? Promise.resolve(defaultDoc(opts.settings)) : opts.resolveByName(name);
+
+  const chain = await resolveChainAsync(leaf, resolve);
+  const frontmatter = resolveTokens(mergeFrontmatter(chain));
+  const body = foldBodies(chain);
+  return { md: serializeStackDoc(frontmatter, body), patch: denormalizeProfile(frontmatter) };
 }
 
 /**
  * Purpose: Fold a stack profile patch into PdfSettings — the per-element styles,
  *   fonts, and layout — so the existing renderer applies the stacked result.
  * How: shallow-merge fonts; deep-merge styles per element/attribute (the patch
- *   carries only what the document set); map layout keys. Pure: returns a new
+ *   carries only what the stack set); map layout keys. Pure: returns a new
  *   settings object, leaving the input untouched.
  */
 export function applyProfilePatch(settings: PdfSettings, patch: ProfilePatch): PdfSettings {

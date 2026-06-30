@@ -57,7 +57,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter, embedProfileInFrontmatter } from '@orlarey/markpage-render';
+import { parseFrontmatter, embedProfileInFrontmatter, parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
@@ -179,7 +179,7 @@ import {
   writeFileHandle,
 } from './disk-link';
 import { applyFrontmatterToSettings, serializeProfile, type PdfSettings } from './settings';
-import { stylePatchFromSource, applyProfilePatch } from './stack-render';
+import { flattenForRender, applyProfilePatch } from './stack-render';
 import {
   createProfile,
   deleteProfile,
@@ -616,6 +616,18 @@ async function bootstrap(): Promise<void> {
     true, // capture — runs before the source-jump click handler
   );
 
+  // Resolve a stack `extends` reference (a library doc name) to its parsed
+  // source, for the document-stack flatten. A doc can't be its own parent, so
+  // the current doc is excluded. Returns null when no doc bears that name.
+  const resolveByName = async (name: string): Promise<StackDoc | null> => {
+    for (const entry of await listDocs()) {
+      if (entry.name !== name || entry.uuid === currentDoc.uuid) continue;
+      const content = (await loadDocContent(entry)) ?? '';
+      return parseStackDoc(content, name);
+    }
+    return null;
+  };
+
   // Builds the rendered DOM subtree (Markdown + post-processing) shared by
   // both render modes. Returns null if a newer request superseded this one
   // (stale-guard via previewReqId), so callers can bail.
@@ -627,21 +639,31 @@ async function bootstrap(): Promise<void> {
     myReq: number;
   } | null> => {
     const myReq = ++previewReqId;
-    const resolved = await expandRefsToBlobUrls(source);
+    // Document-stack (STACK-SPEC): resolve the `extends` chain, flatten (merged
+    // front-matter + tokens + folded body) and keep the per-element style patch.
+    // Gated to documents that use a stack feature; guarded so any error (cycle,
+    // missing parent, undefined token) degrades to the un-flattened render.
+    let toRender = source;
+    let stylePatch = null as Awaited<ReturnType<typeof flattenForRender>>;
+    try {
+      const flat = await flattenForRender(source, {
+        settings: state.settings,
+        resolveByName,
+      });
+      if (flat) {
+        toRender = flat.md;
+        stylePatch = flat;
+      }
+    } catch (err) {
+      console.warn('[markpage] stack flatten failed', err);
+    }
+    const resolved = await expandRefsToBlobUrls(toRender);
     const { meta } = parseFrontmatter(resolved);
     // Frontmatter can override page-format-level settings (e.g.
     // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
     // effective settings once and use them for pagination.
     let effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
-    // Document-stack (STACK-SPEC): fold in `var(--token)` + dotted `styles.*`
-    // keys as a profile patch. Gated to documents that use them (else a no-op),
-    // and guarded so a token error degrades to the un-patched render.
-    try {
-      const patch = stylePatchFromSource(resolved);
-      if (patch) effectiveSettings = applyProfilePatch(effectiveSettings, patch);
-    } catch (err) {
-      console.warn('[markpage] stack style resolution failed', err);
-    }
+    if (stylePatch) effectiveSettings = applyProfilePatch(effectiveSettings, stylePatch.patch);
     const built = document.createElement('div');
     renderPreview(built, resolved);
     applyPreviewMetadata(built, effectiveSettings, meta);

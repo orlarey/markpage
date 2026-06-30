@@ -94,6 +94,34 @@ export function resolveChain(leaf: StackDoc, resolve: ResolveDoc): StackDoc[] {
   return chain;
 }
 
+/**
+ * Purpose: `resolveChain` for an *async* resolver — e.g. one that loads parent
+ *   documents from a store. Same semantics (fixpoint termination, cycle and
+ *   missing-ref errors, only the root may self-reference).
+ */
+export async function resolveChainAsync(
+  leaf: StackDoc,
+  resolve: (ref: string) => Promise<StackDoc | null>,
+): Promise<StackDoc[]> {
+  const chain: StackDoc[] = [leaf];
+  const seen = new Set<string>([leaf.name]);
+  let cur = leaf;
+  for (;;) {
+    const ref = (cur.frontmatter.get('extends') ?? ROOT_NAME).trim();
+    const parent = await resolve(ref);
+    if (parent === null) throw new StackMissingRefError(ref, cur.name);
+    if (parent.name === cur.name) {
+      if (cur.name !== ROOT_NAME) throw new StackCycleError([cur.name, cur.name]);
+      break;
+    }
+    if (seen.has(parent.name)) throw new StackCycleError([...seen, parent.name]);
+    seen.add(parent.name);
+    chain.push(parent);
+    cur = parent;
+  }
+  return chain;
+}
+
 // ---- front-matter merge ---------------------------------------------------
 
 /**
