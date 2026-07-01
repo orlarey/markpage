@@ -183,6 +183,7 @@ import { applyFrontmatterToSettings, serializeProfile, DEFAULT_SETTINGS, type Pd
 import {
   flattenForRender,
   applyProfilePatch,
+  deriveSettingsForDoc,
   extractStyleFromSettings,
   getExtendsFromSource,
   setExtendsInSource,
@@ -641,6 +642,11 @@ async function bootstrap(): Promise<void> {
     }
     return null;
   };
+
+  // STACK-SPEC §12.1 (Étape 1 — dérivation au chargement): the Réglages panel
+  // reflects the boot doc's own stack (extends chain + dotted style keys),
+  // not just the app-wide profile it was seeded from above.
+  state.settings = await deriveSettingsForDoc(initialDoc, state.settings, resolveByName);
 
   // Builds the rendered DOM subtree (Markdown + post-processing) shared by
   // both render modes. Returns null if a newer request superseded this one
@@ -1106,6 +1112,10 @@ async function bootstrap(): Promise<void> {
     currentDoc = target;
     await setCurrentDocId(target.uuid);
     const content = (await loadDocContent(target)) ?? '';
+    // STACK-SPEC §12.1: Réglages follows the doc — derive its settings from
+    // its own stack before rendering, so the panel never shows the outgoing
+    // doc's values.
+    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
     editor.setValue(content);
     dirty = true;
     // Keep the split open across doc switches — refresh it for the new doc.
@@ -1114,6 +1124,7 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(isModified(target));
     toolbarCtrl.setOrigin(originOf(target));
     toolbarCtrl.setConflict(false);
+    refreshSettingsForm?.();
     void checkSync();
   };
 
@@ -1143,6 +1154,7 @@ async function bootstrap(): Promise<void> {
     const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
+    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
     editor.setValue(content);
     dirty = true;
     // Keep the split open — refresh it for the new empty doc.
@@ -1150,6 +1162,7 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
+    refreshSettingsForm?.();
   };
 
   // "Style parent" in Réglages (STACK-SPEC §12.1): pick the layer the current
@@ -1166,6 +1179,8 @@ async function bootstrap(): Promise<void> {
     if (picked === null) return; // cancelled
     editor.setValue(setExtendsInSource(editor.getValue(), picked === '' ? null : picked));
     dirty = true;
+    // A new parent changes the effective style — re-derive before the form refresh.
+    state.settings = await deriveSettingsForDoc(editor.getValue(), state.settings, resolveByName);
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     refreshSettingsForm?.(); // reflect the new parent in the open form
   };
@@ -1183,12 +1198,14 @@ async function bootstrap(): Promise<void> {
     const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
+    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
     editor.setValue(content);
     dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
+    refreshSettingsForm?.();
   };
 
   // "Extraire un style" (STACK-SPEC §3.4, the B→C bridge): pull the document's
@@ -1243,18 +1260,22 @@ async function bootstrap(): Promise<void> {
       const fresh = await createDoc('Sans titre');
       currentDoc = fresh;
       await setCurrentDocId(fresh.uuid);
+      state.settings = await deriveSettingsForDoc('', state.settings, resolveByName);
       editor.setValue('');
     } else {
       const next = remaining[0];
       currentDoc = next;
       await setCurrentDocId(next.uuid);
-      editor.setValue((await loadDocContent(next)) ?? '');
+      const content = (await loadDocContent(next)) ?? '';
+      state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+      editor.setValue(content);
     }
     dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
     toolbarCtrl.setOrigin(originOf(currentDoc));
+    refreshSettingsForm?.();
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
@@ -1274,10 +1295,13 @@ async function bootstrap(): Promise<void> {
   const revertCurrentDoc = async (): Promise<void> => {
     if (!isModified(currentDoc)) return;
     currentDoc = await revertDoc(currentDoc.uuid);
-    editor.setValue((await loadCommittedContent(currentDoc)) ?? '');
+    const content = (await loadCommittedContent(currentDoc)) ?? '';
+    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+    editor.setValue(content);
     dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
+    refreshSettingsForm?.();
   };
 
   // ---- disk link (Phase 4, File System Access — Chromium only) ----------
@@ -1321,9 +1345,11 @@ async function bootstrap(): Promise<void> {
   const applyDiskContent = async (content: string): Promise<void> => {
     await saveDraft(currentDoc.uuid, content);
     currentDoc = await commitDoc(currentDoc.uuid);
+    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
     editor.setValue(content);
     toolbarCtrl.setModified(false);
     dirty = true;
+    refreshSettingsForm?.();
     if (presenting) {
       // paged.js can't measure the hidden (display:none) non-current pages, so
       // drop `.presentation` for the re-paginate, then restore it + the slide.
@@ -2737,12 +2763,14 @@ async function bootstrap(): Promise<void> {
       const entry = await createDoc(name ?? 'Sans titre', markdown);
       currentDoc = entry;
       await setCurrentDocId(entry.uuid);
+      state.settings = await deriveSettingsForDoc(markdown, state.settings, resolveByName);
       editor.setValue(markdown);
       dirty = true;
       if (viewMode === 'preview') void updatePreview(editor.getValue());
       toolbarCtrl.setDocName(entry.name);
       toolbarCtrl.setModified(false);
       toolbarCtrl.setOrigin(null);
+      refreshSettingsForm?.();
       return docSummary(entry);
     },
     renameDocument: async (uuid, name) => {

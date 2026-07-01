@@ -63,7 +63,7 @@ export function extractStyleFromSettings(
   };
 }
 
-import { serializeProfile, type PdfSettings, type PageSize, type Style } from './settings';
+import { serializeProfile, DEFAULT_SETTINGS, type PdfSettings, type PageSize, type Style } from './settings';
 
 /** Resolve an `extends` reference (a document name) to its source, or null. */
 export type ResolveByName = (name: string) => Promise<StackDoc | null>;
@@ -307,4 +307,43 @@ export function applyProfilePatch(settings: PdfSettings, patch: ProfilePatch): P
   }
 
   return out;
+}
+
+/**
+ * Purpose: Derive a document's effective settings from its own stack (extends
+ *   chain + dotted style keys) — the Réglages panel's source of truth as a
+ *   document becomes self-describing (STACK-SPEC §12.1). Root the style at the
+ *   true factory defaults (not `current`), so a property the chain never sets
+ *   falls back to `default.md`, not whatever app profile happens to be active.
+ * How: flatten against `DEFAULT_SETTINGS`; `null` (no stack feature yet) means
+ *   the doc carries no style of its own — return `current` unchanged
+ *   (pre-migration fallback, §12.2). Otherwise apply the patch onto
+ *   `DEFAULT_SETTINGS` and graft only the style-relevant fields onto
+ *   `current` — everything else (author, language, MathJax/mermaid tuning,
+ *   …) is outside the pile's scope and passes through untouched. Swallows
+ *   flatten errors (cycle, missing parent, undefined token) into the same
+ *   fallback, matching `buildPreviewDom`'s degrade-to-unflattened behaviour.
+ */
+export async function deriveSettingsForDoc(
+  source: string,
+  current: PdfSettings,
+  resolveByName: ResolveByName,
+): Promise<PdfSettings> {
+  try {
+    const flat = await flattenForRender(source, { settings: DEFAULT_SETTINGS, resolveByName });
+    if (!flat) return current;
+    const styled = applyProfilePatch(DEFAULT_SETTINGS, flat.patch);
+    return {
+      ...current,
+      fonts: styled.fonts,
+      styles: styled.styles,
+      pageSize: styled.pageSize,
+      margins: styled.margins,
+      marginMode: styled.marginMode,
+      footer: styled.footer,
+    };
+  } catch (err) {
+    console.warn('[markpage] settings derivation failed', err);
+    return current;
+  }
 }

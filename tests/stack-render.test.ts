@@ -4,6 +4,7 @@ import { parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
 import {
   flattenForRender,
   applyProfilePatch,
+  deriveSettingsForDoc,
   extractStyleFromSettings,
   getExtendsFromSource,
   setExtendsInSource,
@@ -212,5 +213,46 @@ describe('applyProfilePatch', () => {
     expect(out.pageSize).toBe('A5');
     expect(out.margins).toEqual({ top: 20, right: 30, bottom: 20, left: 30 });
     expect(out.footer).toBe('');
+  });
+});
+
+describe('deriveSettingsForDoc', () => {
+  it('leaves settings untouched for a doc with no stack feature (pre-migration fallback)', async () => {
+    const active = { ...clone(DEFAULT_SETTINGS), language: 'en' as const };
+    active.styles.h1.color = '#ff0000'; // active profile's own customization
+    const md = ['---', 'title: Plain', '---', '# Hi'].join('\n');
+    const out = await deriveSettingsForDoc(md, active, noResolve);
+    expect(out).toBe(active); // untouched, not even a clone
+  });
+
+  it('roots the style at true factory defaults, not the active profile', async () => {
+    const active = clone(DEFAULT_SETTINGS);
+    active.styles.h2.color = '#ff0000'; // active profile's own h2 — must NOT leak in
+    const md = ['---', 'styles.h1.color: "#0b3d91"', '---', 'X'].join('\n');
+    const out = await deriveSettingsForDoc(md, active, noResolve);
+    expect(out.styles.h1.color).toBe('#0b3d91'); // from the doc's own chain
+    expect(out.styles.h2.color).toBe(DEFAULT_SETTINGS.styles.h2.color); // default.md, not the active profile
+  });
+
+  it('preserves non-style fields from the current settings unchanged', async () => {
+    const active = { ...clone(DEFAULT_SETTINGS), language: 'en' as const, mathScale: 1.5 };
+    const md = ['---', 'styles.h1.color: "#0b3d91"', '---', 'X'].join('\n');
+    const out = await deriveSettingsForDoc(md, active, noResolve);
+    expect(out.language).toBe('en');
+    expect(out.mathScale).toBe(1.5);
+  });
+
+  it('inherits style through an extends chain', async () => {
+    const papier = ['---', 'styles.h1.color: "#14223a"', '---', T + 'insert', T].join('\n');
+    const leaf = ['---', 'extends: papier', '---', 'X'].join('\n');
+    const out = await deriveSettingsForDoc(leaf, clone(DEFAULT_SETTINGS), fromMap({ papier }));
+    expect(out.styles.h1.color).toBe('#14223a');
+  });
+
+  it('falls back to current settings on a broken chain (missing parent)', async () => {
+    const active = clone(DEFAULT_SETTINGS);
+    const md = ['---', 'extends: nope', '---', 'X'].join('\n');
+    const out = await deriveSettingsForDoc(md, active, noResolve);
+    expect(out).toBe(active);
   });
 });

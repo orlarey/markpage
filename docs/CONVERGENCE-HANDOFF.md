@@ -6,7 +6,7 @@
 > à la machine d'origine. **Supprimable une fois la convergence terminée.**
 >
 > Dernière mise à jour : 2026-07-01 · branche `main` · app 0.35.0 · extension 0.1.8
-> · dernier commit `93b1cec`.
+> · dernier commit : dérivation `state.settings` (voir §12.1 ci-dessous, pas encore commité).
 
 ## TL;DR
 
@@ -15,9 +15,11 @@ la **pile de documents** (`extends` + clés pointées de front-matter) doit
 **remplacer** le système de **profils par-document** (le store sha-blob de
 `settings-profiles.ts`). Voir [STACK-SPEC.md](STACK-SPEC.md) §12.
 
-État : le **round-trip Réglages ⇄ feuille est bouclé** (lecture + écriture).
-Reste surtout à **retirer le store de profils** pour que la feuille (le `.md`)
-soit l'**unique source de vérité** du style, puis à **migrer les docs existants**.
+État : le **round-trip Réglages ⇄ feuille est bouclé** (lecture + écriture),
+et **`state.settings` dérive maintenant de la pile** à chaque
+chargement/switch de doc (Étape 1, sous-étape 1 — voir détail plus bas). Reste
+à **couper `saveProfileSettings`** (le store de profils tourne encore en
+parallèle) puis **migrer les docs existants** et **retirer l'UI de profils**.
 
 ## Le problème qu'on résout
 
@@ -36,6 +38,7 @@ retire.
 | `456760d` | STACK-SPEC §12 « Convergence » — table de correspondance, Réglages-as-view, migration, mécanismes retirés |
 | `da4664f` | **Lecture** : « Style parent » (`extends`) visible/éditable dans Réglages (item de rail groupe Document) |
 | `93b1cec` | **Écriture** : bouger un curseur de Réglages écrit une clé pointée (`styles.h1.color: "#…"`, `page-size`, …) dans la feuille |
+| *(non commité)* | **Étape 1, sous-étape 1 — dérivation au chargement** : `state.settings` (donc le panneau Réglages) dérive maintenant de la pile du doc actif à chaque switch/création/suppression/revert/pull, au lieu de suivre le profil global. Détail en §12.1 bis ci-dessous. |
 
 Le **round-trip §12.1 est donc bouclé** :
 - Réglages **montre** le parent (`getExtendsFromSource`) et le laisse changer via
@@ -49,6 +52,49 @@ Le **round-trip §12.1 est donc bouclé** :
 (`saveProfileSettings` dans `handleSettingsChange`). Les deux concordent (le
 patch de pile = le delta du profil), donc pas de bug — mais c'est **la double
 source qu'il reste à supprimer** (étape 1 ci-dessous).
+
+### Étape 1, sous-étape 1 — dérivation au chargement (faite, non commitée)
+
+`state.settings` (donc tout ce que Réglages affiche/édite) est maintenant
+**dérivé de la pile du document actif** à chaque chargement/switch, plutôt que
+de suivre le seul profil global — via une nouvelle fonction
+**`deriveSettingsForDoc(source, current, resolveByName)`** dans `stack-render.ts` :
+
+- Flatten contre **`DEFAULT_SETTINGS`** (pas `current`) : une propriété de
+  style que la chaîne du doc ne précise pas retombe sur `default.md`, pas sur
+  le profil actif arbitraire — c'est le cœur du fix. Vérifié live (MCP
+  Playwright) : un doc `extends: Style-A` avec un seul `styles.h1.color`
+  personnalisé montre bien `h2` = la couleur d'usine, pas celle (différente)
+  du profil « Par défaut » alors actif.
+- Aucune feature de pile (`extends`/clé pointée) → retourne `current`
+  inchangé — fallback pré-migration (§12.2, toujours pas fait).
+- Ne touche que le sous-ensemble **style** (`fonts`, `styles`, `pageSize`,
+  `margins`, `marginMode`, `footer`) ; tout le reste de `current` (auteur,
+  langue, réglages MathJax/mermaid…) passe tel quel — ces champs ne font pas
+  partie de la pile (hors scope §12, `ProfilePatch` ne les couvre pas).
+- Erreur de flatten (cycle, parent manquant) → fallback `current` +
+  `console.warn`, même style que `buildPreviewDom`.
+
+Câblé dans `main.ts` à **tous les points de chargement/switch de doc** : boot,
+`switchToDoc`, `createNewDoc`, `createNewDocFrom`, `changeParentStyle`,
+`deleteAndAdjust`, `revertCurrentDoc`, `applyDiskContent` (chokepoint
+pull/reload disque + GitHub + OneDrive), et le handler MCP `createDocument`
+(**piège trouvé en vérifiant en live** : ce handler duplique la création de
+doc sans passer par `createNewDoc` — il a fallu le patcher séparément).
+`refreshSettingsForm?.()` ajouté partout où il manquait, pour qu'un Réglages
+ouvert se resynchronise sur le nouveau doc.
+
+**Hors scope de ce lot** (pas de régression — ces sites ne touchaient déjà pas
+`state.settings` avant) : les créations de doc depuis un import externe qui ne
+passent pas par `applyDiskContent` — partage (main.ts ~L346), import OneDrive
+(~L1636), import GitHub (~L1702), import disque (~L1961), coller/style
+(~L2117, ~L2737). Réglages y reste temporairement désynchronisé jusqu'au
+prochain switch/reload.
+
+Tests : `deriveSettingsForDoc` dans `tests/stack-render.test.ts` (5 cas :
+fallback sans pile, root=défauts pas profil actif, champs non-style
+préservés, héritage via `extends`, fallback sur chaîne cassée). Suite complète
+440 tests + typecheck verts.
 
 ## Architecture actuelle (pour comprendre avant de toucher)
 
@@ -106,23 +152,24 @@ Points de contact dans `src/main.ts` : `409` (chargement au boot),
 
 ## Ce qui RESTE (dans l'ordre)
 
-### Étape 1 — Retirer le store de profils (le gros morceau)
-**But** : `state.settings` **dérivé de la pile**, plus de source parallèle.
-- **Chargement** (au boot / switch de doc) : au lieu de `loadProfileSettings(uuid)`,
-  calculer `state.settings = applyProfilePatch(DEFAULT_SETTINGS,
-  denormalizeProfile(flatten(feuille)))` — c.-à-d. dériver les réglages de
-  `default.md` ⊕ chaîne `extends` ⊕ clés pointées de la feuille.
-- **Sauvegarde** : `handleSettingsChange` n'appelle **plus** `saveProfileSettings` ;
-  seul `writeStyleToLeaf` persiste (déjà en place). Supprimer la ligne 2026.
+### Étape 1, sous-étape 2 — couper `saveProfileSettings`
+La dérivation au chargement est faite et vérifiée live (ci-dessus). Reste :
+- `handleSettingsChange` (main.ts, cherche `saveProfileSettings`) n'appelle
+  **plus** `saveProfileSettings` ; seul `writeStyleToLeaf` persiste (déjà en
+  place, inchangé).
+- Avant de couper : s'assurer que **tout doc encore stylé uniquement via le
+  profil** (jamais passé par Réglages depuis qu'il existe) a été **migré**
+  (Étape 2 ci-dessous) — sinon son style disparaît au premier chargement après
+  la coupe (plus de fallback `loadProfileSettings` dans `deriveSettingsForDoc`
+  une fois le store retiré). C'est le **garde-fou** : migrer avant de couper,
+  pas l'inverse.
 - **UI** : neutraliser/retirer le sélecteur de profils (rail « Application » ?),
-  reset/export/rename profil (main.ts 2357-2397) — décider quoi devient
-  « réinitialiser le style du document » (= effacer les clés pointées de la feuille
-  via `writeStyleToLeaf(src, DEFAULT_SETTINGS, DEFAULT_SETTINGS)`, déjà testé).
-- **Risque** : élevé (touche le chargement/sauvegarde de TOUT doc). **Stager** :
-  d'abord la **dérivation au chargement** (garder le save profil un temps),
-  vérifier le rendu identique, PUIS couper le save profil, PUIS retirer l'UI.
-- **Garde-fou** : `gcProfileBlobs` / migration doit relire les vieux profils au
-  moins une fois (voir étape 2) avant de couper le store.
+  reset/export/rename profil (`profileHandlers` dans main.ts, ~L2330-2410) —
+  décider ce qui devient « réinitialiser le style du document » (= effacer les
+  clés pointées de la feuille via
+  `writeStyleToLeaf(src, DEFAULT_SETTINGS, DEFAULT_SETTINGS)`, déjà testé).
+- **Risque** : élevé — touche la sauvegarde de TOUT doc, et retirer l'UI est
+  visible pour l'utilisateur. Vérifier live avant de commiter.
 
 ### Étape 2 — Migrer les docs existants
 Les docs actuels ont leur style **uniquement** dans le profil sha-blob, pas dans
@@ -146,7 +193,7 @@ feuille), puis marquer migré. Idempotent (la 2e fois, delta = ∅). Voir STACK-
 
 ## Comment vérifier (rappels de la boucle de dev)
 
-- **Unit** : `npx vitest run` (435 tests). Les tests de pile :
+- **Unit** : `npx vitest run` (440 tests). Les tests de pile :
   `tests/stack.test.ts`, `tests/stack-render.test.ts`. Vitest résout
   `@orlarey/markpage-render` vers `src/` via la condition d'export `development`.
 - **Typecheck** : `npm run typecheck`. L'extension/app lisent
@@ -159,6 +206,14 @@ feuille), puis marquer migré. Idempotent (la 2e fois, delta = ∅). Voir STACK-
   (onglet 1 = popup, onglet 0 = appli). Un contrôle **doc** (rail « Titre 1 (h1) »
   etc.) déclenche `handleSettingsChange` ; un contrôle **appli** (interface) non.
   Vérifier ensuite `editor.getValue()` dans l'onglet 0.
+- **Live sans passer par la popup Réglages** : le serveur MCP `markpage`
+  (`src/mcp/`, tools `mcp__markpage__*`) est plus direct pour vérifier
+  `state.settings` — `get_settings` le lit tel quel (`ctx.getSettings()` dans
+  main.ts). `create_document`/`open_document`/`delete_document` pilotent la
+  bibliothèque sans clic DOM. Piège : `npm run dev` doit tourner (`:5173`) ET
+  l'app être ouverte avec `?mcp=ws://127.0.0.1:7878/ws` — si un autre onglet
+  Playwright MCP tourne déjà (autre fenêtre Claude Code), la navigation échoue
+  avec « Browser is already in use » ; fermer l'autre session avant de retenter.
 
 ## Pièges connus (déjà rencontrés)
 
@@ -177,7 +232,12 @@ feuille), puis marquer migré. Idempotent (la 2e fois, delta = ∅). Voir STACK-
 
 ## Point d'entrée à la reprise
 
-1. Relire STACK-SPEC §12.
-2. Décider si on **teste le round-trip en live** encore un peu (remplir du
-   front-matter en tournant des curseurs) avant de couper le profil.
-3. Attaquer **Étape 1** en la **stageant** (dérivation au chargement d'abord).
+1. Relire STACK-SPEC §12 et la section « Étape 1, sous-étape 1 » ci-dessus
+   (dérivation au chargement — faite, non commitée).
+2. **Commiter** la sous-étape 1 si ce n'est pas déjà fait (relire le diff de
+   `src/stack-render.ts` / `src/main.ts` / `tests/stack-render.test.ts` d'abord).
+3. Vérifier qu'il n'existe pas de doc réel encore stylé **uniquement** via le
+   profil (jamais passé par Réglages) — sinon migrer (Étape 2) avant de couper
+   `saveProfileSettings` (sous-étape 2), sous peine de perte de style silencieuse.
+4. Attaquer la **sous-étape 2** (couper `saveProfileSettings` + UI de profils),
+   en vérifiant live à chaque étape comme pour la sous-étape 1.
