@@ -114,21 +114,9 @@ const FR = {
   'doc-menu.revert-confirm':
     'Annuler les modifications non enregistrées et revenir à la dernière version enregistrée ?',
 
-  // ---- profile menu -------------------------------------------------
-  'profile-menu.new': '+ Nouveau profil',
-  'profile-menu.duplicate': 'Dupliquer',
-  'profile-menu.delete': 'Supprimer',
-  'profile-menu.delete-confirm': 'Supprimer le profil « {name} » ?',
-  'profile-menu.reset': 'Réinitialiser',
-  'profile-menu.reset-confirm':
-    'Revenir aux réglages par défaut pour ce profil ? Le nom est conservé.',
-  'profile-menu.import': 'Importer…',
-  'profile-menu.export': 'Exporter…',
-  'profile-menu.import-failed': 'Import du profil échoué : {error}',
   'import.failed': 'Échec de l’import : {msg}',
   'latex-export.failed': 'Échec de l’export LaTeX : {msg}',
   'default.help-doc-name': 'Aide markpage',
-  'default.new-profile-name': 'Nouveau profil',
   'profile.default-name': 'Par défaut',
 
   // ---- export menu --------------------------------------------------
@@ -233,13 +221,6 @@ const FR = {
   'help.export-pdf': 'Exporter .pdf',
   'help.generating': 'Génération…',
   'help.toc': 'Sommaire',
-
-  // ---- profile / settings import-export errors ---------------------
-  'profile-import.invalid-json': 'JSON invalide',
-  'profile-import.unexpected-format': 'Format inattendu',
-  'profile-import.unknown-version':
-    'Version d’export non reconnue (mise à jour de markpage nécessaire ?)',
-  'profile-import.missing-fields': 'Champ "name" ou "settings" manquant',
 
   // ---- custom-fonts ------------------------------------------------
   'fonts.custom-fonts-label': 'Polices Google personnalisées',
@@ -552,21 +533,9 @@ const EN: Record<keyof typeof FR, string> = {
   'doc-menu.revert-confirm':
     'Discard unsaved changes and return to the last saved version?',
 
-  // ---- profile menu -------------------------------------------------
-  'profile-menu.new': '+ New profile',
-  'profile-menu.duplicate': 'Duplicate',
-  'profile-menu.delete': 'Delete',
-  'profile-menu.delete-confirm': 'Delete the “{name}” profile?',
-  'profile-menu.reset': 'Reset',
-  'profile-menu.reset-confirm':
-    'Revert this profile to the default settings? The name is kept.',
-  'profile-menu.import': 'Import…',
-  'profile-menu.export': 'Export…',
-  'profile-menu.import-failed': 'Profile import failed: {error}',
   'import.failed': 'Import failed: {msg}',
   'latex-export.failed': 'LaTeX export failed: {msg}',
   'default.help-doc-name': 'markpage Help',
-  'default.new-profile-name': 'New profile',
   'profile.default-name': 'Default',
 
   // ---- export menu --------------------------------------------------
@@ -669,12 +638,6 @@ const EN: Record<keyof typeof FR, string> = {
   'help.generating': 'Generating…',
   'help.toc': 'Contents',
 
-  // ---- profile / settings import-export errors ---------------------
-  'profile-import.invalid-json': 'Invalid JSON',
-  'profile-import.unexpected-format': 'Unexpected format',
-  'profile-import.unknown-version':
-    'Unrecognised export version (markpage update needed?)',
-  'profile-import.missing-fields': 'Missing "name" or "settings" field',
 
   // ---- custom-fonts ------------------------------------------------
   'fonts.custom-fonts-label': 'Custom Google fonts',

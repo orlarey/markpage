@@ -46,7 +46,6 @@ import {
   parseGoogleFontsUrl,
   registerCustomFonts,
 } from '../font-loader';
-import { displayProfileName, type ProfileEntry } from '../settings-profiles';
 import {
   getEditorTextColor,
   setEditorTextColor,
@@ -60,37 +59,16 @@ import { getLanguage, setLanguage, type Language } from '../i18n/locale';
 import { clearToken, getUser, loadToken, saveToken } from '../github';
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
-import { openProfileMenu } from './profile-menu';
 
 /**
- * Purpose: Profile-library callbacks consumed by the form's header dropdown.
- * How: One callback per action; footer actions implicitly target the current uuid.
+ * Purpose: Full settings-form callback set.
+ * How: get/set of the active `PdfSettings`, plus the document's parent style
+ *   (its `extends`) and a request to change it — opens the layer picker and
+ *   writes the leaf's front-matter (STACK-SPEC §12.1).
  */
-export interface SettingsProfileHandlers {
-  getCurrentProfileId(): string;
-  listProfiles(): ProfileEntry[];
-  onSwitchProfile(uuid: string): void;
-  onCreateProfile(): void;
-  onRenameProfile(uuid: string, name: string): void;
-  // The next four all act on the *current* profile only — the menu
-  // surfaces them in its footer, callers know the uuid via
-  // `getCurrentProfileId`.
-  onDuplicateProfile(uuid: string): void;
-  onDeleteProfile(uuid: string): void;
-  onResetProfile(): void;
-  onImportProfile(): void;
-  onExportProfile(): void;
-}
-
-/**
- * Purpose: Full settings-form callback set — adds get/set of the active `PdfSettings`.
- * How: Extends `SettingsProfileHandlers` with `getSettings` + `onChange`.
- */
-export interface SettingsFormHandlers extends SettingsProfileHandlers {
+export interface SettingsFormHandlers {
   getSettings(): PdfSettings;
   onChange(s: PdfSettings): void;
-  // The document's parent style (its `extends`), and a request to change it —
-  // opens the layer picker and writes the leaf's front-matter (STACK-SPEC §12.1).
   getParentStyle(): string | null;
   onChangeParentStyle(): void;
 }
@@ -141,7 +119,7 @@ export function buildSettingsForm(
 
   const emit = (): void => handlers.onChange(clone(current));
   // Re-reads from handlers on every call so callers can refresh after
-  // mutating state outside the form (profile switch, Reset, imports).
+  // mutating state outside the form (parent-style change, doc switch).
   const refresh = (): void => {
     current = clone(handlers.getSettings());
     root.innerHTML = '';
@@ -158,35 +136,6 @@ export function buildSettingsForm(
       doc.createTextNode(` — ${t('settings.h1')}`),
     );
     header.append(title);
-
-    // [Mon profil ▾] trigger anchored in the header, between the
-    // title and the optional Close button that settings-panel adds
-    // later. Clicking it opens the profile dropdown.
-    const profiles = handlers.listProfiles();
-    const currentId = handlers.getCurrentProfileId();
-    const currentProfile = profiles.find((p) => p.uuid === currentId);
-    const trigger = doc.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'profile-trigger';
-    trigger.textContent = `${
-      currentProfile ? displayProfileName(currentProfile) : 'Profile'
-    } ▾`;
-    trigger.addEventListener('click', () => {
-      const currentUuid = handlers.getCurrentProfileId();
-      openProfileMenu(trigger, {
-        profiles: handlers.listProfiles(),
-        currentUuid,
-        onSelect: (uuid) => handlers.onSwitchProfile(uuid),
-        onCreate: () => handlers.onCreateProfile(),
-        onRenameCurrent: (name) => handlers.onRenameProfile(currentUuid, name),
-        onDuplicateCurrent: () => handlers.onDuplicateProfile(currentUuid),
-        onDeleteCurrent: () => handlers.onDeleteProfile(currentUuid),
-        onResetCurrent: () => handlers.onResetProfile(),
-        onImport: () => handlers.onImportProfile(),
-        onExport: () => handlers.onExportProfile(),
-      });
-    });
-    header.append(trigger);
 
     // ---- Rail navigation + content -----------------------------------
     // Each rail entry knows how to (re)build its section content; the
@@ -602,11 +551,6 @@ export function buildSettingsForm(
     renderContent();
     layout.append(rail, content);
 
-    // The historical Reset button used to live in a footer here.
-    // It moved into the profile dropdown as the "Réinitialiser"
-    // footer action (cf. SPEC §9.4.4) — it only ever meant
-    // "reset the active profile to defaults", which is now
-    // explicit at the call site.
     return [header, layout];
   };
 

@@ -7,6 +7,7 @@ import {
   deriveSettingsForDoc,
   extractStyleFromSettings,
   getExtendsFromSource,
+  planProfileMigration,
   setExtendsInSource,
   setFrontmatterKeys,
   writeStyleToLeaf,
@@ -254,5 +255,59 @@ describe('deriveSettingsForDoc', () => {
     const md = ['---', 'extends: nope', '---', 'X'].join('\n');
     const out = await deriveSettingsForDoc(md, active, noResolve);
     expect(out).toBe(active);
+  });
+});
+
+describe('planProfileMigration', () => {
+  it('plans nothing when the profile equals the factory defaults', () => {
+    const profiles = [{ uuid: 'p1', displayName: 'Par défaut', settings: clone(DEFAULT_SETTINGS), active: true }];
+    const docs = [{ uuid: 'd1', content: '# Plain\n' }];
+    const plan = planProfileMigration(profiles, new Set(), docs);
+    expect(plan.styleDocsToCreate).toEqual([]);
+    expect(plan.leavesToUpdate).toEqual([]);
+  });
+
+  it('creates a style doc for a customized profile and extends every unstyled doc onto it', () => {
+    const custom = clone(DEFAULT_SETTINGS);
+    custom.pageSize = 'A5';
+    custom.styles.h1.color = '#cc0044';
+    const profiles = [{ uuid: 'p1', displayName: 'Par défaut', settings: custom, active: true }];
+    const docs = [
+      { uuid: 'd1', content: '# Doc A\n\nAlpha.\n' },
+      { uuid: 'd2', content: '# Doc B\n\nBeta.\n' },
+    ];
+    const plan = planProfileMigration(profiles, new Set(), docs);
+    expect(plan.styleDocsToCreate).toHaveLength(1);
+    expect(plan.styleDocsToCreate[0].name).toBe('Par défaut');
+    expect(plan.styleDocsToCreate[0].markdown).toContain('page-size: A5');
+    expect(plan.styleDocsToCreate[0].markdown).toContain('styles.h1.color: "#cc0044"');
+    expect(plan.leavesToUpdate).toHaveLength(2);
+    expect(getExtendsFromSource(plan.leavesToUpdate[0].markdown)).toBe('Par défaut');
+    expect(plan.leavesToUpdate[0].markdown).toContain('Alpha.');
+  });
+
+  it('is idempotent: a doc that already has extends/dotted keys is left alone', () => {
+    const custom = clone(DEFAULT_SETTINGS);
+    custom.pageSize = 'A5';
+    const profiles = [{ uuid: 'p1', displayName: 'Par défaut', settings: custom, active: true }];
+    const docs = [
+      { uuid: 'd1', content: '---\nextends: Par défaut\n---\n\n# Doc A\n' }, // already migrated
+      { uuid: 'd2', content: '---\nstyles.h1.color: "#000"\n---\nX' }, // has its own style
+    ];
+    const plan = planProfileMigration(profiles, new Set(['Par défaut']), docs);
+    expect(plan.styleDocsToCreate).toEqual([]); // name already taken — not recreated
+    expect(plan.leavesToUpdate).toEqual([]); // both already use a stack feature
+  });
+
+  it('reuses (never recreates) a style doc already present under the profile name', () => {
+    const custom = clone(DEFAULT_SETTINGS);
+    custom.pageSize = 'A5';
+    const profiles = [{ uuid: 'p1', displayName: 'Par défaut', settings: custom, active: true }];
+    const docs = [{ uuid: 'd1', content: '# Doc A\n' }]; // still needs migrating
+    const plan = planProfileMigration(profiles, new Set(['Par défaut']), docs);
+    expect(plan.styleDocsToCreate).toEqual([]); // name already taken — not recreated
+    expect(plan.leavesToUpdate).toHaveLength(1);
+    expect(getExtendsFromSource(plan.leavesToUpdate[0].markdown)).toBe('Par défaut');
+    expect(plan.leavesToUpdate[0].markdown).toContain('# Doc A');
   });
 });

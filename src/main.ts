@@ -186,26 +186,18 @@ import {
   deriveSettingsForDoc,
   extractStyleFromSettings,
   getExtendsFromSource,
+  planProfileMigration,
   setExtendsInSource,
   writeStyleToLeaf,
 } from './stack-render';
 import {
-  createProfile,
-  deleteProfile,
   displayProfileName,
-  duplicateProfile,
   ensureActiveProfile,
-  exportProfileJson,
   getCurrentProfileId,
-  importProfileJson,
   listProfiles,
   loadProfileSettings,
   migrateLegacySettingsIfNeeded,
-  renameProfile,
-  resetProfile,
   saveProfileSettings,
-  setCurrentProfileId,
-  type ProfileEntry,
 } from './settings-profiles';
 import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
@@ -449,6 +441,36 @@ async function bootstrap(): Promise<void> {
     }
   } catch (err) {
     console.error('Image store migration failed', err);
+  }
+
+  // STACK-SPEC §12.2 — one-time (idempotent) migration: bake every profile
+  // with real customizations into a style document in the library, and point
+  // every doc that carries no style of its own at the currently active
+  // profile's style doc. A doc that already has `extends`/a dotted key is
+  // left untouched, and a style doc already present under its planned name
+  // isn't recreated — safe to re-run on every boot.
+  try {
+    const profiles = listProfiles().map((p) => ({
+      uuid: p.uuid,
+      displayName: displayProfileName(p),
+      settings: loadProfileSettings(p.uuid),
+      active: p.uuid === getCurrentProfileId(),
+    }));
+    const libraryDocs = await listDocs();
+    const docsForMigration: { uuid: string; content: string }[] = [];
+    for (const e of libraryDocs) {
+      const c = await loadDocContent(e);
+      if (c != null) docsForMigration.push({ uuid: e.uuid, content: c });
+    }
+    const plan = planProfileMigration(
+      profiles,
+      new Set(libraryDocs.map((d) => d.name)),
+      docsForMigration,
+    );
+    for (const s of plan.styleDocsToCreate) await createDoc(s.name, s.markdown);
+    for (const l of plan.leavesToUpdate) await saveDocContent(l.uuid, l.markdown);
+  } catch (err) {
+    console.error('Profile migration failed', err);
   }
 
   // Doc selection cascade at boot:
@@ -2330,106 +2352,10 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
-  // After any profile-library mutation, we may need to update the
-  // form (rename of the active profile, or arrival of a new one). The
-  // form's refresh is exposed via openSettingsWindow's return value,
-  // but we wire through the handlers directly so the menu's callbacks
-  // can request a refresh without holding onto a stale reference.
+  // The form's refresh is exposed via openSettingsWindow's return value; we
+  // hold onto it so other flows (doc switch, parent-style change) can
+  // request a refresh without holding a stale reference to the window.
   let refreshSettingsForm: (() => void) | null = null;
-
-  const applyProfile = (entry: ProfileEntry): void => {
-    setCurrentProfileId(entry.uuid);
-    state.profileId = entry.uuid;
-    state.settings = loadProfileSettings(entry.uuid);
-    // Funnel through the existing path so font registration, paged
-    // CSS, and preview repaint all happen as if the user had touched
-    // a control. The save inside handleSettingsChange is a no-op
-    // round-trip — same content, same SHA — and keeps mtime fresh.
-    handleSettingsChange(state.settings);
-    refreshSettingsForm?.();
-  };
-
-  const profileHandlers = {
-    getCurrentProfileId: () => state.profileId,
-    listProfiles,
-    onSwitchProfile: (uuid: string) => {
-      const entry = listProfiles().find((p) => p.uuid === uuid);
-      if (entry) applyProfile(entry);
-    },
-    onCreateProfile: () => {
-      void (async () => {
-        // Seed a new profile from the active one so the user keeps
-        // their current look as a starting point.
-        const entry = await createProfile(t('default.new-profile-name'), {
-          ...state.settings,
-        });
-        applyProfile(entry);
-      })();
-    },
-    onRenameProfile: (uuid: string, name: string) => {
-      renameProfile(uuid, name);
-      refreshSettingsForm?.();
-    },
-    onDuplicateProfile: (uuid: string) => {
-      const entry = duplicateProfile(uuid);
-      if (entry) applyProfile(entry);
-    },
-    onDeleteProfile: (uuid: string) => {
-      const ok = deleteProfile(uuid);
-      if (!ok) return;
-      // Active-profile id may have flipped inside deleteProfile;
-      // re-resolve it instead of guessing.
-      const next = getCurrentProfileId();
-      if (next && next !== state.profileId) {
-        const entry = listProfiles().find((p) => p.uuid === next);
-        if (entry) applyProfile(entry);
-      } else {
-        refreshSettingsForm?.();
-      }
-    },
-    onResetProfile: () => {
-      // resetProfile = saveProfileSettings(current, DEFAULT_SETTINGS).
-      // We go through applyProfile so the preview / PDF / font-loader
-      // see the reset settings without a manual repaint.
-      void (async () => {
-        const entry = await resetProfile(state.profileId);
-        if (entry) applyProfile(entry);
-      })();
-    },
-    onImportProfile: () => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json,application/json';
-      input.addEventListener('change', () => {
-        const file = input.files?.[0];
-        if (!file) return;
-        void (async () => {
-          const text = await file.text();
-          const result = await importProfileJson(text);
-          if (!result.ok) {
-            globalThis.alert(
-              t('profile-menu.import-failed', { error: result.error }),
-            );
-            return;
-          }
-          applyProfile(result.profile);
-        })();
-      });
-      input.click();
-    },
-    onExportProfile: () => {
-      const json = exportProfileJson(state.profileId);
-      if (!json) return;
-      const entry = listProfiles().find((p) => p.uuid === state.profileId);
-      // Use the *displayed* name for the slug so the export of the
-      // default profile lands as "par-defaut.json" / "default.json"
-      // rather than the internal "_default_" sentinel.
-      const slug = slugifyDocName(
-        entry ? displayProfileName(entry) : 'profil',
-      );
-      downloadTextFile(json, `${slug}.json`, 'application/json');
-    },
-  };
 
   const triggerSettings = (): void => {
     const handle = openSettingsWindow({
@@ -2439,7 +2365,6 @@ async function bootstrap(): Promise<void> {
       onChangeParentStyle: () => {
         void changeParentStyle();
       },
-      ...profileHandlers,
     });
     refreshSettingsForm = handle?.refresh ?? null;
   };
@@ -2716,11 +2641,6 @@ async function bootstrap(): Promise<void> {
     modified: isModified(e),
     linked: isLinked(e),
   });
-  const profileSummary = (e: ProfileEntry) => ({
-    uuid: e.uuid,
-    name: displayProfileName(e),
-    active: e.uuid === getCurrentProfileId(),
-  });
   const pageCountNow = (): number =>
     previewEl.querySelectorAll('.pagedjs_page').length;
 
@@ -2836,19 +2756,16 @@ async function bootstrap(): Promise<void> {
       return { started: true };
     },
 
-    getSettings: () => {
-      const active = listProfiles().find((p) => p.uuid === getCurrentProfileId());
-      return {
-        profile: active ? profileSummary(active) : undefined,
-        settings: state.settings as unknown as Record<string, unknown>,
-      };
-    },
-    listProfiles: () => listProfiles().map(profileSummary),
-    setProfile: (uuid) => {
-      const entry = listProfiles().find((p) => p.uuid === uuid);
-      if (!entry) throw new Error(`no profile ${uuid}`);
-      applyProfile(entry);
-      return { profile: profileSummary(entry) };
+    getSettings: () => ({
+      settings: state.settings as unknown as Record<string, unknown>,
+    }),
+    // Profiles were retired (STACK-SPEC §12) — a document's style now lives
+    // in its own stack (`extends` + dotted keys), not in a switchable
+    // profile. Kept as inert stubs so older MCP clients degrade gracefully
+    // instead of hitting an unknown-tool error.
+    listProfiles: () => [],
+    setProfile: () => {
+      throw new Error('Profiles have been retired — use "Style parent" (extends) instead');
     },
   };
   initMcp(mcpContext);

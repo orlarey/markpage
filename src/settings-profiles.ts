@@ -1,11 +1,17 @@
 /********************************* settings-profiles.ts ************************
  *
- * Purpose: Library of named `PdfSettings` profiles surfaced in the
- *   [Mon profil ▾] menu — parallel to the multi-doc store from docs.ts.
- * How: Two-layer (SPEC §9.4.6): public API parameterised by uuid, storage
- *   content-addressed by SHA-256 of the serialised PdfSettings. Three
- *   localStorage key spaces (`:index`, `:blob:<sha>`, `:current`) plus
- *   idempotent legacy-migration passes.
+ * Purpose: Persistence for the app-level settings that fall outside the
+ *   document stack (STACK-SPEC §12) — language, author/organization, date,
+ *   MathJax/mermaid tuning, duplex, … Historically a switchable multi-profile
+ *   library (SPEC §9.4.6); that management layer and its UI are retired —
+ *   style now lives in documents via `extends`/dotted keys — but the
+ *   single-entry sha-blob store underneath still works fine as an implicit,
+ *   unnamed settings blob, so it's kept as-is rather than rewritten.
+ * How: public API parameterised by uuid, storage content-addressed by
+ *   SHA-256 of the serialised PdfSettings. Three localStorage key spaces
+ *   (`:index`, `:blob:<sha>`, `:current`) plus idempotent legacy-migration
+ *   passes. `ensureActiveProfile` creates the one entry on first boot and
+ *   it is never switched again.
  *
  *******************************************************************************/
 
@@ -222,75 +228,6 @@ export async function createProfile(
   return entry;
 }
 
-/**
- * Purpose: Rename a profile (index-only mutation, blob untouched).
- * How: Patch `name` after `uniqueName` collision check; null for unknown
- *   uuid or empty name; no-op when the name is unchanged.
- */
-export function renameProfile(
-  uuid: string,
-  newName: string,
-): ProfileEntry | null {
-  const trimmed = newName.trim();
-  if (trimmed === '') return null;
-  const index = readIndex();
-  const i = index.findIndex((e) => e.uuid === uuid);
-  if (i < 0) return null;
-  if (index[i].name === trimmed) return index[i];
-  const taken = new Set(
-    index.filter((e) => e.uuid !== uuid).map((e) => e.name),
-  );
-  const name = uniqueName(trimmed, taken);
-  const updated: ProfileEntry = { ...index[i], name };
-  index[i] = updated;
-  writeIndex(index);
-  return updated;
-}
-
-/**
- * Purpose: Duplicate a profile cheaply via shared blob reference.
- * How: Push a new index entry with a fresh uuid + unique "Copie de …"
- *   name reusing the source `contentSha`; no new blob written.
- */
-export function duplicateProfile(uuid: string): ProfileEntry | null {
-  const index = readIndex();
-  const src = index.find((e) => e.uuid === uuid);
-  if (!src) return null;
-  const taken = new Set(index.map((e) => e.name));
-  const name = uniqueName(`Copie de ${src.name}`, taken);
-  const entry: ProfileEntry = {
-    uuid: crypto.randomUUID(),
-    name,
-    mtime: Date.now(),
-    contentSha: src.contentSha,
-  };
-  index.push(entry);
-  writeIndex(index);
-  return entry;
-}
-
-/**
- * Purpose: Delete a profile (refuses to drop the last one).
- * How: Filter the index, run `gcProfileBlobs`, hand the active slot to
- *   the freshest survivor when the deleted profile was current.
- */
-export function deleteProfile(uuid: string): boolean {
-  const index = readIndex();
-  if (index.length <= 1) return false;
-  const remaining = index.filter((e) => e.uuid !== uuid);
-  if (remaining.length === index.length) return false;
-  writeIndex(remaining);
-  // The deleted entry's blob might still be referenced by another
-  // entry (typical after a duplicate); only GC it if it's truly
-  // orphan now.
-  gcProfileBlobs();
-  if (getCurrentProfileId() === uuid) {
-    const next = remaining.slice().sort((a, b) => b.mtime - a.mtime)[0];
-    if (next) setCurrentProfileId(next.uuid);
-  }
-  return true;
-}
-
 // ---- read / write the content of an entry ------------------------------
 
 /**
@@ -329,16 +266,6 @@ export async function saveProfileSettings(
   // The old SHA may now be orphan; cheap to check.
   gcProfileBlobs();
   return updated;
-}
-
-/**
- * Purpose: Reset a profile's content to `DEFAULT_SETTINGS`, keeping the name.
- * How: Delegate to `saveProfileSettings(uuid, DEFAULT_SETTINGS)`.
- */
-export async function resetProfile(
-  uuid: string,
-): Promise<ProfileEntry | null> {
-  return saveProfileSettings(uuid, DEFAULT_SETTINGS);
 }
 
 // ---- garbage collection -----------------------------------------------
@@ -481,71 +408,4 @@ export async function ensureActiveProfile(
   });
   setCurrentProfileId(entry.uuid);
   return entry;
-}
-
-// ---- JSON import / export --------------------------------------------
-
-/**
- * Purpose: Wire format for export/import — version-tagged envelope
- *   carrying the profile name and full settings.
- */
-interface ExportEnvelope {
-  version: number;
-  name: string;
-  settings: PdfSettings;
-}
-
-const EXPORT_VERSION = 1;
-
-/**
- * Purpose: Serialise the named profile to a JSON export string (or null
- *   when the uuid/blob is missing).
- * How: Build an `ExportEnvelope` from the entry and its blob; `JSON.stringify` with indent 2.
- */
-export function exportProfileJson(uuid: string): string | null {
-  const index = readIndex();
-  const entry = index.find((e) => e.uuid === uuid);
-  if (!entry) return null;
-  const settings = readBlob(entry.contentSha);
-  if (!settings) return null;
-  const envelope: ExportEnvelope = {
-    version: EXPORT_VERSION,
-    name: entry.name,
-    settings,
-  };
-  return JSON.stringify(envelope, null, 2);
-}
-
-/**
- * Purpose: Result of `importProfileJson` — either the created profile
- *   or a localised error message.
- */
-export type ImportResult =
-  | { ok: true; profile: ProfileEntry }
-  | { ok: false; error: string };
-
-/**
- * Purpose: Parse an export envelope and create the corresponding profile.
- * How: JSON parse → version + shape checks → `createProfile(name, settings)`;
- *   any failure returns `{ ok: false, error }` with an i18n string.
- */
-export async function importProfileJson(json: string): Promise<ImportResult> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(json);
-  } catch {
-    return { ok: false, error: t('profile-import.invalid-json') };
-  }
-  if (!parsed || typeof parsed !== 'object') {
-    return { ok: false, error: t('profile-import.unexpected-format') };
-  }
-  const env = parsed as Partial<ExportEnvelope>;
-  if (typeof env.version !== 'number' || env.version > EXPORT_VERSION) {
-    return { ok: false, error: t('profile-import.unknown-version') };
-  }
-  if (typeof env.name !== 'string' || !env.settings) {
-    return { ok: false, error: t('profile-import.missing-fields') };
-  }
-  const profile = await createProfile(env.name, env.settings);
-  return { ok: true, profile };
 }

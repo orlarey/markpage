@@ -71,9 +71,10 @@ export type ResolveByName = (name: string) => Promise<StackDoc | null>;
 /**
  * Purpose: Does this document use any stack feature (extends, tokens, dotted
  *   style keys)? Gate the new path so documents that use none render
- *   byte-identically to before.
+ *   byte-identically to before. Also doubles as the "already migrated /
+ *   already has its own style" check for `planProfileMigration`.
  */
-function usesStackFeatures(frontmatter: Map<string, string>): boolean {
+export function usesStackFeatures(frontmatter: Map<string, string>): boolean {
   if (frontmatter.has('extends')) return true;
   for (const [key, value] of frontmatter) {
     if (key.startsWith('--') || key.startsWith('styles.')) return true;
@@ -346,4 +347,72 @@ export async function deriveSettingsForDoc(
     console.warn('[markpage] settings derivation failed', err);
     return current;
   }
+}
+
+/** A profile as seen by `planProfileMigration` — settings already loaded. */
+export interface ProfileForMigration {
+  uuid: string;
+  displayName: string;
+  settings: PdfSettings;
+  active: boolean;
+}
+
+/** A library document as seen by `planProfileMigration` — content already loaded. */
+export interface DocForMigration {
+  uuid: string;
+  content: string;
+}
+
+/** What `planProfileMigration` proposes: new style docs + doc rewrites. */
+export interface ProfileMigrationPlan {
+  styleDocsToCreate: { name: string; markdown: string }[];
+  leavesToUpdate: { uuid: string; markdown: string }[];
+}
+
+/**
+ * Purpose: STACK-SPEC §12.2 one-time migration — convert every profile with
+ *   real customizations into a style document in the library, and point every
+ *   document that has no style of its own at the currently active profile's
+ *   style doc. This is the only historically-recoverable per-doc association:
+ *   today every non-stack document renders via whichever profile is active,
+ *   there was never a recorded doc→profile link to restore more precisely.
+ * How: pure planning, no I/O — for each profile, `writeStyleToLeaf('',
+ *   settings, DEFAULT_SETTINGS)` gives its delta as a style doc's front-matter
+ *   (empty string when the profile equals the factory defaults — nothing to
+ *   preserve). For each library doc using no stack feature yet
+ *   (`usesStackFeatures`), point it at the active profile's style doc via
+ *   `setExtendsInSource`. Idempotent: a migrated doc gains `extends`, so a
+ *   second run's `usesStackFeatures` check skips it; a doc already present
+ *   under the profile's name (typically the style doc a previous run
+ *   created) is assumed already migrated and reused as-is, never recreated.
+ */
+export function planProfileMigration(
+  profiles: ProfileForMigration[],
+  existingDocNames: ReadonlySet<string>,
+  docs: DocForMigration[],
+): ProfileMigrationPlan {
+  const styleDocsToCreate: { name: string; markdown: string }[] = [];
+  const nameForProfile = new Map<string, string>();
+
+  for (const p of profiles) {
+    const markdown = writeStyleToLeaf('', p.settings, DEFAULT_SETTINGS);
+    if (markdown.trim() === '') continue; // profile == factory defaults, nothing to preserve
+    nameForProfile.set(p.uuid, p.displayName);
+    if (existingDocNames.has(p.displayName)) continue; // already migrated — reuse, don't recreate
+    styleDocsToCreate.push({ name: p.displayName, markdown });
+  }
+
+  const activeProfile = profiles.find((p) => p.active);
+  const activeStyleName = activeProfile ? nameForProfile.get(activeProfile.uuid) : undefined;
+
+  const leavesToUpdate: { uuid: string; markdown: string }[] = [];
+  if (activeStyleName) {
+    for (const d of docs) {
+      const fm = parseStackDoc(d.content, '__leaf__').frontmatter;
+      if (usesStackFeatures(fm)) continue; // already has its own style or a parent
+      leavesToUpdate.push({ uuid: d.uuid, markdown: setExtendsInSource(d.content, activeStyleName) });
+    }
+  }
+
+  return { styleDocsToCreate, leavesToUpdate };
 }
