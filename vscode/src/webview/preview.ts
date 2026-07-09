@@ -400,6 +400,60 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(applyZoom, 100);
 });
 
+/**
+ * Defuse `.keep-with-next` wrappers taller than a page. keepLabelsWithNext()
+ * wraps every heading with the block that follows it in a `break-inside: avoid`
+ * box; when the pair grows past a full page (a long paragraph, or a table whose
+ * cells wrap once the column is narrowed by wide margins) paged.js cannot place
+ * the unbreakable box — its break-token search walks off the rendered tree, and
+ * the local pagedjs patch turns the crash into a silent bail that drops or crams
+ * the rest of the document (no error surfaced). This measures each pair offscreen
+ * at the real page-content width and dissolves any that reach ~90% of the page
+ * height, so its content can break normally (the heading keeps its
+ * `break-after: avoid` hint). Mirrors unwrapOversizedKeepWithNext() in the host
+ * app's preview-paginated.ts.
+ */
+async function unwrapOversizedKeepWithNext(source: HTMLElement, L: Layout): Promise<void> {
+  const wrappers = [...source.querySelectorAll<HTMLElement>('.keep-with-next')];
+  if (wrappers.length === 0) return;
+  const PX_PER_MM = 96 / 25.4;
+  const widthPx = Math.max(1, (L.pageW - L.margins.left - L.margins.right) * PX_PER_MM);
+  const threshold = Math.max(1, (L.pageH - L.margins.top - L.margins.bottom) * PX_PER_MM) * 0.9;
+  // Hidden offscreen stage inside #markpage-preview so the same scoped
+  // typography that shapes the live preview also shapes the measurement.
+  const stage = document.createElement('div');
+  stage.style.cssText = [
+    'position: absolute',
+    'left: -99999px',
+    'top: 0',
+    `width: ${widthPx}px`,
+    'visibility: hidden',
+    'pointer-events: none',
+  ].join('; ');
+  root.appendChild(stage);
+  stage.appendChild(source);
+  // Force layout so web fonts referenced by the CSS get requested, then wait.
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  stage.offsetHeight;
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      /* best-effort — measure with whatever is ready */
+    }
+  }
+  try {
+    for (const w of wrappers) {
+      if (w.getBoundingClientRect().height < threshold) continue;
+      while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
+      w.remove();
+    }
+  } finally {
+    source.remove(); // detach `source` from the stage; the caller still holds it
+    stage.remove();
+  }
+}
+
 /** Paginated mode: fragment the rendered content into A4 pages via paged.js. */
 async function paginate(token: number): Promise<void> {
   // Snapshot the hydrated content (SVGs included) as the paged.js source.
@@ -414,6 +468,9 @@ async function paginate(token: number): Promise<void> {
   // paged.js when the next block is tall). Pairs with `.keep-with-next` in
   // paginationCss().
   keepLabelsWithNext(source);
+  // Undo any keep-with-next pair that ended up taller than a page — left in
+  // place it makes paged.js drop or cram the rest of the document.
+  await unwrapOversizedKeepWithNext(source, currentLayout);
   const { Previewer } = await import('pagedjs');
   if (token !== renderToken) return; // a newer render started while loading
   // paged.js injects a generated <style> into <head> on every preview() and

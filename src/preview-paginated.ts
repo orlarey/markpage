@@ -178,6 +178,10 @@ export async function paginate(
   // (fenced code, math, mermaid, image, table); the wrapper is the
   // reliable fix.
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
+  // Undo any keep-with-next wrapper that ended up taller than a page (long
+  // paragraph / narrow-column table): left in place it makes paged.js drop or
+  // cram the rest of the document. Measured offscreen at the real page width.
+  await unwrapOversizedKeepWithNext(source, settings, renderTo);
   // §9.5 — toggle the `.duplex` class on the render target so the
   // host stylesheet (style.css) lays out pages as facing spreads in
   // the preview. paged.js doesn't process this rule (we keep the
@@ -237,6 +241,7 @@ export async function paginateOnce(
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
+  await unwrapOversizedKeepWithNext(source, settings, renderTo);
   resetPageRunningCounter();
   prependDefaultFences(source, settings);
   const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
@@ -725,6 +730,90 @@ function figureNaturalWidthPx(el: Element): number {
 
 // keepLabelsWithNext() + its isLabel/isPresentableBlock helpers now live in
 // @orlarey/markpage-render (shared with the VS Code extension); imported above.
+
+/**
+ * Purpose: Defuse `.keep-with-next` wrappers that are TALLER THAN A PAGE.
+ *   keepLabelsWithNext() wraps every heading with the block that follows it in a
+ *   `break-inside: avoid` box. That is right for a short pair, but when the next
+ *   block is large (a long paragraph, or a table whose cells wrap to many lines
+ *   once the text column is narrow — e.g. wide left/right margins), the wrapper
+ *   can grow past the page's content height. paged.js cannot place an
+ *   unbreakable box that is ≥ the page: its break-token search walks off the
+ *   rendered tree, and our local pagedjs patch turns the resulting crash into a
+ *   silent `return` — so pagination just STOPS and everything after is dropped
+ *   or crammed onto one overflowing page (no error surfaced). This unwraps any
+ *   such over-tall pair so its content can break normally; the heading still
+ *   keeps its `break-after: avoid` (paginationCss), an "avoid" hint paged.js can
+ *   override when it must, unlike the atomic wrapper it cannot.
+ * How: mount `source` offscreen at the real page-content width with the same
+ *   `pagedCss` typography paged.js will use (so the measurement matches the
+ *   final render — same idiom as applyAutoZoomForDemos), await fonts so metrics
+ *   are right, then dissolve every wrapper whose measured height reaches
+ *   ~90% of the page content height.
+ */
+async function unwrapOversizedKeepWithNext(
+  source: HTMLElement,
+  settings: PdfSettings,
+  renderTo: HTMLElement,
+): Promise<void> {
+  const wrappers = [...source.querySelectorAll<HTMLElement>('.keep-with-next')];
+  if (wrappers.length === 0) return;
+  const geom = pageContentGeomPx(settings);
+  const threshold = geom.height * 0.9;
+  const doc = source.ownerDocument;
+
+  // Inject the paginated-context CSS so the offscreen measurement is shaped by
+  // the same per-element typography (font sizes, margins) as the final render.
+  const styleEl = doc.createElement('style');
+  styleEl.textContent = pagedCss(settings);
+  doc.head.appendChild(styleEl);
+  // Hidden offscreen stage at the exact page content width. Parented to
+  // renderTo so `:where(#preview-pane, …)` scoped rules match; visibility
+  // (not display:none) preserves layout so heights are real.
+  const stage = doc.createElement('div');
+  stage.style.cssText = [
+    'position: absolute',
+    'left: -99999px',
+    'top: 0',
+    `width: ${geom.width}px`,
+    'visibility: hidden',
+    'pointer-events: none',
+  ].join('; ');
+  const origParent = source.parentNode;
+  const origNext = source.nextSibling;
+  renderTo.appendChild(stage);
+  stage.appendChild(source);
+  // Force a layout pass so the browser requests the pagedCss web fonts, then
+  // wait for them — otherwise we measure with fallback-font metrics.
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+  stage.offsetHeight;
+  if (doc.fonts && doc.fonts.ready) {
+    try {
+      await doc.fonts.ready;
+    } catch {
+      /* font loading is best-effort; measure with whatever is ready */
+    }
+  }
+  try {
+    for (const w of wrappers) {
+      if (w.getBoundingClientRect().height < threshold) continue;
+      // Dissolve the wrapper: the heading + block become direct siblings again
+      // (the known-good, un-wrapped structure), so paged.js can break inside.
+      while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
+      w.remove();
+    }
+  } finally {
+    // Restore `source` to where it was so paged.js gets it back intact.
+    if (origParent) {
+      if (origNext) origParent.insertBefore(source, origNext);
+      else origParent.appendChild(source);
+    } else {
+      source.remove();
+    }
+    stage.remove();
+    styleEl.remove();
+  }
+}
 
 /**
  * Purpose: Wire a `::: toc+` block (TOC-PLUS-SPEC §5) to the document.
