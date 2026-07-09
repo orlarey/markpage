@@ -479,6 +479,19 @@ async function paginate(token: number): Promise<void> {
   // pages. Drop them before re-paginating so each run starts from a clean slate.
   document.querySelectorAll('style[data-pagedjs-inserted-styles]').forEach((s) => s.remove());
   root.classList.add('paginated');
+  // Wait for fonts, and paginate at natural scale: paged.js measures glyph
+  // widths and page geometry as it decides breaks, so a font that swaps in
+  // afterwards, or a stale fit-to-width `zoom` left on `root` by applyZoom(),
+  // skews those measurements — content clips and the breaks drift away from the
+  // print output. applyZoom() re-applies the display zoom once pages exist.
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      /* best-effort */
+    }
+  }
+  root.style.setProperty('zoom', '1');
   root.innerHTML = '';
   await new Previewer().preview(source, [{ 'markpage-page.css': pageCss(currentLayout) }], root);
   // Clone `::: background` backdrops onto each page of their run (behind content).

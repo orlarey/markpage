@@ -258,6 +258,16 @@ export async function paginate(
   // *requested* yet (source isn't in the layout at this point), so we force the
   // load explicitly for the effective trio.
   await ensureTrioLoaded(settings);
+  // Paginate at natural scale. The fit-to-pane zoom lives on `.pagedjs_page`
+  // (`zoom: var(--mp-fit-zoom)`, style.css), and paged.js measures the pages it
+  // creates *inside* `renderTo` as it decides breaks — so a stale zoom left on
+  // the pane by a prior render scales those measurements and skews where the
+  // breaks fall (an orphaned heading, a near-empty page), drifting away from the
+  // PDF export, which paginates unzoomed off-screen. Reset to 1 so paged.js sees
+  // real px; the caller re-applies the display zoom via fitPreviewWidth() once
+  // the pages exist. (No-op for the off-screen print target — the selector is
+  // scoped to #preview-pane.)
+  renderTo.style.setProperty('--mp-fit-zoom', '1');
   // paged.js fills `renderTo` itself; clear any previous render first.
   renderTo.innerHTML = '';
   await previewer.preview(
