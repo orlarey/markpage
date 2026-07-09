@@ -9,7 +9,7 @@
 
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
-import { quoteFontFamily } from './font-loader';
+import { quoteFontFamily, loadFontTrio } from './font-loader';
 import { groupLetterheads, letterheadCss, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext } from '@orlarey/markpage-render';
 import { splitLongPreBlocks } from './pre-split';
 import {
@@ -132,6 +132,46 @@ function purgePagedJsStyles(): void {
 }
 
 /**
+ * Purpose: Force-load the effective font trio (headings / body / code) and wait
+ *   until the actual font files are usable, so paged.js measures with the final
+ *   metrics rather than a fallback it would have to re-flow away from.
+ * How: `loadFontTrio` injects any Google stylesheet and awaits its files; that
+ *   short-circuits for bundled (@fontsource) families, so we also call
+ *   `document.fonts.load(...)` per family — that both *requests* the face (which
+ *   `document.fonts.ready` would not, when nothing on screen uses it yet) and
+ *   resolves once it is ready to measure. Best-effort: a bad/typo family name
+ *   must not stall pagination.
+ */
+async function ensureTrioLoaded(settings: PdfSettings): Promise<void> {
+  const trio = settings.fonts;
+  try {
+    await loadFontTrio(trio);
+  } catch {
+    /* best-effort */
+  }
+  if (!document.fonts || typeof document.fonts.load !== 'function') return;
+  const families = [...new Set([trio.headings, trio.body, trio.code])].filter(
+    (f) => typeof f === 'string' && f.trim() !== '',
+  );
+  await Promise.all(
+    families.flatMap((f) =>
+      ['400', '500'].map((w) =>
+        document.fonts.load(`${w} 16px ${quoteFontFamily(f)}`).catch(() => []),
+      ),
+    ),
+  ).catch(() => []);
+  // Catch-all for any other face the document pulls in (custom fonts, the code
+  // family, inline `::: style` font overrides) now that we've kicked their loads.
+  if (document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
+/**
  * Purpose: Render `source` as paginated pages inside `renderTo` (preview pane).
  * How: Tear down any prior preview, wrap labels, hand off to a fresh Previewer.
  */
@@ -206,6 +246,18 @@ export async function paginate(
   // time, regardless of how it would have treated inline body <style>
   // tags. Cf. SPEC §26 Phase 2 (runs + first/blank args).
   const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  // Guarantee the document's fonts are loaded before paged.js measures. paged.js
+  // measures glyph widths to place line breaks; if it runs before the real font
+  // (e.g. Roboto Condensed) is ready it lays out with fallback metrics, then the
+  // real font swaps in and the text reflows inside page boxes that are already
+  // fixed — content overflows and gets clipped ("parts missing" in the preview),
+  // and the page count comes out wrong and non-deterministically. The PDF export
+  // already waits for fonts (print-export.ts), which is why the same document
+  // exports correctly but drops content on screen. `document.fonts.ready` alone
+  // is not enough here: it resolves immediately when the family hasn't been
+  // *requested* yet (source isn't in the layout at this point), so we force the
+  // load explicitly for the effective trio.
+  await ensureTrioLoaded(settings);
   // paged.js fills `renderTo` itself; clear any previous render first.
   renderTo.innerHTML = '';
   await previewer.preview(
@@ -245,6 +297,10 @@ export async function paginateOnce(
   resetPageRunningCounter();
   prependDefaultFences(source, settings);
   const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  // Fonts before measuring (see paginate()); the print pipeline already awaits
+  // document.fonts.ready upstream, but keep this here too so paginateOnce is
+  // correct on its own.
+  await ensureTrioLoaded(settings);
   renderTo.innerHTML = '';
   await previewer.preview(
     source,
