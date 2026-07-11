@@ -55,6 +55,25 @@ function isPresentableBlock(el: Element): boolean {
   return false;
 }
 
+/** A block that is ALREADY atomic — paginationCss() marks it `break-inside:
+ *  avoid` on its own (figure.captioned, callouts, columns, math, mermaid, a
+ *  bare image). Wrapping such a block together with its heading in a second
+ *  `break-inside: avoid` box is both redundant and harmful: paged.js mishandles
+ *  the nested avoid near a page boundary and drops the tail of the inner block
+ *  (e.g. the last rows of an `algorithm` table vanish). For these we skip the
+ *  wrapper and rely on the heading's `break-after: avoid` to keep them together. */
+function isAtomicBlock(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'img') return true;
+  if (tag === 'figure' && el.classList.contains('captioned')) return true;
+  return (
+    el.classList.contains('math-block') ||
+    el.classList.contains('mermaid-block') ||
+    el.classList.contains('admonition') ||
+    el.classList.contains('columns-block')
+  );
+}
+
 /** A "label": a heading, or a paragraph that introduces a presentable block
  *  (e.g. "Mesure réelle :" right before a code block). */
 function isLabel(el: Element): boolean {
@@ -90,6 +109,10 @@ export function keepLabelsWithNext(
     if (!next) continue;
     if (!el.parentElement) continue;
     if (next.classList.contains('letterhead-group')) continue;
+    // The next block already avoids internal breaks; nesting it in a second
+    // break-inside:avoid wrapper makes paged.js drop its tail. Keep them
+    // together via the heading's break-after:avoid instead (paginationCss).
+    if (isAtomicBlock(next)) continue;
     const wrapper = root.ownerDocument.createElement('div');
     wrapper.className = 'keep-with-next';
     el.before(wrapper);

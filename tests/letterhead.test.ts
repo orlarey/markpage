@@ -258,16 +258,33 @@ describe('groupLetterheads — DOM grouping', () => {
     expect(root.children[1]?.classList.contains('mermaid-block')).toBe(true);
   });
 
-  it('keepLabelsWithNext DOES wrap h2 + next outside slides mode (default)', () => {
+  it('keepLabelsWithNext wraps a heading + a breakable block (default mode)', () => {
     const doc = makeDoc(
-      '<div>' +
-        '<h2>Section</h2>' +
-        '<div class="mermaid-block"><svg/></div>' +
-        '</div>',
+      '<div>' + '<h2>Section</h2>' + '<p>Some prose that can break.</p>' + '</div>',
     );
     const root = doc.body.firstElementChild as HTMLElement;
     keepLabelsWithNext(root);
     expect(root.querySelector('.keep-with-next')).not.toBeNull();
+  });
+
+  it('keepLabelsWithNext does NOT wrap a heading + an already-atomic block', () => {
+    // The next block already carries `break-inside: avoid` (mermaid, math,
+    // figure.captioned, callout, columns, image). Nesting it in a second
+    // break-inside:avoid wrapper makes paged.js drop the tail of the inner
+    // block (e.g. the last rows of an `algorithm` table). We keep the heading
+    // with it via break-after:avoid instead, so no wrapper is created.
+    for (const nextHtml of [
+      '<div class="mermaid-block"><svg/></div>',
+      '<div class="math-block"></div>',
+      '<figure class="captioned captioned-algorithm"><table><tr><td>x</td></tr></table></figure>',
+      '<div class="admonition"></div>',
+      '<div class="columns-block"></div>',
+    ]) {
+      const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
+      const root = doc.body.firstElementChild as HTMLElement;
+      keepLabelsWithNext(root);
+      expect(root.querySelector('.keep-with-next')).toBeNull();
+    }
   });
 
   it('keepLabelsWithNext does NOT wrap an h1 + letterhead-group pair', () => {
