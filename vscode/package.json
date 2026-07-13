@@ -2,7 +2,7 @@
   "name": "markpage-preview",
   "displayName": "markpage preview",
   "description": "Preview Markdown with all markpage extensions (fences, callouts, math, mermaid) — reuses @orlarey/markpage-render.",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "publisher": "orlarey",
   "license": "MIT",
   "repository": {
@@ -27,7 +27,7 @@
     "commands": [
       {
         "command": "markpage.openPreview",
-        "title": "Open Preview to the Side",
+        "title": "Open markpage Preview",
         "category": "markpage",
         "icon": "$(open-preview)"
       },
@@ -49,6 +49,13 @@
         {
           "command": "markpage.openPreview",
           "when": "editorLangId == markdown",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "markpage.openPreview",
+          "when": "resourceExtname == .md || resourceExtname == .markdown",
           "group": "navigation"
         }
       ],

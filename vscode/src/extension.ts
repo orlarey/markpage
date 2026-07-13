@@ -1,7 +1,9 @@
 // extension.ts — the VS Code host side of the markpage preview.
 //
-// Registers `markpage.openPreview`, opens a WebviewPanel beside the active
-// Markdown editor, and streams the document text to the webview (which renders
+// Registers `markpage.openPreview`, opens a WebviewPanel as a tab in the same
+// editor group as the active Markdown file (full width — you switch between the
+// `.md` tab and the preview tab), and streams the document text to the webview
+// (which renders
 // it with @orlarey/markpage-render). Live-updates on edit. Images are resolved
 // against the document's folder as webview URIs.
 
@@ -16,7 +18,11 @@ let paginated = false; // continuous (fast, live) vs paged.js A4 pages
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('markpage.openPreview', () => openPreview(context)),
+    // `uri` is set when invoked from the explorer context menu (the clicked
+    // file); undefined when invoked from the editor title bar / palette / keybinding.
+    vscode.commands.registerCommand('markpage.openPreview', (uri?: vscode.Uri) =>
+      openPreview(context, uri),
+    ),
     // Toggle continuous ↔ paged.js A4 pages (the latter mirrors the PDF).
     vscode.commands.registerCommand('markpage.togglePagination', () => {
       paginated = !paginated;
@@ -91,7 +97,20 @@ async function exportHtmlToBrowser(html: string): Promise<void> {
   }
 }
 
-function openPreview(context: vscode.ExtensionContext): void {
+async function openPreview(context: vscode.ExtensionContext, uri?: vscode.Uri): Promise<void> {
+  // From the explorer context menu we get the clicked file's URI (there may be
+  // no matching editor open) — open it as a text editor so the usual
+  // active-editor flow below applies and you get a `.md` tab to toggle to.
+  if (uri) {
+    try {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch (err) {
+      void vscode.window.showErrorMessage(`markpage: cannot open ${uri.fsPath} — ${String(err)}`);
+      return;
+    }
+  }
+
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== 'markdown') {
     void vscode.window.showInformationMessage('Open a Markdown file first.');
@@ -99,8 +118,12 @@ function openPreview(context: vscode.ExtensionContext): void {
   }
   trackedDoc = editor.document;
 
+  // Same column as the editor: the preview is a full-width tab you toggle to,
+  // not a side split that halves the horizontal space.
+  const column = editor.viewColumn ?? vscode.ViewColumn.Active;
+
   if (panel) {
-    panel.reveal(vscode.ViewColumn.Beside, true);
+    panel.reveal(column, false);
     update();
     return;
   }
@@ -108,7 +131,7 @@ function openPreview(context: vscode.ExtensionContext): void {
   panel = vscode.window.createWebviewPanel(
     'markpagePreview',
     'markpage preview',
-    { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+    { viewColumn: column, preserveFocus: false },
     {
       enableScripts: true,
       retainContextWhenHidden: true,
