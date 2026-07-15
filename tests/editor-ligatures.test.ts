@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { applyLigaturesToString } from '../src/editor-ligatures';
-import { latexToUnicode, mathBodyToLatex } from '../src/latex-math-symbols';
+import { latexToUnicode, mathBodyToLatex } from '@orlarey/markpage-render';
 
 describe('applyLigaturesToString — non-code text', () => {
   it('rewrites tail ligatures', () => {

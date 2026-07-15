@@ -17,7 +17,7 @@
 
 import { marked, type Tokens } from 'marked';
 import { formatDate, type PdfSettings } from './settings';
-import { mathBodyToLatex } from './latex-math-symbols';
+import { mathBodyToLatex } from '@orlarey/markpage-render';
 import { collectImageRefs } from './image';
 import { getImage } from './image-store';
 import { renderMermaid } from '@orlarey/markpage-render';

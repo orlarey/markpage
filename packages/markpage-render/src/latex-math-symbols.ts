@@ -1,8 +1,10 @@
 /********************************* latex-math-symbols.ts ***********************
  *
  * Purpose: Translate Unicode math symbols carried in markpage docs back to their
- *   canonical LaTeX commands on the way out, so they survive `inputenc utf8`
- *   inside math mode.
+ *   canonical LaTeX commands. Used by BOTH render paths: `mathBodyToLatex` runs
+ *   before MathJax (so it only ever sees ASCII LaTeX — easier to debug, and
+ *   astral letters like 𝒜 can't leak a broken surrogate) and before the LaTeX
+ *   export (so the two stay identical and symbols survive `inputenc utf8`).
  * How: A static `TABLE` (Unicode → LaTeX command); `mathBodyToLatex` walks code
  *   points, emits the mapped form, and collects unmapped non-ASCII for warnings.
  *
@@ -232,6 +234,53 @@ for (let i = 0; i < 26; i += 1) {
   const letter = String.fromCodePoint(cp);
   const ascii = String.fromCodePoint(0x41 + i);
   TABLE[letter] = `\\mathbb{${ascii}}`;
+}
+
+// ---- Mathematical Alphanumeric Symbols (U+1D400–U+1D7FF) ----------
+// Each style block is 26 capitals then 26 smalls at a fixed offset, but
+// a handful of glyphs live at older "letterlike" codepoints instead —
+// reserved *holes* in the SMP block (e.g. script B is ℬ U+212C, not
+// U+1D49D). We fill the block programmatically, then patch the holes
+// with the real character a user actually types (same shape as the
+// double-struck ℕ ℤ … loop above). Mapping these to explicit \math…
+// commands — rather than letting the astral character reach MathJax —
+// keeps the render and LaTeX-export paths identical AND stops MathJax
+// echoing an unpaired UTF-16 surrogate into its `data-latex` annotation,
+// which otherwise makes the SVG's strict XML re-parse fail (the
+// stripLoneSurrogates guard in math.ts is the belt-and-braces backstop).
+interface AlphaBlock {
+  cap: number; // codepoint of this block's capital A
+  low: number; // codepoint of this block's small a
+  wrap: (letter: string) => string; // ASCII letter → LaTeX command
+  holes?: Record<string, string>; // real glyph → the ASCII letter it stands for
+}
+const ALPHA_BLOCKS: AlphaBlock[] = [
+  { cap: 0x1d400, low: 0x1d41a, wrap: (l) => `\\mathbf{${l}}` },
+  { cap: 0x1d434, low: 0x1d44e, wrap: (l) => `\\mathit{${l}}`, holes: { 'ℎ': 'h' } },
+  { cap: 0x1d468, low: 0x1d482, wrap: (l) => `\\boldsymbol{${l}}` },
+  {
+    cap: 0x1d49c,
+    low: 0x1d4b6,
+    wrap: (l) => `\\mathcal{${l}}`,
+    holes: { 'ℬ': 'B', 'ℰ': 'E', 'ℱ': 'F', 'ℋ': 'H', 'ℐ': 'I', 'ℒ': 'L', 'ℳ': 'M', 'ℛ': 'R', 'ℯ': 'e', 'ℊ': 'g', 'ℴ': 'o' },
+  },
+  {
+    cap: 0x1d504,
+    low: 0x1d51e,
+    wrap: (l) => `\\mathfrak{${l}}`,
+    holes: { 'ℭ': 'C', 'ℌ': 'H', 'ℑ': 'I', 'ℜ': 'R', 'ℨ': 'Z' },
+  },
+  { cap: 0x1d5a0, low: 0x1d5ba, wrap: (l) => `\\mathsf{${l}}` },
+  { cap: 0x1d670, low: 0x1d68a, wrap: (l) => `\\mathtt{${l}}` },
+];
+for (const blk of ALPHA_BLOCKS) {
+  for (let i = 0; i < 26; i += 1) {
+    TABLE[String.fromCodePoint(blk.cap + i)] = blk.wrap(String.fromCodePoint(0x41 + i));
+    TABLE[String.fromCodePoint(blk.low + i)] = blk.wrap(String.fromCodePoint(0x61 + i));
+  }
+  for (const [glyph, letter] of Object.entries(blk.holes ?? {})) {
+    TABLE[glyph] = blk.wrap(letter);
+  }
 }
 
 // Single canonical command per glyph, used to clean a `\name ` form.

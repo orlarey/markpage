@@ -68,6 +68,13 @@ export {
   type HydrateOptions,
 } from './hydrate';
 export { renderMath } from './math';
+// Unicode-math ↔ LaTeX table, shared by the render path (pre-MathJax) and the
+// app's LaTeX export + editor ligatures, so both agree on every symbol.
+export {
+  mathBodyToLatex,
+  latexToUnicode,
+  type MathConvertResult,
+} from './latex-math-symbols';
 export { renderMermaid, voidTagsToXhtml, type MermaidResult } from './mermaid';
 export { type MathFontSet, FONT_SETS, MATH_FONT_SETS } from './mathjax-fontsets';
 

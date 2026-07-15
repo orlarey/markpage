@@ -10,6 +10,7 @@
  *******************************************************************************/
 
 import { FONT_SETS, type MathFontSet } from './mathjax-fontsets.js';
+import { mathBodyToLatex } from './latex-math-symbols.js';
 
 export type MathResult =
   | { ok: true; svg: string }
@@ -84,7 +85,19 @@ async function loadMathJax(fontSet: MathFontSet): Promise<Renderer> {
     }
     const adaptor = browserAdaptor();
     RegisterHTMLHandler(adaptor);
-    const tex = new TeX({ packages: AllPackages });
+    // MathJax ships no stmaryrd, so the two double-bracket commands our
+    // Unicode→LaTeX table emits (⟦ → \llbracket, ⟧ → \rrbracket) are undefined
+    // and the `noundefined` package renders them as red literal text. Define
+    // them here to the native Unicode glyphs MathJax already draws (U+27E6/E7),
+    // with open/close spacing. Everything else the table emits is standard
+    // base/ams and needs no help.
+    const tex = new TeX({
+      packages: AllPackages,
+      macros: {
+        llbracket: '\\mathopen{\\unicode{x27E6}}',
+        rrbracket: '\\mathclose{\\unicode{x27E7}}',
+      },
+    });
     // 'local' = each SVG carries its own glyph <defs> and references them
     // via <use>; the SVG stays self-contained without duplicating every
     // glyph as inline path data the way 'none' would.
@@ -117,10 +130,13 @@ async function loadMathJax(fontSet: MathFontSet): Promise<Renderer> {
 
 /**
  * Purpose: Render a TeX source string to an SVG (or error) result for `fontSet`.
- * How: Per-(fontSet, display, preamble, source) cache; on miss, call MathJax
- *   on `preamble + source` and pull the bare `<svg>` from the wrapper.
- *   The preamble lets a doc's YAML frontmatter inject `\newcommand` macros
- *   visible to every formula without polluting the source of each one.
+ * How: Per-(fontSet, display, preamble, source) cache; on miss, normalise the
+ *   body's Unicode math symbols to LaTeX (so MathJax only ever sees ASCII TeX —
+ *   the single conversion the LaTeX export also uses), call MathJax on
+ *   `preamble + tex`, and pull the bare `<svg>` from the wrapper. The preamble
+ *   lets a doc's YAML frontmatter inject `\newcommand` macros visible to every
+ *   formula without polluting the source of each one; it is already LaTeX, so
+ *   it passes through unconverted.
  */
 export async function renderMath(
   source: string,
@@ -136,7 +152,12 @@ export async function renderMath(
   let result: MathResult;
   try {
     const mj = await loadMathJax(fontSet);
-    const full = preamble ? `${preamble}\n${trimmed}` : trimmed;
+    // Unicode → LaTeX up front: 𝒜 → \mathcal{A}, ⟦ → \llbracket, … so MathJax
+    // renders canonical TeX and never sees an astral char (which it would echo
+    // back as a broken surrogate). Unmapped non-ASCII passes through for
+    // MathJax's own native handling.
+    const tex = mathBodyToLatex(trimmed).text;
+    const full = preamble ? `${preamble}\n${tex}` : tex;
     const wrapper = await mj.render(full, display);
     result = { ok: true, svg: extractSvg(wrapper) };
   } catch (err) {
@@ -147,15 +168,32 @@ export async function renderMath(
   return result;
 }
 
+// Astral characters (e.g. 𝒜 U+1D49C) that MathJax echoes into its decorative
+// `data-latex` / `data-c` annotations can come back out as an *unpaired* UTF-16
+// surrogate — MathJax's TeX parser walks the source one UTF-16 code unit at a
+// time and splits the pair across annotation boundaries. Those lone surrogates
+// are an invalid string: later re-parsing the SVG as `image/svg+xml`
+// (makeIdsUnique in hydrate.ts) makes the strict XML parser bail with
+// "invalid utf-8 sequence", replacing the whole formula with the browser's
+// pink XML-error page. The annotations are non-functional, so dropping the
+// stray halves is harmless and keeps the SVG well-formed.
+const LONE_SURROGATE_RE =
+  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+export function stripLoneSurrogates(s: string): string {
+  return LONE_SURROGATE_RE.test(s) ? s.replace(LONE_SURROGATE_RE, '') : s;
+}
+
 /**
  * Purpose: Pull the outer `<svg>…</svg>` out of MathJax's `<mjx-container>` wrapper.
  * How: Parse as HTML (forgiving), pick the first top-level `<svg>` child of
- *   the wrapper, serialise via outerHTML. Robust to v4 emitting sibling
- *   elements (font cache stubs, accessibility nodes) that the previous
- *   greedy regex would over-capture into an invalid XML fragment.
+ *   the wrapper, serialise via outerHTML, then strip any lone UTF-16 surrogate
+ *   MathJax left in its annotations so the result stays valid XML. Robust to v4
+ *   emitting sibling elements (font cache stubs, accessibility nodes) that the
+ *   previous greedy regex would over-capture into an invalid XML fragment.
  */
 function extractSvg(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const svg = doc.querySelector('svg');
-  return svg ? svg.outerHTML : html;
+  return stripLoneSurrogates(svg ? svg.outerHTML : html);
 }

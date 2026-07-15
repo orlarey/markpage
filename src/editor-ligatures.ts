@@ -37,7 +37,7 @@
 import { syntaxTree } from '@codemirror/language';
 import { type EditorState, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { latexToUnicode } from './latex-math-symbols';
+import { latexToUnicode } from '@orlarey/markpage-render';
 
 // ---- Blackboard-bold letters ------------------------------------------
 
