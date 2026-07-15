@@ -290,14 +290,13 @@ describe('groupLetterheads — DOM grouping', () => {
 
   it('keepLabelsWithNext does NOT wrap a heading + an already-atomic block', () => {
     // The next block already carries `break-inside: avoid` (mermaid, math,
-    // captioned non-algorithm figure, callout, columns, image). Nesting it in a
+    // captioned non-algorithm figure, columns, image). Nesting it in a
     // second break-inside:avoid wrapper makes paged.js drop the tail of the
     // inner block. We keep the heading with it via break-after:avoid instead.
     for (const nextHtml of [
       '<div class="mermaid-block"><svg/></div>',
       '<div class="math-block"></div>',
       '<figure class="captioned captioned-figure"><svg/></figure>',
-      '<div class="admonition"></div>',
       '<div class="columns-block"></div>',
     ]) {
       const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
@@ -307,18 +306,21 @@ describe('groupLetterheads — DOM grouping', () => {
     }
   });
 
-  it('keepLabelsWithNext leaves a captioned algorithm breakable', () => {
-    const doc = makeDoc(
-      '<div><h2>Section</h2>' +
-        '<figure class="captioned captioned-algorithm">' +
+  it('keepLabelsWithNext leaves internally breakable rich blocks breakable', () => {
+    for (const nextHtml of [
+      '<figure class="captioned captioned-algorithm">' +
         '<div class="algorithm"><table><tr><td>x</td></tr></table></div>' +
-        '<figcaption>Algorithm 1</figcaption></figure></div>',
-    );
-    const root = doc.body.firstElementChild as HTMLElement;
-    keepLabelsWithNext(root);
-    expect(root.querySelector('.keep-with-next')).toBeNull();
-    expect(root.children[0]?.tagName.toLowerCase()).toBe('h2');
-    expect(root.children[1]?.classList.contains('captioned-algorithm')).toBe(true);
+        '<figcaption>Algorithm 1</figcaption></figure>',
+      '<div class="admonition"><div class="admonition-title">Caution</div>' +
+        '<div class="admonition-body"><p>Body</p></div></div>',
+    ]) {
+      const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
+      const root = doc.body.firstElementChild as HTMLElement;
+      keepLabelsWithNext(root);
+      expect(root.querySelector('.keep-with-next')).toBeNull();
+      expect(root.children[0]?.tagName.toLowerCase()).toBe('h2');
+      expect(root.children[1]).toBeDefined();
+    }
   });
 
   it('keepLabelsWithNext does NOT wrap an h1 + letterhead-group pair', () => {

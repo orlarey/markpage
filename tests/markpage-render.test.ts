@@ -190,7 +190,7 @@ describe('paginationCss — the shared fragmentation policy', () => {
 
   it('keeps atomic and boxed blocks whole', () => {
     expect(css).toContain('.math-block, .mermaid-block, img { break-inside: avoid; }');
-    expect(css).toContain('.admonition, .columns-block, figure.captioned { break-inside: avoid; }');
+    expect(css).toContain('.columns-block, figure.captioned { break-inside: avoid; }');
   });
 
   it('allows captioned algorithms to split between rows', () => {
@@ -201,6 +201,15 @@ describe('paginationCss — the shared fragmentation policy', () => {
     expect(css).toContain(
       'figure.captioned-algorithm figcaption { break-before: avoid; }',
     );
+  });
+
+  it('allows admonitions to split while keeping their title with the body', () => {
+    expect(css).toMatch(/\.admonition,\s*\.admonition-body \{\s*break-inside: auto;/);
+    expect(css).toContain('.admonition-title { break-after: avoid; }');
+    expect(css).toContain(
+      '.admonition-title + .admonition-body { break-before: avoid; }',
+    );
+    expect(css).toContain('box-decoration-break: clone;');
   });
 
   it('forbids dangling paragraph/list lines', () => {

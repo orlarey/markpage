@@ -34,12 +34,24 @@ export function paginationCss(): string {
     /* Atomic blocks never split across a page boundary. Captioned algorithms
        are the exception: their table rows are natural fragmentation points. */
     .math-block, .mermaid-block, img { break-inside: avoid; }
-    .admonition, .columns-block, figure.captioned { break-inside: avoid; }
+    .columns-block, figure.captioned { break-inside: avoid; }
     figure.captioned-algorithm { break-inside: auto; }
     figure.captioned-algorithm .algorithm,
     figure.captioned-algorithm .algorithm-body,
     figure.captioned-algorithm .algorithm-body tbody { break-inside: auto; }
     figure.captioned-algorithm figcaption { break-before: avoid; }
+    /* Callouts may span pages. Keeping the whole box atomic makes paged.js
+       occasionally drop its title and first lines near a page boundary. */
+    .admonition,
+    .admonition-body {
+      break-inside: auto;
+    }
+    .admonition {
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
+    .admonition-title { break-after: avoid; }
+    .admonition-title + .admonition-body { break-before: avoid; }
     /* Tables: keep the header with the first row (no orphaned <thead> at a
        page foot) and never split a row; paged.js repeats the header when a
        long table spills onto the next page. */
@@ -86,7 +98,7 @@ function isPresentableBlock(el: Element): boolean {
 }
 
 /** A block that is ALREADY atomic — paginationCss() marks it `break-inside:
- *  avoid` on its own (figure.captioned, callouts, columns, math, mermaid, a
+ *  avoid` on its own (figure.captioned, columns, math, mermaid, a
  *  bare image). Wrapping such a block together with its heading in a second
  *  `break-inside: avoid` box is both redundant and harmful: paged.js mishandles
  *  the nested avoid near a page boundary and drops the tail of the inner block
@@ -105,18 +117,18 @@ function isAtomicBlock(el: Element): boolean {
   return (
     el.classList.contains('math-block') ||
     el.classList.contains('mermaid-block') ||
-    el.classList.contains('admonition') ||
     el.classList.contains('columns-block')
   );
 }
 
-/** A captioned algorithm is intentionally breakable between table rows. It
- *  still must not be wrapped with its heading in `.keep-with-next`, because
- *  that wrapper would make the whole heading + algorithm pair atomic again. */
-function isBreakableCaptionedAlgorithm(el: Element): boolean {
+/** Some rich blocks are intentionally breakable internally. They still must
+ *  not be wrapped with a preceding heading in `.keep-with-next`, because that
+ *  wrapper would make the whole heading + rich block pair atomic again. */
+function isBreakableRichBlock(el: Element): boolean {
   return (
-    el.tagName.toLowerCase() === 'figure' &&
-    el.classList.contains('captioned-algorithm')
+    (el.tagName.toLowerCase() === 'figure' &&
+      el.classList.contains('captioned-algorithm')) ||
+    el.classList.contains('admonition')
   );
 }
 
@@ -157,10 +169,10 @@ export function keepLabelsWithNext(
     if (!next) continue;
     if (!el.parentElement) continue;
     if (next.classList.contains('letterhead-group')) continue;
-    // Atomic blocks already avoid internal breaks; captioned algorithms need
-    // their row boundaries to remain usable. In both cases a wrapper would be
-    // harmful, so rely on the heading's break-after:avoid instead.
-    if (isAtomicBlock(next) || isBreakableCaptionedAlgorithm(next)) continue;
+    // Atomic blocks already avoid internal breaks; intentionally breakable
+    // rich blocks need their internal boundaries to remain usable. In both
+    // cases a wrapper would be harmful, so rely on break-after:avoid instead.
+    if (isAtomicBlock(next) || isBreakableRichBlock(next)) continue;
     // Reverse traversal has already paired the following heading with its
     // content. Extend that same wrapper instead of nesting a second atomic
     // wrapper around it: paged.js can otherwise lose the inner paragraph.
