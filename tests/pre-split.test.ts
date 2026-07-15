@@ -5,7 +5,7 @@ import {
   findAllSplits,
   splitLongPreBlocks,
   walkLine,
-} from '../src/pre-split';
+} from '../packages/markpage-render/src/pre-split';
 
 const INIT = {
   inBlockComment: false,

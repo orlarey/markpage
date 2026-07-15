@@ -41,6 +41,12 @@ export function paginationCss(): string {
     tr { break-inside: avoid; }
     /* No single dangling first/last line of a paragraph or list item. */
     p, li { orphans: 3; widows: 3; }
+    /* Long-<pre> fragments emitted by splitLongPreBlocks (cf. pre-split.ts):
+       suppress the box seam between adjacent chunks so a code block split
+       across pages still reads as one continuous block. */
+    pre.pre-chunk-first { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 0; }
+    pre.pre-chunk-middle { margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0; padding-bottom: 0; }
+    pre.pre-chunk-last { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; padding-top: 0; }
   `;
 }
 

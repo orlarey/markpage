@@ -2,7 +2,7 @@
   "name": "markpage-preview",
   "displayName": "markpage preview",
   "description": "Preview Markdown with all markpage extensions (fences, callouts, math, mermaid) — reuses @orlarey/markpage-render.",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "publisher": "orlarey",
   "license": "MIT",
   "repository": {

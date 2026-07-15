@@ -15,7 +15,15 @@
  *
  *******************************************************************************/
 
-import { highlightCode, isKnownLanguage } from '@orlarey/markpage-render';
+import { highlightCode, isKnownLanguage } from './highlight';
+
+// Default thresholds for the pre-split pass, in LINES (a proxy for "one page
+// of code"). A `<pre>` taller than TARGET + SLACK gets fragmented so paged.js
+// has natural break points; without it a >1-page block drops downstream
+// content or triggers paged.js's blank-page/duplicate bug (SPEC §13.3). Shared
+// by the host app and the VS Code extension so both paginate <pre> the same.
+export const PRE_SPLIT_TARGET_LINES = 35;
+export const PRE_SPLIT_SLACK_LINES = 8;
 
 /** End-of-line state used to decide whether a line is a safe split point. */
 interface LineState {

@@ -100,3 +100,10 @@ export {
 export { anchorId } from './refs';
 export { applyBackgrounds } from './background';
 export { paginationCss, keepLabelsWithNext } from './pagination';
+// Pre-split oversized <pre> code blocks so paged.js never drops a >1-page
+// block. Shared by the host app and the VS Code extension's paginate pass.
+export {
+  splitLongPreBlocks,
+  PRE_SPLIT_TARGET_LINES,
+  PRE_SPLIT_SLACK_LINES,
+} from './pre-split';

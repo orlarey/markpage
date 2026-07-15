@@ -13,6 +13,9 @@ import {
   applyBackgrounds,
   paginationCss,
   keepLabelsWithNext,
+  splitLongPreBlocks,
+  PRE_SPLIT_TARGET_LINES,
+  PRE_SPLIT_SLACK_LINES,
   groupLetterheads,
   letterheadCss,
   parseStackDoc,
@@ -463,6 +466,12 @@ async function paginate(token: number): Promise<void> {
   // (+ reserve vertical space for a window-positioned recipient) so the
   // letterheadCss() rules apply — same DOM pass the host app runs.
   groupLetterheads(source);
+  // Fragment any `<pre>` taller than a page into contiguous chunks so paged.js
+  // has natural break points — without this a >1-page code block drops
+  // downstream content (leaving a blank page) or triggers paged.js's
+  // blank-page/duplicate bug (SPEC §13.3). MUST run before keepLabelsWithNext,
+  // so a lead-in paragraph pairs with the FIRST chunk, not the whole block.
+  splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
   // Keep each heading / lead-in with the block that follows it — the reliable
   // half of the orphan-control policy (`break-after: avoid` alone is flaky in
   // paged.js when the next block is tall). Pairs with `.keep-with-next` in

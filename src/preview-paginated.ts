@@ -10,20 +10,12 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily, loadFontTrio } from './font-loader';
-import { groupLetterheads, letterheadCss, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext } from '@orlarey/markpage-render';
-import { splitLongPreBlocks } from './pre-split';
+import { groupLetterheads, letterheadCss, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext, splitLongPreBlocks, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES } from '@orlarey/markpage-render';
 import {
   computeCanonicalMargins,
   measureAverageCharWidth,
   type CanonicalMargins,
 } from './typography';
-
-// Threshold for the pre-split pass (cf. `splitLongPreBlocks`). A code block
-// taller than this gets fragmented so paged.js has natural break points
-// (otherwise paged.js drops everything after a >1-page <pre>, or — with the
-// keep-with-next wrapper — duplicates pages, cf. SPEC §13.3).
-const PRE_SPLIT_TARGET_LINES = 35;
-const PRE_SPLIT_SLACK_LINES = 8;
 
 /**
  * Purpose: Heading underline CSS fragment for paged.js / print output.
