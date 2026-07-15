@@ -534,11 +534,24 @@
    numbered `<figcaption class="caption">`. The wrapper itself is
    transparent — only the inner block and the caption are styled.
    `break-inside: avoid` keeps the pair on the same page at print
-   time so the caption never floats away from its figure. */
+   time so the caption never floats away from its figure. Algorithms are the
+   exception: their rows provide safe page-break points, and the caption is
+   kept with the final fragment by `break-before: avoid`. */
 figure.captioned {
   margin: 1em 0;
   padding: 0;
   break-inside: avoid;
+}
+figure.captioned-algorithm {
+  break-inside: auto;
+}
+figure.captioned-algorithm .algorithm,
+figure.captioned-algorithm .algorithm-body,
+figure.captioned-algorithm .algorithm-body tbody {
+  break-inside: auto;
+}
+figure.captioned-algorithm figcaption {
+  break-before: avoid;
 }
 figure.captioned > .algorithm,
 figure.captioned > .tree-svg-wrap,
@@ -665,4 +678,3 @@ figure.captioned > pre {
   font-family: 'Roboto Mono', ui-monospace, monospace;
   font-size: 0.9em;
 }
-

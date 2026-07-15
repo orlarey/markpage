@@ -193,6 +193,16 @@ describe('paginationCss — the shared fragmentation policy', () => {
     expect(css).toContain('.admonition, .columns-block, figure.captioned { break-inside: avoid; }');
   });
 
+  it('allows captioned algorithms to split between rows', () => {
+    expect(css).toContain('figure.captioned-algorithm { break-inside: auto; }');
+    expect(css).toContain(
+      'figure.captioned-algorithm .algorithm-body tbody { break-inside: auto; }',
+    );
+    expect(css).toContain(
+      'figure.captioned-algorithm figcaption { break-before: avoid; }',
+    );
+  });
+
   it('forbids dangling paragraph/list lines', () => {
     expect(css).toContain('p, li { orphans: 3; widows: 3; }');
   });

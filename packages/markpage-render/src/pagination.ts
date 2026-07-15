@@ -31,9 +31,15 @@ export function paginationCss(): string {
     h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + * { break-before: avoid; }
     /* Reliable keep-with-next: the pair wrapped by keepLabelsWithNext(). */
     .keep-with-next { break-inside: avoid; }
-    /* Atomic blocks never split across a page boundary. */
+    /* Atomic blocks never split across a page boundary. Captioned algorithms
+       are the exception: their table rows are natural fragmentation points. */
     .math-block, .mermaid-block, img { break-inside: avoid; }
     .admonition, .columns-block, figure.captioned { break-inside: avoid; }
+    figure.captioned-algorithm { break-inside: auto; }
+    figure.captioned-algorithm .algorithm,
+    figure.captioned-algorithm .algorithm-body,
+    figure.captioned-algorithm .algorithm-body tbody { break-inside: auto; }
+    figure.captioned-algorithm figcaption { break-before: avoid; }
     /* Tables: keep the header with the first row (no orphaned <thead> at a
        page foot) and never split a row; paged.js repeats the header when a
        long table spills onto the next page. */
@@ -71,12 +77,28 @@ function isPresentableBlock(el: Element): boolean {
 function isAtomicBlock(el: Element): boolean {
   const tag = el.tagName.toLowerCase();
   if (tag === 'img') return true;
-  if (tag === 'figure' && el.classList.contains('captioned')) return true;
+  if (
+    tag === 'figure' &&
+    el.classList.contains('captioned') &&
+    !el.classList.contains('captioned-algorithm')
+  ) {
+    return true;
+  }
   return (
     el.classList.contains('math-block') ||
     el.classList.contains('mermaid-block') ||
     el.classList.contains('admonition') ||
     el.classList.contains('columns-block')
+  );
+}
+
+/** A captioned algorithm is intentionally breakable between table rows. It
+ *  still must not be wrapped with its heading in `.keep-with-next`, because
+ *  that wrapper would make the whole heading + algorithm pair atomic again. */
+function isBreakableCaptionedAlgorithm(el: Element): boolean {
+  return (
+    el.tagName.toLowerCase() === 'figure' &&
+    el.classList.contains('captioned-algorithm')
   );
 }
 
@@ -115,10 +137,10 @@ export function keepLabelsWithNext(
     if (!next) continue;
     if (!el.parentElement) continue;
     if (next.classList.contains('letterhead-group')) continue;
-    // The next block already avoids internal breaks; nesting it in a second
-    // break-inside:avoid wrapper makes paged.js drop its tail. Keep them
-    // together via the heading's break-after:avoid instead (paginationCss).
-    if (isAtomicBlock(next)) continue;
+    // Atomic blocks already avoid internal breaks; captioned algorithms need
+    // their row boundaries to remain usable. In both cases a wrapper would be
+    // harmful, so rely on the heading's break-after:avoid instead.
+    if (isAtomicBlock(next) || isBreakableCaptionedAlgorithm(next)) continue;
     const wrapper = root.ownerDocument.createElement('div');
     wrapper.className = 'keep-with-next';
     el.before(wrapper);
