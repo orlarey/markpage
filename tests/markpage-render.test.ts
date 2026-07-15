@@ -212,4 +212,13 @@ describe('paginationCss — the shared fragmentation policy', () => {
     expect(css).toContain('dt + dd { break-before: avoid; }');
     expect(css).toContain('dd { orphans: 3; widows: 3; }');
   });
+
+  it('wraps over-wide code in paginated output', () => {
+    expect(css).toMatch(
+      /pre > code \{[^}]*white-space: pre-wrap;[^}]*overflow-wrap: anywhere;[^}]*overflow-x: visible;/,
+    );
+    expect(css).toMatch(
+      /\.algorithm-code \{[^}]*white-space: pre-wrap;[^}]*overflow-wrap: anywhere;/,
+    );
+  });
 });

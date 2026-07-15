@@ -53,6 +53,18 @@ export function paginationCss(): string {
     dt { break-after: avoid; }
     dt + dd { break-before: avoid; }
     dd { orphans: 3; widows: 3; }
+    /* Horizontal scrolling cannot expose hidden code in a printed page. Keep
+       indentation, wrap at natural opportunities, then break an exceptionally
+       long token as a last resort. The continuous previews retain scrolling. */
+    pre > code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow-x: visible;
+    }
+    .algorithm-code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
     /* Long-<pre> fragments emitted by splitLongPreBlocks (cf. pre-split.ts):
        suppress the box seam between adjacent chunks so a code block split
        across pages still reads as one continuous block. */
