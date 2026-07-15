@@ -289,15 +289,14 @@ describe('groupLetterheads — DOM grouping', () => {
   });
 
   it('keepLabelsWithNext does NOT wrap a heading + an already-atomic block', () => {
-    // The next block already carries `break-inside: avoid` (mermaid, math,
-    // captioned non-algorithm figure, columns, image). Nesting it in a
+    // The next block receives the semantic `.mp-atomic` boundary. Nesting it in a
     // second break-inside:avoid wrapper makes paged.js drop the tail of the
     // inner block. We keep the heading with it via break-after:avoid instead.
     for (const nextHtml of [
-      '<div class="mermaid-block"><svg/></div>',
-      '<div class="math-block"></div>',
-      '<figure class="captioned captioned-figure"><svg/></figure>',
-      '<div class="columns-block"></div>',
+      '<div class="mermaid-block block-rigid"><svg/></div>',
+      '<div class="math-block block-rigid"></div>',
+      '<figure class="captioned captioned-figure"><div class="block-rigid"><svg/></div></figure>',
+      '<div class="demo-block"></div>',
     ]) {
       const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
       const root = doc.body.firstElementChild as HTMLElement;
@@ -313,6 +312,9 @@ describe('groupLetterheads — DOM grouping', () => {
         '<figcaption>Algorithm 1</figcaption></figure>',
       '<div class="admonition"><div class="admonition-title">Caution</div>' +
         '<div class="admonition-body"><p>Body</p></div></div>',
+      '<figure class="captioned captioned-table"><table><tr><td>x</td></tr></table></figure>',
+      '<div class="columns-block"><div class="column"><p>Body</p></div></div>',
+      '<div class="mosaic-block"><div class="mosaic-row"></div></div>',
     ]) {
       const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
       const root = doc.body.firstElementChild as HTMLElement;

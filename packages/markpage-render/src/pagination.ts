@@ -21,6 +21,8 @@
  *
  *******************************************************************************/
 
+import { markAtomicBlocks } from './atomic-fit';
+
 /** The shared `break-*` fragmentation policy, as a CSS string to splice into
  *  the page stylesheet handed to paged.js. */
 export function paginationCss(): string {
@@ -33,8 +35,38 @@ export function paginationCss(): string {
     .keep-with-next { break-inside: avoid; }
     /* Atomic blocks never split across a page boundary. Captioned algorithms
        are the exception: their table rows are natural fragmentation points. */
-    .math-block, .mermaid-block, img { break-inside: avoid; }
-    .columns-block, figure.captioned { break-inside: avoid; }
+    .mp-atomic { break-inside: avoid; }
+    /* Only the promoted outer boundary is atomic. Renderer markers nested in
+       a caption wrapper must not create a second avoid context. */
+    .mp-atomic .block-rigid { break-inside: auto; }
+    .columns-block, figure.captioned { break-inside: auto; }
+    /* A severely oversized atomic gets a dedicated full text-height page.
+       Its absolutely positioned child may borrow the physical margins while
+       the wrapper remains a perfectly placeable page-sized flow box. */
+    .mp-atomic-page {
+      position: relative;
+      width: 100%;
+      height: var(--mp-atomic-text-height);
+      margin: 0 !important;
+      padding: 0 !important;
+      break-before: page;
+      break-after: page;
+      break-inside: avoid;
+    }
+    .mp-atomic-page-content {
+      position: absolute;
+      left: var(--mp-atomic-center-x-recto);
+      top: var(--mp-atomic-center-y);
+      transform: translate(-50%, -50%) scale(var(--mp-atomic-page-scale));
+      transform-origin: center center;
+    }
+    .pagedjs_left_page .mp-atomic-page-content {
+      left: var(--mp-atomic-center-x-verso);
+    }
+    .mp-atomic-page .mp-atomic {
+      break-inside: auto;
+      margin: 0 !important;
+    }
     figure.captioned-algorithm { break-inside: auto; }
     figure.captioned-algorithm .algorithm,
     figure.captioned-algorithm .algorithm-body,
@@ -50,8 +82,13 @@ export function paginationCss(): string {
       -webkit-box-decoration-break: clone;
       box-decoration-break: clone;
     }
-    .admonition-title { break-after: avoid; }
-    .admonition-title + .admonition-body { break-before: avoid; }
+    /* Do not put an avoid constraint on the title/body boundary. paged.js
+       propagates break-after:avoid to the body container; when its first
+       paragraph overflows, it can then move that boundary while retaining a
+       text-offset break token. The result is exactly the missing title and
+       paragraph prefix this policy must prevent. Keeping the title itself
+       atomic is safe; the surrounding callout remains freely fragmentable. */
+    .admonition-title { break-inside: avoid; }
     /* Tables: keep the header with the first row (no orphaned <thead> at a
        page foot) and never split a row; paged.js repeats the header when a
        long table spills onto the next page. */
@@ -97,27 +134,25 @@ function isPresentableBlock(el: Element): boolean {
   return false;
 }
 
-/** A block that is ALREADY atomic — paginationCss() marks it `break-inside:
- *  avoid` on its own (figure.captioned, columns, math, mermaid, a
- *  bare image). Wrapping such a block together with its heading in a second
+/** A block that is ALREADY atomic — markAtomicBlocks() gives its semantic
+ *  outer boundary `.mp-atomic` before this predicate runs. Wrapping such a
+ *  block together with its heading in a second
  *  `break-inside: avoid` box is both redundant and harmful: paged.js mishandles
  *  the nested avoid near a page boundary and drops the tail of the inner block
  *  (e.g. the last rows of an `algorithm` table vanish). For these we skip the
  *  wrapper and rely on the heading's `break-after: avoid` to keep them together. */
 function isAtomicBlock(el: Element): boolean {
-  const tag = el.tagName.toLowerCase();
-  if (tag === 'img') return true;
   if (
-    tag === 'figure' &&
-    el.classList.contains('captioned') &&
-    !el.classList.contains('captioned-algorithm')
+    el.classList.contains('mp-atomic') ||
+    el.classList.contains('mp-atomic-page')
   ) {
     return true;
   }
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'img') return true;
   return (
     el.classList.contains('math-block') ||
-    el.classList.contains('mermaid-block') ||
-    el.classList.contains('columns-block')
+    el.classList.contains('mermaid-block')
   );
 }
 
@@ -125,10 +160,13 @@ function isAtomicBlock(el: Element): boolean {
  *  not be wrapped with a preceding heading in `.keep-with-next`, because that
  *  wrapper would make the whole heading + rich block pair atomic again. */
 function isBreakableRichBlock(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
   return (
-    (el.tagName.toLowerCase() === 'figure' &&
-      el.classList.contains('captioned-algorithm')) ||
-    el.classList.contains('admonition')
+    (tag === 'figure' && el.classList.contains('captioned')) ||
+    tag === 'table' ||
+    el.classList.contains('admonition') ||
+    el.classList.contains('columns-block') ||
+    el.classList.contains('mosaic-block')
   );
 }
 
@@ -161,6 +199,10 @@ export function keepLabelsWithNext(
   root: HTMLElement,
   inSlidesMode = false,
 ): void {
+  // Establish the semantic atomic boundary before deciding which heading
+  // pairs may safely be wrapped. This is shared with every host, including
+  // the VS Code preview.
+  markAtomicBlocks(root);
   const all = [...root.querySelectorAll<HTMLElement>('*')].reverse();
   for (const el of all) {
     if (!isLabel(el)) continue;

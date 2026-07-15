@@ -100,6 +100,17 @@ export {
 export { anchorId } from './refs';
 export { applyBackgrounds } from './background';
 export { paginationCss, keepLabelsWithNext } from './pagination';
+export {
+  ATOMIC_MARGIN_BORROW_THRESHOLD,
+  atomicFitDecision,
+  markAtomicBlocks,
+  fitAtomicBlocks,
+  type AtomicPageGeometryPx,
+  type AtomicFitDecision,
+  type AtomicFitMode,
+  type AtomicFitOptions,
+  type AtomicFitResult,
+} from './atomic-fit';
 // Pre-split oversized <pre> code blocks so paged.js never drops a >1-page
 // block. Shared by the host app and the VS Code extension's paginate pass.
 export {

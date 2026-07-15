@@ -10,7 +10,21 @@
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import { quoteFontFamily, loadFontTrio } from './font-loader';
-import { groupLetterheads, letterheadCss, applyPageRunningRuns, prependDefaultFences, resetPageRunningCounter, applyBackgrounds, paginationCss, keepLabelsWithNext, splitLongPreBlocks, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES } from '@orlarey/markpage-render';
+import {
+  groupLetterheads,
+  letterheadCss,
+  applyPageRunningRuns,
+  prependDefaultFences,
+  resetPageRunningCounter,
+  applyBackgrounds,
+  paginationCss,
+  keepLabelsWithNext,
+  fitAtomicBlocks,
+  splitLongPreBlocks,
+  PRE_SPLIT_TARGET_LINES,
+  PRE_SPLIT_SLACK_LINES,
+  type AtomicPageGeometryPx,
+} from '@orlarey/markpage-render';
 import {
   computeCanonicalMargins,
   measureAverageCharWidth,
@@ -203,6 +217,10 @@ export async function paginate(
   // <pre> either drops downstream content or triggers paged.js's
   // "blank page + duplicate" bug under keep-with-next (SPEC §13.3).
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
+  // Measure genuinely atomic render objects at the final text width. Objects
+  // that cannot remain reasonably legible inside the normal margins get a
+  // dedicated page and may borrow those margins; they are never fragmented.
+  await fitOversizedAtomicBlocks(source, settings, renderTo);
   // Wrap each "label" (heading, or paragraph that introduces a block)
   // with its immediate next sibling so the pair gets a real
   // `break-inside: avoid` boundary. CSS `break-after: avoid` alone is
@@ -294,6 +312,7 @@ export async function paginateOnce(
   groupLetterheads(source);
   await applyAutoZoomForDemos(source, settings, renderTo);
   splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
+  await fitOversizedAtomicBlocks(source, settings, renderTo);
   keepLabelsWithNext(source, settings.pageSize === 'SLIDES_16_9');
   await unwrapOversizedKeepWithNext(source, settings, renderTo);
   resetPageRunningCounter();
@@ -788,6 +807,119 @@ function figureNaturalWidthPx(el: Element): number {
 
 // keepLabelsWithNext() + its isLabel/isPresentableBlock helpers now live in
 // @orlarey/markpage-render (shared with the VS Code extension); imported above.
+
+const PX_PER_MM = 96 / 25.4;
+const ATOMIC_TRIM_SAFETY_MM = 3;
+
+/** Geometry of the normal text rectangle and the physical page, in CSS px. */
+function atomicPageGeometryPx(settings: PdfSettings): AtomicPageGeometryPx {
+  const page = pageSizeMm(settings);
+  const bodyName =
+    (settings.styles.body.family ?? '').trim() || settings.fonts.body;
+  const textCanon =
+    settings.marginMode === 'derived'
+      ? computeCanonicalMargins(
+          page.w,
+          page.h,
+          settings.measureChars,
+          measureAverageCharWidth(
+            bodyName,
+            settings.styles.body.fontSize ?? 11,
+          ),
+        )
+      : null;
+  const leftRecto = textCanon?.inner ?? settings.margins.left;
+  const leftVerso = settings.duplex
+    ? (textCanon?.outer ?? settings.margins.right)
+    : leftRecto;
+  const top = textCanon?.top ?? settings.margins.top;
+  const textWidth =
+    textCanon?.width ??
+    Math.max(1, page.w - settings.margins.left - settings.margins.right);
+  const textHeight =
+    textCanon?.height ??
+    Math.max(1, page.h - settings.margins.top - settings.margins.bottom);
+  return {
+    textWidth: textWidth * PX_PER_MM,
+    textHeight: textHeight * PX_PER_MM,
+    pageWidth: page.w * PX_PER_MM,
+    pageHeight: page.h * PX_PER_MM,
+    textLeftRecto: leftRecto * PX_PER_MM,
+    textLeftVerso: leftVerso * PX_PER_MM,
+    textTop: top * PX_PER_MM,
+    safety: ATOMIC_TRIM_SAFETY_MM * PX_PER_MM,
+  };
+}
+
+/** Wait for images that participate in an atomic measurement, best effort. */
+async function waitForAtomicImages(root: HTMLElement): Promise<void> {
+  await Promise.all(
+    [...root.querySelectorAll<HTMLImageElement>('img')].map(async (img) => {
+      if (img.complete) return;
+      try {
+        await img.decode();
+      } catch {
+        // Broken images remain visible as their browser fallback; measure that.
+      }
+    }),
+  );
+}
+
+/**
+ * Measure and fit semantic atomic objects before paged.js sees the source.
+ * The offscreen stage uses the exact text width and paginated CSS, so the
+ * decision includes final fonts, captions, padding and borders.
+ */
+async function fitOversizedAtomicBlocks(
+  source: HTMLElement,
+  settings: PdfSettings,
+  renderTo: HTMLElement,
+): Promise<void> {
+  const geometry = atomicPageGeometryPx(settings);
+  const doc = source.ownerDocument;
+  const styleEl = doc.createElement('style');
+  styleEl.textContent = pagedCss(settings);
+  doc.head.appendChild(styleEl);
+
+  const stage = doc.createElement('div');
+  stage.style.cssText = [
+    'position: absolute',
+    'left: -99999px',
+    'top: 0',
+    `width: ${geometry.textWidth}px`,
+    'visibility: hidden',
+    'pointer-events: none',
+  ].join('; ');
+  const originalParent = source.parentNode;
+  const originalNext = source.nextSibling;
+  renderTo.appendChild(stage);
+  stage.appendChild(source);
+  try {
+    await ensureTrioLoaded(settings);
+    await waitForAtomicImages(source);
+    // Force style/layout resolution after fonts and images have settled.
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    stage.offsetHeight;
+    fitAtomicBlocks(source, geometry, {
+      onWarning: ({ element, scale, mode }) => {
+        if (scale >= 0.999) return;
+        console.warn(
+          `[markpage] Atomic ${element.tagName.toLowerCase()} reduced to ` +
+            `${Math.round(scale * 100)}% (${mode === 'page' ? 'margin-borrowing page' : 'text area'}).`,
+        );
+      },
+    });
+  } finally {
+    if (originalParent) {
+      if (originalNext) originalParent.insertBefore(source, originalNext);
+      else originalParent.appendChild(source);
+    } else {
+      source.remove();
+    }
+    stage.remove();
+    styleEl.remove();
+  }
+}
 
 /**
  * Purpose: Defuse `.keep-with-next` wrappers that are TALLER THAN A PAGE.
@@ -1917,4 +2049,3 @@ function runningContentCss(style: Style): string {
   ].join(', ');
   return `:where(#preview-pane, #markpage-print-target) :is(${boxes}) { ${decls.join(' ')} }`;
 }
-

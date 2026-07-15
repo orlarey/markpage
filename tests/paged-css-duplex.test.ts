@@ -26,8 +26,8 @@ describe('pagedCss — simplex (default)', () => {
 
   it("emits no chapterBreak rule when chapterBreak === 'none'", () => {
     const css = pagedCss(A4);
-    expect(css).not.toContain('break-before: page');
-    expect(css).not.toContain('break-before: right');
+    expect(css).not.toContain('h1 { break-before: page; }');
+    expect(css).not.toContain('h1 { break-before: right; }');
   });
 });
 
@@ -225,7 +225,7 @@ describe('pagedCss — chapterBreak', () => {
   it("emits `h1 { break-before: right }` for 'next-recto'", () => {
     const css = pagedCss({ ...A4, chapterBreak: 'next-recto' });
     expect(css).toContain('h1 { break-before: right; }');
-    expect(css).not.toContain('break-before: page;');
+    expect(css).not.toContain('h1 { break-before: page; }');
   });
 
   it("combines cleanly with duplex (both rules emitted independently)", () => {

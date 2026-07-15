@@ -189,8 +189,12 @@ describe('paginationCss — the shared fragmentation policy', () => {
   });
 
   it('keeps atomic and boxed blocks whole', () => {
-    expect(css).toContain('.math-block, .mermaid-block, img { break-inside: avoid; }');
-    expect(css).toContain('.columns-block, figure.captioned { break-inside: avoid; }');
+    expect(css).toContain('.mp-atomic { break-inside: avoid; }');
+    expect(css).toContain('.mp-atomic .block-rigid { break-inside: auto; }');
+    expect(css).toContain('.columns-block, figure.captioned { break-inside: auto; }');
+    expect(css).toContain('.mp-atomic-page {');
+    expect(css).toContain('break-before: page;');
+    expect(css).toContain('break-after: page;');
   });
 
   it('allows captioned algorithms to split between rows', () => {
@@ -203,10 +207,11 @@ describe('paginationCss — the shared fragmentation policy', () => {
     );
   });
 
-  it('allows admonitions to split while keeping their title with the body', () => {
+  it('allows admonitions to split without an avoid boundary that can drop text', () => {
     expect(css).toMatch(/\.admonition,\s*\.admonition-body \{\s*break-inside: auto;/);
-    expect(css).toContain('.admonition-title { break-after: avoid; }');
-    expect(css).toContain(
+    expect(css).toContain('.admonition-title { break-inside: avoid; }');
+    expect(css).not.toContain('.admonition-title { break-after: avoid; }');
+    expect(css).not.toContain(
       '.admonition-title + .admonition-body { break-before: avoid; }',
     );
     expect(css).toContain('box-decoration-break: clone;');
