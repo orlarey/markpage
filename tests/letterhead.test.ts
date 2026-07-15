@@ -267,6 +267,27 @@ describe('groupLetterheads — DOM grouping', () => {
     expect(root.querySelector('.keep-with-next')).not.toBeNull();
   });
 
+  it('flattens a heading chain into one keep-with-next wrapper', () => {
+    const doc = makeDoc(
+      '<div>' +
+        '<h2>Dependency graph</h2>' +
+        '<h3>Orientation</h3>' +
+        '<p>The first paragraph must not disappear.</p>' +
+        '<p>The second paragraph remains outside the pair.</p>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    keepLabelsWithNext(root);
+    const wrappers = root.querySelectorAll('.keep-with-next');
+    expect(wrappers).toHaveLength(1);
+    expect([...wrappers[0].children].map((el) => el.tagName.toLowerCase())).toEqual([
+      'h2',
+      'h3',
+      'p',
+    ]);
+    expect(root.children[1]?.textContent).toContain('second paragraph');
+  });
+
   it('keepLabelsWithNext does NOT wrap a heading + an already-atomic block', () => {
     // The next block already carries `break-inside: avoid` (mermaid, math,
     // captioned non-algorithm figure, callout, columns, image). Nesting it in a

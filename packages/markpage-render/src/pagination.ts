@@ -138,10 +138,12 @@ function isLabel(el: Element): boolean {
  *   alone is honoured inconsistently by paged.js when the next block is tall, so
  *   we wrap each label with its immediate next sibling in a `.keep-with-next`
  *   div (paginationCss() marks that `break-inside: avoid`).
- * How: Walk every element in REVERSE document order so chains of headings nest
- *   (h2 then h3 then prose → the h3+prose wrapper becomes the h2's "next"). Skip
- *   h2 in slides mode (it carries `break-before: page`) and letterhead groups.
- *   Operates in place on `root`; run it on the render DOM before pagination.
+ * How: Walk every element in REVERSE document order. When a heading follows
+ *   another heading, prepend it to the existing wrapper so a chain such as
+ *   h2 → h3 → prose becomes ONE flat keep-with-next box. Nested avoid boxes
+ *   make paged.js drop content near a page boundary. Skip h2 in slides mode
+ *   (it carries `break-before: page`) and letterhead groups. Operates in place
+ *   on `root`; run it on the render DOM before pagination.
  */
 export function keepLabelsWithNext(
   root: HTMLElement,
@@ -159,6 +161,13 @@ export function keepLabelsWithNext(
     // their row boundaries to remain usable. In both cases a wrapper would be
     // harmful, so rely on the heading's break-after:avoid instead.
     if (isAtomicBlock(next) || isBreakableCaptionedAlgorithm(next)) continue;
+    // Reverse traversal has already paired the following heading with its
+    // content. Extend that same wrapper instead of nesting a second atomic
+    // wrapper around it: paged.js can otherwise lose the inner paragraph.
+    if (next.classList.contains('keep-with-next')) {
+      next.prepend(el);
+      continue;
+    }
     const wrapper = root.ownerDocument.createElement('div');
     wrapper.className = 'keep-with-next';
     el.before(wrapper);
