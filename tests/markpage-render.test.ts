@@ -206,4 +206,10 @@ describe('paginationCss — the shared fragmentation policy', () => {
   it('forbids dangling paragraph/list lines', () => {
     expect(css).toContain('p, li { orphans: 3; widows: 3; }');
   });
+
+  it('keeps a definition term with the start of its definition', () => {
+    expect(css).toContain('dt { break-after: avoid; }');
+    expect(css).toContain('dt + dd { break-before: avoid; }');
+    expect(css).toContain('dd { orphans: 3; widows: 3; }');
+  });
 });

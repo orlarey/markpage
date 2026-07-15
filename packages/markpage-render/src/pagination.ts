@@ -47,6 +47,12 @@ export function paginationCss(): string {
     tr { break-inside: avoid; }
     /* No single dangling first/last line of a paragraph or list item. */
     p, li { orphans: 3; widows: 3; }
+    /* Definition lists: never leave a term alone at a page foot. The first
+       definition remains fragmentable, but at least three of its lines stay
+       together at either side of a page break. */
+    dt { break-after: avoid; }
+    dt + dd { break-before: avoid; }
+    dd { orphans: 3; widows: 3; }
     /* Long-<pre> fragments emitted by splitLongPreBlocks (cf. pre-split.ts):
        suppress the box seam between adjacent chunks so a code block split
        across pages still reads as one continuous block. */
