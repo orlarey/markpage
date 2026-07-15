@@ -126,16 +126,32 @@ const ADMONITION_LABELS: Record<string, string> = {
 };
 
 // Footnote registry. Resets at the start of every parse via the
-// preprocess hook. Definitions are collected as the block lexer runs;
-// references then look them up in the inline pass (block parsing
-// completes before inline parsing in marked, so all defs are known by
-// the time refs are tokenized).
+// preprocess hook, which also PRE-SCANS the source for `[^id]:` defs
+// (prescanFootnoteDefs). For a footnote in a plain paragraph, marked's
+// block pass completes before the inline pass, so the def is known by
+// the time the ref is tokenized. But blocks that inline-parse eagerly
+// during block tokenisation — def-lists, citation bodies — resolve their
+// refs BEFORE a later `[^id]:` line has been seen, so without the
+// pre-scan those refs fell through to literal `[^id]` text. Pre-scanning
+// makes every ref resolve regardless of order or nesting.
 //
 // `seen` tracks the ids in order of first reference — which is how
 // they are numbered in the rendered list, regardless of where the
 // definition appears in the source. This matches Pandoc's behaviour.
 const footnoteDefs = new Map<string, string>();
 const footnoteSeen: string[] = [];
+
+/** Populate `footnoteDefs` from the raw source before any tokenisation, so a
+ *  reference resolves even from inside an eagerly-inline-parsed block. The
+ *  footnoteDef block tokenizer re-sets the same entries as it runs. Single-line
+ *  defs (`[^id]: body`), matching the footnoteDef tokenizer's own grammar. */
+function prescanFootnoteDefs(src: string): void {
+  const re = /^\[\^([^\]\n]+)\]:[ \t]*(.+)$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    footnoteDefs.set(m[1] ?? '', (m[2] ?? '').trim());
+  }
+}
 // Pandoc-style citations. Same shape as footnotes (registry + order-of-
 // first-appearance numbering) but a separate end-of-document section
 // titled "References", and inline rendering as `[1]` square brackets
@@ -621,6 +637,9 @@ marked.use({
       // before any rendering happens.
       resetRefs();
       prescanLabels(src);
+      // Register footnote defs up front so refs inside def-lists / citation
+      // bodies (which inline-parse during block tokenisation) still resolve.
+      prescanFootnoteDefs(src);
       return src;
     },
     postprocess(html) {

@@ -149,6 +149,32 @@ describe('::: background — page backdrop sentinel (BACKGROUND-SPEC)', () => {
   });
 });
 
+describe('footnotes — forward references resolve regardless of nesting', () => {
+  it('renders a footnote referenced from inside a definition list', () => {
+    // Regression: a def-list inline-parses its body during block tokenisation,
+    // before the later `[^id]:` def line is seen — so the ref used to fall
+    // through to literal `[^fold]` text with no footnotes section. The
+    // preprocess pre-scan of defs fixes it.
+    const md = 'Fold\n:   interprets a term[^fold].\n\n[^fold]: A catamorphism.\n';
+    const html = renderMarkpageMarkdown(md);
+    expect(html).toContain('footnote-ref');
+    expect(html).toContain('class="footnotes"');
+    expect(html).not.toContain('[^fold]');
+  });
+
+  it('still renders a footnote referenced from a plain paragraph', () => {
+    const html = renderMarkpageMarkdown('Text with a note[^x].\n\n[^x]: The body.\n');
+    expect(html).toContain('footnote-ref');
+    expect(html).toContain('class="footnotes"');
+  });
+
+  it('leaves a reference with no matching definition as literal text', () => {
+    const html = renderMarkpageMarkdown('A typo[^missing] here.\n');
+    expect(html).toContain('[^missing]');
+    expect(html).not.toContain('footnote-ref');
+  });
+});
+
 describe('paginationCss — the shared fragmentation policy', () => {
   const css = paginationCss();
 

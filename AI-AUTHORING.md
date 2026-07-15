@@ -1134,6 +1134,13 @@ used[^rand].
 [^rand]: Sedgewick proposed shuffling the array as a guard.
 ```
 
+**Keep each definition on one source line.** markpage does not support
+Pandoc's multi-paragraph or indented-continuation footnotes — a hard line
+break ends the definition. The line may be as long as you like (it
+soft-wraps), so write the whole note on a single line even when it is long.
+A reference resolves from anywhere, including inside list items, tables, and
+definition lists.
+
 ---
 
 ## Citations (Pandoc-lite)
