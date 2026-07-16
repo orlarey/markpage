@@ -9,7 +9,11 @@
 
 import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
-import { quoteFontFamily, loadFontTrio } from './font-loader';
+import {
+  quoteFontFamily,
+  loadSettingsFonts,
+  settingsFontFamilies,
+} from './font-loader';
 import {
   groupLetterheads,
   letterheadCss,
@@ -138,27 +142,25 @@ function purgePagedJsStyles(): void {
 }
 
 /**
- * Purpose: Force-load the effective font trio (headings / body / code) and wait
+ * Purpose: Force-load every effective document font and wait
  *   until the actual font files are usable, so paged.js measures with the final
  *   metrics rather than a fallback it would have to re-flow away from.
- * How: `loadFontTrio` injects any Google stylesheet and awaits its files; that
+ * How: `loadSettingsFonts` injects Google stylesheets for the global trio and
+ *   every per-element family override, and awaits their files. That
  *   short-circuits for bundled (@fontsource) families, so we also call
  *   `document.fonts.load(...)` per family — that both *requests* the face (which
  *   `document.fonts.ready` would not, when nothing on screen uses it yet) and
  *   resolves once it is ready to measure. Best-effort: a bad/typo family name
  *   must not stall pagination.
  */
-async function ensureTrioLoaded(settings: PdfSettings): Promise<void> {
-  const trio = settings.fonts;
+async function ensureSettingsFontsLoaded(settings: PdfSettings): Promise<void> {
   try {
-    await loadFontTrio(trio);
+    await loadSettingsFonts(settings);
   } catch {
     /* best-effort */
   }
   if (!document.fonts || typeof document.fonts.load !== 'function') return;
-  const families = [...new Set([trio.headings, trio.body, trio.code])].filter(
-    (f) => typeof f === 'string' && f.trim() !== '',
-  );
+  const families = settingsFontFamilies(settings);
   await Promise.all(
     families.flatMap((f) =>
       ['400', '500'].map((w) =>
@@ -266,8 +268,8 @@ export async function paginate(
   // exports correctly but drops content on screen. `document.fonts.ready` alone
   // is not enough here: it resolves immediately when the family hasn't been
   // *requested* yet (source isn't in the layout at this point), so we force the
-  // load explicitly for the effective trio.
-  await ensureTrioLoaded(settings);
+  // load explicitly for every effective family.
+  await ensureSettingsFontsLoaded(settings);
   // Paginate at natural scale. The fit-to-pane zoom lives on `.pagedjs_page`
   // (`zoom: var(--mp-fit-zoom)`, style.css), and paged.js measures the pages it
   // creates *inside* `renderTo` as it decides breaks — so a stale zoom left on
@@ -321,7 +323,7 @@ export async function paginateOnce(
   // Fonts before measuring (see paginate()); the print pipeline already awaits
   // document.fonts.ready upstream, but keep this here too so paginateOnce is
   // correct on its own.
-  await ensureTrioLoaded(settings);
+  await ensureSettingsFontsLoaded(settings);
   renderTo.innerHTML = '';
   await previewer.preview(
     source,
@@ -895,7 +897,7 @@ async function fitOversizedAtomicBlocks(
   renderTo.appendChild(stage);
   stage.appendChild(source);
   try {
-    await ensureTrioLoaded(settings);
+    await ensureSettingsFontsLoaded(settings);
     await waitForAtomicImages(source);
     // Force style/layout resolution after fonts and images have settled.
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions

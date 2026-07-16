@@ -38,7 +38,7 @@ import './style.css';
 import '@orlarey/markpage-render'; // side-effect: registers admonitions / math / etc.
 
 import { registerFallbackFonts } from './fonts';
-import { loadFontTrio } from './font-loader';
+import { loadSettingsFonts } from './font-loader';
 import { initLocale } from './i18n/locale';
 import {
   annotateSourceLines,
@@ -111,7 +111,7 @@ async function run(): Promise<void> {
   // whatever's available; once the fonts resolve the next paint
   // picks them up.
   void registerFallbackFonts().catch(() => undefined);
-  void loadFontTrio(settings.fonts).catch(() => undefined);
+  void loadSettingsFonts(settings).catch(() => undefined);
 
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 

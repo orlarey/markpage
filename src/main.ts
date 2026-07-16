@@ -43,7 +43,7 @@ import { initEditorFont } from './editor-font';
 import { initLocale, onLanguageChange } from './i18n/locale';
 import { t } from './i18n/strings';
 import { registerFallbackFonts } from './fonts';
-import { loadFontTrio, registerCustomFonts } from './font-loader';
+import { loadSettingsFonts, registerCustomFonts } from './font-loader';
 import { createEditor, type EditorShortcuts } from './editor';
 import {
   renderPreview,
@@ -403,18 +403,17 @@ async function bootstrap(): Promise<void> {
     profileId: activeProfile.uuid,
   };
 
-  // Custom fonts must be registered BEFORE loadFontTrio so the loader
-  // sees them when the trio resolves the active heading / body / code
-  // selections (any of which may point at a custom family).
+  // Custom fonts must be registered BEFORE loadSettingsFonts so the loader
+  // sees them while resolving both global and per-element selections.
   registerCustomFonts(state.settings.customFonts);
 
-  // Pre-load the user's active font trio (headings / body / code).
+  // Pre-load every font used by the active document settings.
   // Fire and forget — the page renders with the bundled fallback
   // until the Google Fonts CSS resolves. The next paginate() call
   // will pick up the right family because pagedCss is regenerated
   // each time.
-  void loadFontTrio(state.settings.fonts).catch((err: unknown) => {
-    console.error('Font trio preload failed', err);
+  void loadSettingsFonts(state.settings).catch((err: unknown) => {
+    console.error('Font preload failed', err);
   });
 
   // Storage migrations, in order:
@@ -2084,7 +2083,7 @@ async function bootstrap(): Promise<void> {
     // We don't block on it: the preview repaints with the bundled
     // fallback, then the browser swaps in the real font as soon as
     // its CSS resolves (display=swap).
-    void loadFontTrio(s.fonts).catch((err: unknown) => {
+    void loadSettingsFonts(s).catch((err: unknown) => {
       console.error('Font load failed', err);
     });
     // Round-trip write (STACK-SPEC §12.1): land the change in the document

@@ -228,14 +228,36 @@ function cssEscape(s: string): string {
 }
 
 /**
- * Purpose: Load every family in a (headings, body, code) trio in parallel.
- * How: Dedup via a Set, then `Promise.all(loadGoogleFont(...))`.
+ * Purpose: Return every font family referenced by effective document settings.
+ * How: Start with the three global slots, then add non-empty per-element overrides;
+ *   a Set both removes duplicates and preserves a stable loading order.
  */
-export async function loadFontTrio(
-  trio: { headings: string; body: string; code: string },
-): Promise<void> {
-  // Dedup so we don't issue two parallel loads when two slots share
-  // the same family (a common configuration).
-  const families = new Set([trio.headings, trio.body, trio.code]);
-  await Promise.all([...families].map((f) => loadGoogleFont(f)));
+export function settingsFontFamilies(settings: {
+  fonts: { headings: string; body: string; code: string };
+  styles: Record<string, { family?: string }>;
+}): string[] {
+  const families = new Set([
+    settings.fonts.headings,
+    settings.fonts.body,
+    settings.fonts.code,
+  ]);
+  for (const style of Object.values(settings.styles)) {
+    const family = style.family?.trim();
+    if (family) families.add(family);
+  }
+  return [...families].filter((family) => family.trim() !== '');
+}
+
+/**
+ * Purpose: Load all fonts that can affect one document, including element-level
+ *   overrides selected in the typography cards.
+ * How: Collect the effective family names, then use the same idempotent loader
+ *   as the global trio. This prevents an override such as body = EB Garamond
+ *   from silently falling through to Roboto because only the trio was loaded.
+ */
+export async function loadSettingsFonts(settings: {
+  fonts: { headings: string; body: string; code: string };
+  styles: Record<string, { family?: string }>;
+}): Promise<void> {
+  await Promise.all(settingsFontFamilies(settings).map(loadGoogleFont));
 }
