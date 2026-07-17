@@ -16,19 +16,25 @@ import { buildSettingsForm, type SettingsFormHandlers } from './settings-form';
 /** Modal-form callback set — the full settings-form handler set. */
 export type SettingsPanelHandlers = SettingsFormHandlers;
 
+let currentRefresh: (() => void) | null = null;
+
 /**
  * Purpose: Mount the in-app Réglages overlay, single-instance.
  * How: Build the shared form into a `.settings-overlay`, attach a Close button + Escape handler.
  */
-export function openSettingsPanel(handlers: SettingsPanelHandlers): void {
+export function openSettingsPanel(
+  handlers: SettingsPanelHandlers,
+): { refresh: () => void } | null {
   // Single instance.
-  if (document.getElementById('settings-overlay')) return;
+  if (document.getElementById('settings-overlay'))
+    return currentRefresh ? { refresh: currentRefresh } : null;
 
   const overlay = document.createElement('div');
   overlay.id = 'settings-overlay';
   overlay.className = 'settings-overlay';
 
-  const { root } = buildSettingsForm(document, handlers);
+  const { root, refresh } = buildSettingsForm(document, handlers);
+  currentRefresh = refresh;
 
   // Attach a Close button at the top of the panel — buildSettingsForm
   // doesn't ship one because the detached-window variant uses the
@@ -45,10 +51,19 @@ export function openSettingsPanel(handlers: SettingsPanelHandlers): void {
 
   const close = (): void => {
     overlay.remove();
+    currentRefresh = null;
     document.removeEventListener('keydown', onKey);
   };
   const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') close();
+    if (e.key === 'Escape') {
+      close();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) handlers.onRedo();
+      else handlers.onUndo();
+    }
   };
 
   overlay.addEventListener('click', (e) => {
@@ -58,4 +73,5 @@ export function openSettingsPanel(handlers: SettingsPanelHandlers): void {
 
   overlay.appendChild(root);
   document.body.appendChild(overlay);
+  return { refresh };
 }

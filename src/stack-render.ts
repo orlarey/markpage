@@ -64,6 +64,28 @@ export function extractStyleFromSettings(
 }
 
 import { serializeProfile, DEFAULT_SETTINGS, type PdfSettings, type PageSize, type Style } from './settings';
+import {
+  APPEARANCES,
+  DENSITIES,
+  DOCUMENT_MODELS,
+  PAGINATION_STYLES,
+  PARAGRAPH_SEPARATIONS,
+  DEFAULT_ESSENTIAL_STYLE,
+  applyEssentialStyle,
+  contextualEssentialStyle,
+  detectAccentColor,
+  detectAppearance,
+  detectDensity,
+  detectDocumentModelLayout,
+  detectPaginationStyle,
+  detectParagraphSeparation,
+  type Appearance,
+  type Density,
+  type DocumentModel,
+  type EssentialStyle,
+  type PaginationStyle,
+  type ParagraphSeparation,
+} from './style-recipes';
 
 /** Resolve an `extends` reference (a document name) to its source, or null. */
 export type ResolveByName = (name: string) => Promise<StackDoc | null>;
@@ -77,10 +99,215 @@ export type ResolveByName = (name: string) => Promise<StackDoc | null>;
 export function usesStackFeatures(frontmatter: Map<string, string>): boolean {
   if (frontmatter.has('extends')) return true;
   for (const [key, value] of frontmatter) {
-    if (key.startsWith('--') || key.startsWith('styles.')) return true;
+    if (
+      key.startsWith('--') ||
+      key.startsWith('styles.') ||
+      SEMANTIC_STYLE_KEYS.has(key)
+    )
+      return true;
     if (value.includes('var(--')) return true;
   }
   return false;
+}
+
+export const SEMANTIC_STYLE_KEYS = new Set([
+  'document-type',
+  'appearance',
+  'density',
+  'body-size',
+  'paragraphs',
+  'alignment',
+  'accent',
+  'pagination',
+  'notes',
+]);
+
+export const ESSENTIAL_FRONTMATTER_KEYS = [
+  'document-type',
+  'appearance',
+  'density',
+  'body-size',
+  'paragraphs',
+  'alignment',
+  'accent',
+  'pagination',
+  'notes',
+  'page-size',
+] as const;
+
+export type EssentialFrontmatterKey =
+  (typeof ESSENTIAL_FRONTMATTER_KEYS)[number];
+
+/** Return the essential variation keys explicitly authored on the leaf. */
+export function essentialFrontmatterKeys(
+  source: string,
+): Set<EssentialFrontmatterKey> {
+  const fm = parseStackDoc(source, '__leaf__').frontmatter;
+  return new Set(
+    ESSENTIAL_FRONTMATTER_KEYS.filter((key) => fm.has(key)),
+  );
+}
+
+export const DETAILED_STYLE_KEYS = new Set([
+  'font-body',
+  'font-heading',
+  'font-mono',
+  'slides',
+  'page-size',
+  'margins',
+  'page-numbers',
+  'margin-mode',
+  'measure-chars',
+  'live-area-chars',
+  'duplex',
+  'chapter-break',
+  'notes',
+  'footer',
+  'math-font-set',
+  'markpage-profile',
+]);
+
+/**
+ * Replace the leaf's complete local style with one recipe selection.
+ * Metadata, body content and the `extends` relation are preserved. Every
+ * semantic or detailed variation is removed in the same source rewrite, so a
+ * caller can dispatch the result as one atomic undo/redo transaction.
+ */
+export function resetStyleRecipeInLeaf(
+  source: string,
+  documentType: DocumentModel,
+  appearance: Appearance,
+): string {
+  const parsed = parseStackDoc(source, '__leaf__').frontmatter;
+  const deletes = new Set<string>([
+    ...SEMANTIC_STYLE_KEYS,
+    ...DETAILED_STYLE_KEYS,
+    ...[...parsed.keys()].filter((key) => key.startsWith('styles.')),
+  ]);
+  const upserts = new Map<string, string>();
+  if (documentType !== DEFAULT_ESSENTIAL_STYLE.documentType)
+    upserts.set('document-type', documentType);
+  if (appearance !== DEFAULT_ESSENTIAL_STYLE.appearance)
+    upserts.set('appearance', appearance);
+  return setFrontmatterKeys(
+    source,
+    upserts,
+    new Set([...deletes].filter((key) => !upserts.has(key))),
+  );
+}
+
+/** Build the effective settings of a fresh recipe while preserving metadata. */
+export function settingsForRecipe(
+  current: PdfSettings,
+  documentType: DocumentModel,
+  appearance: Appearance,
+): PdfSettings {
+  const styled = applyEssentialStyle(
+    DEFAULT_SETTINGS,
+    contextualEssentialStyle(documentType, appearance),
+  );
+  return {
+    ...current,
+    fonts: styled.fonts,
+    styles: styled.styles,
+    pageSize: styled.pageSize,
+    margins: styled.margins,
+    marginMode: styled.marginMode,
+    measureChars: styled.measureChars,
+    liveAreaChars: styled.liveAreaChars,
+    duplex: styled.duplex,
+    chapterBreak: styled.chapterBreak,
+    notes: styled.notes,
+    footer: styled.footer,
+    mathFontSet: styled.mathFontSet,
+  };
+}
+
+function unquote(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function semanticStyleFromFrontmatter(
+  fm: Map<string, string>,
+): EssentialStyle | null {
+  if (![...SEMANTIC_STYLE_KEYS].some((key) => fm.has(key))) return null;
+  const documentType = unquote(fm.get('document-type') ?? '');
+  const appearance = unquote(fm.get('appearance') ?? '');
+  const resolvedDocumentType = (
+    DOCUMENT_MODELS as readonly string[]
+  ).includes(documentType)
+    ? (documentType as DocumentModel)
+    : DEFAULT_ESSENTIAL_STYLE.documentType;
+  const resolvedAppearance = (APPEARANCES as readonly string[]).includes(
+    appearance,
+  )
+    ? (appearance as Appearance)
+    : DEFAULT_ESSENTIAL_STYLE.appearance;
+  const style = contextualEssentialStyle(
+    resolvedDocumentType,
+    resolvedAppearance,
+  );
+  const density = unquote(fm.get('density') ?? '');
+  if ((DENSITIES as readonly string[]).includes(density))
+    style.density = density as Density;
+  const bodySizeRaw = fm.get('body-size');
+  if (bodySizeRaw !== undefined) {
+    const bodySize = Number(unquote(bodySizeRaw));
+    if (Number.isFinite(bodySize)) style.bodySize = bodySize;
+  }
+  const paragraphs = unquote(fm.get('paragraphs') ?? '');
+  if ((PARAGRAPH_SEPARATIONS as readonly string[]).includes(paragraphs))
+    style.paragraphs = paragraphs as ParagraphSeparation;
+  const alignment = unquote(fm.get('alignment') ?? '');
+  if (alignment === 'left' || alignment === 'justify')
+    style.alignment = alignment;
+  const accent = unquote(fm.get('accent') ?? '');
+  if (/^#[0-9a-f]{6}$/i.test(accent)) style.accent = accent;
+  const pagination = unquote(fm.get('pagination') ?? '');
+  if ((PAGINATION_STYLES as readonly string[]).includes(pagination))
+    style.pagination = pagination as PaginationStyle;
+  const notes = unquote(fm.get('notes') ?? '');
+  if (notes === 'foot' || notes === 'side' || notes === 'end')
+    style.notes = notes;
+  return style;
+}
+
+/** Return the leaf's semantic intent, completed with contextual defaults. */
+export function essentialStyleFromSource(source: string): EssentialStyle {
+  return (
+    semanticStyleFromFrontmatter(
+      parseStackDoc(source, '__leaf__').frontmatter,
+    ) ??
+    contextualEssentialStyle(
+      DEFAULT_ESSENTIAL_STYLE.documentType,
+      DEFAULT_ESSENTIAL_STYLE.appearance,
+    )
+  );
+}
+
+/**
+ * Compile semantic style keys on each layer before the ordinary flat-key merge.
+ * The generated detailed keys exist only in memory; explicit `styles.*` keys
+ * from the same layer are applied afterwards and therefore remain exceptions.
+ */
+function compileSemanticChain(chain: StackDoc[]): StackDoc[] {
+  return chain.map((doc) => {
+    const semantic = semanticStyleFromFrontmatter(doc.frontmatter);
+    if (!semantic) return doc;
+    const compiled = normalizeProfile(
+      serializeProfile(applyEssentialStyle(DEFAULT_SETTINGS, semantic)),
+    );
+    const frontmatter = new Map(compiled);
+    for (const [key, value] of doc.frontmatter) frontmatter.set(key, value);
+    return { ...doc, frontmatter };
+  });
 }
 
 /**
@@ -117,7 +344,7 @@ export async function flattenForRender(
     name === ROOT_NAME ? Promise.resolve(defaultDoc(opts.settings)) : opts.resolveByName(name);
 
   const chain = await resolveChainAsync(leaf, resolve);
-  const frontmatter = resolveTokens(mergeFrontmatter(chain));
+  const frontmatter = resolveTokens(mergeFrontmatter(compileSemanticChain(chain)));
   const body = foldBodies(chain);
   return { md: serializeStackDoc(frontmatter, body), patch: denormalizeProfile(frontmatter) };
 }
@@ -261,18 +488,107 @@ export function writeStyleToLeaf(
   source: string,
   settings: PdfSettings,
   defaults: PdfSettings,
+  forcedVariations: ReadonlySet<EssentialFrontmatterKey> = new Set(),
 ): string {
+  const parsed = parseStackDoc(source, '__leaf__').frontmatter;
+  const authoredSemantic = semanticStyleFromFrontmatter(parsed);
+  if (serializeProfile(settings) === serializeProfile(defaults)) {
+    return setFrontmatterKeys(
+      source,
+      new Map(),
+      new Set([
+        ...SEMANTIC_STYLE_KEYS,
+        ...DETAILED_STYLE_KEYS,
+        ...[...parsed.keys()].filter((key) => key.startsWith('styles.')),
+      ]),
+    );
+  }
+  const semantic: EssentialStyle = {
+    documentType:
+      detectDocumentModelLayout(settings) ??
+      authoredSemantic?.documentType ??
+      DEFAULT_ESSENTIAL_STYLE.documentType,
+    appearance:
+      detectAppearance(settings) ??
+      authoredSemantic?.appearance ??
+      DEFAULT_ESSENTIAL_STYLE.appearance,
+    density:
+      detectDensity(settings) ??
+      authoredSemantic?.density ??
+      DEFAULT_ESSENTIAL_STYLE.density,
+    bodySize: settings.styles.body.fontSize ?? DEFAULT_ESSENTIAL_STYLE.bodySize,
+    paragraphs:
+      detectParagraphSeparation(settings) ??
+      authoredSemantic?.paragraphs ??
+      DEFAULT_ESSENTIAL_STYLE.paragraphs,
+    alignment:
+      settings.styles.body.align === 'justify' ? 'justify' : 'left',
+    accent: detectAccentColor(settings),
+    pagination:
+      detectPaginationStyle(settings) ??
+      authoredSemantic?.pagination ??
+      DEFAULT_ESSENTIAL_STYLE.pagination,
+    notes: settings.notes.position,
+  };
+  const compiled = applyEssentialStyle(defaults, semantic);
   const cur = normalizeProfile(serializeProfile(settings));
-  const def = normalizeProfile(serializeProfile(defaults));
+  const def = normalizeProfile(serializeProfile(compiled));
+  const factory = normalizeProfile(serializeProfile(defaults));
   const upserts = new Map<string, string>();
-  const deletes: string[] = [];
+  const deletes = [
+    ...new Set([
+      ...SEMANTIC_STYLE_KEYS,
+      ...DETAILED_STYLE_KEYS,
+      ...[...parsed.keys()].filter((key) => key.startsWith('styles.')),
+    ]),
+  ];
+
+  const semanticEntries: Array<[keyof EssentialStyle, string, string]> = [
+    ['documentType', 'document-type', semantic.documentType],
+    ['appearance', 'appearance', semantic.appearance],
+    ['density', 'density', semantic.density],
+    ['bodySize', 'body-size', String(semantic.bodySize)],
+    ['paragraphs', 'paragraphs', semantic.paragraphs],
+    ['alignment', 'alignment', semantic.alignment],
+    ['accent', 'accent', `"${semantic.accent}"`],
+    ['pagination', 'pagination', semantic.pagination],
+    ['notes', 'notes', semantic.notes],
+  ];
+  const contextualDefaults = contextualEssentialStyle(
+    semantic.documentType,
+    semantic.appearance,
+  );
+  for (const [property, key, value] of semanticEntries) {
+    const baseline =
+      property === 'documentType' || property === 'appearance'
+        ? DEFAULT_ESSENTIAL_STYLE[property]
+        : contextualDefaults[property];
+    if (semantic[property] !== baseline)
+      upserts.set(key, value);
+  }
+
   for (const key of new Set([...cur.keys(), ...def.keys()])) {
     if (key === 'customFonts') continue; // font payloads travel by their own path
     const cv = cur.get(key);
-    if (cv !== undefined && cv !== def.get(key)) upserts.set(key, cv);
-    else deletes.push(key);
+    // A value inherited unchanged from the historical factory profile is not
+    // an authored advanced exception. Omitting it lets the semantic recipe
+    // become authoritative and avoids dumping legacy fonts, rhythm and colours
+    // into an otherwise minimal frontmatter. A genuine advanced edit differs
+    // from both the recipe and the factory value, so it remains explicit.
+    if (
+      cv !== undefined &&
+      cv !== def.get(key) &&
+      (cv !== factory.get(key) ||
+        parsed.has(key) ||
+        forcedVariations.has(key as EssentialFrontmatterKey))
+    )
+      upserts.set(key, cv);
   }
-  return setFrontmatterKeys(source, upserts, deletes);
+  return setFrontmatterKeys(
+    source,
+    upserts,
+    deletes.filter((key) => !upserts.has(key)),
+  );
 }
 
 /**
@@ -303,6 +619,34 @@ export function applyProfilePatch(settings: PdfSettings, patch: ProfilePatch): P
 
   if (patch.pageSize) out = { ...out, pageSize: patch.pageSize as PageSize };
   if (patch.margins) out = { ...out, marginMode: 'manual', margins: patch.margins };
+  if (patch.marginMode === 'manual' || patch.marginMode === 'derived')
+    out = { ...out, marginMode: patch.marginMode };
+  if (Number.isFinite(patch.measureChars))
+    out = { ...out, measureChars: patch.measureChars! };
+  if (Number.isFinite(patch.liveAreaChars))
+    out = { ...out, liveAreaChars: patch.liveAreaChars! };
+  if (patch.duplex !== undefined) out = { ...out, duplex: patch.duplex };
+  if (
+    patch.chapterBreak === 'none' ||
+    patch.chapterBreak === 'next-page' ||
+    patch.chapterBreak === 'next-recto'
+  )
+    out = { ...out, chapterBreak: patch.chapterBreak };
+  if (
+    patch.notesPosition === 'foot' ||
+    patch.notesPosition === 'side' ||
+    patch.notesPosition === 'end'
+  )
+    out = { ...out, notes: { position: patch.notesPosition } };
+  if (patch.footer !== undefined) out = { ...out, footer: patch.footer };
+  if (
+    patch.mathFontSet === 'newcm' ||
+    patch.mathFontSet === 'fira' ||
+    patch.mathFontSet === 'stix2' ||
+    patch.mathFontSet === 'asana' ||
+    patch.mathFontSet === 'tex'
+  )
+    out = { ...out, mathFontSet: patch.mathFontSet };
   if (patch.pageNumbers !== undefined) {
     out = { ...out, footer: patch.pageNumbers ? ' | {page} | ' : '' };
   }
@@ -332,8 +676,9 @@ export async function deriveSettingsForDoc(
 ): Promise<PdfSettings> {
   try {
     const flat = await flattenForRender(source, { settings: DEFAULT_SETTINGS, resolveByName });
-    if (!flat) return current;
-    const styled = applyProfilePatch(DEFAULT_SETTINGS, flat.patch);
+    const styled = flat
+      ? applyProfilePatch(DEFAULT_SETTINGS, flat.patch)
+      : applyEssentialStyle(DEFAULT_SETTINGS, DEFAULT_ESSENTIAL_STYLE);
     return {
       ...current,
       fonts: styled.fonts,
@@ -341,7 +686,13 @@ export async function deriveSettingsForDoc(
       pageSize: styled.pageSize,
       margins: styled.margins,
       marginMode: styled.marginMode,
+      measureChars: styled.measureChars,
+      liveAreaChars: styled.liveAreaChars,
+      duplex: styled.duplex,
+      chapterBreak: styled.chapterBreak,
+      notes: styled.notes,
       footer: styled.footer,
+      mathFontSet: styled.mathFontSet,
     };
   } catch (err) {
     console.warn('[markpage] settings derivation failed', err);

@@ -791,16 +791,20 @@ avec `revert` / `unset`, qui ne suppriment pas mais **forcent** la valeur de
 
 Correspondance contrôle ↔ clé :
 
-clés plates
-:   page / fontes / numéros — `page-size`, `margins`, `font-body`,
-    `font-heading`, `font-mono`, `page-numbers` (déjà le langage de
-    [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)).
+intentions essentielles
+:   le type de document et l'apparence forment le socle :
+    `document-type`, `appearance`. Les intentions facultatives
+    `density`, `body-size`, `paragraphs`, `alignment`, `accent`,
+    `pagination` et `notes` les complètent. Une valeur égale au défaut n'est
+    **pas écrite**. Ces clés sont compilées avant le rendu en réglages détaillés
+    cohérents (format, marges, fontes, rythme, chapitres).
 
-matrice par-élément
-:   chaque attribut d'un élément → une clé **pointée** `styles.<élément>.<attr>`
-    (`styles.h1.color`, `styles.body.fontSize`, `styles.quote.borderColor`) — la
-    forme canonique (§4.3), **lisible** dans le front-matter au lieu de l'embed
-    JSON opaque, fusionnée par le `merge` (§5).
+exceptions avancées
+:   un contrôle fin qui s'écarte de la recette devient une clé pointée
+    `styles.<élément>.<attr>` (`styles.h1.color`,
+    `styles.quote.borderColor`) ou, pour les réglages globaux, une clé plate
+    détaillée (`page-size`, `font-body`, `margin-mode`…). L'exception est
+    appliquée **après** la recette sémantique et l'emporte sur elle.
 
 tokens
 :   les `--name` (§10.1) remontent comme une petite palette « thème » qui pilote
@@ -810,14 +814,48 @@ Ce qu'écrit le panneau dans la feuille, après quelques réglages :
 
 ````yaml
 ---
-page-size: A4
-margins: 25 35
-font-body: Lora
-styles.h1.color: "#14223a"
-styles.h1.fontSize: 22
-styles.body.align: justify
+document-type: book
+appearance: classic
+paragraphs: indent
+styles.h2.color: "#7a1f5c"
 ---
 ````
+
+Les trois premières clés expriment l'intention. La dernière est la seule
+exception avancée. Un ancien front-matter détaillé reste accepté ; à la
+prochaine édition, le panneau supprime les valeurs que la recette explique déjà
+et ne conserve que les écarts effectifs.
+
+### 11.1. Invariant de synchronisation
+
+La définition normative complète de ce comportement, notamment le changement
+de recette et son intégration à undo/redo, se trouve dans
+[SETTINGS-SPEC](SETTINGS-SPEC.md).
+
+Pour un type de document `T`, une apparence `A` et un réglage `r`, on note
+`d(T, A, r)` sa valeur contextuelle par défaut. Le panneau et le front-matter
+sont deux vues du même état :
+
+```text
+clé r absente  ⇔ valeur d(T, A, r) ⇔ badge « Par défaut »
+clé r présente ⇔ variation locale  ⇔ badge « Variation »
+```
+
+- Modifier un champ du panneau écrit sa clé uniquement si la nouvelle valeur
+  diffère de `d(T, A, r)`.
+- Revenir à la valeur contextuelle, ou utiliser le bouton de réinitialisation,
+  supprime la clé au lieu d'écrire le défaut.
+- Supprimer une clé à la main dans le front-matter recalcule le panneau et le
+  rendu ; la valeur contextuelle réapparaît.
+- Une clé écrite à la main mais égale au défaut contextuel est redondante et
+  disparaît à la normalisation.
+- Changer `document-type` ou `appearance` réinitialise atomiquement toutes les
+  variations stylistiques de la feuille, puis applique les défauts de la
+  nouvelle recette. L'opération entière constitue une seule étape undo/redo.
+
+La provenance est donc structurelle : le badge ne résulte pas d'une comparaison
+visuelle approximative, mais de la présence canonique de la clé dans la feuille.
+Le panneau ne possède aucun état stylistique autonome.
 
 ::: tip [La dissolution du trou d'autonomie]
 Les trois mécanismes (Réglages / matrice Styles / front-matter) **cessent d'en

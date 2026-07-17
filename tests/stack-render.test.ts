@@ -5,14 +5,22 @@ import {
   flattenForRender,
   applyProfilePatch,
   deriveSettingsForDoc,
+  essentialFrontmatterKeys,
   extractStyleFromSettings,
   getExtendsFromSource,
   planProfileMigration,
+  resetStyleRecipeInLeaf,
   setExtendsInSource,
   setFrontmatterKeys,
   writeStyleToLeaf,
 } from '../src/stack-render';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
+import {
+  DEFAULT_ESSENTIAL_STYLE,
+  applyDocumentModel,
+  applyEssentialStyle,
+  contextualEssentialStyle,
+} from '../src/style-recipes';
 
 const clone = (s: PdfSettings): PdfSettings => JSON.parse(JSON.stringify(s)) as PdfSettings;
 
@@ -23,12 +31,87 @@ const fromMap =
   async (name: string): Promise<StackDoc | null> =>
     name in docs ? parseStackDoc(docs[name], name) : null;
 
+describe('resetStyleRecipeInLeaf', () => {
+  it('removes every local style variation while preserving metadata and extends', () => {
+    const source = [
+      '---',
+      'title: Ma lettre',
+      'author: Jeanne',
+      'extends: papier-maison',
+      'document-type: report',
+      'appearance: academic',
+      'body-size: 9',
+      'accent: "#7a1f5c"',
+      'page-size: A5',
+      'font-body: Lora',
+      'styles.h1.color: "#ff0000"',
+      '---',
+      '',
+      '# Bonjour',
+    ].join('\n');
+
+    const reset = resetStyleRecipeInLeaf(source, 'letter', 'classic');
+    const parsed = parseStackDoc(reset, '__leaf__');
+
+    expect(parsed.frontmatter.get('title')).toBe('Ma lettre');
+    expect(parsed.frontmatter.get('author')).toBe('Jeanne');
+    expect(parsed.frontmatter.get('extends')).toBe('papier-maison');
+    expect(parsed.frontmatter.get('document-type')).toBe('letter');
+    expect(parsed.frontmatter.get('appearance')).toBe('classic');
+    expect(parsed.frontmatter.has('body-size')).toBe(false);
+    expect(parsed.frontmatter.has('accent')).toBe(false);
+    expect(parsed.frontmatter.has('page-size')).toBe(false);
+    expect(parsed.frontmatter.has('font-body')).toBe(false);
+    expect(parsed.frontmatter.has('styles.h1.color')).toBe(false);
+    expect(parsed.body).toContain('# Bonjour');
+  });
+
+  it('omits the globally default recipe coordinates', () => {
+    const source = [
+      '---',
+      'document-type: book',
+      'appearance: classic',
+      'paragraphs: indent',
+      '---',
+      'Texte',
+    ].join('\n');
+
+    const reset = resetStyleRecipeInLeaf(source, 'report', 'modern');
+    const parsed = parseStackDoc(reset, '__leaf__');
+
+    expect(parsed.frontmatter.has('document-type')).toBe(false);
+    expect(parsed.frontmatter.has('appearance')).toBe(false);
+    expect(parsed.frontmatter.has('paragraphs')).toBe(false);
+    expect(parsed.body).toBe('Texte');
+  });
+});
+
 describe('flattenForRender', () => {
   it('returns null for a document that uses no stack feature', async () => {
     const md = ['---', 'title: Plain', 'font-body: Lora', '---', '# Hi'].join('\n');
     expect(
       await flattenForRender(md, { settings: DEFAULT_SETTINGS, resolveByName: noResolve }),
     ).toBeNull();
+  });
+
+  it('recognises semantic style keys without requiring extends or styles.*', async () => {
+    const md = [
+      '---',
+      'document-type: book',
+      'appearance: classic',
+      'paragraphs: indent',
+      '---',
+      '# Book',
+    ].join('\n');
+    const flat = await flattenForRender(md, {
+      settings: DEFAULT_SETTINGS,
+      resolveByName: noResolve,
+    });
+
+    expect(flat).not.toBeNull();
+    expect(flat!.patch.pageSize).toBe('B5');
+    expect(flat!.patch.fonts?.body).toBe('EB Garamond');
+    expect(flat!.patch.styles?.body?.firstLineIndent).toBe(1.5);
   });
 
   it('resolves var(--token) into a style patch, body unchanged', async () => {
@@ -165,6 +248,151 @@ describe('setFrontmatterKeys', () => {
 });
 
 describe('writeStyleToLeaf', () => {
+  it('writes coherent essential choices as semantic keys only', () => {
+    const settings = applyEssentialStyle(clone(DEFAULT_SETTINGS), {
+      ...DEFAULT_ESSENTIAL_STYLE,
+      documentType: 'book',
+      appearance: 'classic',
+      density: 'airy',
+      paragraphs: 'indent',
+    });
+
+    const out = writeStyleToLeaf('# Book', settings, DEFAULT_SETTINGS);
+
+    expect(out).toContain('document-type: book');
+    expect(out).toContain('appearance: classic');
+    expect(out).toContain('density: airy');
+    expect(out).toContain('paragraphs: indent');
+    expect(out).not.toContain('styles.');
+    expect(out).not.toContain('font-body:');
+    expect(out).not.toContain('page-size:');
+  });
+
+  it('does not mistake untouched historical defaults for advanced exceptions', () => {
+    const settings = applyDocumentModel(clone(DEFAULT_SETTINGS), 'book');
+
+    const out = writeStyleToLeaf('# Book', settings, DEFAULT_SETTINGS);
+
+    expect(out).toContain('document-type: book');
+    expect(out).not.toContain('alignment:');
+    expect(out).not.toContain('appearance:');
+    expect(out).not.toContain('styles.');
+    expect(out).not.toContain('font-body:');
+    expect(out).not.toContain('page-size:');
+    expect(out).not.toContain('margin-mode:');
+  });
+
+  it('keeps the authored document type when a contextual layout value varies', () => {
+    const source = ['---', 'document-type: book', '---', '', '# Book'].join(
+      '\n',
+    );
+    const settings = applyEssentialStyle(
+      clone(DEFAULT_SETTINGS),
+      DEFAULT_ESSENTIAL_STYLE,
+    );
+    const book = applyDocumentModel(settings, 'book');
+    book.pageSize = 'A4';
+
+    const withVariation = setFrontmatterKeys(
+      source,
+      new Map([['page-size', 'A4']]),
+    );
+    const out = writeStyleToLeaf(withVariation, book, DEFAULT_SETTINGS);
+
+    expect(out).toContain('document-type: book');
+    expect(out).toContain('page-size: A4');
+    expect(essentialFrontmatterKeys(out)).toEqual(
+      new Set(['document-type', 'page-size']),
+    );
+  });
+
+  it('removes an explicitly authored value when it equals its contextual default', () => {
+    const source = [
+      '---',
+      'document-type: paper',
+      'density: normal',
+      'notes: end',
+      '---',
+      '',
+      '# Paper',
+    ].join('\n');
+    const settings = applyEssentialStyle(
+      clone(DEFAULT_SETTINGS),
+      contextualEssentialStyle('paper', 'modern'),
+    );
+
+    const out = writeStyleToLeaf(source, settings, DEFAULT_SETTINGS);
+
+    expect(out).toContain('document-type: paper');
+    expect(out).not.toContain('density:');
+    expect(out).not.toContain('notes:');
+  });
+
+  it('keeps an advanced exception detailed after the semantic recipe', () => {
+    const settings = applyEssentialStyle(
+      clone(DEFAULT_SETTINGS),
+      DEFAULT_ESSENTIAL_STYLE,
+    );
+    settings.styles.h2.color = '#7a1f5c';
+
+    const out = writeStyleToLeaf('# Report', settings, DEFAULT_SETTINGS);
+
+    expect(out).toContain('styles.h2.color: "#7a1f5c"');
+    expect(out).not.toContain('styles.h1.color');
+    expect(out).not.toContain('font-body:');
+  });
+
+  it('round-trips semantic recipes through the compiled render patch', async () => {
+    const settings = applyEssentialStyle(clone(DEFAULT_SETTINGS), {
+      ...DEFAULT_ESSENTIAL_STYLE,
+      documentType: 'book',
+      appearance: 'academic',
+      paragraphs: 'indent',
+    });
+    const leaf = writeStyleToLeaf('# Book', settings, DEFAULT_SETTINGS);
+
+    const flat = await flattenForRender(leaf, {
+      settings: DEFAULT_SETTINGS,
+      resolveByName: noResolve,
+    });
+    const roundTripped = applyProfilePatch(DEFAULT_SETTINGS, flat!.patch);
+
+    expect(roundTripped.pageSize).toBe('B5');
+    expect(roundTripped.duplex).toBe(true);
+    expect(roundTripped.chapterBreak).toBe('next-recto');
+    expect(roundTripped.fonts.body).toBe('STIX Two Text');
+    expect(roundTripped.styles.body.firstLineIndent).toBe(1.5);
+  });
+
+  it('replaces obsolete generated detail with semantic intent and real exceptions', () => {
+    const settings = applyEssentialStyle(clone(DEFAULT_SETTINGS), {
+      ...DEFAULT_ESSENTIAL_STYLE,
+      documentType: 'book',
+      appearance: 'classic',
+    });
+    settings.styles.h2.color = '#7a1f5c';
+    const old = [
+      '---',
+      'title: Book',
+      'page-size: A4',
+      'font-body: Roboto',
+      'styles.h1.fontSize: 31',
+      'styles.h2.color: "#7a1f5c"',
+      '---',
+      '# Book',
+    ].join('\n');
+
+    const out = writeStyleToLeaf(old, settings, DEFAULT_SETTINGS);
+
+    expect(out).toContain('title: Book');
+    expect(out).toContain('document-type: book');
+    expect(out).toContain('appearance: classic');
+    expect(out).toContain('styles.h2.color: "#7a1f5c"');
+    expect(out).not.toContain('page-size:');
+    expect(out).not.toContain('font-body:');
+    expect(out).not.toContain('styles.h1.fontSize:');
+  });
+
   it('writes a changed setting as a dotted key, leaving extends/title intact', () => {
     const settings = clone(DEFAULT_SETTINGS);
     settings.styles.h1.color = '#abcdef';
@@ -218,12 +446,58 @@ describe('applyProfilePatch', () => {
 });
 
 describe('deriveSettingsForDoc', () => {
-  it('leaves settings untouched for a doc with no stack feature (pre-migration fallback)', async () => {
+  it('uses the contextual Report / Modern defaults when no style key is present', async () => {
     const active = { ...clone(DEFAULT_SETTINGS), language: 'en' as const };
     active.styles.h1.color = '#ff0000'; // active profile's own customization
     const md = ['---', 'title: Plain', '---', '# Hi'].join('\n');
     const out = await deriveSettingsForDoc(md, active, noResolve);
-    expect(out).toBe(active); // untouched, not even a clone
+    expect(out.language).toBe('en');
+    expect(out.fonts.body).toBe('Inter');
+    expect(out.styles.body.align).toBe('left');
+    expect(out.styles.h1.color).toBe(DEFAULT_ESSENTIAL_STYLE.accent);
+  });
+
+  it('takes note placement from the document type unless notes is explicit', async () => {
+    const paper = await deriveSettingsForDoc(
+      ['---', 'document-type: paper', '---', 'X'].join('\n'),
+      clone(DEFAULT_SETTINGS),
+      noResolve,
+    );
+    const varied = await deriveSettingsForDoc(
+      ['---', 'document-type: paper', 'notes: side', '---', 'X'].join('\n'),
+      clone(DEFAULT_SETTINGS),
+      noResolve,
+    );
+
+    expect(paper.notes.position).toBe('end');
+    expect(varied.notes.position).toBe('side');
+  });
+
+  it('derives a fresh letter recipe independently of the previous settings', async () => {
+    const previous = applyEssentialStyle(
+      clone(DEFAULT_SETTINGS),
+      {
+        ...contextualEssentialStyle('book', 'classic'),
+        bodySize: 9,
+        accent: '#7a1f5c',
+      },
+    );
+    const letter = await deriveSettingsForDoc(
+      [
+        '---',
+        'document-type: letter',
+        'appearance: classic',
+        '---',
+        '# Lettre',
+      ].join('\n'),
+      previous,
+      noResolve,
+    );
+
+    expect(letter.styles.body.fontSize).toBe(11);
+    expect(letter.pageSize).toBe('A4');
+    expect(letter.footer).toBe('');
+    expect(letter.notes.position).toBe('end');
   });
 
   it('roots the style at true factory defaults, not the active profile', async () => {

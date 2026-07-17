@@ -97,7 +97,9 @@ describe('serializeProfile + embedProfileInFrontmatter — portable style profil
     expect(obj.fonts).toEqual(DEFAULT_SETTINGS.fonts);
     expect(obj.styles).toEqual(DEFAULT_SETTINGS.styles);
     expect(obj.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
-    expect(obj.pageNumbers).toBe(true); // default footer ' | {page} | '
+    expect(obj.footer).toBe(DEFAULT_SETTINGS.footer);
+    expect(obj.marginMode).toBe(DEFAULT_SETTINGS.marginMode);
+    expect(obj.notesPosition).toBe(DEFAULT_SETTINGS.notes.position);
   });
 
   it('embeds the profile into a doc with no frontmatter, preserving the body', () => {

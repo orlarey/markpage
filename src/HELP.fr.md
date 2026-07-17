@@ -594,11 +594,17 @@ au contenu. **Astuce** : passez d'abord en mode Aperçu, ouvrez les
 Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
 se reflète en temps réel sur le document paginé.
 
-La fenêtre s'organise en plusieurs **cartes** réparties dans une
-barre latérale par thème : *Document* (auteur, date, format,
-en-tête, pied de page), *Mise en page* (préréglages, marges,
-recto-verso, notes), *Typographie* (polices, packs assortis, par
-élément du document), *Contenu* (math, diagrammes Mermaid).
+La fenêtre s'ouvre sur la vue **Essentiel**. Elle propose quelques
+décisions cohérentes : type de document, apparence, taille du corps,
+densité, séparation des paragraphes, accent, format et pagination.
+Markpage en déduit les marges, la mesure de ligne, les fontes, la
+hiérarchie des titres et le rythme vertical.
+
+Le commutateur **Avancé** redonne accès à la matrice complète :
+style parent, marges physiques, fontes individuelles, exceptions par
+élément, en-têtes/pieds de page, mathématiques et diagrammes. Un ancien
+style qui ne correspond à aucune recette reste intact et apparaît
+simplement comme « Personnalisé » dans la vue Essentiel.
 
 Les sections ci-dessous détaillent les principaux leviers.
 
@@ -640,8 +646,11 @@ des marges (manuelles ou dérivées) et les présets prêts à l'emploi.
     vivante** (`liveAreaChars`, plus large que la mesure : c'est elle
     qui contient l'en-tête, le pied de page et les notes en marge).
     Le bloc de texte et l'aire vivante sont alors deux rectangles
-    similaires à la page, posés sur les mêmes diagonales — la
-    proportion intérieure/extérieure est de 1:2, idem pour haut/bas.
+    similaires à la page. En **simple face**, ils sont centrés
+    horizontalement : les marges gauche et droite sont égales. En
+    **recto-verso**, la proportion intérieure/extérieure classique de
+    1:2 est conservée puis inversée sur le verso. Le rapport haut/bas
+    reste de 1:2 dans les deux cas.
     Les sliders manuels sont alors désactivés (les valeurs montrées
     sont indicatives).
 
@@ -776,7 +785,18 @@ légende"){.margin}`.
 
 #### Typographie \label{sec:typography}
 
-Carte *Typographie* — les leviers globaux et par élément.
+Dans la vue **Essentiel**, quatre apparences accordent automatiquement
+les fontes du corps, des titres, du code et des mathématiques :
+*Classique* (EB Garamond), *Moderne* (Inter), *Académique* (STIX Two)
+et *Technique* (Fira). La **taille du corps** génère toute l'échelle
+des titres ; la **densité** génère l'interligne, les espacements et le
+padding des blocs. La **séparation des paragraphes** propose soit un
+espace vertical supplémentaire, soit un retrait de 1,5 em sur la
+première ligne des paragraphes consécutifs ; le premier paragraphe
+après un titre reste sans retrait. La **couleur d'accent** alimente les
+titres, liens et encadrés.
+
+La vue **Avancé** conserve les leviers globaux et par élément :
 
 - **Polices** des titres, du corps et du code — choisies parmi un
   catalogue de ~17 polices Google Fonts (Inter, EB Garamond,
@@ -1482,6 +1502,49 @@ Les clés reconnues :
 Le bloc est entièrement optionnel — un document sans frontmatter
 continue à fonctionner exactement comme avant, le premier `#` du
 corps devient automatiquement le titre.
+
+Quand vous modifiez **Réglages**, Markpage écrit aussi une description
+**sémantique et minimale** du style. Aucune propriété n'est obligatoire :
+les valeurs par défaut sont simplement omises.
+
+```yaml
+---
+document-type: book
+appearance: classic
+paragraphs: indent
+---
+```
+
+Les clés essentielles sont **`document-type`** (`tech-note`, `report`,
+`paper`, `book`, `letter`, `slides`), **`appearance`** (`classic`,
+`modern`, `academic`, `technical`), **`density`** (`compact`,
+`normal`, `airy`), **`body-size`** (en points), **`paragraphs`**
+(`spacing` ou `indent`), **`alignment`** (`left` ou `justify`),
+**`accent`**, **`pagination`** et **`notes`** (`foot`, `side` ou `end`).
+Elles décrivent une intention ; Markpage en déduit les fontes, marges,
+interlignes et proportions cohérentes.
+
+Un réglage de la vue **Avancé** qui s'écarte de cette recette reste
+écrit comme exception, par exemple
+**`styles.h2.color: "#7a1f5c"`**. Les anciennes clés détaillées
+(`page-size`, `font-body`, `styles.*`…) restent lisibles ; elles sont
+nettoyées ou conservées comme exceptions pertinentes lors de la
+prochaine modification dans Réglages.
+
+Dans la vue **Essentiel**, chaque champ indique **Par défaut** ou
+**Variation**. Le défaut dépend du type de document et de l'apparence
+choisis. Une variation correspond toujours à une clé du frontmatter ;
+le bouton de retour supprime cette clé. Réciproquement, supprimer la
+clé dans l'éditeur remet immédiatement le champ à sa valeur
+contextuelle et à l'état **Par défaut**.
+
+Changer le type de document ou l'apparence applique une nouvelle recette et
+supprime toutes les variations stylistiques locales. Cette opération constitue
+une seule étape de l'historique : `Cmd/Ctrl + Z` restaure la recette et toutes
+les variations précédentes, y compris lorsque le raccourci est utilisé depuis
+la fenêtre Réglages. Le type **Lettre** fournit une page A4 simple face, sans
+numérotation par défaut, adaptée aux blocs `sender`, `recipient` et
+`signature`.
 
 ### Ligatures de saisie
 

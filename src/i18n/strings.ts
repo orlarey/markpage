@@ -31,8 +31,7 @@ const FR = {
   'preview-toggle.show-title':
     'Afficher / masquer l’aperçu en direct (Ctrl+Entrée / Cmd+Entrée)',
   'preview-toggle.paginate': 'A4',
-  'preview-toggle.paginate-title':
-    'Aperçu : flux continu ↔ pages A4 paginées',
+  'preview-toggle.paginate-title': 'Aperçu : flux continu ↔ pages A4 paginées',
   'toolbar.present': 'Présenter',
   'toolbar.present-title':
     'Lancer la présentation plein écran (Ctrl+Maj+Entrée / Cmd+Maj+Entrée)',
@@ -125,7 +124,8 @@ const FR = {
   'export-menu.latex': 'LaTeX (.tex)',
   'export-menu.embed-profile': 'Intégrer le profil de style',
   'export-menu.embed-profile-hint': 'dans le frontmatter',
-  'export-menu.embed-profile-done': 'Profil de style intégré au frontmatter du document.',
+  'export-menu.embed-profile-done':
+    'Profil de style intégré au frontmatter du document.',
   'export-menu.onedrive': 'OneDrive…',
   'onedrive.uploaded': 'Document envoyé sur OneDrive (dossier Apps/markpage).',
   'onedrive.uploaded-with-link':
@@ -170,6 +170,46 @@ const FR = {
   // ---- settings form (window title + section headers) --------------
   'settings.window-title': 'Réglages markpage',
   'settings.h1': 'Réglages',
+  'settings.view.essential': 'Essentiel',
+  'settings.view.advanced': 'Avancé',
+  'settings.essential.intro':
+    'Choisissez quelques intentions générales : markpage en déduit une hiérarchie, un rythme et une mise en page cohérents.',
+  'settings.essential.section.recipe': 'Style du document',
+  'settings.essential.section.reading': 'Lecture',
+  'settings.essential.model': 'Type de document',
+  'settings.essential.model.tech-note': 'Note technique',
+  'settings.essential.model.report': 'Rapport',
+  'settings.essential.model.paper': 'Article scientifique',
+  'settings.essential.model.book': 'Livre',
+  'settings.essential.model.letter': 'Lettre',
+  'settings.essential.model.slides': 'Présentation',
+  'settings.essential.recipe-reset-warning':
+    'Changer le type ou l’apparence réinitialise les variations de style.',
+  'settings.essential.appearance': 'Apparence',
+  'settings.essential.appearance.classic': 'Classique',
+  'settings.essential.appearance.modern': 'Moderne',
+  'settings.essential.appearance.academic': 'Académique',
+  'settings.essential.appearance.technical': 'Technique',
+  'settings.essential.base-size': 'Taille du corps (pt)',
+  'settings.essential.density': 'Densité',
+  'settings.essential.density.compact': 'Compacte',
+  'settings.essential.density.normal': 'Normale',
+  'settings.essential.density.airy': 'Aérée',
+  'settings.essential.paragraph-separation': 'Séparation des paragraphes',
+  'settings.essential.paragraph-separation.spacing': 'Espacement vertical',
+  'settings.essential.paragraph-separation.indent': 'Retrait de première ligne',
+  'settings.essential.alignment': 'Alignement du texte',
+  'settings.essential.accent': 'Couleur d’accent',
+  'settings.essential.pagination': 'Numéros de page',
+  'settings.essential.pagination.none': 'Aucun',
+  'settings.essential.pagination.center': 'Bas centré',
+  'settings.essential.pagination.outer': 'Bas extérieur',
+  'settings.essential.custom': '— Personnalisé —',
+  'settings.origin.default': 'Par défaut',
+  'settings.origin.variation': 'Variation',
+  'settings.origin.reset': 'Revenir à la valeur par défaut',
+  'settings.essential.advanced-hint':
+    'Les réglages détaillés, les exceptions par élément, les polices personnalisées et les en-têtes restent disponibles dans la vue Avancé.',
   'settings.section.author-date': 'Auteur et date',
   'settings.section.page': 'Page',
   'settings.section.fonts': 'Polices',
@@ -202,7 +242,8 @@ const FR = {
   'settings.field.margin-mode.manual': 'Manuel (4 sliders)',
   'settings.field.margin-mode.derived': 'Dérivé (canon Van de Graaf)',
   'settings.field.measure-chars': 'Mesure du texte (caractères / ligne)',
-  'settings.field.live-area-chars': 'Mesure de la live area (caractères / ligne)',
+  'settings.field.live-area-chars':
+    'Mesure de la live area (caractères / ligne)',
   'settings.field.notes-position': 'Position des notes',
   'settings.field.notes-position.foot': 'Bas de page',
   'settings.field.notes-position.side': 'En marge (Tufte)',
@@ -333,7 +374,8 @@ const FR = {
   'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
   'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
   'github.prompt-branch': 'Branche :',
-  'github.prompt-path': 'Chemin du fichier dans le dépôt (ex. lettres/devis.md) :',
+  'github.prompt-path':
+    'Chemin du fichier dans le dépôt (ex. lettres/devis.md) :',
   'github.adopt-confirm':
     'Le fichier {path} existe déjà dans le dépôt. Remplacer le contenu local par celui du dépôt ?',
   'github.forked':
@@ -544,7 +586,8 @@ const EN: Record<keyof typeof FR, string> = {
   'export-menu.latex': 'LaTeX (.tex)',
   'export-menu.embed-profile': 'Embed style profile',
   'export-menu.embed-profile-hint': 'into the frontmatter',
-  'export-menu.embed-profile-done': "Style profile embedded into the document's frontmatter.",
+  'export-menu.embed-profile-done':
+    "Style profile embedded into the document's frontmatter.",
   'export-menu.onedrive': 'OneDrive…',
   'onedrive.uploaded': 'Document uploaded to OneDrive (folder Apps/markpage).',
   'onedrive.uploaded-with-link':
@@ -586,6 +629,46 @@ const EN: Record<keyof typeof FR, string> = {
   // ---- settings form ------------------------------------------------
   'settings.window-title': 'markpage settings',
   'settings.h1': 'Settings',
+  'settings.view.essential': 'Essential',
+  'settings.view.advanced': 'Advanced',
+  'settings.essential.intro':
+    'Choose a few overall intentions; markpage derives a coherent hierarchy, rhythm and page layout.',
+  'settings.essential.section.recipe': 'Document style',
+  'settings.essential.section.reading': 'Reading',
+  'settings.essential.model': 'Document type',
+  'settings.essential.model.tech-note': 'Technical note',
+  'settings.essential.model.report': 'Report',
+  'settings.essential.model.paper': 'Scientific paper',
+  'settings.essential.model.book': 'Book',
+  'settings.essential.model.letter': 'Letter',
+  'settings.essential.model.slides': 'Presentation',
+  'settings.essential.recipe-reset-warning':
+    'Changing the type or appearance resets style variations.',
+  'settings.essential.appearance': 'Appearance',
+  'settings.essential.appearance.classic': 'Classic',
+  'settings.essential.appearance.modern': 'Modern',
+  'settings.essential.appearance.academic': 'Academic',
+  'settings.essential.appearance.technical': 'Technical',
+  'settings.essential.base-size': 'Body size (pt)',
+  'settings.essential.density': 'Density',
+  'settings.essential.density.compact': 'Compact',
+  'settings.essential.density.normal': 'Normal',
+  'settings.essential.density.airy': 'Airy',
+  'settings.essential.paragraph-separation': 'Paragraph separation',
+  'settings.essential.paragraph-separation.spacing': 'Vertical spacing',
+  'settings.essential.paragraph-separation.indent': 'First-line indent',
+  'settings.essential.alignment': 'Text alignment',
+  'settings.essential.accent': 'Accent colour',
+  'settings.essential.pagination': 'Page numbers',
+  'settings.essential.pagination.none': 'None',
+  'settings.essential.pagination.center': 'Bottom centre',
+  'settings.essential.pagination.outer': 'Bottom outer',
+  'settings.essential.custom': '— Custom —',
+  'settings.origin.default': 'Default',
+  'settings.origin.variation': 'Variation',
+  'settings.origin.reset': 'Reset to the default value',
+  'settings.essential.advanced-hint':
+    'Detailed settings, per-element exceptions, custom fonts and running headers remain available in Advanced view.',
   'settings.section.author-date': 'Author and date',
   'settings.section.page': 'Page',
   'settings.section.fonts': 'Fonts',
@@ -637,7 +720,6 @@ const EN: Record<keyof typeof FR, string> = {
   'help.export-pdf': 'Export .pdf',
   'help.generating': 'Generating…',
   'help.toc': 'Contents',
-
 
   // ---- custom-fonts ------------------------------------------------
   'fonts.custom-fonts-label': 'Custom Google fonts',

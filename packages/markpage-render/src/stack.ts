@@ -432,7 +432,23 @@ export function normalizeProfile(json: string): Map<string, string> {
   }
 
   if (typeof prof.pageSize === 'string') out.set('page-size', prof.pageSize);
-  if (typeof prof.pageNumbers === 'boolean') out.set('page-numbers', String(prof.pageNumbers));
+  if (typeof prof.pageNumbers === 'boolean')
+    out.set('page-numbers', String(prof.pageNumbers));
+  if (typeof prof.marginMode === 'string')
+    out.set('margin-mode', quoteScalar(prof.marginMode));
+  if (typeof prof.measureChars === 'number')
+    out.set('measure-chars', String(prof.measureChars));
+  if (typeof prof.liveAreaChars === 'number')
+    out.set('live-area-chars', String(prof.liveAreaChars));
+  if (typeof prof.duplex === 'boolean') out.set('duplex', String(prof.duplex));
+  if (typeof prof.chapterBreak === 'string')
+    out.set('chapter-break', quoteScalar(prof.chapterBreak));
+  if (typeof prof.notesPosition === 'string')
+    out.set('notes', quoteScalar(prof.notesPosition));
+  if (typeof prof.footer === 'string')
+    out.set('footer', quoteScalar(prof.footer));
+  if (typeof prof.mathFontSet === 'string')
+    out.set('math-font-set', quoteScalar(prof.mathFontSet));
   const m = prof.margins;
   if (m !== null && typeof m === 'object') {
     const mm = m as Record<string, unknown>;
@@ -463,6 +479,14 @@ export interface ProfilePatch {
   pageSize?: string;
   margins?: { top: number; right: number; bottom: number; left: number };
   pageNumbers?: boolean;
+  marginMode?: string;
+  measureChars?: number;
+  liveAreaChars?: number;
+  duplex?: boolean;
+  chapterBreak?: string;
+  notesPosition?: string;
+  footer?: string;
+  mathFontSet?: string;
   customFonts?: unknown[];
 }
 
@@ -498,6 +522,27 @@ export function denormalizeProfile(fm: Map<string, string>): ProfilePatch {
   if (ps !== undefined) patch.pageSize = unquoteScalar(ps);
   const pn = fm.get('page-numbers');
   if (pn !== undefined) patch.pageNumbers = pn.trim() === 'true';
+  const marginMode = fm.get('margin-mode');
+  if (marginMode !== undefined) patch.marginMode = unquoteScalar(marginMode);
+  const measureChars = fm.get('measure-chars');
+  if (measureChars !== undefined)
+    patch.measureChars = Number(unquoteScalar(measureChars));
+  const liveAreaChars = fm.get('live-area-chars');
+  if (liveAreaChars !== undefined)
+    patch.liveAreaChars = Number(unquoteScalar(liveAreaChars));
+  const duplex = fm.get('duplex');
+  if (duplex !== undefined) patch.duplex = duplex.trim() === 'true';
+  const chapterBreak = fm.get('chapter-break');
+  if (chapterBreak !== undefined)
+    patch.chapterBreak = unquoteScalar(chapterBreak);
+  const notesPosition = fm.get('notes');
+  if (notesPosition !== undefined)
+    patch.notesPosition = unquoteScalar(notesPosition);
+  const footer = fm.get('footer');
+  if (footer !== undefined) patch.footer = unquoteScalar(footer);
+  const mathFontSet = fm.get('math-font-set');
+  if (mathFontSet !== undefined)
+    patch.mathFontSet = unquoteScalar(mathFontSet);
   const mg = fm.get('margins');
   if (mg !== undefined) {
     const n = mg.split(/[\s,]+/).filter((t) => t !== '').map(Number).filter(Number.isFinite);
@@ -600,6 +645,22 @@ const STYLE_FLAT_KEYS = new Set([
   'page-size',
   'margins',
   'page-numbers',
+  'margin-mode',
+  'measure-chars',
+  'live-area-chars',
+  'duplex',
+  'chapter-break',
+  'notes',
+  'footer',
+  'math-font-set',
+  'document-type',
+  'appearance',
+  'density',
+  'body-size',
+  'paragraphs',
+  'alignment',
+  'accent',
+  'pagination',
   'markpage-profile',
 ]);
 

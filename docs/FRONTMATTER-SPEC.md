@@ -144,7 +144,44 @@ mathjax-preamble: |
   \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
 ````
 
-### 3.3 Mise en page
+### 3.3 Style sémantique
+
+Le panneau **Réglages** écrit en priorité une description courte des intentions
+typographiques. Toutes ces clés sont facultatives ; une valeur égale au défaut
+est omise.
+
+La stratégie normative de synchronisation, de réinitialisation des recettes et
+d'historique est définie dans [SETTINGS-SPEC](SETTINGS-SPEC.md).
+
+| Clé | Valeurs | Défaut | Effet |
+| :-- | :-- | :-- | :-- |
+| `document-type` | `tech-note`, `report`, `paper`, `book`, `letter`, `slides` | `report` | Recette de format, mesure, marges, recto-verso, chapitres et placement initial des notes. |
+| `appearance` | `classic`, `modern`, `academic`, `technical` | `modern` | Recette coordonnée pour les fontes du corps, des titres, du code et des mathématiques. |
+| `density` | `compact`, `normal`, `airy` | `normal` | Interligne, espacements verticaux et padding des blocs. |
+| `body-size` | nombre de points | `11` | Taille du corps et échelle dérivée des titres. |
+| `paragraphs` | `spacing`, `indent` | `spacing` | Séparation par espace vertical ou retrait de première ligne. |
+| `alignment` | `left`, `justify` | `left` | Alignement du corps. |
+| `accent` | couleur CSS | `#09438b` | Couleur coordonnée des titres, liens et encadrés. |
+| `pagination` | `none`, `center`, `outer` | `center` | Absence, centrage ou placement extérieur du folio. |
+| `notes` | `foot`, `side`, `end` | `foot` | Placement des notes. |
+
+Ces intentions sont **compilées avant le rendu** en réglages détaillés. Une clé
+avancée explicite dans la même couche, par exemple
+`styles.h2.color: "#7a1f5c"` ou `font-body: Lora`, est ensuite appliquée et
+l'emporte. Les anciennes clés détaillées restent donc compatibles, mais le
+prochain passage par Réglages retire celles que la recette explique déjà.
+
+Exemple minimal :
+
+````yaml
+---
+document-type: book
+appearance: classic
+paragraphs: indent
+---
+````
+
+### 3.4 Mise en page
 
 | Clé | Valeurs | Défaut | Effet |
 | :-- | :-- | :-- | :-- |
@@ -165,7 +202,7 @@ Côté appli ([`applyFrontmatterToSettings`](../src/settings.ts)) : `margins` im
 `marginMode: 'manual'` (sinon le mode *derived* recalcule et les ignorerait) ;
 `page-numbers` (dé)pose le jeton `{page}` dans le pied (`footer`).
 
-### 3.4 Typographie
+### 3.5 Typographie
 
 | Clé | Type | Cible |
 | :-- | :-- | :-- |
@@ -177,7 +214,7 @@ Défauts (profil par défaut de markpage) : corps et titres `Roboto Condensed`,
 code `Roboto Mono`. Pour la typographie **fine** (taille, couleur, graisse,
 marges… par élément), voir le profil complet, §5.
 
-### 3.5 Profil machine — `markpage-profile`
+### 3.6 Profil machine — `markpage-profile`
 
 Bloc `|` contenant un **JSON** : le profil de style complet, écrit par markpage
 pour les renderers externes (cf. §5). Réservé à l'export machine ; les clés

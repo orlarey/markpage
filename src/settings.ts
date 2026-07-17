@@ -65,6 +65,7 @@ export interface Style {
   align?: Align;
   marginAbove?: number; // em
   marginBelow?: number; // em
+  firstLineIndent?: number; // em; applied only between consecutive paragraphs
   lineHeight?: number; // multiplier; if unset, inherits from body
   // Block-only fields below.
   padding?: number; // em — uniform; if unset and renderer has a built-in default, the latter wins
@@ -368,7 +369,9 @@ export interface PdfSettings {
   //                full control.
   //   - 'derived': the page area is computed from the two measures below via
   //                the Van de Graaf canon — two nested similar rectangles on
-  //                the construction diagonals (text block ⊂ live area). The 4
+  //                the construction diagonals (text block ⊂ live area).
+  //                Horizontal blanks are centred in simplex; the classical
+  //                inner:outer ratio is used and mirrored only in duplex. The 4
   //                `margins.*` values become read-only in the UI and are
   //                recomputed on each change.
   marginMode: 'manual' | 'derived';
@@ -414,6 +417,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       lineHeight: 1.25,
       marginAbove: 1,
       marginBelow: 1,
+      firstLineIndent: 0,
     },
     title: {
       fontSize: 24,
@@ -932,7 +936,14 @@ export function serializeProfile(s: PdfSettings): string {
     styles: s.styles,
     pageSize: s.pageSize,
     margins: s.margins,
-    pageNumbers: s.footer.includes('{page}'),
+    marginMode: s.marginMode,
+    measureChars: s.measureChars,
+    liveAreaChars: s.liveAreaChars,
+    duplex: s.duplex,
+    chapterBreak: s.chapterBreak,
+    notesPosition: s.notes.position,
+    footer: s.footer,
+    mathFontSet: s.mathFontSet,
   });
 }
 

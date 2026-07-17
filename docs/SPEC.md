@@ -1323,6 +1323,12 @@ canon Van de Graaf** : les diagonales de construction admettent une
 inscrit deux membres imbriqués — le bloc-texte et son enveloppe
 canonique (la « live area »).
 
+**Convention horizontale.** Sur un document **simple face**, chaque rectangle
+dérivé est recentré horizontalement : ses blancs gauche et droite sont égaux.
+La construction intérieure/extérieure asymétrique n'est appliquée qu'en
+**recto-verso**, où elle représente effectivement la reliure et se reflète sur
+le verso. La géométrie verticale canonique reste inchangée dans les deux modes.
+
 #### 9.6.1. Structure fractale du canon — deux rectangles imbriqués
 
 Les diagonales Van de Graaf (cf. §26 et les SVG de référence)
@@ -1410,7 +1416,8 @@ bandes, dont les dimensions découlent automatiquement des deux mesures :
 où `x2_T` / `x2_L` sont les coordonnées top-inner-x du texte et de la
 live area dans le système de la page.
 
-**Propriété géométrique remarquable** : `outer gutter = 2 × inner gutter`.
+**En recto-verso**, propriété géométrique remarquable :
+`outer gutter = 2 × inner gutter`.
 C'est une conséquence directe de la construction — la diagonale du spread
 a une pente moitié de celle de la diagonale interne de page, donc le coin
 top-outer s'éloigne deux fois plus vite que le coin top-inner quand on
@@ -1442,10 +1449,10 @@ blancs plus grands).
 | haut          | bord supérieur page → live area top  | **21 mm** |
 | bas           | bord inférieur page → live area bot  | **43 mm** |
 
-Propriété typographique : `bas > haut` et `outer > inner`, conformément
-à la convention pour pages reliées (page « pose » visuellement vers le
-bas, marge intérieure réduite parce que mangée par la reliure). C'est
-garanti par la construction, pas par un réglage utilisateur.
+Propriété typographique : `bas > haut` dans tous les modes. En recto-verso,
+`outer > inner`, conformément à la convention pour pages reliées ; en simple
+face, gauche = droite afin de centrer le bloc. C'est garanti par la
+construction, pas par un réglage utilisateur.
 
 #### 9.6.6. Position des slots du running content
 

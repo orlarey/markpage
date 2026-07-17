@@ -59,8 +59,7 @@ export function openSettingsWindow(
   if (!win) {
     // Popup blocked — fall back to the modal so the user still has
     // access to the settings.
-    openSettingsPanel(handlers);
-    return null;
+    return openSettingsPanel(handlers);
   }
   currentWindow = win;
 
@@ -87,6 +86,12 @@ export function openSettingsWindow(
     if (e.key === 'Escape') {
       e.preventDefault();
       win.close();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) handlers.onRedo();
+      else handlers.onUndo();
     }
   });
 

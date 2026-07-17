@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { pagedCss } from '../src/preview-paginated';
+import {
+  markConsecutiveParagraphs,
+  insertParagraphIndentSpacers,
+  markOrphanHeadingsForRepagination,
+  paginationContainsSourceEnd,
+  paginationHasVerticalOverflow,
+  pagedCss,
+} from '../src/preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
 
 /**
@@ -28,6 +35,136 @@ describe('pagedCss — simplex (default)', () => {
     const css = pagedCss(A4);
     expect(css).not.toContain('h1 { break-before: page; }');
     expect(css).not.toContain('h1 { break-before: right; }');
+  });
+
+  it('does not ask paged.js to paginate CSS-indented paragraphs', () => {
+    const css = pagedCss(A4);
+    expect(css).not.toContain('text-indent: 1.5em');
+    expect(css).not.toContain('#preview-pane p.mp-paragraph-continuation');
+    expect(css).not.toContain('#markpage-print-target p.mp-paragraph-continuation');
+    expect(css).not.toContain('p + p');
+  });
+});
+
+describe('markConsecutiveParagraphs', () => {
+  it('marks only paragraphs that directly follow another paragraph', () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<h1>Title</h1><p>First</p><p>Second</p>' +
+      '<blockquote><p>Quote one</p><p>Quote two</p></blockquote>' +
+      '<h2>Next</h2><p>First after heading</p>';
+
+    markConsecutiveParagraphs(root);
+
+    const paragraphs = [...root.querySelectorAll('p')];
+    expect(
+      paragraphs.map((paragraph) =>
+        paragraph.classList.contains('mp-paragraph-continuation'),
+      ),
+    ).toEqual([false, true, false, true, false]);
+  });
+});
+
+describe('insertParagraphIndentSpacers', () => {
+  it('adds a real spacer only to consecutive paragraphs', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<h2>Title</h2><p>First</p><p>Second</p><p>Third</p>';
+    markConsecutiveParagraphs(root);
+
+    insertParagraphIndentSpacers(root, 1.5);
+
+    const paragraphs = [...root.querySelectorAll('p')];
+    expect(paragraphs[0]?.querySelector('.mp-first-line-indent')).toBeNull();
+    expect(
+      paragraphs[1]?.querySelector<HTMLElement>('.mp-first-line-indent')
+        ?.style.width,
+    ).toBe('1.5em');
+    expect(
+      paragraphs[2]?.querySelectorAll('.mp-first-line-indent'),
+    ).toHaveLength(1);
+  });
+});
+
+describe('markOrphanHeadingsForRepagination', () => {
+  it('forces any h1-h4 that is the last substantive content on its page', () => {
+    const source = document.createElement('div');
+    source.innerHTML =
+      '<div class="keep-with-next"><h3 data-ref="orphan">Title</h3>' +
+      '<figure><p>Next page block</p></figure></div>';
+    const rendered = document.createElement('div');
+    rendered.innerHTML =
+      '<div class="pagedjs_page"><div class="pagedjs_page_content">' +
+      '<h3 data-ref="orphan">Title</h3></div></div>';
+
+    expect(markOrphanHeadingsForRepagination(source, rendered)).toBe(1);
+    expect(
+      source
+        .querySelector('.keep-with-next')
+        ?.classList.contains('mp-force-page-break'),
+    ).toBe(true);
+  });
+
+  it('does not move a heading that already has body content on the page', () => {
+    const source = document.createElement('div');
+    source.innerHTML = '<h2 data-ref="kept">Title</h2><p>Body</p>';
+    const rendered = document.createElement('div');
+    rendered.innerHTML =
+      '<div class="pagedjs_page"><div class="pagedjs_page_content">' +
+      '<h2 data-ref="kept">Title</h2><p>Body</p></div></div>';
+
+    expect(markOrphanHeadingsForRepagination(source, rendered)).toBe(0);
+    expect(source.querySelector('h2')?.className).toBe('');
+  });
+});
+
+describe('paginationContainsSourceEnd', () => {
+  it('rejects a render that stopped before the final body block', () => {
+    const source = document.createElement('div');
+    source.innerHTML =
+      '<p data-ref="first">First page</p><p data-ref="last">Last page</p>';
+    const rendered = document.createElement('div');
+    rendered.innerHTML =
+      '<div class="pagedjs_page"><p data-ref="first">First page</p></div>';
+
+    expect(paginationContainsSourceEnd(source, rendered)).toBe(false);
+  });
+
+  it('accepts a render containing the final body block', () => {
+    const source = document.createElement('div');
+    source.innerHTML =
+      '<p data-ref="first">First page</p><p data-ref="last">Last page</p>';
+    const rendered = document.createElement('div');
+    rendered.innerHTML =
+      '<div class="pagedjs_page"><p data-ref="first">First page</p></div>' +
+      '<div class="pagedjs_page"><p data-ref="last">Last page</p></div>';
+
+    expect(paginationContainsSourceEnd(source, rendered)).toBe(true);
+  });
+});
+
+describe('paginationHasVerticalOverflow', () => {
+  it('detects a clipped page containing more content than its page box', () => {
+    const rendered = document.createElement('div');
+    rendered.innerHTML = '<div class="pagedjs_page_content"></div>';
+    const content = rendered.firstElementChild as HTMLElement;
+    Object.defineProperties(content, {
+      clientHeight: { value: 900 },
+      scrollHeight: { value: 2400 },
+    });
+
+    expect(paginationHasVerticalOverflow(rendered)).toBe(true);
+  });
+
+  it('accepts a page whose content fits its fragment box', () => {
+    const rendered = document.createElement('div');
+    rendered.innerHTML = '<div class="pagedjs_page_content"></div>';
+    const content = rendered.firstElementChild as HTMLElement;
+    Object.defineProperties(content, {
+      clientHeight: { value: 900 },
+      scrollHeight: { value: 900 },
+    });
+
+    expect(paginationHasVerticalOverflow(rendered)).toBe(false);
   });
 });
 
@@ -65,9 +202,10 @@ describe('pagedCss — duplex (mirror margins on @page :left)', () => {
 });
 
 describe('pagedCss — derived margins (marginMode: derived)', () => {
-  // §9.6 / §9.6.6 — in derived mode, @page margin is asymmetric:
-  // vertical (top/bottom) = TEXT BLOCK margins, horizontal
-  // (inner/outer) = LIVE AREA margins. This places the @top-* /
+  // §9.6 / §9.6.6 — in derived mode, vertical @page margins come from
+  // the TEXT BLOCK and horizontal margins from the LIVE AREA. A simplex
+  // document centres both rectangles horizontally; duplex retains the
+  // inner/outer canon and mirrors it. This places the @top-* /
   // @bottom-* boxes inside the canonical header / footer BANDS rather
   // than in the canonical blank zone above / below them. The narrower
   // text-block width is recovered via horizontal-only body padding on
@@ -89,11 +227,11 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
   const derivedSimplex: PdfSettings = { ...A4, marginMode: 'derived' };
   const derivedDuplex: PdfSettings = { ...derivedSimplex, duplex: true };
 
-  it('@page margin: vertical = TEXT BLOCK, horizontal = LIVE AREA (simplex)', () => {
+  it('centres the derived live area horizontally in simplex', () => {
     const css = pagedCss(derivedSimplex);
-    // top outer bottom inner — top/bottom from text block (38/77),
-    // outer/inner from live area (30/15).
-    expect(css).toMatch(/margin:\s+38\.\d+mm\s+30\.\d+mm\s+77\.\d+mm\s+15\.\d+mm;/);
+    // top right bottom left — top/bottom retain the vertical canon;
+    // right/left each receive half of the live-area horizontal blank.
+    expect(css).toMatch(/margin:\s+38\.\d+mm\s+22\.\d+mm\s+77\.\d+mm\s+22\.\d+mm;/);
     // Manual margins must not leak.
     expect(css).not.toContain(`margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`);
   });
@@ -106,8 +244,8 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
 
   it('emits horizontal-only body padding on .pagedjs_page_content (simplex)', () => {
     const css = pagedCss(derivedSimplex);
-    // padding shorthand: 0 outer 0 inner — gutters only.
-    expect(css).toMatch(/\.pagedjs_page_content \{ padding: 0 24\.\d+mm 0 12\.\d+mm; \}/);
+    // Equal left/right gutters recover the centred text-block width.
+    expect(css).toMatch(/\.pagedjs_page_content \{ padding: 0 18\.\d+mm 0 18\.\d+mm; \}/);
   });
 
   it('emits two body-padding rules in duplex, swapping inner/outer on the verso', () => {
@@ -120,10 +258,10 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     const css = pagedCss(derivedSimplex);
     expect(css).toMatch(/--mp-live-top:\s+21\.\d+mm/);
     expect(css).toMatch(/--mp-live-bottom:\s+42\.\d+mm/);
-    expect(css).toMatch(/--mp-live-inner:\s+15\.\d+mm/);
-    expect(css).toMatch(/--mp-live-outer:\s+30\.\d+mm/);
-    expect(css).toMatch(/--mp-gutter-inner:\s+12\.\d+mm/);
-    expect(css).toMatch(/--mp-gutter-outer:\s+24\.\d+mm/);
+    expect(css).toMatch(/--mp-live-inner:\s+22\.\d+mm/);
+    expect(css).toMatch(/--mp-live-outer:\s+22\.\d+mm/);
+    expect(css).toMatch(/--mp-gutter-inner:\s+18\.\d+mm/);
+    expect(css).toMatch(/--mp-gutter-outer:\s+18\.\d+mm/);
   });
 
   it('places header / footer at the live-area edges via align-items + padding', () => {
@@ -205,13 +343,12 @@ describe('pagedCss — letterhead signature alignment', () => {
   it('derived mode: signature margin-left subtracts the inner gutter too (in-flow under page-content padding)', () => {
     // In derived mode, .pagedjs_page_content carries a padding-left
     // equal to the inner gutter (text-block.inner − live-area.inner).
-    // The signature, in flow inside the wrapper, must subtract THAT
-    // too to land at 110 mm from the page edge. Default canon at
-    // measureChars=66 / liveAreaChars=85 yields inner gutter ≈ 12.29
-    // mm (cf. paged-css-duplex.test.ts:67+ for the numeric trace).
-    // Expected: 110 − 35 − ~12.29 ≈ 62.7 mm.
+    // The signature, in flow inside the wrapper, must subtract that gutter
+    // plus the effective live-area margin to land at 110 mm from the physical
+    // page edge. In simplex the centred text margin is ≈ 40.97 mm, hence
+    // 110 − 40.97 ≈ 69.0 mm.
     const css = pagedCss({ ...A4, marginMode: 'derived' });
-    expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*62\.\d+mm/);
+    expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*69\.\d+mm/);
   });
 });
 

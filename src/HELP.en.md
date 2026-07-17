@@ -572,11 +572,15 @@ the content. **Tip**: switch to Preview mode first, open Settings,
 place the window next to the preview — every change reflects in
 real time on the paginated document.
 
-The window is organised into several **cards** grouped in a side
-rail by theme: *Document* (author, date, format, header, footer),
-*Layout* (presets, margins, duplex, notes), *Typography* (fonts,
-matching packs, per-element styling), *Content* (math, Mermaid
-diagrams).
+The window opens in the **Essential** view. It presents a few coherent
+decisions: document type, appearance, body size, density, paragraph
+separation, accent, format and pagination. Markpage derives margins,
+line measure, fonts, heading hierarchy and vertical rhythm from them.
+
+The **Advanced** switch restores the complete matrix: parent style,
+physical margins, individual fonts, per-element exceptions, running
+headers, maths and diagrams. An existing style that does not match a
+recipe remains intact and simply appears as “Custom” in Essential view.
 
 The sections below cover the main levers.
 
@@ -617,9 +621,11 @@ or derived) and ready-to-use presets.
     the **live-area width** (`liveAreaChars`, wider than the
     measure: it holds the header, footer and margin notes). The
     text block and the live area are then two rectangles similar to
-    the page, on the same diagonals — the inner/outer ratio is 1:2,
-    same for top/bottom. The manual sliders are disabled (the values
-    shown are advisory).
+    the page. In **simplex**, both are horizontally centred, so left
+    and right margins are equal. In **duplex**, the classical 1:2
+    inner/outer ratio is retained and mirrored on verso. The 1:2
+    top/bottom ratio applies in both cases. The manual sliders are
+    disabled (the values shown are advisory).
 
 - **Duplex (recto-verso)**: checkbox. Enables a two-page layout
   (recto on the right, verso on the left) with automatic
@@ -746,7 +752,16 @@ with a caption: `![alt](url "my caption"){.margin}`.
 
 #### Typography \label{sec:typography}
 
-The *Typography* card — global and per-element levers.
+In **Essential** view, four appearances automatically coordinate body,
+heading, code and maths fonts: *Classic* (EB Garamond), *Modern*
+(Inter), *Academic* (STIX Two) and *Technical* (Fira). **Body size**
+generates the whole heading scale; **density** generates leading,
+spacing and block padding. **Paragraph separation** offers either
+extra vertical space or a 1.5 em first-line indent on consecutive
+paragraphs; the first paragraph after a heading remains unindented.
+The **accent colour** feeds headings, links and callouts.
+
+The **Advanced** view retains the global and per-element controls:
 
 - **Fonts** for headings, body and code — picked from a catalogue of
   ~17 Google Fonts (Inter, EB Garamond, JetBrains Mono…). Fonts
@@ -1424,6 +1439,47 @@ Recognised keys:
 The block is fully optional — a document without frontmatter keeps
 working as before, with the first `#` in the body promoted to the
 document title automatically.
+
+When you edit **Settings**, Markpage also writes a **semantic, minimal**
+style description. No property is required: default values are simply
+omitted.
+
+```yaml
+---
+document-type: book
+appearance: classic
+paragraphs: indent
+---
+```
+
+The essential keys are **`document-type`** (`tech-note`, `report`,
+`paper`, `book`, `letter`, `slides`), **`appearance`** (`classic`,
+`modern`, `academic`, `technical`), **`density`** (`compact`,
+`normal`, `airy`), **`body-size`** (in points), **`paragraphs`**
+(`spacing` or `indent`), **`alignment`** (`left` or `justify`),
+**`accent`**, **`pagination`**, and **`notes`** (`foot`, `side`, or `end`).
+They describe an intention; Markpage derives coherent fonts, margins,
+leading, and proportions from it.
+
+An **Advanced** setting that departs from this recipe remains an
+explicit exception, for example
+**`styles.h2.color: "#7a1f5c"`**. Older detailed keys (`page-size`,
+`font-body`, `styles.*`…) remain readable; the next Settings edit
+cleans them up or retains them as relevant exceptions.
+
+In the **Essential** view, every field is marked **Default** or
+**Variation**. The default depends on the selected document type and
+appearance. A variation always corresponds to a frontmatter key; its
+reset button removes that key. Conversely, deleting the key in the
+editor immediately restores the contextual value and the **Default**
+state.
+
+Changing the document type or appearance applies a fresh recipe and removes
+all local style variations. This is one history step: `Cmd/Ctrl + Z` restores
+the previous recipe and all its variations, including when the shortcut is
+used from the Settings window. The **Letter** type provides a single-sided A4
+page without numbering by default, suited to the `sender`, `recipient`, and
+`signature` blocks.
 
 ### Input ligatures
 

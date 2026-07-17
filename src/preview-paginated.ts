@@ -70,6 +70,7 @@ function pagedHeadingMargin(s: Style): string {
 
 interface PagedPage {
   destroy?: () => void;
+  removeListeners?: () => void;
 }
 
 interface PagedChunker {
@@ -127,6 +128,17 @@ function teardownPreviewer(p: Previewer): void {
 }
 
 /**
+ * Purpose: Freeze a completed pagination before the UI applies page zoom.
+ * How: Disconnect paged.js's per-page ResizeObservers without removing pages.
+ *   CSS `zoom` changes their observed wrapper height; left active, paged.js
+ *   mistakes that visual scaling for underflow and merges later pages into 1.
+ */
+function freezePreviewer(p: Previewer): void {
+  const pages = p.chunker?.pages ?? [];
+  for (const page of pages) page.removeListeners?.();
+}
+
+/**
  * Purpose: Drop the `<style>` elements paged.js injects into <head> on each
  *   render so a fresh paginate doesn't compose with stale rules from prior
  *   runs (otherwise e.g. a removed table-border declaration keeps applying).
@@ -180,6 +192,175 @@ async function ensureSettingsFontsLoaded(settings: PdfSettings): Promise<void> {
 }
 
 /**
+ * Purpose: Preserve paragraph adjacency through paged.js's block rewriting.
+ * How: Mark each paragraph whose previous element sibling is another paragraph
+ *   before pagination; the class survives copying and page fragmentation.
+ */
+export function markConsecutiveParagraphs(root: HTMLElement): void {
+  for (const paragraph of root.querySelectorAll('p')) {
+    paragraph.classList.toggle(
+      'mp-paragraph-continuation',
+      paragraph.previousElementSibling?.tagName === 'P',
+    );
+  }
+}
+
+/** Insert a real inline first-line spacer that paged.js can fragment safely. */
+export function insertParagraphIndentSpacers(
+  root: HTMLElement,
+  indentEm: number,
+): void {
+  root.querySelectorAll('.mp-first-line-indent').forEach((spacer) => spacer.remove());
+  if (indentEm <= 0) return;
+  for (const paragraph of root.querySelectorAll<HTMLElement>(
+    'p.mp-paragraph-continuation:not([data-split-from])',
+  )) {
+    const spacer = document.createElement('span');
+    spacer.className = 'mp-first-line-indent';
+    spacer.setAttribute('aria-hidden', 'true');
+    spacer.style.display = 'inline-block';
+    spacer.style.width = `${indentEm}em`;
+    paragraph.prepend(spacer);
+  }
+}
+
+const PAGE_BODY_CONTENT_SELECTOR = [
+  'p',
+  'pre',
+  'table',
+  'figure',
+  'blockquote',
+  'ul',
+  'ol',
+  'dl',
+  'img',
+  '.algorithm',
+  '.admonition',
+  '.columns-block',
+  '.mosaic-block',
+  '.mermaid-block',
+  '.math-block',
+  '.demo-block',
+  '.tree-svg-wrap',
+].join(', ');
+
+const PAGINATION_END_SELECTOR = [
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  PAGE_BODY_CONTENT_SELECTOR,
+].join(', ');
+
+/**
+ * Purpose: Detect a paged.js run that resolved before reaching the document's
+ *   final substantive block (the usual symptom is a lone first page).
+ * How: Compare the stable data-ref of the last body block in the prepared
+ *   source with the refs copied into the generated pages.
+ */
+export function paginationContainsSourceEnd(
+  source: HTMLElement,
+  renderTo: HTMLElement,
+): boolean {
+  const blocks = source.querySelectorAll<HTMLElement>(PAGINATION_END_SELECTOR);
+  const last = blocks.item(blocks.length - 1);
+  if (!last) return renderTo.querySelector('.pagedjs_page') !== null;
+  const ref = last.dataset['ref'];
+  if (!ref) return false;
+  return (
+    renderTo.querySelector(`[data-ref="${CSS.escape(ref)}"]`) !== null
+  );
+}
+
+/**
+ * Purpose: Detect the other form of an incomplete paged.js run: every source
+ *   node exists, but it has been poured into one clipped page.
+ * How: A correctly fragmented page-content box never scrolls vertically;
+ *   scrollHeight greater than clientHeight means pagination did not break it.
+ */
+export function paginationHasVerticalOverflow(renderTo: HTMLElement): boolean {
+  return [...renderTo.querySelectorAll<HTMLElement>('.pagedjs_page_content')]
+    .some(
+      (content) =>
+        content.clientHeight > 0 &&
+        content.scrollHeight > content.clientHeight + 1,
+    );
+}
+
+/**
+ * Purpose: Give every pagination pass an untouched, single-use DOM tree.
+ * How: Assign stable refs once on the prepared template, then deep-clone it.
+ *   paged.js annotates and may restructure the tree handed to ContentParser;
+ *   reusing that tree for an orphan-heading retry can collapse the whole flow
+ *   into page 1.
+ */
+function preparePaginationTemplate(source: HTMLElement): HTMLElement {
+  const used = new Set(
+    [...source.querySelectorAll<HTMLElement>('[data-ref]')]
+      .map((element) => element.dataset['ref'])
+      .filter((ref): ref is string => Boolean(ref)),
+  );
+  let sequence = 1;
+  for (const element of source.querySelectorAll<HTMLElement>('*')) {
+    if (element.dataset['ref']) continue;
+    let ref = `mp-pagination-${sequence++}`;
+    while (used.has(ref)) ref = `mp-pagination-${sequence++}`;
+    element.dataset['ref'] = ref;
+    used.add(ref);
+  }
+  return source.cloneNode(true) as HTMLElement;
+}
+
+function freshPaginationSource(template: HTMLElement): HTMLElement {
+  return template.cloneNode(true) as HTMLElement;
+}
+
+/**
+ * Purpose: Enforce the typographic invariant that h1–h4 never end a page.
+ * How: Inspect the first paged result. For every heading with no substantive
+ *   content after it in the same page body, find its source node by data-ref
+ *   and force its keep-with-next group (or the heading itself) onto a new page.
+ */
+export function markOrphanHeadingsForRepagination(
+  source: HTMLElement,
+  renderTo: HTMLElement,
+): number {
+  let marked = 0;
+  for (const page of renderTo.querySelectorAll<HTMLElement>('.pagedjs_page')) {
+    const body = page.querySelector<HTMLElement>('.pagedjs_page_content');
+    if (!body) continue;
+    const content = [...body.querySelectorAll<HTMLElement>(
+      PAGE_BODY_CONTENT_SELECTOR,
+    )];
+    for (const heading of body.querySelectorAll<HTMLElement>('h1, h2, h3, h4')) {
+      const hasFollowingContent = content.some(
+        (candidate) =>
+          candidate !== heading &&
+          Boolean(
+            heading.compareDocumentPosition(candidate) &
+              Node.DOCUMENT_POSITION_FOLLOWING,
+          ),
+      );
+      if (hasFollowingContent) continue;
+      const ref = heading.dataset['ref'];
+      if (!ref) continue;
+      const sourceHeading = source.querySelector<HTMLElement>(
+        `[data-ref="${CSS.escape(ref)}"]`,
+      );
+      if (!sourceHeading) continue;
+      const target =
+        sourceHeading.closest<HTMLElement>('.keep-with-next') ?? sourceHeading;
+      if (target.classList.contains('mp-force-page-break')) continue;
+      target.classList.add('mp-force-page-break');
+      marked += 1;
+    }
+  }
+  return marked;
+}
+
+/**
  * Purpose: Render `source` as paginated pages inside `renderTo` (preview pane).
  * How: Tear down any prior preview, wrap labels, hand off to a fresh Previewer.
  */
@@ -189,22 +370,18 @@ export async function paginate(
   renderTo: HTMLElement,
 ): Promise<void> {
   const { Previewer } = await loadPagedJs();
-  // Disconnect the previous render's ResizeObservers *before* wiping the
-  // DOM. Otherwise the observers fire one last time on the now-detached
-  // wrappers and their queued rAF callbacks walk a corrupted node graph.
-  if (currentPreviewer) {
-    teardownPreviewer(currentPreviewer);
-    currentPreviewer = null;
-  }
   purgePagedJsStyles();
   // Each `Previewer` instance is single-shot — calling preview() twice on
   // the same instance breaks. We create a fresh one per render, which is
   // cheap.
-  const previewer = new Previewer();
+  let previewer = new Previewer();
   // Wire up any `::: toc+` block: ensure every heading has an id, then
   // resolve each TOC entry's href to its matching heading by title
   // (TOC-PLUS-SPEC §5). Unmatched entries are flagged, not linked.
   linkTocPlus(source);
+  // Mark consecutive paragraphs before paged.js inserts technical separator
+  // divs between blocks. CSS adjacency no longer exists in the paged clone.
+  markConsecutiveParagraphs(source);
   // In slides mode, group runs of adjacent figures into a flex row so
   // they sit side-by-side on a slide instead of forcing one per slide.
   groupAdjacentFiguresForSlides(source, settings);
@@ -258,6 +435,9 @@ export async function paginate(
   // time, regardless of how it would have treated inline body <style>
   // tags. Cf. SPEC §26 Phase 2 (runs + first/blank args).
   const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  // From this point on the prepared DOM is immutable. Every Previewer receives
+  // its own clone; a retry must never consume an already-paginated tree.
+  const sourceTemplate = preparePaginationTemplate(source);
   // Guarantee the document's fonts are loaded before paged.js measures. paged.js
   // measures glyph widths to place line breaks; if it runs before the real font
   // (e.g. Roboto Condensed) is ready it lays out with fallback metrics, then the
@@ -280,23 +460,66 @@ export async function paginate(
   // the pages exist. (No-op for the off-screen print target — the selector is
   // scoped to #preview-pane.)
   renderTo.style.setProperty('--mp-fit-zoom', '1');
-  // paged.js fills `renderTo` itself; clear any previous render first.
-  renderTo.innerHTML = '';
-  await previewer.preview(
-    source,
-    [
-      { 'paged-rules.css': pagedCss(settings) },
-      { 'page-running.css': pageRunningCss },
-    ],
-    renderTo,
-  );
+  // paged.js must render directly into the real preview target. In particular,
+  // an absolutely positioned intermediate target gives its chunker an
+  // unbounded containing height: all headings then resolve to page 1 and the
+  // document is clipped inside a single sheet. Retain the old nodes only as a
+  // fallback, after disconnecting their observers, and restore them on error.
+  const previousNodes = [...renderTo.childNodes];
+  if (currentPreviewer) {
+    teardownPreviewer(currentPreviewer);
+    currentPreviewer = null;
+  }
+  renderTo.replaceChildren();
+  const stylesheets: Array<Record<string, string>> = [
+    { 'paged-rules.css': pagedCss(settings) },
+    { 'page-running.css': pageRunningCss },
+  ];
+  try {
+    let passSource = freshPaginationSource(sourceTemplate);
+    await previewer.preview(
+      passSource,
+      stylesheets,
+      renderTo,
+    );
+    const orphanHeadings = markOrphanHeadingsForRepagination(
+      sourceTemplate,
+      renderTo,
+    );
+    const incomplete =
+      !paginationContainsSourceEnd(sourceTemplate, renderTo) ||
+      paginationHasVerticalOverflow(renderTo);
+    if (orphanHeadings > 0 || incomplete) {
+      teardownPreviewer(previewer);
+      purgePagedJsStyles();
+      renderTo.replaceChildren();
+      previewer = new Previewer();
+      passSource = freshPaginationSource(sourceTemplate);
+      await previewer.preview(passSource, stylesheets, renderTo);
+    }
+    if (
+      !paginationContainsSourceEnd(sourceTemplate, renderTo) ||
+      paginationHasVerticalOverflow(renderTo)
+    ) {
+      throw new Error('paged.js produced an incomplete pagination');
+    }
+    freezePreviewer(previewer);
+    insertParagraphIndentSpacers(
+      renderTo,
+      settings.styles.body.firstLineIndent ?? 0,
+    );
+    currentPreviewer = previewer;
+  } catch (err) {
+    teardownPreviewer(previewer);
+    renderTo.replaceChildren(...previousNodes);
+    throw err;
+  }
   // Inject the debug-guides SVG overlay on every page (cheap, hidden
   // by default via CSS). Toggling the `.debug-layout` class on the
   // render container flips visibility without re-running paginate().
   injectGuidesSvg(renderTo, settings.duplex);
   // Clone `::: background` backdrops onto each page of their run (behind content).
   applyBackgrounds(renderTo);
-  currentPreviewer = previewer;
 }
 
 /**
@@ -309,7 +532,8 @@ export async function paginateOnce(
   renderTo: HTMLElement,
 ): Promise<() => void> {
   const { Previewer } = await loadPagedJs();
-  const previewer = new Previewer();
+  let previewer = new Previewer();
+  markConsecutiveParagraphs(source);
   groupAdjacentFiguresForSlides(source, settings);
   groupLetterheads(source);
   await applyAutoZoomForDemos(source, settings, renderTo);
@@ -320,18 +544,37 @@ export async function paginateOnce(
   resetPageRunningCounter();
   prependDefaultFences(source, settings);
   const pageRunningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  const sourceTemplate = preparePaginationTemplate(source);
   // Fonts before measuring (see paginate()); the print pipeline already awaits
   // document.fonts.ready upstream, but keep this here too so paginateOnce is
   // correct on its own.
   await ensureSettingsFontsLoaded(settings);
   renderTo.innerHTML = '';
   await previewer.preview(
-    source,
+    freshPaginationSource(sourceTemplate),
     [
       { 'paged-rules.css': pagedCss(settings) },
       { 'page-running.css': pageRunningCss },
     ],
     renderTo,
+  );
+  if (markOrphanHeadingsForRepagination(sourceTemplate, renderTo) > 0) {
+    teardownPreviewer(previewer);
+    renderTo.innerHTML = '';
+    previewer = new Previewer();
+    await previewer.preview(
+      freshPaginationSource(sourceTemplate),
+      [
+        { 'paged-rules.css': pagedCss(settings) },
+        { 'page-running.css': pageRunningCss },
+      ],
+      renderTo,
+    );
+  }
+  freezePreviewer(previewer);
+  insertParagraphIndentSpacers(
+    renderTo,
+    settings.styles.body.firstLineIndent ?? 0,
   );
   applyBackgrounds(renderTo);
   return () => {
@@ -820,14 +1063,17 @@ function atomicPageGeometryPx(settings: PdfSettings): AtomicPageGeometryPx {
     (settings.styles.body.family ?? '').trim() || settings.fonts.body;
   const textCanon =
     settings.marginMode === 'derived'
-      ? computeCanonicalMargins(
-          page.w,
-          page.h,
-          settings.measureChars,
-          measureAverageCharWidth(
-            bodyName,
-            settings.styles.body.fontSize ?? 11,
+      ? centerCanonicalHorizontally(
+          computeCanonicalMargins(
+            page.w,
+            page.h,
+            settings.measureChars,
+            measureAverageCharWidth(
+              bodyName,
+              settings.styles.body.fontSize ?? 11,
+            ),
           ),
+          settings.duplex,
         )
       : null;
   const leftRecto = textCanon?.inner ?? settings.margins.left;
@@ -1122,25 +1368,32 @@ export function pagedCss(s: PdfSettings): string {
   // footer band / gutters of §9.6.4.
   const textBlockCanon =
     s.marginMode === 'derived'
-      ? computeCanonicalMargins(
-          sizeMm.w,
-          sizeMm.h,
-          s.measureChars,
-          measureAverageCharWidth(bodyName, bodyFontSizePt),
+      ? centerCanonicalHorizontally(
+          computeCanonicalMargins(
+            sizeMm.w,
+            sizeMm.h,
+            s.measureChars,
+            measureAverageCharWidth(bodyName, bodyFontSizePt),
+          ),
+          s.duplex,
         )
       : null;
   const liveAreaCanon =
     s.marginMode === 'derived'
-      ? computeCanonicalMargins(
-          sizeMm.w,
-          sizeMm.h,
-          s.liveAreaChars,
-          measureAverageCharWidth(bodyName, bodyFontSizePt),
+      ? centerCanonicalHorizontally(
+          computeCanonicalMargins(
+            sizeMm.w,
+            sizeMm.h,
+            s.liveAreaChars,
+            measureAverageCharWidth(bodyName, bodyFontSizePt),
+          ),
+          s.duplex,
         )
       : null;
-  // In derived mode, the @page margin is asymmetric: vertical (top /
-  // bottom) = TEXT BLOCK margins, horizontal (inner / outer) = LIVE
-  // AREA margins. This puts the @top-* / @bottom-* boxes inside the
+  // In derived mode, vertical margins (top / bottom) come from the text
+  // block and horizontal margins from the live area. Horizontal geometry is
+  // centred in simplex; the classical inner/outer asymmetry is kept only for
+  // duplex spreads. This puts the @top-* / @bottom-* boxes inside the
   // header / footer BANDS of the canon (§9.6.6) rather than the
   // canonical blank zone above / below them. The author-supplied header
   // / footer text is then pushed to the inside edge of the box (via
@@ -1361,7 +1614,13 @@ export function pagedCss(s: PdfSettings): string {
     :is(#preview-pane, #markpage-print-target) .pagedjs_page_content > :first-child > :first-child > :first-child > :first-child {
       margin-top: 0;
     }
-    ${SCOPE} p { margin: ${styles.body.marginAbove ?? 1}em 0 ${styles.body.marginBelow ?? 1}em; }
+    ${SCOPE} p {
+      margin: ${styles.body.marginAbove ?? 1}em 0 ${styles.body.marginBelow ?? 1}em;
+      text-indent: 0;
+    }
+    /* First-line indents are real inline spacer nodes inserted after
+       pagination. CSS text-indent/generated content makes paged.js fold split
+       fragments back into page 1, so indentation must not enter its geometry. */
     /* Prevent orphan headings at the foot of a page. This rule is
        intentionally unscoped: paged.js parses the selector itself
        and can't cope with our :where(...) scope, so we keep the
@@ -1417,7 +1676,12 @@ export function pagedCss(s: PdfSettings): string {
     /* Letterhead layout (sender / recipient / signature positioning) — shared
        with the VS Code extension via letterheadCss() so the two never drift. */
     ${letterheadCss({
-      margins: m,
+      margins: {
+        top: effMargins.top,
+        right: effMargins.outer,
+        bottom: effMargins.bottom,
+        left: effMargins.inner,
+      },
       pageW: sizeMm.w,
       pageH: sizeMm.h,
       textBlockInner: textBlockCanon?.inner ?? null,
@@ -1795,6 +2059,21 @@ function buildBodyPaddingCss(
     `${scope} .pagedjs_right_page .pagedjs_page_content { ${rectoPadding} }\n` +
     `${scope} .pagedjs_left_page  .pagedjs_page_content { ${versoPadding} }`
   );
+}
+
+/**
+ * A single-sided document has no spine: its text and live-area rectangles
+ * must therefore be horizontally centred. The classical 1:2 inner/outer
+ * canon remains meaningful only for facing pages, where it is mirrored on
+ * verso. Width and vertical geometry stay unchanged.
+ */
+function centerCanonicalHorizontally(
+  canon: CanonicalMargins,
+  duplex: boolean,
+): CanonicalMargins {
+  if (duplex) return canon;
+  const side = (canon.inner + canon.outer) / 2;
+  return { ...canon, inner: side, outer: side };
 }
 
 /**

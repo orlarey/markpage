@@ -27,6 +27,7 @@ ouvertes" sections are kept for the record.
 | [FILE-MANAGEMENT-SPEC.md](FILE-MANAGEMENT-SPEC.md) | Document/asset storage, disk link (modèle d'origine, voir VOLUMES-SPEC) | Livré (phases 1–4) ; supplanté par VOLUMES-SPEC |
 | [VOLUMES-SPEC.md](VOLUMES-SPEC.md) | Système de fichiers unifié : un Ouvrir, une racine, volumes montés | Livré (0.32.0) |
 | [GITHUB-SYNC-SPEC.md](GITHUB-SYNC-SPEC.md) | Documents partagés via un dépôt GitHub (PAT, sans serveur), R1–R4 + fork | Livré (0.32.0) |
+| [SETTINGS-SPEC.md](SETTINGS-SPEC.md) | Réglages comme vue du frontmatter : défauts, variations, changement de recette, undo/redo et type Lettre | Normatif, cœur livré |
 
 ## Methodology
 

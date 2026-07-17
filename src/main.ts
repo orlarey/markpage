@@ -96,7 +96,8 @@ import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
 import { openNewFromModal } from './ui/new-from-modal';
-import { redo, undo } from '@codemirror/commands';
+import { isolateHistory, redo, undo } from '@codemirror/commands';
+import { Transaction } from '@codemirror/state';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
 import {
@@ -184,12 +185,19 @@ import {
   flattenForRender,
   applyProfilePatch,
   deriveSettingsForDoc,
+  essentialFrontmatterKeys,
+  essentialStyleFromSource,
   extractStyleFromSettings,
   getExtendsFromSource,
   planProfileMigration,
+  resetStyleRecipeInLeaf,
+  settingsForRecipe,
   setExtendsInSource,
+  setFrontmatterKeys,
+  type EssentialFrontmatterKey,
   writeStyleToLeaf,
 } from './stack-render';
+import type { Appearance, DocumentModel } from './style-recipes';
 import {
   displayProfileName,
   ensureActiveProfile,
@@ -827,6 +835,22 @@ async function bootstrap(): Promise<void> {
 
   applyPreviewStyles(state.settings);
 
+  // The detached Settings window is a live projection of the current
+  // document. Keep its repaint hook available to editor-driven frontmatter
+  // changes as well as document/profile switches.
+  let refreshSettingsForm: (() => void) | null = null;
+  let scheduleSettingsFromFrontmatter: (source: string) => void = () => {};
+  // Undo/redo must restore the exact historical source. A canonicalisation
+  // transaction inserted between the two would remap (or invalidate) the redo
+  // branch, so history replay only derives settings and repaints the UI.
+  let preserveHistoricalFrontmatterOnce = false;
+  const frontmatterSnapshot = (source: string): string => {
+    if (!source.startsWith('---\n')) return '';
+    const end = source.indexOf('\n---', 4);
+    return end < 0 ? source : source.slice(0, end + 4);
+  };
+  let lastAppliedSettingsFrontmatter = frontmatterSnapshot(initialDoc);
+
   // Also bound inside the editor keymap (filled in below, after the action fns
   // exist) so Cmd/Ctrl shortcuts fire while CodeMirror has focus — Firefox
   // doesn't bubble them to the window listener like Chromium does.
@@ -839,12 +863,104 @@ async function bootstrap(): Promise<void> {
       // auto-persist the working copy.
       dirty = true;
       debouncedSaveDraft(currentDoc.uuid, doc);
-      if (!suppressEditorPreview) scheduleLivePreview();
+      if (!suppressEditorPreview) {
+        scheduleLivePreview();
+        // Always feed the debouncer: a replace operation is emitted as
+        // "delete, then insert". Keeping only the first changed snapshot would
+        // derive the transient empty document and discard the final source.
+        scheduleSettingsFromFrontmatter(doc);
+      }
     },
     editorShortcuts,
   );
 
   attachStyleContextMenu(editor.view.dom, editor.view);
+
+  scheduleSettingsFromFrontmatter = debounce((source: string) => {
+    void (async () => {
+      const preserveHistoricalFrontmatter =
+        preserveHistoricalFrontmatterOnce;
+      preserveHistoricalFrontmatterOnce = false;
+      const snapshot = frontmatterSnapshot(source);
+      if (snapshot === lastAppliedSettingsFrontmatter) return;
+      const derived = await deriveSettingsForDoc(
+        source,
+        state.settings,
+        resolveByName,
+      );
+      // A newer edit superseded this derivation while an extends layer was
+      // resolving. Only publish settings for the source still in the editor.
+      if (source !== editor.getValue()) return;
+      state.settings = derived;
+      lastAppliedSettingsFrontmatter = snapshot;
+      const canonical = writeStyleToLeaf(
+        source,
+        derived,
+        DEFAULT_SETTINGS,
+      );
+      if (!preserveHistoricalFrontmatter && canonical !== source) {
+        // Canonicalisation only touches the style keys in frontmatter. Apply a
+        // minimal CodeMirror change so a user editing the YAML keeps their
+        // cursor near the same key instead of suffering a whole-document reset.
+        let from = 0;
+        while (
+          from < source.length &&
+          from < canonical.length &&
+          source[from] === canonical[from]
+        )
+          from += 1;
+        let sourceTo = source.length;
+        let canonicalTo = canonical.length;
+        while (
+          sourceTo > from &&
+          canonicalTo > from &&
+          source[sourceTo - 1] === canonical[canonicalTo - 1]
+        ) {
+          sourceTo -= 1;
+          canonicalTo -= 1;
+        }
+        suppressEditorPreview = true;
+        editor.view.dispatch({
+          changes: {
+            from,
+            to: sourceTo,
+            insert: canonical.slice(from, canonicalTo),
+          },
+          // Canonicalisation is a mechanical consequence of the user's edit,
+          // not a new intention. Keeping it outside history preserves a redo
+          // branch after undo and makes one settings gesture one history step.
+          annotations: Transaction.addToHistory.of(false),
+        });
+        suppressEditorPreview = false;
+        lastAppliedSettingsFrontmatter = frontmatterSnapshot(canonical);
+      }
+      registerCustomFonts(derived.customFonts);
+      applyPreviewStyles(derived);
+      void loadSettingsFonts(derived).catch((err: unknown) => {
+        console.error('Font load failed', err);
+      });
+      refreshSettingsForm?.();
+    })();
+  }, 180);
+
+  const refreshSettingsFromHistory = (source: string): void => {
+    void (async () => {
+      const derived = await deriveSettingsForDoc(
+        source,
+        state.settings,
+        resolveByName,
+      );
+      if (source !== editor.getValue()) return;
+      state.settings = derived;
+      lastAppliedSettingsFrontmatter = frontmatterSnapshot(source);
+      registerCustomFonts(derived.customFonts);
+      applyPreviewStyles(derived);
+      void loadSettingsFonts(derived).catch((err: unknown) => {
+        console.error('Font load failed', err);
+      });
+      refreshSettingsForm?.();
+    })();
+  };
 
   // Assigned in renderToolbar() below before any user input has the
   // chance to fire setViewMode().
@@ -2066,7 +2182,10 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  const handleSettingsChange = (s: PdfSettings) => {
+  const handleSettingsChange = (
+    s: PdfSettings,
+    variationKey?: EssentialFrontmatterKey,
+  ) => {
     state.settings = s;
     // Fire-and-forget: the SHA hash + localStorage write is fast and
     // the form's onChange is sync. Any error stays in the console.
@@ -2093,11 +2212,17 @@ async function bootstrap(): Promise<void> {
     // delta — until the profile store is retired. We replace the editor text
     // in place; the editor callback persists it (preview suppressed: the block
     // below does the anchored render with the fresh content).
-    const withStyle = writeStyleToLeaf(editor.getValue(), s, DEFAULT_SETTINGS);
+    const withStyle = writeStyleToLeaf(
+      editor.getValue(),
+      s,
+      DEFAULT_SETTINGS,
+      variationKey ? new Set([variationKey]) : new Set(),
+    );
     if (withStyle !== editor.getValue()) {
       suppressEditorPreview = true;
       editor.setValue(withStyle);
       suppressEditorPreview = false;
+      lastAppliedSettingsFrontmatter = frontmatterSnapshot(withStyle);
     }
     // The @page CSS depends on settings (page size, margins, page-number
     // position). Mark dirty so we repaginate on the next toggle into
@@ -2107,12 +2232,12 @@ async function bootstrap(): Promise<void> {
     dirty = true;
     if (viewMode === 'preview') {
       const anchor = currentPreviewAnchor(previewEl);
-      // Hide the preview while paged.js wipes and rebuilds + while we
-      // re-apply the captured scroll position. Otherwise the user sees
-      // a blank, then content appearing at the top, then a jump back —
-      // three frames of visual noise. visibility:hidden is instant and
-      // preserves scroll geometry.
-      previewEl.style.visibility = 'hidden';
+      // Make the preview transparent while paged.js rebuilds and while we
+      // restore the scroll anchor. Do not use `visibility: hidden`: paged.js
+      // lays out inside this element and an inherited invisible state can make
+      // its overflow detector conclude that the whole document fits page 1.
+      // Opacity suppresses the intermediate paint without changing layout.
+      previewEl.style.opacity = '0';
       void updatePreview(editor.getValue())
         .then(() => {
           if (anchor) applyAnchorToPreview(previewEl, anchor);
@@ -2121,7 +2246,7 @@ async function bootstrap(): Promise<void> {
           console.error('Preview render failed', err);
         })
         .finally(() => {
-          previewEl.style.visibility = '';
+          previewEl.style.opacity = '';
         });
     }
   };
@@ -2351,15 +2476,60 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
-  // The form's refresh is exposed via openSettingsWindow's return value; we
-  // hold onto it so other flows (doc switch, parent-style change) can
-  // request a refresh without holding a stale reference to the window.
-  let refreshSettingsForm: (() => void) | null = null;
-
   const triggerSettings = (): void => {
     const handle = openSettingsWindow({
       getSettings: () => state.settings,
       onChange: handleSettingsChange,
+      onChangeRecipe: (
+        documentType: DocumentModel,
+        appearance: Appearance,
+      ) => {
+        const source = editor.getValue();
+        const reset = resetStyleRecipeInLeaf(
+          source,
+          documentType,
+          appearance,
+        );
+        if (reset === source) return;
+        state.settings = settingsForRecipe(
+          state.settings,
+          documentType,
+          appearance,
+        );
+        editor.view.dispatch({
+          changes: {
+            from: 0,
+            to: editor.view.state.doc.length,
+            insert: reset,
+          },
+          annotations: isolateHistory.of('full'),
+        });
+        registerCustomFonts(state.settings.customFonts);
+        applyPreviewStyles(state.settings);
+        refreshSettingsForm?.();
+      },
+      getEssentialStyle: () => essentialStyleFromSource(editor.getValue()),
+      getVariationKeys: () => essentialFrontmatterKeys(editor.getValue()),
+      onResetVariation: (key: EssentialFrontmatterKey) => {
+        const cleaned = setFrontmatterKeys(
+          editor.getValue(),
+          new Map(),
+          new Set([key]),
+        );
+        if (cleaned === editor.getValue()) return;
+        editor.setValue(cleaned);
+        scheduleSettingsFromFrontmatter(cleaned);
+      },
+      onUndo: () => {
+        preserveHistoricalFrontmatterOnce = true;
+        if (undo(editor.view)) refreshSettingsFromHistory(editor.getValue());
+        else preserveHistoricalFrontmatterOnce = false;
+      },
+      onRedo: () => {
+        preserveHistoricalFrontmatterOnce = true;
+        if (redo(editor.view)) refreshSettingsFromHistory(editor.getValue());
+        else preserveHistoricalFrontmatterOnce = false;
+      },
       getParentStyle: () => getExtendsFromSource(editor.getValue()),
       onChangeParentStyle: () => {
         void changeParentStyle();

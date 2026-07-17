@@ -311,6 +311,14 @@ describe('normalizeProfile', () => {
       pageSize: 'A4',
       margins: { top: 25, right: 35, bottom: 25, left: 35 },
       pageNumbers: true,
+      marginMode: 'derived',
+      measureChars: 68,
+      liveAreaChars: 92,
+      duplex: true,
+      chapterBreak: 'next-recto',
+      notesPosition: 'side',
+      footer: ' | {page} | ',
+      mathFontSet: 'stix2',
       customFonts: [{ family: 'Lora', sha: 'abc' }],
     });
     const m = normalizeProfile(json);
@@ -324,6 +332,14 @@ describe('normalizeProfile', () => {
     expect(m.get('page-size')).toBe('A4');
     expect(m.get('margins')).toBe('25 35 25 35');
     expect(m.get('page-numbers')).toBe('true');
+    expect(m.get('margin-mode')).toBe('"derived"');
+    expect(m.get('measure-chars')).toBe('68');
+    expect(m.get('live-area-chars')).toBe('92');
+    expect(m.get('duplex')).toBe('true');
+    expect(m.get('chapter-break')).toBe('"next-recto"');
+    expect(m.get('notes')).toBe('"side"');
+    expect(m.get('footer')).toBe('" | {page} | "');
+    expect(m.get('math-font-set')).toBe('"stix2"');
     expect(JSON.parse(m.get('customFonts') ?? '[]')).toEqual([{ family: 'Lora', sha: 'abc' }]);
   });
 
@@ -344,6 +360,14 @@ describe('denormalizeProfile', () => {
       pageSize: 'A4',
       margins: { top: 25, right: 35, bottom: 25, left: 35 },
       pageNumbers: true,
+      marginMode: 'derived',
+      measureChars: 68,
+      liveAreaChars: 92,
+      duplex: true,
+      chapterBreak: 'next-recto',
+      notesPosition: 'side',
+      footer: ' | {page} | ',
+      mathFontSet: 'stix2',
       customFonts: [{ family: 'Lora', sha: 'abc' }],
     };
     expect(denormalizeProfile(normalizeProfile(JSON.stringify(profile)))).toEqual(profile);
@@ -358,12 +382,28 @@ describe('denormalizeProfile', () => {
         ['font-body', '"Lora"'],
         ['page-numbers', 'false'],
         ['margins', '20 30'],
+        ['margin-mode', '"derived"'],
+        ['measure-chars', '66'],
+        ['live-area-chars', '90'],
+        ['duplex', 'true'],
+        ['chapter-break', '"next-recto"'],
+        ['notes', '"side"'],
+        ['footer', '" | {page} | "'],
+        ['math-font-set', '"stix2"'],
       ]),
     );
     expect(p.styles?.h1).toEqual({ color: '#000', fontSize: 22, italic: true });
     expect(p.fonts?.body).toBe('Lora');
     expect(p.pageNumbers).toBe(false);
     expect(p.margins).toEqual({ top: 20, right: 30, bottom: 20, left: 30 });
+    expect(p.marginMode).toBe('derived');
+    expect(p.measureChars).toBe(66);
+    expect(p.liveAreaChars).toBe(90);
+    expect(p.duplex).toBe(true);
+    expect(p.chapterBreak).toBe('next-recto');
+    expect(p.notesPosition).toBe('side');
+    expect(p.footer).toBe(' | {page} | ');
+    expect(p.mathFontSet).toBe('stix2');
   });
 });
 

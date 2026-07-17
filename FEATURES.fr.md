@@ -1,15 +1,15 @@
 # markpage — fonctionnalités
 
-*English: [FEATURES.md](FEATURES.md). Pour apprendre à **écrire** du Markdown
+_English: [FEATURES.md](FEATURES.md). Pour apprendre à **écrire** du Markdown
 markpage, voir [AI-AUTHORING.md](AI-AUTHORING.md) ; pour la présentation du
-projet, le [README](README.md).*
+projet, le [README](README.md)._
 
 **markpage** est un éditeur **Markdown → PDF** qui tourne entièrement dans le
 navigateur : appli statique Vite/TypeScript, **sans serveur, sans installation**,
 les données restent chez l'utilisateur. Source à gauche, aperçu paginé (paged.js)
 à droite, export PDF de qualité typographique. Bilingue **FR/EN**.
 
-## Blocs délimités (```` ``` ````)
+## Blocs délimités (` ``` `)
 
 Liste exhaustive, par famille :
 
@@ -72,8 +72,9 @@ Liste exhaustive, par famille :
 - **Figures en marge** `{.margin}`, légendes de figures, `\label` / `\ref`
   (références croisées numérotées)
 - **Frontmatter YAML** : métadonnées (`title`, `author`, `date`), comportement
-  (`slides`, `mathjax-preamble`), et mise en page/typographie portables
-  (`page-size`, `margins`, `page-numbers`, `font-*`, `markpage-profile`) —
+  (`slides`, `mathjax-preamble`) et style sémantique portable
+  (`document-type`, `appearance`, `density`, `paragraphs`…), complété au besoin
+  par des exceptions `styles.*` —
   voir [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md)
 - **Ligatures de saisie** : `\commande␣` → symbole Unicode (table unique
   partagée avec l'export LaTeX), séquences `->` `<=` `[[`, indices/exposants
@@ -81,15 +82,30 @@ Liste exhaustive, par famille :
 
 ## Mise en page & styles
 
-- **Presets de mise en page** : Note technique, Rapport, Article scientifique,
-  Livre relié, **Édition critique** (+ Personnalisé)
+- **Réglages Essentiel / Avancé** : quelques intentions cohérentes au quotidien,
+  matrice complète d'exceptions conservée pour les usages experts
+- **Modèles de document** : Note technique, Rapport, Article scientifique,
+  Livre, Lettre et Présentation ; ils coordonnent format, mesure, marges, notes et
+  comportement des chapitres
+- **Apparences coordonnées** : Classique, Moderne, Académique et Technique ;
+  elles accordent corps, titres, code, mathématiques et échelle typographique
+- **Rythme dérivé** : une taille de corps, une densité, une séparation des
+  paragraphes par espacement ou retrait, et une couleur d'accent pilotent la
+  hiérarchie plutôt que des dizaines de valeurs indépendantes
+- **Frontmatter minimal** : les Réglages n'écrivent que les intentions qui
+  diffèrent des valeurs par défaut ; les réglages fins restent des exceptions
+  explicites `styles.*`
+- **Historique unifié** : les modifications des Réglages, y compris un
+  changement de recette qui réinitialise ses variations, participent au même
+  undo/redo que le texte
 - **Vue comparée** de styles : Classic / Manuscript
 - **Notes** : en pied (`foot`) ou **en marge type Tufte** (`side`)
 - **Marges** : physiques ou **dérivées** (mesure en caractères, zone vivante)
 - **Numérotation des sections** automatique (par l'exemple), duplex/recto-verso,
   sauts de chapitre
 - **Mode présentation / slides** (`slides: true` → 16:9, façon Beamer)
-- **Polices** : packs Fira & STIX Two, police d'éditeur réglable
+- **Polices** : recettes EB Garamond, Inter, Fira & STIX Two, catalogue avancé,
+  police d'éditeur réglable
 - **Maths** : 5 jeux de polices MathJax (`newcm`, `fira`, `stix2`, `asana`,
   `tex`), préambule TeX par document
 - **Réglages** persistés + **profils** importables/exportables (JSON)

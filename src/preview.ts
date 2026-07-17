@@ -191,7 +191,14 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-    #preview-pane p { margin: ${s.body.marginAbove ?? 1}em 0 ${s.body.marginBelow ?? 1}em; }
+    #preview-pane.continuous p {
+      margin: ${s.body.marginAbove ?? 1}em 0 ${s.body.marginBelow ?? 1}em;
+      text-indent: 0;
+    }
+    #preview-pane.continuous p + p,
+    #preview-pane.continuous p.mp-paragraph-continuation {
+      text-indent: ${s.body.firstLineIndent ?? 0}em;
+    }
     #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s['code-inline'].fontSize}pt; color: ${s['code-inline'].color}; }
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */

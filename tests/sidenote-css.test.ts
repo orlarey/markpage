@@ -107,6 +107,7 @@ describe('pagedCss — sidenote width derives from outer gutter (§9.7.1)', () =
       marginMode: 'derived',
       measureChars: 52,
       liveAreaChars: 85,
+      duplex: true,
       notes: { position: 'side' },
     };
     const css = pagedCss(s);

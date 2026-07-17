@@ -1,15 +1,15 @@
 # markpage — features
 
-*Français : [FEATURES.fr.md](FEATURES.fr.md). For how to **write** markpage
+_Français : [FEATURES.fr.md](FEATURES.fr.md). For how to **write** markpage
 Markdown, see [AI-AUTHORING.md](AI-AUTHORING.md); for the project overview, the
-[README](README.md).*
+[README](README.md)._
 
 **markpage** is a **Markdown → PDF** editor that runs entirely in the browser:
 a static Vite/TypeScript app, **no server, no installation**, your data stays on
 your machine. Source on the left, paginated preview (paged.js) on the right,
 professional-quality PDF export. Bilingual **FR/EN**.
 
-## Fenced blocks (```` ``` ````)
+## Fenced blocks (` ``` `)
 
 The full list, by family:
 
@@ -70,8 +70,9 @@ The full list, by family:
 - **Margin figures** `{.margin}`, figure captions, `\label` / `\ref`
   (numbered cross-references)
 - **YAML frontmatter**: metadata (`title`, `author`, `date`), behaviour
-  (`slides`, `mathjax-preamble`), and portable layout/typography
-  (`page-size`, `margins`, `page-numbers`, `font-*`, `markpage-profile`) —
+  (`slides`, `mathjax-preamble`), and portable semantic styling
+  (`document-type`, `appearance`, `density`, `paragraphs`…), extended when
+  needed with explicit `styles.*` exceptions —
   see [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md)
 - **Input ligatures**: `\command␣` → Unicode symbol (single table shared with the
   LaTeX export), sequences `->` `<=` `[[`, sub/superscripts `_N`/`^N`,
@@ -79,14 +80,26 @@ The full list, by family:
 
 ## Layout & styles
 
-- **Layout presets**: Tech note, Report, Scientific paper, Bound book,
-  **Critical edition** (+ Custom)
+- **Essential / Advanced settings**: a few coherent everyday intentions, with
+  the complete exception matrix retained for expert use
+- **Document models**: Tech note, Report, Scientific paper, Book, Letter and
+  Presentation; they coordinate format, measure, margins, notes and chapters
+- **Coordinated appearances**: Classic, Modern, Academic and Technical; they
+  pair body, headings, code, maths and the type scale
+- **Derived rhythm**: one body size, density, paragraph separation by spacing
+  or first-line indent, and accent colour drive the hierarchy instead of
+  dozens of independent values
+- **Minimal frontmatter**: Settings only write intentions that differ from the
+  defaults; fine-grained controls remain explicit `styles.*` exceptions
+- **Unified history**: Settings changes, including a recipe change that resets
+  its variations, share the same undo/redo history as the document text
 - **Style compare** view: Classic / Manuscript
 - **Notes**: at the foot (`foot`) or **Tufte-style in the margin** (`side`)
 - **Margins**: physical or **derived** (measure in characters, live area)
 - Automatic **section numbering** (by example), duplex/recto-verso, chapter breaks
 - **Presentation / slides** mode (`slides: true` → 16:9, Beamer-like)
-- **Fonts**: Fira & STIX Two packs, adjustable editor font
+- **Fonts**: EB Garamond, Inter, Fira & STIX Two recipes, advanced catalogue,
+  adjustable editor font
 - **Maths**: 5 MathJax font sets (`newcm`, `fira`, `stix2`, `asana`, `tex`),
   per-document TeX preamble
 - Persisted **settings** + importable/exportable **profiles** (JSON)

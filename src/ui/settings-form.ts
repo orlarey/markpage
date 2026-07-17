@@ -31,10 +31,7 @@ import {
   type PdfSettings,
   type Style,
 } from '../settings';
-import {
-  MATH_FONT_SETS,
-  type MathFontSet,
-} from '@orlarey/markpage-render';
+import { MATH_FONT_SETS, type MathFontSet } from '@orlarey/markpage-render';
 import {
   FONT_PACKS,
   FONT_PACK_IDS,
@@ -42,23 +39,39 @@ import {
   type FontPackId,
 } from '../font-packs';
 import {
+  APPEARANCES,
+  DENSITIES,
+  DOCUMENT_MODELS,
+  PARAGRAPH_SEPARATIONS,
+  PAGINATION_STYLES,
+  applyAccentColor,
+  applyBaseFontSize,
+  applyDensity,
+  applyParagraphSeparation,
+  applyPaginationStyle,
+  detectAccentColor,
+  detectDensity,
+  detectParagraphSeparation,
+  detectPaginationStyle,
+  type Appearance,
+  type Density,
+  type DocumentModel,
+  type ParagraphSeparation,
+  type PaginationStyle,
+  type EssentialStyle,
+} from '../style-recipes';
+import {
   getFontCatalog,
   parseGoogleFontsUrl,
   registerCustomFonts,
 } from '../font-loader';
-import {
-  getEditorTextColor,
-  setEditorTextColor,
-} from '../editor-color';
-import {
-  getEditorFont,
-  setEditorFont,
-  type EditorFont,
-} from '../editor-font';
+import { getEditorTextColor, setEditorTextColor } from '../editor-color';
+import { getEditorFont, setEditorFont, type EditorFont } from '../editor-font';
 import { getLanguage, setLanguage, type Language } from '../i18n/locale';
 import { clearToken, getUser, loadToken, saveToken } from '../github';
 import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
+import type { EssentialFrontmatterKey } from '../stack-render';
 
 /**
  * Purpose: Full settings-form callback set.
@@ -68,7 +81,13 @@ import { makeLogo } from './logo';
  */
 export interface SettingsFormHandlers {
   getSettings(): PdfSettings;
-  onChange(s: PdfSettings): void;
+  onChange(s: PdfSettings, variationKey?: EssentialFrontmatterKey): void;
+  onChangeRecipe(documentType: DocumentModel, appearance: Appearance): void;
+  getEssentialStyle(): EssentialStyle;
+  getVariationKeys(): ReadonlySet<EssentialFrontmatterKey>;
+  onResetVariation(key: EssentialFrontmatterKey): void;
+  onUndo(): void;
+  onRedo(): void;
   getParentStyle(): string | null;
   onChangeParentStyle(): void;
 }
@@ -96,6 +115,7 @@ const DATE_MODE_LABELS = (): Record<DateMode, string> => ({
 const DATE_MODES: DateMode[] = ['none', 'today', 'custom'];
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const SETTINGS_VIEW_KEY = 'markpage:settings-view';
 
 /**
  * Purpose: Build the full Réglages form in `doc`, bound to `handlers`.
@@ -112,12 +132,17 @@ export function buildSettingsForm(
   root.setAttribute('aria-label', t('settings.h1'));
 
   let current: PdfSettings = clone(handlers.getSettings());
+  let settingsView: 'essential' | 'advanced' =
+    localStorage.getItem(SETTINGS_VIEW_KEY) === 'advanced'
+      ? 'advanced'
+      : 'essential';
 
   // Persisted across refresh() calls so changing one field doesn't
   // bounce the user back to the first rail entry.
   let activeRailId = 'app';
 
-  const emit = (): void => handlers.onChange(clone(current));
+  const emit = (variationKey?: EssentialFrontmatterKey): void =>
+    handlers.onChange(clone(current), variationKey);
   // Re-reads from handlers on every call so callers can refresh after
   // mutating state outside the form (parent-style change, doc switch).
   const refresh = (): void => {
@@ -135,7 +160,26 @@ export function buildSettingsForm(
       makeLogo(doc, 'full'),
       doc.createTextNode(` — ${t('settings.h1')}`),
     );
-    header.append(title);
+    const viewSwitch = doc.createElement('div');
+    viewSwitch.className = 'settings-view-switch';
+    for (const view of ['essential', 'advanced'] as const) {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.textContent = t(`settings.view.${view}`);
+      button.classList.toggle('active', settingsView === view);
+      button.setAttribute('aria-pressed', String(settingsView === view));
+      button.addEventListener('click', () => {
+        settingsView = view;
+        localStorage.setItem(SETTINGS_VIEW_KEY, view);
+        refresh();
+      });
+      viewSwitch.append(button);
+    }
+    header.append(title, viewSwitch);
+
+    if (settingsView === 'essential') {
+      return [header, buildEssentialLayout()];
+    }
 
     // ---- Rail navigation + content -----------------------------------
     // Each rail entry knows how to (re)build its section content; the
@@ -538,7 +582,9 @@ export function buildSettingsForm(
         btn.dataset['railId'] = item.id;
         btn.addEventListener('click', () => {
           activeRailId = item.id;
-          for (const b of rail.querySelectorAll<HTMLButtonElement>('.rail-item')) {
+          for (const b of rail.querySelectorAll<HTMLButtonElement>(
+            '.rail-item',
+          )) {
             b.classList.toggle('active', b.dataset['railId'] === activeRailId);
           }
           renderContent();
@@ -553,6 +599,268 @@ export function buildSettingsForm(
 
     return [header, layout];
   };
+
+  /**
+   * Purpose: Default settings surface built from a few coherent recipes.
+   * How: Each control compiles one orthogonal decision back to PdfSettings;
+   *   unmatched legacy/custom values remain valid and appear as "Custom".
+   */
+  function buildEssentialLayout(): HTMLElement {
+    const layout = doc.createElement('div');
+    layout.className = 'settings-form settings-essential';
+
+    const intro = doc.createElement('p');
+    intro.className = 'settings-essential-intro';
+    intro.textContent = t('settings.essential.intro');
+
+    const intent = handlers.getEssentialStyle();
+    // Recipe identity comes from the document's semantic frontmatter. Detailed
+    // variations can make the compiled settings impossible to recognise as a
+    // stock recipe, but must never silently change the selected recipe.
+    const model = intent.documentType;
+    const appearance = intent.appearance;
+    const density = detectDensity(current) ?? intent.density;
+    const paragraphSeparation =
+      detectParagraphSeparation(current) ?? intent.paragraphs;
+    const pagination = detectPaginationStyle(current) ?? intent.pagination;
+    const variations = handlers.getVariationKeys();
+
+    const essentialField = (
+      key: EssentialFrontmatterKey,
+      field: HTMLElement,
+    ): HTMLElement => {
+      const varied = variations.has(key);
+      field.classList.add(
+        'settings-origin-field',
+        varied ? 'is-variation' : 'is-default',
+      );
+      const status = doc.createElement('span');
+      status.className = 'settings-origin';
+      status.textContent = varied
+        ? t('settings.origin.variation')
+        : t('settings.origin.default');
+      const label = field.firstElementChild;
+      label?.append(status);
+      if (varied) {
+        const reset = doc.createElement('button');
+        reset.type = 'button';
+        reset.className = 'settings-origin-reset';
+        reset.textContent = '↶';
+        reset.title = t('settings.origin.reset');
+        reset.setAttribute('aria-label', t('settings.origin.reset'));
+        reset.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          handlers.onResetVariation(key);
+        });
+        field.append(reset);
+      }
+      return field;
+    };
+
+    const recipeSection = section(t('settings.essential.section.recipe'), [
+      essentialField(
+        'document-type',
+        selectField<DocumentModel | ''>(
+          t('settings.essential.model'),
+          ['', ...DOCUMENT_MODELS],
+          model ?? '',
+          (value) => {
+            if (!value) return;
+            handlers.onChangeRecipe(value, appearance);
+          },
+          (value) =>
+            value === ''
+              ? t('settings.essential.custom')
+              : t(`settings.essential.model.${value}`),
+        ),
+      ),
+      essentialField(
+        'appearance',
+        selectField<Appearance | ''>(
+          t('settings.essential.appearance'),
+          ['', ...APPEARANCES],
+          appearance ?? '',
+          (value) => {
+            if (!value) return;
+            handlers.onChangeRecipe(model, value);
+          },
+          (value) =>
+            value === ''
+              ? t('settings.essential.custom')
+              : t(`settings.essential.appearance.${value}`),
+        ),
+      ),
+    ]);
+
+    const recipeWarning = doc.createElement('p');
+    recipeWarning.className = 'settings-recipe-warning';
+    recipeWarning.textContent = t('settings.essential.recipe-reset-warning');
+    recipeSection.append(recipeWarning);
+
+    const readingSection = section(t('settings.essential.section.reading'), [
+      essentialField(
+        'body-size',
+        numberField(
+          t('settings.essential.base-size'),
+          current.styles.body.fontSize ?? 11,
+          9,
+          14,
+          (value) => {
+            current = applyBaseFontSize(current, value);
+            emit('body-size');
+            refresh();
+          },
+          { step: 0.5 },
+        ),
+      ),
+      essentialField(
+        'density',
+        selectField<Density | ''>(
+          t('settings.essential.density'),
+          ['', ...DENSITIES],
+          density ?? '',
+          (value) => {
+            if (!value) return;
+            current = applyDensity(current, value);
+            emit('density');
+            refresh();
+          },
+          (value) =>
+            value === ''
+              ? t('settings.essential.custom')
+              : t(`settings.essential.density.${value}`),
+        ),
+      ),
+      essentialField(
+        'paragraphs',
+        selectField<ParagraphSeparation | ''>(
+          t('settings.essential.paragraph-separation'),
+          ['', ...PARAGRAPH_SEPARATIONS],
+          paragraphSeparation ?? '',
+          (value) => {
+            if (!value) return;
+            current = applyParagraphSeparation(current, value);
+            emit('paragraphs');
+            refresh();
+          },
+          (value) =>
+            value === ''
+              ? t('settings.essential.custom')
+              : t(`settings.essential.paragraph-separation.${value}`),
+        ),
+      ),
+      essentialField(
+        'alignment',
+        selectField<Align>(
+          t('settings.essential.alignment'),
+          ['left', 'justify'],
+          current.styles.body.align === 'justify' ? 'justify' : 'left',
+          (value) => {
+            current.styles.body = { ...current.styles.body, align: value };
+            emit('alignment');
+            refresh();
+          },
+          (value) => t(`align.${value}` as 'align.left'),
+        ),
+      ),
+      essentialField(
+        'accent',
+        colorField(
+          t('settings.essential.accent'),
+          detectAccentColor(current),
+          (value) => {
+            current = applyAccentColor(current, value);
+            emit('accent');
+            refresh();
+          },
+        ),
+      ),
+    ]);
+
+    const pageSection = section(t('settings.section.page'), [
+      essentialField(
+        'page-size',
+        selectField(
+          t('settings.field.page-size'),
+          PAGE_SIZES,
+          current.pageSize,
+          (value) => {
+            current.pageSize = value;
+            emit('page-size');
+            refresh();
+          },
+          (value) => PAGE_SIZE_LABELS[value],
+        ),
+      ),
+      essentialField(
+        'pagination',
+        selectField<PaginationStyle | ''>(
+          t('settings.essential.pagination'),
+          ['', ...PAGINATION_STYLES],
+          pagination ?? '',
+          (value) => {
+            if (!value) return;
+            current = applyPaginationStyle(current, value);
+            emit('pagination');
+            refresh();
+          },
+          (value) =>
+            value === ''
+              ? t('settings.essential.custom')
+              : t(`settings.essential.pagination.${value}`),
+        ),
+      ),
+      essentialField(
+        'notes',
+        selectField<PdfSettings['notes']['position']>(
+          t('settings.field.notes-position'),
+          ['foot', 'end', 'side'],
+          current.notes.position,
+          (value) => {
+            current.notes = { position: value };
+            emit('notes');
+            refresh();
+          },
+          (value) => t(`settings.field.notes-position.${value}`),
+        ),
+      ),
+    ]);
+
+    const metadataSection = section(t('settings.section.author-date'), [
+      metadataField(t('settings.field.author'), current.author, (value) => {
+        current.author = value;
+        emit();
+      }),
+      metadataField(
+        t('settings.field.organization'),
+        current.organization,
+        (value) => {
+          current.organization = value;
+          emit();
+        },
+      ),
+      dateField(current.date.mode, current.date.custom, (mode, custom) => {
+        current.date = { mode, custom };
+        emit();
+        refresh();
+      }),
+    ]);
+
+    const advancedHint = doc.createElement('p');
+    advancedHint.className = 'settings-essential-hint';
+    advancedHint.textContent = t('settings.essential.advanced-hint');
+
+    layout.append(
+      intro,
+      recipeSection,
+      readingSection,
+      pageSection,
+      metadataSection,
+      advancedHint,
+    );
+    return layout;
+  }
 
   // ---- helpers (closures capturing `doc`) ------------------------------
 
@@ -628,7 +936,9 @@ export function buildSettingsForm(
         }
         try {
           const u = await getUser(tok);
-          status.textContent = t('settings.github.connected', { login: u.login });
+          status.textContent = t('settings.github.connected', {
+            login: u.login,
+          });
         } catch {
           status.textContent = t('settings.github.invalid');
         }
@@ -731,10 +1041,7 @@ export function buildSettingsForm(
     return cb;
   }
 
-  function labeled(
-    input: HTMLInputElement,
-    text: string,
-  ): HTMLLabelElement {
+  function labeled(input: HTMLInputElement, text: string): HTMLLabelElement {
     const lbl = doc.createElement('label');
     lbl.className = 'show-toggle';
     const span = doc.createElement('span');
@@ -793,12 +1100,7 @@ export function buildSettingsForm(
   // every relevant field matches one of the curated bundles (§9.6.8) —
   // the dropdown shows that id; otherwise it shows "Custom".
 
-  type LayoutPresetId =
-    | 'tech-note'
-    | 'report'
-    | 'paper'
-    | 'book'
-    | 'critical';
+  type LayoutPresetId = 'tech-note' | 'report' | 'paper' | 'book' | 'critical';
 
   const LAYOUT_PRESETS: readonly LayoutPresetId[] = [
     'tech-note',
@@ -826,7 +1128,7 @@ export function buildSettingsForm(
       chapterBreak: 'none',
       notesPosition: 'foot',
     },
-    'report': {
+    report: {
       marginMode: 'derived',
       measureChars: 66,
       liveAreaChars: 85,
@@ -834,7 +1136,7 @@ export function buildSettingsForm(
       chapterBreak: 'none',
       notesPosition: 'foot',
     },
-    'paper': {
+    paper: {
       marginMode: 'derived',
       measureChars: 68,
       liveAreaChars: 85,
@@ -842,7 +1144,7 @@ export function buildSettingsForm(
       chapterBreak: 'none',
       notesPosition: 'end',
     },
-    'book': {
+    book: {
       marginMode: 'derived',
       measureChars: 60,
       liveAreaChars: 80,
@@ -850,7 +1152,7 @@ export function buildSettingsForm(
       chapterBreak: 'next-recto',
       notesPosition: 'foot',
     },
-    'critical': {
+    critical: {
       marginMode: 'derived',
       measureChars: 52,
       liveAreaChars: 85,
@@ -955,15 +1257,11 @@ export function buildSettingsForm(
           },
           { disabled: !derived },
         ),
-        checkboxField(
-          t('settings.field.duplex'),
-          current.duplex,
-          (v) => {
-            current.duplex = v;
-            emit();
-            refresh(); // Preset detection depends on duplex.
-          },
-        ),
+        checkboxField(t('settings.field.duplex'), current.duplex, (v) => {
+          current.duplex = v;
+          emit();
+          refresh(); // Preset detection depends on duplex.
+        }),
         selectField<PdfSettings['chapterBreak']>(
           t('settings.field.chapter-break'),
           ['none', 'next-page', 'next-recto'],
@@ -1397,9 +1695,7 @@ export function buildSettingsForm(
       current.styles[key] = next;
       emit();
     };
-    const rows = desc.attrs.map((attr) =>
-      attrField(attr, getStyle, update),
-    );
+    const rows = desc.attrs.map((attr) => attrField(attr, getStyle, update));
     return section(t(`element.${key}` as 'element.body'), rows);
   }
 
@@ -1428,12 +1724,8 @@ export function buildSettingsForm(
           t('attr.inherited'),
         );
       case 'fontSize':
-        return numberField(
-          label,
-          style.fontSize ?? 11,
-          6,
-          72,
-          (v) => set('fontSize', v),
+        return numberField(label, style.fontSize ?? 11, 6, 72, (v) =>
+          set('fontSize', v),
         );
       case 'color':
         return colorField(label, style.color ?? '#000000', (v) =>

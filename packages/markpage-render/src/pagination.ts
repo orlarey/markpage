@@ -33,6 +33,9 @@ export function paginationCss(): string {
     h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + * { break-before: avoid; }
     /* Reliable keep-with-next: the pair wrapped by keepLabelsWithNext(). */
     .keep-with-next { break-inside: avoid; }
+    /* Added after a first pagination pass when a heading is found alone at
+       the bottom of a page. The host then paginates once more. */
+    .mp-force-page-break { break-before: page !important; }
     /* Atomic blocks never split across a page boundary. Captioned algorithms
        are the exception: their table rows are natural fragmentation points. */
     .mp-atomic { break-inside: avoid; }
