@@ -290,6 +290,129 @@ export function paginationHasVerticalOverflow(renderTo: HTMLElement): boolean {
 }
 
 /**
+ * Purpose: Catch content paged.js left in a page's INVISIBLE overflow columns —
+ *   the failure mode that silently eats whole paragraphs.
+ * How: `.pagedjs_page_content` is a multi-column box whose column-width equals
+ *   the text width, so anything the chunker fails to move onto the next page
+ *   flows SIDEWAYS into a second/third column instead of overflowing downwards.
+ *   Those columns are painted outside the page box, so the document shows holes
+ *   while every element is still in the DOM — which is exactly why neither
+ *   `paginationContainsSourceEnd` (the last element *is* rendered) nor
+ *   `paginationHasVerticalOverflow` (nothing overflows *down*) notices. A
+ *   horizontal scroll overflow on any page content box is the tell.
+ */
+export function paginationHasColumnOverflow(renderTo: HTMLElement): boolean {
+  return [...renderTo.querySelectorAll<HTMLElement>('.pagedjs_page_content')]
+    .some(
+      (content) =>
+        content.clientWidth > 0 &&
+        content.scrollWidth > content.clientWidth + 1,
+    );
+}
+
+/** Carry the tail of `wrapper` — the first block that does not fit entirely
+ *  inside the page box, plus every following sibling — over to `target`,
+ *  preserving document order. Returns the number of blocks moved.
+ *
+ *  Two rules learned the hard way:
+ *  - Move whole BLOCKS, never split one. Cloning a straddling block's shell and
+ *    carrying its inner nodes cuts a paragraph mid-sentence and shatters a code
+ *    block into isolated lines.
+ *  - Take everything AFTER the first offender too. Moving only the blocks
+ *    currently in an overflow column frees space that later content reflows
+ *    into, silently reordering the document.
+ *
+ *  A block that overflows while already first on its page can never be placed
+ *  by moving it (it would bounce from page to page), so it is left alone —
+ *  oversized code blocks are handled upstream by splitLongPreBlocks(). */
+function carryOverflowTail(
+  wrapper: HTMLElement,
+  right: number,
+  target: HTMLElement,
+): number {
+  const children = [...wrapper.children].filter((c): c is HTMLElement => {
+    if (!(c instanceof HTMLElement)) return false;
+    const r = c.getBoundingClientRect();
+    return r.width > 0 || r.height > 0;
+  });
+  const cut = children.findIndex(
+    (c) => c.getBoundingClientRect().right > right + 1,
+  );
+  if (cut === -1) return 0;
+  if (cut === 0) return 0; // nothing before it — moving it can't help
+
+  let moved = 0;
+  for (const child of children.slice(cut)) {
+    target.append(child);
+    moved += 1;
+  }
+  return moved;
+}
+
+/** Append a fresh, empty page after `page`, cloned from it so it keeps the
+ *  pagebox / margin-box scaffolding paged.js built. First/last-page markers are
+ *  dropped: the clone is neither. */
+function appendEmptyPageAfter(page: HTMLElement): HTMLElement | null {
+  const clone = page.cloneNode(true) as HTMLElement;
+  clone.classList.remove('pagedjs_first_page', 'pagedjs_last_page');
+  for (const cls of [...clone.classList]) {
+    if (cls.endsWith('_first_page') || cls.endsWith('_last_page')) {
+      clone.classList.remove(cls);
+    }
+  }
+  const box = clone.querySelector<HTMLElement>('.pagedjs_page_content');
+  const wrapper = box?.firstElementChild as HTMLElement | null;
+  if (!box || !wrapper) return null;
+  wrapper.replaceChildren();
+  page.parentNode?.insertBefore(clone, page.nextSibling);
+  return clone;
+}
+
+/**
+ * Purpose: Repair the pagination paged.js gets wrong — recover content it left
+ *   in a page's invisible overflow columns instead of moving it to the next
+ *   page. Without this the document simply shows holes: every block is in the
+ *   DOM, painted outside its page box (cf. paginationHasColumnOverflow).
+ * How: Walk pages in order; for each, move the blocks that flowed into column
+ *   2+ to the FRONT of the next page's wrapper, preserving document order. That
+ *   can in turn overflow the next page, so the walk re-measures as it goes and
+ *   cascades. When the last page overflows, a fresh empty page is cloned from
+ *   it. Bounded by a total-move cap so a pathological block (taller than a
+ *   page on its own, which can never fit) can't spin forever.
+ * Returns the number of blocks moved — 0 when paged.js got it right.
+ */
+export function repairColumnOverflow(renderTo: HTMLElement): number {
+  const MAX_PASSES = 40;
+  let moved = 0;
+  for (let pass = 0; pass < MAX_PASSES; pass += 1) {
+    const pages = [...renderTo.querySelectorAll<HTMLElement>('.pagedjs_page')];
+    let movedThisPass = 0;
+    for (let i = 0; i < pages.length; i += 1) {
+      const page = pages[i];
+      const box = page?.querySelector<HTMLElement>('.pagedjs_page_content');
+      const wrapper = box?.firstElementChild as HTMLElement | null;
+      if (!box || !wrapper) continue;
+      if (box.scrollWidth <= box.clientWidth + 1) continue;
+      const next = pages[i + 1] ?? appendEmptyPageAfter(page);
+      const nextWrapper = next
+        ?.querySelector<HTMLElement>('.pagedjs_page_content')
+        ?.firstElementChild as HTMLElement | null;
+      if (!nextWrapper) continue;
+      // Collect into a detached holder, then prepend so the carried run keeps
+      // its document order ahead of whatever already sits on the next page.
+      const holder = nextWrapper.ownerDocument.createElement('div');
+      const n = carryOverflowTail(wrapper, box.getBoundingClientRect().right, holder);
+      if (n === 0) continue;
+      while (holder.lastChild) nextWrapper.insertBefore(holder.lastChild, nextWrapper.firstChild);
+      moved += n;
+      movedThisPass += n;
+    }
+    if (movedThisPass === 0) break;
+  }
+  return moved;
+}
+
+/**
  * Purpose: Give every pagination pass an untouched, single-use DOM tree.
  * How: Assign stable refs once on the prepared template, then deep-clone it.
  *   paged.js annotates and may restructure the tree handed to ContentParser;
@@ -503,6 +626,16 @@ export async function paginate(
     ) {
       throw new Error('paged.js produced an incomplete pagination');
     }
+    // paged.js sometimes finishes a page while leaving the surplus in its
+    // invisible overflow columns (SPEC §13.3 / paginationHasColumnOverflow):
+    // the document then shows holes although nothing was dropped. Re-place
+    // that content onto the following pages before anything freezes.
+    const recovered = repairColumnOverflow(renderTo);
+    if (recovered > 0) {
+      console.warn(
+        `[markpage] pagination: recovered ${recovered} block(s) left in overflow columns.`,
+      );
+    }
     freezePreviewer(previewer);
     insertParagraphIndentSpacers(
       renderTo,
@@ -571,6 +704,9 @@ export async function paginateOnce(
       renderTo,
     );
   }
+  // Same recovery as the preview path: PDF export must not lose the content
+  // paged.js left in the invisible overflow columns either.
+  repairColumnOverflow(renderTo);
   freezePreviewer(previewer);
   insertParagraphIndentSpacers(
     renderTo,
