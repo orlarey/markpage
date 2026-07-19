@@ -45,6 +45,7 @@
     "@mathjax/mathjax-stix2-font": "^4.1.2",
     "@mathjax/mathjax-tex-font": "^4.1.2",
     "@mathjax/src": "^4.1.2",
+    "@vivliostyle/core": "^2.44.1",
     "codemirror": "^6.0.1",
     "ebnf2railroad": "^1.14.2",
     "highlight.js": "^11.11.1",

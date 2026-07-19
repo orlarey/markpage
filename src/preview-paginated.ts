@@ -511,6 +511,28 @@ export async function paginate(
   // Wrap consecutive sender / recipient blocks in a flex group so they
   // sit side-by-side (or a lone recipient floats right for FR letters).
   groupLetterheads(source);
+  // SPIKE (branch vivliostyle): alternative engine behind a localStorage
+  // flag. Deliberately skips EVERY paged.js mitigation pass below — the
+  // whole point is to measure Vivliostyle's own fragmentation on the clean
+  // hydrated DOM. Enable with: localStorage.setItem('markpage:engine',
+  // 'vivliostyle') then re-render.
+  if (localStorage.getItem('markpage:engine') === 'vivliostyle') {
+    if (currentPreviewer) {
+      teardownPreviewer(currentPreviewer);
+      currentPreviewer = null;
+    }
+    resetPageRunningCounter();
+    prependDefaultFences(source, settings);
+    const runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+    const { renderVivliostylePreview } = await import('./preview-vivliostyle');
+    const pages = await renderVivliostylePreview(
+      source,
+      `${pagedCss(settings)}\n${runningCss}`,
+      renderTo,
+    );
+    console.info(`[markpage] vivliostyle spike: ${pages} page(s)`);
+    return;
+  }
   // In slides mode, compute the right zoom for every `demo zoom=auto`
   // block by measuring its natural height against the slide figure area.
   await applyAutoZoomForDemos(source, settings, renderTo);
