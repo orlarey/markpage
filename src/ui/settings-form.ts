@@ -85,6 +85,7 @@ export interface SettingsFormHandlers {
   onChangeRecipe(documentType: DocumentModel, appearance: Appearance): void;
   getEssentialStyle(): EssentialStyle;
   getVariationKeys(): ReadonlySet<EssentialFrontmatterKey>;
+  getVariationCount(): number;
   onResetVariation(key: EssentialFrontmatterKey): void;
   onUndo(): void;
   onRedo(): void;
@@ -139,7 +140,7 @@ export function buildSettingsForm(
 
   // Persisted across refresh() calls so changing one field doesn't
   // bounce the user back to the first rail entry.
-  let activeRailId = 'app';
+  let activeRailId = 'doc-recipe';
 
   const emit = (variationKey?: EssentialFrontmatterKey): void =>
     handlers.onChange(clone(current), variationKey);
@@ -187,17 +188,35 @@ export function buildSettingsForm(
     // pane. Switching entry rebuilds only that pane.
     const railGroups: Array<{
       titleKey:
+        | 'rail.group.recipe'
         | 'rail.group.app'
         | 'rail.group.document'
         | 'rail.group.typography'
         | 'rail.group.content'
+        | 'rail.group.information'
         | 'rail.group.sync';
       items: Array<{
         id: string;
         label: string;
         build: () => HTMLElement[];
+        domain?: 'type' | 'appearance' | 'information';
       }>;
     }> = [
+      {
+        titleKey: 'rail.group.recipe',
+        items: [
+          {
+            id: 'doc-recipe',
+            label: t('settings.essential.section.recipe'),
+            build: () => [buildAdvancedRecipeSection()],
+          },
+          {
+            id: 'doc-style',
+            label: t('settings.section.parent-style'),
+            build: () => [buildParentStyleSection()],
+          },
+        ],
+      },
       {
         titleKey: 'rail.group.app',
         items: [
@@ -218,17 +237,12 @@ export function buildSettingsForm(
         titleKey: 'rail.group.document',
         items: [
           {
-            // "Style parent" (extends) — the document's place in the stack.
-            id: 'doc-style',
-            label: t('settings.section.parent-style'),
-            build: () => [buildParentStyleSection()],
-          },
-          {
             // Single merged "Page" rail item: format + canon-driven
             // layout + the four mm margins live together because the
             // user thinks of them as one workflow ("set up the page").
             id: 'doc-page',
             label: t('settings.section.page'),
+            domain: 'type',
             build: () => [
               // Format: pageSize, doc language, page-number position.
               section(t('settings.section.page-format'), [
@@ -326,39 +340,6 @@ export function buildSettingsForm(
                     emit();
                   },
                   { disabled: current.marginMode === 'derived' },
-                ),
-              ]),
-            ],
-          },
-          {
-            id: 'doc-metadata',
-            label: t('settings.section.author-date'),
-            build: () => [
-              section(t('settings.section.author-date'), [
-                metadataField(
-                  t('settings.field.author'),
-                  current.author,
-                  (v) => {
-                    current.author = v;
-                    emit();
-                  },
-                ),
-                metadataField(
-                  t('settings.field.organization'),
-                  current.organization,
-                  (v) => {
-                    current.organization = v;
-                    emit();
-                  },
-                ),
-                dateField(
-                  current.date.mode,
-                  current.date.custom,
-                  (mode, custom) => {
-                    current.date = { mode, custom };
-                    emit();
-                    refresh();
-                  },
                 ),
               ]),
             ],
@@ -534,6 +515,55 @@ export function buildSettingsForm(
         ],
       },
       {
+        titleKey: 'rail.group.information',
+        items: [
+          {
+            id: 'doc-metadata',
+            label: t('settings.essential.section.metadata'),
+            domain: 'information',
+            build: () => [
+              section(t('settings.essential.section.metadata'), [
+                selectField<Language>(
+                  t('settings.field.doc-language'),
+                  ['fr', 'en'],
+                  current.language,
+                  (v) => {
+                    current.language = v;
+                    emit();
+                  },
+                  (v) => (v === 'fr' ? 'Français' : 'English'),
+                ),
+                metadataField(
+                  t('settings.field.author'),
+                  current.author,
+                  (v) => {
+                    current.author = v;
+                    emit();
+                  },
+                ),
+                metadataField(
+                  t('settings.field.organization'),
+                  current.organization,
+                  (v) => {
+                    current.organization = v;
+                    emit();
+                  },
+                ),
+                dateField(
+                  current.date.mode,
+                  current.date.custom,
+                  (mode, custom) => {
+                    current.date = { mode, custom };
+                    emit();
+                    refresh();
+                  },
+                ),
+              ]),
+            ],
+          },
+        ],
+      },
+      {
         titleKey: 'rail.group.sync',
         items: [
           {
@@ -544,6 +574,21 @@ export function buildSettingsForm(
         ],
       },
     ];
+
+    const advancedGroupOrder = [
+      'rail.group.recipe',
+      'rail.group.document',
+      'rail.group.typography',
+      'rail.group.content',
+      'rail.group.information',
+      'rail.group.app',
+      'rail.group.sync',
+    ] as const;
+    railGroups.sort(
+      (a, b) =>
+        advancedGroupOrder.indexOf(a.titleKey) -
+        advancedGroupOrder.indexOf(b.titleKey),
+    );
 
     const layout = doc.createElement('div');
     layout.className = 'settings-form settings-layout';
@@ -563,12 +608,27 @@ export function buildSettingsForm(
     const renderContent = (): void => {
       content.innerHTML = '';
       const item = allItems.find((i) => i.id === activeRailId);
-      if (item) content.append(...item.build());
+      if (!item) return;
+      const group = railGroups.find((candidate) =>
+        candidate.items.includes(item),
+      );
+      const domain =
+        item.domain ??
+        (group?.titleKey === 'rail.group.document'
+          ? 'type'
+          : group?.titleKey === 'rail.group.typography' ||
+              group?.titleKey === 'rail.group.content'
+            ? 'appearance'
+            : undefined);
+      content.dataset['domain'] = domain ?? 'neutral';
+      if (domain) content.append(buildAdvancedDomainNotice(domain));
+      content.append(...item.build());
     };
 
     for (const group of railGroups) {
       const groupEl = doc.createElement('div');
       groupEl.className = 'rail-group';
+      groupEl.dataset['group'] = group.titleKey.replace('rail.group.', '');
       const h = doc.createElement('h4');
       h.className = 'rail-group-title';
       h.textContent = t(group.titleKey);
@@ -625,9 +685,12 @@ export function buildSettingsForm(
     const pagination = detectPaginationStyle(current) ?? intent.pagination;
     const variations = handlers.getVariationKeys();
 
+    const modelLabel = t(`settings.essential.model.${model}`);
+    const appearanceLabel = t(`settings.essential.appearance.${appearance}`);
     const essentialField = (
       key: EssentialFrontmatterKey,
       field: HTMLElement,
+      owner: 'type' | 'appearance' | 'recipe' = 'recipe',
     ): HTMLElement => {
       const varied = variations.has(key);
       field.classList.add(
@@ -638,6 +701,12 @@ export function buildSettingsForm(
       status.className = 'settings-origin';
       status.textContent = varied
         ? t('settings.origin.variation')
+        : owner === 'type'
+        ? t('settings.origin.type-default', { value: modelLabel })
+        : owner === 'appearance'
+        ? t('settings.origin.appearance-default', {
+            value: appearanceLabel,
+          })
         : t('settings.origin.default');
       const label = field.firstElementChild;
       label?.append(status);
@@ -692,46 +761,99 @@ export function buildSettingsForm(
         ),
       ),
     ]);
+    recipeSection.classList.add('settings-recipe-section');
+
+    const variationCount = handlers.getVariationCount();
+    const recipeSummary = doc.createElement('p');
+    recipeSummary.className = 'settings-recipe-summary';
+    recipeSummary.textContent = t(
+      variationCount === 1
+        ? 'settings.essential.recipe-summary.one'
+        : 'settings.essential.recipe-summary.many',
+      {
+        type: modelLabel,
+        appearance: appearanceLabel,
+        count: String(variationCount),
+      },
+    );
+    recipeSection.insertBefore(
+      recipeSummary,
+      recipeSection.children[1] ?? null,
+    );
 
     const recipeWarning = doc.createElement('p');
     recipeWarning.className = 'settings-recipe-warning';
     recipeWarning.textContent = t('settings.essential.recipe-reset-warning');
     recipeSection.append(recipeWarning);
 
-    const readingSection = section(t('settings.essential.section.reading'), [
-      essentialField(
-        'body-size',
-        numberField(
-          t('settings.essential.base-size'),
-          current.styles.body.fontSize ?? 11,
-          9,
-          14,
-          (value) => {
-            current = applyBaseFontSize(current, value);
-            emit('body-size');
-            refresh();
-          },
-          { step: 0.5 },
+    const appearanceSection = section(
+      t('settings.essential.section.appearance'),
+      [
+        essentialField(
+          'body-size',
+          numberField(
+            t('settings.essential.base-size'),
+            current.styles.body.fontSize ?? 11,
+            9,
+            14,
+            (value) => {
+              current = applyBaseFontSize(current, value);
+              emit('body-size');
+              refresh();
+            },
+            { step: 0.5 },
+          ),
+          'appearance',
         ),
-      ),
-      essentialField(
-        'density',
-        selectField<Density | ''>(
-          t('settings.essential.density'),
-          ['', ...DENSITIES],
-          density ?? '',
-          (value) => {
-            if (!value) return;
-            current = applyDensity(current, value);
-            emit('density');
-            refresh();
-          },
-          (value) =>
-            value === ''
-              ? t('settings.essential.custom')
-              : t(`settings.essential.density.${value}`),
+        essentialField(
+          'density',
+          selectField<Density | ''>(
+            t('settings.essential.density'),
+            ['', ...DENSITIES],
+            density ?? '',
+            (value) => {
+              if (!value) return;
+              current = applyDensity(current, value);
+              emit('density');
+              refresh();
+            },
+            (value) =>
+              value === ''
+                ? t('settings.essential.custom')
+                : t(`settings.essential.density.${value}`),
+          ),
+          'appearance',
         ),
-      ),
+        essentialField(
+          'accent',
+          colorField(
+            t('settings.essential.accent'),
+            detectAccentColor(current),
+            (value) => {
+              current = applyAccentColor(current, value);
+              emit('accent');
+              refresh();
+            },
+          ),
+          'appearance',
+        ),
+      ],
+    );
+    appearanceSection.classList.add(
+      'settings-essential-domain',
+      'settings-domain-appearance',
+    );
+    const appearanceIntro = doc.createElement('p');
+    appearanceIntro.className = 'settings-domain-intro';
+    appearanceIntro.textContent = t('settings.essential.appearance-intro', {
+      appearance: appearanceLabel,
+    });
+    appearanceSection.insertBefore(
+      appearanceIntro,
+      appearanceSection.children[1] ?? null,
+    );
+
+    const layoutSection = section(t('settings.essential.section.layout'), [
       essentialField(
         'paragraphs',
         selectField<ParagraphSeparation | ''>(
@@ -749,6 +871,7 @@ export function buildSettingsForm(
               ? t('settings.essential.custom')
               : t(`settings.essential.paragraph-separation.${value}`),
         ),
+        'type',
       ),
       essentialField(
         'alignment',
@@ -763,22 +886,8 @@ export function buildSettingsForm(
           },
           (value) => t(`align.${value}` as 'align.left'),
         ),
+        'type',
       ),
-      essentialField(
-        'accent',
-        colorField(
-          t('settings.essential.accent'),
-          detectAccentColor(current),
-          (value) => {
-            current = applyAccentColor(current, value);
-            emit('accent');
-            refresh();
-          },
-        ),
-      ),
-    ]);
-
-    const pageSection = section(t('settings.section.page'), [
       essentialField(
         'page-size',
         selectField(
@@ -792,6 +901,7 @@ export function buildSettingsForm(
           },
           (value) => PAGE_SIZE_LABELS[value],
         ),
+        'type',
       ),
       essentialField(
         'pagination',
@@ -810,6 +920,7 @@ export function buildSettingsForm(
               ? t('settings.essential.custom')
               : t(`settings.essential.pagination.${value}`),
         ),
+        'type',
       ),
       essentialField(
         'notes',
@@ -824,10 +935,31 @@ export function buildSettingsForm(
           },
           (value) => t(`settings.field.notes-position.${value}`),
         ),
+        'type',
       ),
     ]);
+    layoutSection.classList.add(
+      'settings-essential-domain',
+      'settings-domain-document',
+    );
+    const layoutIntro = doc.createElement('p');
+    layoutIntro.className = 'settings-domain-intro';
+    layoutIntro.textContent = t('settings.essential.layout-intro', {
+      type: modelLabel,
+    });
+    layoutSection.insertBefore(layoutIntro, layoutSection.children[1] ?? null);
 
-    const metadataSection = section(t('settings.section.author-date'), [
+    const metadataSection = section(t('settings.essential.section.metadata'), [
+      selectField<Language>(
+        t('settings.field.doc-language'),
+        ['fr', 'en'],
+        current.language,
+        (value) => {
+          current.language = value;
+          emit();
+        },
+        (value) => (value === 'fr' ? 'Français' : 'English'),
+      ),
       metadataField(t('settings.field.author'), current.author, (value) => {
         current.author = value;
         emit();
@@ -846,6 +978,14 @@ export function buildSettingsForm(
         refresh();
       }),
     ]);
+    metadataSection.classList.add('settings-metadata-section');
+    const metadataIntro = doc.createElement('p');
+    metadataIntro.className = 'settings-domain-intro';
+    metadataIntro.textContent = t('settings.essential.metadata-intro');
+    metadataSection.insertBefore(
+      metadataIntro,
+      metadataSection.children[1] ?? null,
+    );
 
     const advancedHint = doc.createElement('p');
     advancedHint.className = 'settings-essential-hint';
@@ -854,12 +994,120 @@ export function buildSettingsForm(
     layout.append(
       intro,
       recipeSection,
-      readingSection,
-      pageSection,
+      layoutSection,
+      appearanceSection,
       metadataSection,
       advancedHint,
     );
     return layout;
+  }
+
+  /** Landing page for Advanced: recipe coordinates before compiled details. */
+  function buildAdvancedRecipeSection(): HTMLElement {
+    const intent = handlers.getEssentialStyle();
+    const modelLabel = t(`settings.essential.model.${intent.documentType}`);
+    const appearanceLabel = t(
+      `settings.essential.appearance.${intent.appearance}`,
+    );
+    const count = handlers.getVariationCount();
+    const intro = doc.createElement('p');
+    intro.className = 'settings-advanced-recipe-intro';
+    intro.textContent = t('settings.advanced.recipe-intro');
+
+    const summary = doc.createElement('p');
+    summary.className = 'settings-recipe-summary';
+    summary.textContent = t(
+      count === 1
+        ? 'settings.essential.recipe-summary.one'
+        : 'settings.essential.recipe-summary.many',
+      {
+        type: modelLabel,
+        appearance: appearanceLabel,
+        count: String(count),
+      },
+    );
+
+    const typeCard = advancedRecipeCard(
+      'type',
+      t('settings.essential.model'),
+      t('settings.advanced.recipe.type-description'),
+    );
+    typeCard.append(
+      selectField<DocumentModel>(
+        t('settings.essential.model'),
+        DOCUMENT_MODELS,
+        intent.documentType,
+        (value) => handlers.onChangeRecipe(value, intent.appearance),
+        (value) => t(`settings.essential.model.${value}`),
+      ),
+    );
+
+    const appearanceCard = advancedRecipeCard(
+      'appearance',
+      t('settings.essential.appearance'),
+      t('settings.advanced.recipe.appearance-description'),
+    );
+    appearanceCard.append(
+      selectField<Appearance>(
+        t('settings.essential.appearance'),
+        APPEARANCES,
+        intent.appearance,
+        (value) => handlers.onChangeRecipe(intent.documentType, value),
+        (value) => t(`settings.essential.appearance.${value}`),
+      ),
+    );
+
+    const cards = doc.createElement('div');
+    cards.className = 'settings-advanced-recipe-cards';
+    cards.append(typeCard, appearanceCard);
+
+    const warning = doc.createElement('p');
+    warning.className = 'settings-recipe-warning';
+    warning.textContent = t('settings.essential.recipe-reset-warning');
+
+    const recipe = section(t('settings.essential.section.recipe'), [
+      intro,
+      summary,
+      cards,
+      warning,
+    ]);
+    recipe.classList.add('settings-advanced-recipe');
+    return recipe;
+  }
+
+  function advancedRecipeCard(
+    domain: 'type' | 'appearance',
+    title: string,
+    description: string,
+  ): HTMLElement {
+    const card = doc.createElement('div');
+    card.className = `settings-advanced-recipe-card is-${domain}`;
+    const heading = doc.createElement('h4');
+    heading.textContent = title;
+    const copy = doc.createElement('p');
+    copy.textContent = description;
+    card.append(heading, copy);
+    return card;
+  }
+
+  function buildAdvancedDomainNotice(
+    domain: 'type' | 'appearance' | 'information',
+  ): HTMLElement {
+    const intent = handlers.getEssentialStyle();
+    const notice = doc.createElement('aside');
+    notice.className = `settings-advanced-domain-notice is-${domain}`;
+    if (domain === 'type') {
+      notice.textContent = t('settings.advanced.domain.type', {
+        value: t(`settings.essential.model.${intent.documentType}`),
+      });
+    } else if (domain === 'appearance') {
+      notice.textContent = t('settings.advanced.domain.appearance', {
+        value: t(`settings.essential.appearance.${intent.appearance}`),
+      });
+    } else {
+      notice.textContent = t('settings.advanced.domain.information');
+    }
+    return notice;
   }
 
   // ---- helpers (closures capturing `doc`) ------------------------------

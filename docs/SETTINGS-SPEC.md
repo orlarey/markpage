@@ -1,8 +1,8 @@
 ---
 title: Spécification — Réglages, recettes et frontmatter
 author: Yann Orlarey
-version: 0.1 (brouillon)
-date: 2026-07-16
+version: 0.2 (brouillon)
+date: 2026-07-17
 document-type: tech-note
 appearance: technical
 ---
@@ -19,6 +19,7 @@ appearance: technical
 ::: toc+
 **Objet** — définir une seule source de vérité pour le style du document
 **Modèle d'état** — distinguer recette, défaut contextuel et variation
+**Architecture du dialogue** — rendre visible la séparation type/apparence
 **Synchronisation** — garantir l'alignement du dialogue et du frontmatter
 **Changement de recette** — réinitialiser le style de manière déterministe
 **Historique** — intégrer les Réglages à undo/redo
@@ -59,8 +60,26 @@ format, marges, mesure, recto-verso, pagination, chapitres, alignement et
 placement des notes.
 
 L'**apparence** détermine le système typographique coordonné : fontes du corps,
-des titres, du code et des mathématiques, graisse des titres et autres choix
-visuels dérivés.
+des titres, du code et des mathématiques, graisse des titres, échelle
+typographique, densité et autres choix visuels dérivés.
+
+Le type et l'apparence sont orthogonaux. Une apparence ne modifie jamais le
+format, les marges, le recto-verso, la pagination ni la structure du document.
+Réciproquement, un type ne définit pas une identité graphique particulière.
+
+## Propriété des réglages
+
+| Domaine | Réglages dérivés principaux |
+| :-- | :-- |
+| Type de document | format, marges, mesure, recto-verso, paragraphes, alignement, pagination, notes, en-têtes et pieds |
+| Apparence | fontes, taille du corps, échelle typographique, densité, graisses, couleurs et traitement visuel des éléments |
+| Informations | langue, auteur, organisation et date ; hors recette stylistique |
+
+La géométrie de page relève exclusivement du type. Le canon de Van de Graaf,
+qui suppose une composition éditoriale en pages en vis-à-vis, n'est le défaut
+que du type `book`. Les rapports, articles, notes techniques et lettres
+emploient leurs géométries propres, généralement symétriques ; les
+présentations emploient une zone de sécurité régulière.
 
 ## Défaut contextuel
 
@@ -94,6 +113,61 @@ clé r présente ⇔ variation locale ⇔ badge « Variation »
 
 Une clé présente avec une valeur égale au défaut contextuel est redondante. La
 normalisation la supprime.
+
+# Architecture du dialogue
+
+Le dialogue **Réglages** doit matérialiser la recette au lieu de présenter une
+liste indifférenciée de paramètres.
+
+## Vue Essentiel
+
+La vue Essentiel présente, dans cet ordre :
+
+1. la **recette du document**, avec deux sélecteurs distincts `Type de
+   document` et `Apparence` ;
+2. **Type et mise en page**, pour les réglages dont le défaut provient du type ;
+3. **Apparence**, pour les réglages dont le défaut provient de l'apparence ;
+4. **Informations du document**, pour la langue et les métadonnées qui ne
+   relèvent d'aucun des deux domaines.
+
+La recette est résumée sous la forme :
+
+```text
+Livre + Classique · 3 variations
+```
+
+Chaque valeur implicite porte un badge qui précise sa provenance :
+
+```text
+Défaut du type · Livre
+Défaut d'apparence · Classique
+```
+
+Une valeur explicite porte le badge `Variation` et propose l'action de retour
+au défaut. La provenance n'est pas une donnée supplémentaire : elle est
+calculée depuis la propriété normative des réglages et la recette active.
+
+## Vue Avancé
+
+La vue Avancé s'ouvre sur une page **Recette du document**. Elle reprend les
+deux sélecteurs de la vue Essentiel, résume le nombre de variations et explique
+les responsabilités respectives du type et de l'apparence avant d'exposer la
+matrice détaillée.
+
+Sa navigation reprend la même taxonomie :
+
+- **Type et mise en page** pour la page et sa structure ;
+- **Apparence typographique** pour les fontes et styles détaillés ;
+- **Éléments graphiques** pour les mathématiques, diagrammes et encadrés ;
+- les informations du document restent séparées.
+
+Chaque panneau détaillé commence par un rappel contextuel : soit
+`Mise en page héritée du type « … »`, soit `Apparence héritée de « … »`. Le
+panneau des informations précise au contraire que ses valeurs ne sont pas
+réinitialisées lors d'un changement de recette.
+
+Les vues Essentiel et Avancé ne constituent pas deux modèles de réglages. Elles
+éditent le même état et appliquent les mêmes règles de synchronisation.
 
 # Synchronisation
 

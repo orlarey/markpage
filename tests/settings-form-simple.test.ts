@@ -27,6 +27,10 @@ function mount(initialVariations: EssentialFrontmatterKey[] = []) {
     },
     getEssentialStyle: () => DEFAULT_ESSENTIAL_STYLE,
     getVariationKeys: () => variations,
+    getVariationCount: () =>
+      [...variations].filter(
+        (key) => key !== 'document-type' && key !== 'appearance',
+      ).length,
     onResetVariation: (key) => {
       variations = new Set(
         [...variations].filter((candidate) => candidate !== key),
@@ -61,6 +65,16 @@ describe('simplified settings form', () => {
       form.root.querySelector('.settings-view-switch button.active')
         ?.textContent,
     ).toBe('Essentiel');
+    expect(
+      [...form.root.querySelectorAll('section > h3')].map((h) =>
+        h.textContent?.trim(),
+      ),
+    ).toEqual([
+      'Recette du document',
+      'Type et mise en page',
+      'Apparence',
+      'Informations du document',
+    ]);
   });
 
   it('applies a document model through the first recipe selector', () => {
@@ -130,25 +144,52 @@ describe('simplified settings form', () => {
     expect(bodySize?.querySelector('.settings-origin-reset')).not.toBeNull();
     expect(density?.classList.contains('is-default')).toBe(true);
     expect(density?.querySelector('.settings-origin')?.textContent).toBe(
-      'Par défaut',
+      'Défaut d’apparence · Moderne',
     );
+    const alignment = fields.find((field) =>
+      field.textContent?.includes('Alignement du texte'),
+    );
+    expect(alignment?.querySelector('.settings-origin')?.textContent).toBe(
+      'Défaut du type · Rapport',
+    );
+    expect(
+      form.root.querySelector('.settings-recipe-summary')?.textContent,
+    ).toBe('Rapport + Moderne · 1 variation');
   });
 
   it('resets a variation by asking the document layer to remove its key', () => {
     const { form } = mount(['paragraphs']);
-    const field = [...form.root.querySelectorAll('.settings-origin-field')].find(
-      (row) => row.textContent?.includes('Séparation des paragraphes'),
-    );
+    const field = [
+      ...form.root.querySelectorAll('.settings-origin-field'),
+    ].find((row) => row.textContent?.includes('Séparation des paragraphes'));
 
-    field
-      ?.querySelector<HTMLButtonElement>('.settings-origin-reset')
-      ?.click();
+    field?.querySelector<HTMLButtonElement>('.settings-origin-reset')?.click();
 
     const refreshed = [
       ...form.root.querySelectorAll('.settings-origin-field'),
     ].find((row) => row.textContent?.includes('Séparation des paragraphes'));
     expect(refreshed?.classList.contains('is-default')).toBe(true);
     expect(refreshed?.querySelector('.settings-origin-reset')).toBeNull();
+    expect(refreshed?.querySelector('.settings-origin')?.textContent).toBe(
+      'Défaut du type · Rapport',
+    );
+  });
+
+  it('keeps document information outside the type and appearance domains', () => {
+    const { form, getSettings } = mount();
+    const metadata = form.root.querySelector('.settings-metadata-section');
+    const language = [...(metadata?.querySelectorAll('.field') ?? [])].find(
+      (field) => field.textContent?.includes('Langue du document'),
+    );
+    const select = language?.querySelector('select');
+
+    expect(metadata?.textContent).toContain(
+      'elles ne relèvent ni du type ni de l’apparence',
+    );
+    expect(language?.classList.contains('settings-origin-field')).toBe(false);
+    select!.value = 'en';
+    select!.dispatchEvent(new Event('change'));
+    expect(getSettings().language).toBe('en');
   });
 
   it('keeps the complete legacy matrix in the advanced view', () => {
@@ -164,8 +205,51 @@ describe('simplified settings form', () => {
     expect(form.root.querySelector('.settings-essential')).toBeNull();
     expect(form.root.querySelector('.settings-rail')).not.toBeNull();
     expect(
+      form.root.querySelector('.settings-rail .rail-item.active')?.textContent,
+    ).toBe('Recette du document');
+    expect(
+      form.root.querySelector('.settings-advanced-recipe')?.textContent,
+    ).toContain(
+      'La recette reste la source des valeurs détaillées présentées dans cette vue.',
+    );
+    expect(
+      form.root.querySelectorAll('.settings-advanced-recipe-card'),
+    ).toHaveLength(2);
+    expect(form.root.querySelector('.settings-rail')?.textContent).toContain(
+      'Type et mise en page',
+    );
+    expect(form.root.querySelector('.settings-rail')?.textContent).toContain(
+      'Apparence typographique',
+    );
+    expect(form.root.querySelector('.settings-rail')?.textContent).toContain(
+      'Informations du document',
+    );
+    expect(
       form.root.querySelectorAll('.settings-rail .rail-item').length,
     ).toBeGreaterThan(10);
     expect(localStorage.getItem('markpage:settings-view')).toBe('advanced');
+  });
+
+  it('labels advanced panels with their type or appearance provenance', () => {
+    const { form } = mount();
+    const advanced = [
+      ...form.root.querySelectorAll<HTMLButtonElement>(
+        '.settings-view-switch button',
+      ),
+    ].find((button) => button.textContent === 'Avancé');
+    advanced!.click();
+
+    const railButtons = [
+      ...form.root.querySelectorAll<HTMLButtonElement>('.rail-item'),
+    ];
+    railButtons.find((button) => button.textContent === 'Page')!.click();
+    expect(
+      form.root.querySelector('.settings-advanced-domain-notice')?.textContent,
+    ).toContain('Mise en page héritée du type « Rapport »');
+
+    railButtons.find((button) => button.textContent === 'Polices')!.click();
+    expect(
+      form.root.querySelector('.settings-advanced-domain-notice')?.textContent,
+    ).toContain('Apparence héritée de « Moderne »');
   });
 });

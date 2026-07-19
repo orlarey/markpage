@@ -194,6 +194,7 @@ import {
   settingsForRecipe,
   setExtendsInSource,
   setFrontmatterKeys,
+  styleVariationCount,
   type EssentialFrontmatterKey,
   writeStyleToLeaf,
 } from './stack-render';
@@ -2510,6 +2511,7 @@ async function bootstrap(): Promise<void> {
       },
       getEssentialStyle: () => essentialStyleFromSource(editor.getValue()),
       getVariationKeys: () => essentialFrontmatterKeys(editor.getValue()),
+      getVariationCount: () => styleVariationCount(editor.getValue()),
       onResetVariation: (key: EssentialFrontmatterKey) => {
         const cleaned = setFrontmatterKeys(
           editor.getValue(),

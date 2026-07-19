@@ -173,9 +173,12 @@ const FR = {
   'settings.view.essential': 'Essentiel',
   'settings.view.advanced': 'Avancé',
   'settings.essential.intro':
-    'Choisissez quelques intentions générales : markpage en déduit une hiérarchie, un rythme et une mise en page cohérents.',
-  'settings.essential.section.recipe': 'Style du document',
+    'Le type organise le document et sa page ; l’apparence définit son identité visuelle.',
+  'settings.essential.section.recipe': 'Recette du document',
   'settings.essential.section.reading': 'Lecture',
+  'settings.essential.section.layout': 'Type et mise en page',
+  'settings.essential.section.appearance': 'Apparence',
+  'settings.essential.section.metadata': 'Informations du document',
   'settings.essential.model': 'Type de document',
   'settings.essential.model.tech-note': 'Note technique',
   'settings.essential.model.report': 'Rapport',
@@ -185,6 +188,16 @@ const FR = {
   'settings.essential.model.slides': 'Présentation',
   'settings.essential.recipe-reset-warning':
     'Changer le type ou l’apparence réinitialise les variations de style.',
+  'settings.essential.recipe-summary.one':
+    '{type} + {appearance} · {count} variation',
+  'settings.essential.recipe-summary.many':
+    '{type} + {appearance} · {count} variations',
+  'settings.essential.layout-intro':
+    'Structure et géométrie héritées du type « {type} ».',
+  'settings.essential.appearance-intro':
+    'Typographie et identité visuelle héritées de l’apparence « {appearance} ».',
+  'settings.essential.metadata-intro':
+    'Ces informations décrivent le document ; elles ne relèvent ni du type ni de l’apparence.',
   'settings.essential.appearance': 'Apparence',
   'settings.essential.appearance.classic': 'Classique',
   'settings.essential.appearance.modern': 'Moderne',
@@ -206,10 +219,24 @@ const FR = {
   'settings.essential.pagination.outer': 'Bas extérieur',
   'settings.essential.custom': '— Personnalisé —',
   'settings.origin.default': 'Par défaut',
+  'settings.origin.type-default': 'Défaut du type · {value}',
+  'settings.origin.appearance-default': 'Défaut d’apparence · {value}',
   'settings.origin.variation': 'Variation',
   'settings.origin.reset': 'Revenir à la valeur par défaut',
   'settings.essential.advanced-hint':
     'Les réglages détaillés, les exceptions par élément, les polices personnalisées et les en-têtes restent disponibles dans la vue Avancé.',
+  'settings.advanced.recipe-intro':
+    'La recette reste la source des valeurs détaillées présentées dans cette vue.',
+  'settings.advanced.recipe.type-description':
+    'Détermine la structure, la géométrie de page et les conventions éditoriales.',
+  'settings.advanced.recipe.appearance-description':
+    'Détermine la typographie, les couleurs et le traitement visuel des éléments.',
+  'settings.advanced.domain.type':
+    'Mise en page héritée du type « {value} ». Toute modification devient une variation du document.',
+  'settings.advanced.domain.appearance':
+    'Apparence héritée de « {value} ». Toute modification devient une variation du document.',
+  'settings.advanced.domain.information':
+    'Ces informations décrivent le document et ne sont pas réinitialisées lors d’un changement de recette.',
   'settings.section.author-date': 'Auteur et date',
   'settings.section.page': 'Page',
   'settings.section.fonts': 'Polices',
@@ -346,10 +373,12 @@ const FR = {
   'math-font-set.asana': 'Asana Math (serif)',
   'math-font-set.tex': 'TeX classique',
   // ---- settings rail navigation groups -----------------------------
+  'rail.group.recipe': 'Recette',
   'rail.group.app': 'Application',
-  'rail.group.document': 'Document',
-  'rail.group.typography': 'Typographie',
-  'rail.group.content': 'Contenu',
+  'rail.group.document': 'Type et mise en page',
+  'rail.group.typography': 'Apparence typographique',
+  'rail.group.content': 'Éléments graphiques',
+  'rail.group.information': 'Informations du document',
   'rail.group.sync': 'Synchronisation',
   // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
   'settings.section.github': 'GitHub',
@@ -632,9 +661,12 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.view.essential': 'Essential',
   'settings.view.advanced': 'Advanced',
   'settings.essential.intro':
-    'Choose a few overall intentions; markpage derives a coherent hierarchy, rhythm and page layout.',
-  'settings.essential.section.recipe': 'Document style',
+    'The type organises the document and its page; the appearance defines its visual identity.',
+  'settings.essential.section.recipe': 'Document recipe',
   'settings.essential.section.reading': 'Reading',
+  'settings.essential.section.layout': 'Type and page layout',
+  'settings.essential.section.appearance': 'Appearance',
+  'settings.essential.section.metadata': 'Document information',
   'settings.essential.model': 'Document type',
   'settings.essential.model.tech-note': 'Technical note',
   'settings.essential.model.report': 'Report',
@@ -644,6 +676,16 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.essential.model.slides': 'Presentation',
   'settings.essential.recipe-reset-warning':
     'Changing the type or appearance resets style variations.',
+  'settings.essential.recipe-summary.one':
+    '{type} + {appearance} · {count} variation',
+  'settings.essential.recipe-summary.many':
+    '{type} + {appearance} · {count} variations',
+  'settings.essential.layout-intro':
+    'Structure and geometry inherited from the “{type}” document type.',
+  'settings.essential.appearance-intro':
+    'Typography and visual identity inherited from the “{appearance}” appearance.',
+  'settings.essential.metadata-intro':
+    'This information describes the document; it belongs to neither its type nor its appearance.',
   'settings.essential.appearance': 'Appearance',
   'settings.essential.appearance.classic': 'Classic',
   'settings.essential.appearance.modern': 'Modern',
@@ -665,10 +707,24 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.essential.pagination.outer': 'Bottom outer',
   'settings.essential.custom': '— Custom —',
   'settings.origin.default': 'Default',
+  'settings.origin.type-default': 'Type default · {value}',
+  'settings.origin.appearance-default': 'Appearance default · {value}',
   'settings.origin.variation': 'Variation',
   'settings.origin.reset': 'Reset to the default value',
   'settings.essential.advanced-hint':
     'Detailed settings, per-element exceptions, custom fonts and running headers remain available in Advanced view.',
+  'settings.advanced.recipe-intro':
+    'The recipe remains the source of the detailed values shown in this view.',
+  'settings.advanced.recipe.type-description':
+    'Defines structure, page geometry and editorial conventions.',
+  'settings.advanced.recipe.appearance-description':
+    'Defines typography, colours and the visual treatment of elements.',
+  'settings.advanced.domain.type':
+    'Page layout inherited from the “{value}” type. Any change becomes a document variation.',
+  'settings.advanced.domain.appearance':
+    'Appearance inherited from “{value}”. Any change becomes a document variation.',
+  'settings.advanced.domain.information':
+    'This information describes the document and is not reset when the recipe changes.',
   'settings.section.author-date': 'Author and date',
   'settings.section.page': 'Page',
   'settings.section.fonts': 'Fonts',
@@ -804,10 +860,12 @@ const EN: Record<keyof typeof FR, string> = {
   'math-font-set.asana': 'Asana Math (serif)',
   'math-font-set.tex': 'Classic TeX',
   // ---- settings rail navigation groups -----------------------------
+  'rail.group.recipe': 'Recipe',
   'rail.group.app': 'Application',
-  'rail.group.document': 'Document',
-  'rail.group.typography': 'Typography',
-  'rail.group.content': 'Content',
+  'rail.group.document': 'Type and page layout',
+  'rail.group.typography': 'Typographic appearance',
+  'rail.group.content': 'Graphic elements',
+  'rail.group.information': 'Document information',
   'rail.group.sync': 'Sync',
   // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
   'settings.section.github': 'GitHub',

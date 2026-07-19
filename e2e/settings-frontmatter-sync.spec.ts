@@ -31,8 +31,15 @@ test('essential settings and frontmatter remain strictly aligned', async ({
       hasText: 'Taille du corps',
     });
 
+  await expect(settings.locator('.settings-recipe-summary')).toHaveText(
+    'Rapport + Moderne · 0 variations',
+  );
+  await expect(settings.locator('.settings-essential-domain > h3')).toHaveText([
+    'Type et mise en page',
+    'Apparence',
+  ]);
   await expect(bodySizeField().locator('.settings-origin')).toHaveText(
-    'Par défaut',
+    'Défaut d’apparence · Moderne',
   );
   await expect(bodySizeField().locator('input[type="number"]')).toHaveValue(
     '11',
@@ -43,6 +50,9 @@ test('essential settings and frontmatter remain strictly aligned', async ({
   await expect(bodySizeField().locator('.settings-origin')).toHaveText(
     'Variation',
   );
+  await expect(settings.locator('.settings-recipe-summary')).toHaveText(
+    'Rapport + Moderne · 1 variation',
+  );
 
   await replaceDocument(page, '# Synchronisation');
 
@@ -50,7 +60,7 @@ test('essential settings and frontmatter remain strictly aligned', async ({
     '11',
   );
   await expect(bodySizeField().locator('.settings-origin')).toHaveText(
-    'Par défaut',
+    'Défaut d’apparence · Moderne',
   );
   await expect(page.locator('.cm-content')).not.toContainText('body-size:');
 });
@@ -97,12 +107,14 @@ test('changing recipe resets variations as one undoable document edit', async ({
   );
   await expect(bodySizeField.locator('input[type="number"]')).toHaveValue('11');
   await expect(bodySizeField.locator('.settings-origin')).toHaveText(
-    'Par défaut',
+    'Défaut d’apparence · Classique',
   );
 
   await settings.keyboard.press('ControlOrMeta+z');
 
-  await expect(page.locator('.cm-content')).toContainText('document-type: book');
+  await expect(page.locator('.cm-content')).toContainText(
+    'document-type: book',
+  );
   await expect(page.locator('.cm-content')).toContainText('body-size: 9');
   await expect(page.locator('.cm-content')).toContainText(
     'styles.h1.color: "#ff0000"',
@@ -119,4 +131,34 @@ test('changing recipe resets variations as one undoable document edit', async ({
   );
   await expect(page.locator('.cm-content')).not.toContainText('body-size:');
   await expect(bodySizeField.locator('input[type="number"]')).toHaveValue('11');
+});
+
+test('advanced settings expose recipe, layout, appearance and information domains', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await replaceDocument(page, '# Réglages avancés');
+  const settings = await openSettings(page);
+
+  await settings.getByRole('button', { name: 'Avancé' }).click();
+  await expect(settings.locator('.rail-item.active')).toHaveText(
+    'Recette du document',
+  );
+  await expect(settings.locator('.settings-advanced-recipe-card')).toHaveCount(
+    2,
+  );
+  await expect(settings.locator('.rail-group-title')).toHaveText([
+    'Recette',
+    'Type et mise en page',
+    'Apparence typographique',
+    'Éléments graphiques',
+    'Informations du document',
+    'Application',
+    'Synchronisation',
+  ]);
+
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  await expect(settings.locator('.settings-advanced-domain-notice')).toContainText(
+    'Mise en page héritée du type « Rapport »',
+  );
 });

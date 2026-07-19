@@ -167,6 +167,22 @@ export const DETAILED_STYLE_KEYS = new Set([
   'markpage-profile',
 ]);
 
+/** Count local style overrides, excluding the two coordinates of the recipe. */
+export function styleVariationCount(source: string): number {
+  const fm = parseStackDoc(source, '__leaf__').frontmatter;
+  const variationKeys = new Set([
+    ...[...SEMANTIC_STYLE_KEYS].filter(
+      (key) => key !== 'document-type' && key !== 'appearance',
+    ),
+    ...DETAILED_STYLE_KEYS,
+  ]);
+  let count = 0;
+  for (const key of fm.keys()) {
+    if (variationKeys.has(key) || key.startsWith('styles.')) count += 1;
+  }
+  return count;
+}
+
 /**
  * Replace the leaf's complete local style with one recipe selection.
  * Metadata, body content and the `extends` relation are preserved. Every

@@ -12,6 +12,7 @@ import {
   resetStyleRecipeInLeaf,
   setExtendsInSource,
   setFrontmatterKeys,
+  styleVariationCount,
   writeStyleToLeaf,
 } from '../src/stack-render';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
@@ -83,6 +84,25 @@ describe('resetStyleRecipeInLeaf', () => {
     expect(parsed.frontmatter.has('appearance')).toBe(false);
     expect(parsed.frontmatter.has('paragraphs')).toBe(false);
     expect(parsed.body).toBe('Texte');
+  });
+});
+
+describe('styleVariationCount', () => {
+  it('counts essential and detailed overrides but not recipe coordinates or metadata', () => {
+    const source = [
+      '---',
+      'title: Exemple',
+      'document-type: book',
+      'appearance: classic',
+      'body-size: 9',
+      'font-body: Lora',
+      'styles.h1.color: "#ff0000"',
+      '---',
+      '',
+      '# Titre',
+    ].join('\n');
+
+    expect(styleVariationCount(source)).toBe(3);
   });
 });
 
