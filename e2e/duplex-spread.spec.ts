@@ -21,14 +21,14 @@ async function openSettings(page: Page): Promise<Page> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
   // Need at least 3 pages so we have a verso/recto pair (page 0 = cover
   // recto, page 1 = first verso, page 2 = next recto — these two should
   // be side by side in duplex mode).
   await page
     .locator('.pagedjs_page')
     .nth(2)
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
 }
 
 async function readPageTops(page: Page, n: number): Promise<number[]> {

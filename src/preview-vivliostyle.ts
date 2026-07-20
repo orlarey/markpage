@@ -72,10 +72,27 @@ function installHostFixes(): void {
   document.head.appendChild(fix);
 }
 
+/** Map Vivliostyle's box tree onto the paged.js class vocabulary that
+ *  pagedCss() and the app's own stylesheets already speak.
+ *
+ *  These class names are NOT paged.js leftovers to be renamed: they are the
+ *  contract between the layout engine and everything downstream — derived
+ *  margins (gutters on the content box), duplex mirroring, sidenotes, page
+ *  backdrops, debug guides, the preview chrome. Re-emitting them here keeps
+ *  one vocabulary for both engines instead of forking every stylesheet. */
+const BOX_COMPAT: ReadonlyArray<readonly [string, string]> = [
+  ['[data-vivliostyle-page-box]', 'pagedjs_pagebox'],
+  // The area CONTAINER is the real content box (513x564 for A4 with derived
+  // margins); page-area/column are the full-bleed wrappers around it.
+  ['[data-vivliostyle-page-area-container]', 'pagedjs_page_content'],
+];
+
 /** Turn CoreViewer's one-visible-page viewer layout into markpage's scrolled
- *  stack: unhide every page, put the wrapper chain back into normal flow, and
- *  tag pages `pagedjs_page` so the app chrome/zoom applies. Safe because the
- *  viewer is frozen after load (autoResize: false, no navigation UI). */
+ *  stack, and re-emit the paged.js class vocabulary (see BOX_COMPAT): unhide
+ *  every page, put the wrapper chain back into normal flow, tag pages
+ *  `pagedjs_page` (+ recto/verso) so the app chrome, zoom and page CSS apply.
+ *  Safe because the viewer is frozen after load (autoResize: false, no
+ *  navigation UI). */
 function linearizePages(renderTo: HTMLElement): void {
   for (const sel of [
     '[data-vivliostyle-viewer-viewport]',
@@ -92,12 +109,25 @@ function linearizePages(renderTo: HTMLElement): void {
     // block turns the run into the vertical stack the preview pane scrolls.
     el.style.display = 'block';
   }
+  const spread = renderTo.querySelector<HTMLElement>(
+    '[data-vivliostyle-spread-container]',
+  );
+  spread?.classList.add('pagedjs_pages');
   for (const pg of renderTo.querySelectorAll<HTMLElement>(
     '[data-vivliostyle-page-container]',
   )) {
     pg.classList.add('pagedjs_page');
+    // Recto / verso — duplex mirroring and margin-slot swapping key on these.
+    pg.classList.add(
+      pg.getAttribute('data-vivliostyle-page-side') === 'left'
+        ? 'pagedjs_left_page'
+        : 'pagedjs_right_page',
+    );
     pg.style.display = 'block';
     pg.style.margin = ''; // let `.pagedjs_page { margin: 0 auto 24px }` center it
+    for (const [sel, cls] of BOX_COMPAT) {
+      pg.querySelector(sel)?.classList.add(cls);
+    }
   }
 }
 

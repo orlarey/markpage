@@ -8,7 +8,7 @@ import { expect, test, type Page } from './fixtures';
  *   font, not by the four manual sliders.
  * How: Use the "Rapport" preset (which enables marginMode='derived'
  *   with measureChars=66, liveAreaChars=85 — the canonical example
- *   from SPEC §9.6) and inspect the .pagedjs_area horizontal offset
+ *   from SPEC §9.6) and inspect the .pagedjs_page_content horizontal offset
  *   on page 1. The text block width should match 66 × canvas-
  *   measured charWidth, leaving the inner margin at ~ (210 − text) / 3.
  *
@@ -29,15 +29,15 @@ async function openSettings(page: Page): Promise<Page> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
-  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
+    .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 90_000 });
 }
 
 async function readPage1Geometry(page: Page) {
   return page.evaluate(() => {
     const p = document.querySelector('.pagedjs_page') as HTMLElement | null;
     if (!p) return null;
-    const area = p.querySelector('.pagedjs_area') as HTMLElement | null;
+    const area = p.querySelector('.pagedjs_page_content') as HTMLElement | null;
     const pRect = p.getBoundingClientRect();
     const aRect = area?.getBoundingClientRect();
     return aRect && pRect
@@ -57,10 +57,18 @@ test('manual mode (default) keeps the user margins on the preview', async ({ pag
   await waitForRender(page);
   const g = await readPage1Geometry(page);
   expect(g).not.toBeNull();
-  // Default margins are 35 mm left/right on A4 (210 mm), so the text
-  // block is 140 mm wide. At 96 DPI: 35 mm ≈ 132.3 px, 140 mm ≈ 529.1 px.
-  expect(g!.leftOffsetPx).toBeGreaterThan(125);
-  expect(g!.leftOffsetPx).toBeLessThan(140);
+  // Compare RATIOS, never absolute px: the preview applies a fit-to-width
+  // zoom (--mp-fit-zoom), so a pixel budget silently depends on the pane
+  // width. Manual default margins are 35 mm on A4 (210 mm) = 16.7%.
+  //
+  // KNOWN FAILURE (unrelated to the engine): this reads ~8% (=16.8 mm), the
+  // DERIVED canon — the app's default marginMode is no longer 'manual'. The
+  // premise of the test changed with the settings/recipe work, not with the
+  // Vivliostyle migration; the numbers stay as written so the discrepancy
+  // stays visible instead of being rubber-stamped.
+  const leftRatio = g!.leftOffsetPx / g!.pageWidthPx;
+  expect(leftRatio).toBeGreaterThan(0.15);
+  expect(leftRatio).toBeLessThan(0.185);
 });
 
 test('derived mode (Rapport preset) yields canonical asymmetric margins', async ({

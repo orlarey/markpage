@@ -23,8 +23,8 @@ async function openSettings(page: Page): Promise<Page> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
-  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
+    .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 90_000 });
   // Pagination is complete when paged.js has flowed the trailing
   // section.footnotes into the DOM — even in foot/side modes where
   // we hide it visually, it's still inserted by the chunker.

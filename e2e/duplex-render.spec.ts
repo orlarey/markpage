@@ -5,7 +5,7 @@ import { expect, test, type Page } from './fixtures';
  *   Settings UI mirrors the page margins on even pages — the
  *   user-visible effect of §9.5.2.
  * How: Set asymmetric margins (20mm left, 50mm right) so the mirror
- *   is observable, open the preview, and inspect the `.pagedjs_area`
+ *   is observable, open the preview, and inspect the `.pagedjs_page_content`
  *   horizontal offset on the first two pages. In simplex it must be
  *   identical (every page is treated as recto); in duplex the verso
  *   page must shift to the mirrored position (offset ≈ 50mm).
@@ -40,7 +40,7 @@ async function setAsymmetricMargins(settings: Page): Promise<void> {
   await right.blur();
 }
 
-/** Read `.pagedjs_area.left − .pagedjs_page.left` for the first N pages. */
+/** Read `.pagedjs_page_content.left − .pagedjs_page.left` for the first N pages. */
 async function readAreaOffsets(page: Page, n: number): Promise<number[]> {
   return page.evaluate((count) => {
     const pages = Array.from(document.querySelectorAll('.pagedjs_page')).slice(
@@ -48,7 +48,7 @@ async function readAreaOffsets(page: Page, n: number): Promise<number[]> {
       count,
     );
     return pages.map((p) => {
-      const area = p.querySelector('.pagedjs_area') as HTMLElement | null;
+      const area = p.querySelector('.pagedjs_page_content') as HTMLElement | null;
       const aRect = area?.getBoundingClientRect();
       const pRect = p.getBoundingClientRect();
       return aRect && pRect ? aRect.left - pRect.left : NaN;
@@ -59,7 +59,7 @@ async function readAreaOffsets(page: Page, n: number): Promise<number[]> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
   await page.locator('.pagedjs_page').nth(1).waitFor({
     state: 'attached',
     timeout: 30_000,

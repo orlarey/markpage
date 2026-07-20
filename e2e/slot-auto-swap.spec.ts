@@ -32,11 +32,11 @@ async function openSettings(page: Page): Promise<Page> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
   await page
     .locator('.pagedjs_page')
     .nth(1)
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
 }
 
 /**

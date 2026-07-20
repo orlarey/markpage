@@ -1533,11 +1533,13 @@ function buildBodyPaddingCss(
   // Scope to .pagedjs_page_content (paged.js's content wrapper). The
   // `scope` prefix (`:where(#preview-pane, ...)`) keeps these rules
   // from leaking outside the paginated containers.
-  // #mp-viv-root is the body of the standalone document handed to
-  // Vivliostyle (preview-vivliostyle.ts): there is no .pagedjs_page_content
-  // wrapper there, so the gutters are carried by the body itself. Without
-  // this the text spans the full live area and the two-rectangle §9.6
-  // geometry collapses. Duplex refinement (mirrored gutters) is a known gap.
+  // Two selectors, two worlds — both required:
+  //  - `.pagedjs_page_content` is the content box paged.js creates, and the
+  //    class linearizePages() re-emits on Vivliostyle's page area container.
+  //    Host-side rules (backdrops, guides, chrome) key on it.
+  //  - `#mp-viv-root` is the body of the standalone document Vivliostyle lays
+  //    out. Gutters must exist THERE to affect the text flow: applying them to
+  //    the host copy after layout would not re-wrap a single line.
   if (!duplex) {
     return (
       `${scope} .pagedjs_page_content { ${rectoPadding} }\n` +

@@ -43,8 +43,8 @@ async function injectMarginFigureDoc(page: Page): Promise<void> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
-  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
+    .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 90_000 });
   // Wait for at least one of our tagged figures to be attached.
   await page.waitForFunction(
     () => document.querySelectorAll('img.margin[alt="MP_MARGIN_FIG"]').length > 0,

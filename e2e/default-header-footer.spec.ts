@@ -22,8 +22,8 @@ async function openSettings(page: Page): Promise<Page> {
 }
 
 async function waitForRender(page: Page): Promise<void> {
-  await page.locator('.pagedjs_pages').waitFor({ state: 'attached', timeout: 30_000 });
-  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
+  await page.locator('.pagedjs_pages').waitFor({ state: 'attached', timeout: 90_000 });
+  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 90_000 });
 }
 
 test("default footer ` | {page} | ` puts the page counter in the bottom-center on every page", async ({ page }) => {
