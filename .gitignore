@@ -20,3 +20,7 @@ PAT
 
 # render-corpus webview screenshots (artifacts)
 vscode/test/__shots__/
+
+# Local reproduction material for bug reports: real user documents that must
+# never be versioned or published. Kept on disk, never in git.
+bugs/
