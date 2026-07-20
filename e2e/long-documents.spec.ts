@@ -62,6 +62,41 @@ for (const { file, label } of DOCS) {
   });
 }
 
+test('body text is justified and hyphenated; code is neither', async ({
+  page,
+}) => {
+  const markdown = readFileSync(join(process.cwd(), 'SHOWCASE.md'), 'utf8');
+  await renderDoc(page, markdown);
+
+  // Justification and hyphenation are inherited from the page container, so
+  // they leak into preformatted content unless something stops them. They did:
+  // code blocks came out justified AND hyphenated, breaking identifiers across
+  // lines ("attributes_of_dependencies" → "cur-rent"). Nothing failed — the
+  // document paginated cleanly — which is exactly why this needs its own guard.
+  const styles = await page.evaluate(() => {
+    const read = (el: Element | null) =>
+      el
+        ? {
+            align: getComputedStyle(el).textAlign,
+            hyphens: getComputedStyle(el).hyphens,
+          }
+        : null;
+    return {
+      pre: read(document.querySelector('.pagedjs_page pre')),
+      code: read(document.querySelector('.pagedjs_page pre > code')),
+      paragraph: read(
+        [...document.querySelectorAll('.pagedjs_page p')].find(
+          (e) => (e.textContent || '').length > 200,
+        ) ?? null,
+      ),
+    };
+  });
+
+  expect(styles.paragraph).toEqual({ align: 'justify', hyphens: 'auto' });
+  expect(styles.pre).toEqual({ align: 'left', hyphens: 'none' });
+  expect(styles.code).toEqual({ align: 'left', hyphens: 'none' });
+});
+
 test('letter: logo, sender, recipient and signature all render', async ({
   page,
 }) => {

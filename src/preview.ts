@@ -213,6 +213,20 @@ export function applyPreviewStyles(settings: PdfSettings): void {
        per-element typography (family/fontSize/color/margins) that
        overrides the code-inline rule above for <pre> specifically.
        Tree SVG diagrams and algorithm listings share the same frame. */
+    /* Preformatted content must escape the body's justification AND its
+       hyphenation. Both are inherited from the page container, and both are
+       wrong here: justifying code stretches its inter-token spaces into a
+       ragged right edge, and hyphenation breaks identifiers across lines
+       (attributes_of_dependencies became "cur-rent"). Only visible once
+       justified became the default alignment. */
+    #preview-pane :is(pre, code, kbd, samp),
+    #preview-pane .algorithm,
+    #preview-pane .algorithm-code {
+      text-align: left;
+      hyphens: none;
+      -webkit-hyphens: none;
+    }
+
     #preview-pane pre,
     #preview-pane .tree-svg-wrap,
     #preview-pane .algorithm { ${blockBoxCss(s['code-block'])} ${inlineCss(s['code-block'])} }

@@ -1171,6 +1171,20 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .tree-svg-wrap,
     ${SCOPE} .algorithm { ${blockBoxCss(styles['code-block'])} ${inlineCss(styles['code-block'])} }
 
+    /* Preformatted content must escape the body's justification AND its
+       hyphenation. Both are inherited from the page container, and both are
+       wrong here: justifying code stretches its inter-token spaces into a
+       ragged right edge, and hyphenation breaks identifiers across lines
+       (attributes_of_dependencies became "cur-rent"). Only visible once
+       justified became the default alignment. */
+    ${SCOPE} :is(pre, code, kbd, samp),
+    ${SCOPE} .algorithm,
+    ${SCOPE} .algorithm-code {
+      text-align: left;
+      hyphens: none;
+      -webkit-hyphens: none;
+    }
+
     /* Long-<pre> fragments emitted by splitLongPreBlocks (cf. pre-split.ts).
        Suppress the box seam between adjacent chunks so the multi-page
        render reads as a single continuous block. */
