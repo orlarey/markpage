@@ -79,39 +79,71 @@ test('manual mode honours the four mm margins on the preview', async ({
   expect(leftRatio).toBeLessThan(0.185);
 });
 
-test('derived mode (Rapport preset) yields canonical asymmetric margins', async ({
+test('derived mode, single-sided: the canonical block is CENTRED', async ({
   page,
 }) => {
   await page.goto('/');
-  // Apply the "Rapport" preset which sets marginMode='derived',
-  // measureChars=66, liveAreaChars=85, duplex=false, chapterBreak='none',
-  // notes.position='foot'.
+  // "Rapport" sets marginMode='derived', measureChars=66, liveAreaChars=85,
+  // duplex=false.
   const settings = await openSettings(page);
   await settings.getByRole('button', { name: 'Page', exact: true }).click();
-  const presetSelect = settings.getByText('Préréglage').locator('xpath=following-sibling::select');
-  await presetSelect.selectOption({ label: 'Rapport' });
+  await settings
+    .getByText('Préréglage')
+    .locator('xpath=following-sibling::select')
+    .selectOption({ label: 'Rapport' });
 
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
-  // Give paged.js a moment after the settings change to repaginate.
   await page.waitForTimeout(500);
 
   const g = await readPage1Geometry(page);
   expect(g).not.toBeNull();
+  const left = g!.leftOffsetPx;
+  const right = g!.pageWidthPx - left - g!.widthPx;
 
-  // The Van de Graaf canonical text block places the inner margin and
-  // the outer margin in the ratio 1:2 (§9.6.4) — strictly different.
-  // This is the signature of derived mode: manual default is 35/35
-  // (symmetric), derived gives inner < outer regardless of font.
-  const leftOffsetPx = g!.leftOffsetPx;
-  const rightOffsetPx = g!.pageWidthPx - leftOffsetPx - g!.widthPx;
-  // Inner (= left on the recto, default treatment) must be strictly
-  // smaller than outer.
-  expect(leftOffsetPx).toBeLessThan(rightOffsetPx);
-  // The ratio target is 2 (outer / inner). Loose tolerance because of
-  // sub-pixel rounding and the canvas-measured charWidth diverging
-  // from the 0.5 em heuristic on whatever font is actually loaded.
-  expect(rightOffsetPx / leftOffsetPx).toBeGreaterThan(1.5);
-  expect(rightOffsetPx / leftOffsetPx).toBeLessThan(2.5);
+  // This assertion used to demand the 1:2 asymmetry here, and failed. It was
+  // wrong, not the app: a single-sided document has no spine, so
+  // centerCanonicalHorizontally() centres the canonical rectangles and keeps
+  // the classical inner/outer asymmetry for facing pages only. Simplex derived
+  // margins are therefore EQUAL by design.
+  expect(Math.abs(left - right) / g!.pageWidthPx).toBeLessThan(0.01);
+
+  // Still unmistakably the canon rather than the manual 35 mm default
+  // (= 16.7% of A4): the derived block is markedly wider.
+  expect(left / g!.pageWidthPx).toBeLessThan(0.14);
+});
+
+test('derived mode, duplex: the canon regains its inner/outer asymmetry', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const settings = await openSettings(page);
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  await settings
+    .getByText('Préréglage')
+    .locator('xpath=following-sibling::select')
+    .selectOption({ label: 'Rapport' });
+  // Facing pages: the spine reappears, and with it the 1:2 canon.
+  await settings
+    .getByText('Recto-verso')
+    .locator('xpath=following-sibling::input')
+    .check();
+
+  await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
+  await waitForRender(page);
+  await page.waitForTimeout(500);
+
+  const g = await readPage1Geometry(page);
+  expect(g).not.toBeNull();
+  const inner = g!.leftOffsetPx;
+  const outer = g!.pageWidthPx - inner - g!.widthPx;
+
+  // Page 1 is a recto: inner margin (spine side) on the left, strictly
+  // smaller than the outer. Loose bounds — the canon is computed from a
+  // canvas-measured character width, not from a fixed ratio.
+  expect(inner).toBeLessThan(outer);
+  expect(outer / inner).toBeGreaterThan(1.5);
+  expect(outer / inner).toBeLessThan(2.5);
 });
