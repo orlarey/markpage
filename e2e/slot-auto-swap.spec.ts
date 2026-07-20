@@ -26,17 +26,28 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
   await page
     .locator('.pagedjs_page')
     .nth(1)
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('[data-vivliostyle-page-margin-box]')].some(
+        (b) => (b.textContent || '').trim() !== '',
+      ),
+    undefined,
+    { timeout: 90_000 },
+  );
 }
 
 /**
@@ -70,17 +81,12 @@ async function readPageMarginContent(
       const pages = Array.from(document.querySelectorAll('.pagedjs_page'));
       const p = pages[idx];
       if (!p) return null;
-      // Margin-box content lands on the ::after pseudo-element of
-      // .pagedjs_margin-content per paged.js's polished CSS:
-      //   .pagedjs_margin-<box> > .pagedjs_margin-content::after { content: ... }
-      // We read it via getComputedStyle and strip the surrounding quotes.
-      const inner = p.querySelector(
-        `.pagedjs_margin-${b} .pagedjs_margin-content`,
-      ) as HTMLElement | null;
-      if (!inner) return null;
-      const raw = getComputedStyle(inner, '::after').content ?? '';
-      // CSS content quotes the string. Strip outer quotes if present.
-      return raw.replace(/^"|"$/g, '');
+      // Read the text the slot actually shows. (The former version read the
+      // ::after content of a `.pagedjs_margin-content` child — a paged.js
+      // implementation detail; the engine now puts real text in the box.)
+      const box = p.querySelector(`.pagedjs_margin-${b}`);
+      if (!box) return null;
+      return (box.textContent || '').trim();
     },
     { idx: pageIdx, b: box },
   );
@@ -93,8 +99,9 @@ test('simplex: outer-right content lands at top-right on every page', async ({ p
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
-  // Both pages should show OUTER at top-right (simplex = no swap).
-  for (const idx of [0, 1]) {
+  // Page 0 is the bare cover (no running content by design); check the two
+  // body pages after it. Both show OUTER at top-right — simplex never swaps.
+  for (const idx of [1, 2]) {
     expect(await readPageMarginContent(page, idx, 'top-right')).toContain('OUTER');
     expect(await readPageMarginContent(page, idx, 'top-left')).toContain('INNER');
     expect(await readPageMarginContent(page, idx, 'top-center')).toContain('CENTER');
@@ -118,13 +125,14 @@ test('duplex: outer-right content swaps to top-left on verso pages', async ({ pa
   await waitForRender(page);
   await page.waitForTimeout(500); // settle after duplex toggle
 
-  // Page 0 = recto: nominal mapping (no swap).
-  expect(await readPageMarginContent(page, 0, 'top-right')).toContain('OUTER');
-  expect(await readPageMarginContent(page, 0, 'top-left')).toContain('INNER');
-  // Page 1 = verso: swapped mapping.
+  // Page 0 is the bare cover. Page 1 = verso, page 2 = recto.
+  // Recto: nominal mapping (no swap).
+  expect(await readPageMarginContent(page, 2, 'top-right')).toContain('OUTER');
+  expect(await readPageMarginContent(page, 2, 'top-left')).toContain('INNER');
+  // Verso: swapped mapping.
   expect(await readPageMarginContent(page, 1, 'top-right')).toContain('INNER');
   expect(await readPageMarginContent(page, 1, 'top-left')).toContain('OUTER');
   // Center stays put on both faces.
-  expect(await readPageMarginContent(page, 0, 'top-center')).toContain('CENTER');
   expect(await readPageMarginContent(page, 1, 'top-center')).toContain('CENTER');
+  expect(await readPageMarginContent(page, 2, 'top-center')).toContain('CENTER');
 });

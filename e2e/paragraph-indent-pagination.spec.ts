@@ -15,6 +15,8 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settings = await popupPromise;
   await settings.waitForLoadState();
+  // Stay on the « Essentiel » form: that is where « Séparation des
+  // paragraphes » lives. Switching to « Avancé » navigates away from it.
   return settings;
 }
 
@@ -62,21 +64,37 @@ test('first-line indent keeps the complete multi-page pagination', async ({
   await expect(page.locator('.pagedjs_page h2', { hasText: 'Section 12' }))
     .toBeAttached();
 
-  const indentState = await page.evaluate(() => ({
-    spacers: document.querySelectorAll(
-      '.pagedjs_page_content .mp-first-line-indent',
-    ).length,
-    continuationSpacers: document.querySelectorAll(
-      '.pagedjs_page_content p[data-split-from] .mp-first-line-indent',
-    ).length,
-  }));
-  expect(indentState.spacers).toBeGreaterThan(0);
-  expect(indentState.continuationSpacers).toBe(0);
+  // First-line indent is now native: `text-indent` on the paragraph, fragmented
+  // by the engine. The former assertions counted `.mp-first-line-indent` spacer
+  // spans and `p[data-split-from]` markers — a paged.js-era mitigation (its
+  // injector, insertParagraphIndentSpacers, has been removed as dead code) and
+  // a paged.js-internal attribute. What matters is the typographic result: the
+  // paragraphs carry a real indent.
+  // First-line indent is now native: `text-indent` on the paragraph, fragmented
+  // by the engine. The former assertions counted `.mp-first-line-indent` spacer
+  // spans and `p[data-split-from]` markers — a paged.js-era mitigation (its
+  // injector, insertParagraphIndentSpacers, has been removed as dead code) and
+  // a paged.js-internal attribute.
+  //
+  // A paragraph OPENING a section is not indented; the ones that follow it are.
+  // That contrast is the whole typographic point, so assert both halves.
+  const indents = await page.evaluate(() => {
+    const ps = [...document.querySelectorAll('.pagedjs_page_content p')];
+    const first = ps[0];
+    const cont = ps.find((p) => p.classList.contains('mp-paragraph-continuation'));
+    return {
+      first: first ? parseFloat(getComputedStyle(first).textIndent) : NaN,
+      continuation: cont ? parseFloat(getComputedStyle(cont).textIndent) : NaN,
+    };
+  });
+  expect(indents.first).toBe(0);
+  expect(indents.continuation).toBeGreaterThan(0);
 
-  const overflow = await page.locator('.pagedjs_page_content').evaluateAll(
-    (contents) => contents.some(
-      (content) => content.scrollHeight > content.clientHeight + 1,
-    ),
-  );
-  expect(overflow).toBe(false);
+  // No overflow check here any more. It compared scrollHeight to clientHeight
+  // on `.pagedjs_page_content`, which was paged.js's clipping box; under
+  // Vivliostyle that element is the page-area CONTAINER and is structurally
+  // shorter than its column child — every page reports the same 992 vs 732 with
+  // `overflow: visible`, whatever the content. The invariant it stood for
+  // (nothing lost, nothing out of bounds) is asserted for real by
+  // e2e/vivliostyle-spike.spec.ts.
 });

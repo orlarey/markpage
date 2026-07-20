@@ -68,7 +68,7 @@ export const DEFAULT_ESSENTIAL_STYLE: EssentialStyle = {
   density: 'normal',
   bodySize: 11,
   paragraphs: 'spacing',
-  alignment: 'left',
+  alignment: 'justify',
   accent: '#09438b',
   pagination: 'center',
   notes: 'foot',
@@ -96,7 +96,7 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     duplex: false,
     chapterBreak: 'none',
     notesPosition: 'foot',
-    alignment: 'left',
+    alignment: 'justify',
   },
   report: {
     pageSize: 'A4',
@@ -106,7 +106,7 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     duplex: false,
     chapterBreak: 'none',
     notesPosition: 'foot',
-    alignment: 'left',
+    alignment: 'justify',
   },
   paper: {
     pageSize: 'A4',
@@ -116,7 +116,7 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     duplex: false,
     chapterBreak: 'none',
     notesPosition: 'end',
-    alignment: 'left',
+    alignment: 'justify',
   },
   book: {
     pageSize: 'B5',
@@ -126,7 +126,7 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     duplex: true,
     chapterBreak: 'next-recto',
     notesPosition: 'foot',
-    alignment: 'left',
+    alignment: 'justify',
   },
   letter: {
     pageSize: 'A4',
@@ -137,7 +137,7 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     duplex: false,
     chapterBreak: 'none',
     notesPosition: 'end',
-    alignment: 'left',
+    alignment: 'justify',
     pagination: 'none',
   },
   slides: {
@@ -149,6 +149,8 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     duplex: false,
     chapterBreak: 'none',
     notesPosition: 'end',
+    // Slides are the exception to markpage's justified default: their lines
+    // are short, and justifying a short measure opens visible rivers of white.
     alignment: 'left',
   },
 };

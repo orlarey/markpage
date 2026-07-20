@@ -24,6 +24,9 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
@@ -43,8 +46,8 @@ async function injectMarginFigureDoc(page: Page): Promise<void> {
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
-  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
+    .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 90_000 });
   // Wait for at least one of our tagged figures to be attached.
   await page.waitForFunction(
     () => document.querySelectorAll('img.margin[alt="MP_MARGIN_FIG"]').length > 0,

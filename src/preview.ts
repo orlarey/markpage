@@ -87,6 +87,23 @@ export function applyPreviewMetadata(
 ): void {
   target.querySelector('.preview-metadata')?.remove();
 
+  // Document types with no cover (a letter) get no identity block: without
+  // this, a letter carrying only `document-type: letter` opened on a page
+  // showing the profile's placeholder author and organization.
+  // A letterhead document carries its own identity: the `sender` block names
+  // who is writing, with address and legal identifiers. A generated cover would
+  // restate it — and, with the profile's placeholder author and organization,
+  // restate it WRONGLY: a letter whose frontmatter is just
+  // `document-type: letter` opened on a page reading "Prénom Nom / Mon
+  // organisation".
+  //
+  // Keyed on the letterhead rather than on the document type on purpose: the
+  // type is a semantic shorthand expanded into concrete style keys when the
+  // document is written, so it is not available here — settings are derived
+  // from the flattened stack patch, which has no notion of "letter". The
+  // presence of a sender block is both available and more truthful.
+  if (target.querySelector('.letterhead-sender, .letterhead-recipient')) return;
+
   const lines = metadataLines(settings, frontmatter);
   if (lines.length === 0) return;
 
@@ -169,7 +186,13 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     document.head.appendChild(el);
   }
   const s = settings.styles;
-  const align = s.body.align ?? 'left';
+  // Justified is markpage's default body alignment; left is the exception.
+  // This fallback only fires for a document whose style omits `align`.
+  const align = s.body.align ?? 'justify';
+  // `hyphens: auto` needs a language to pick a dictionary; without it the
+  // browser declines to hyphenate and justification opens rivers of white.
+  const pane = document.getElementById('preview-pane');
+  if (pane) pane.lang = settings.language;
   const f = settings.fonts;
   // Per-element family overrides the trio; the trio is the fallback
   // when the matrix leaves `family` undefined.
@@ -207,6 +230,20 @@ export function applyPreviewStyles(settings: PdfSettings): void {
        per-element typography (family/fontSize/color/margins) that
        overrides the code-inline rule above for <pre> specifically.
        Tree SVG diagrams and algorithm listings share the same frame. */
+    /* Preformatted content must escape the body's justification AND its
+       hyphenation. Both are inherited from the page container, and both are
+       wrong here: justifying code stretches its inter-token spaces into a
+       ragged right edge, and hyphenation breaks identifiers across lines
+       (attributes_of_dependencies became "cur-rent"). Only visible once
+       justified became the default alignment. */
+    #preview-pane :is(pre, code, kbd, samp),
+    #preview-pane .algorithm,
+    #preview-pane .algorithm-code {
+      text-align: left;
+      hyphens: none;
+      -webkit-hyphens: none;
+    }
+
     #preview-pane pre,
     #preview-pane .tree-svg-wrap,
     #preview-pane .algorithm { ${blockBoxCss(s['code-block'])} ${inlineCss(s['code-block'])} }
@@ -224,7 +261,14 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .admonition { ${blockBoxCss(s.callout)} ${inlineCss(s.callout)} }
     #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
     #preview-pane p,
-    #preview-pane li { text-align: ${align}; }
+    #preview-pane li {
+      text-align: ${align};
+      /* Justified text without hyphenation opens rivers of white, and French
+         suffers most (long words, short measure). The browser needs the
+         document language to pick a dictionary; it is set on the pane above. */
+      hyphens: auto;
+      -webkit-hyphens: auto;
+    }
     /* MathJax SVGs are sized in ex units (relative to the container's
        font-size), so scaling the math wrappers' font-size resizes the
        glyphs without re-rendering. */

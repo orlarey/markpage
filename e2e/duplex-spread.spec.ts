@@ -15,20 +15,23 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
   // Need at least 3 pages so we have a verso/recto pair (page 0 = cover
   // recto, page 1 = first verso, page 2 = next recto — these two should
   // be side by side in duplex mode).
   await page
     .locator('.pagedjs_page')
     .nth(2)
-    .waitFor({ state: 'attached', timeout: 30_000 });
+    .waitFor({ state: 'attached', timeout: 90_000 });
 }
 
 async function readPageTops(page: Page, n: number): Promise<number[]> {

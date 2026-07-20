@@ -85,12 +85,17 @@
     "watch": "node esbuild.mjs --watch",
     "vscode:prepublish": "node esbuild.mjs --production",
     "typecheck": "tsc --noEmit",
-    "test:render": "node esbuild.mjs --production && node test/render-corpus.mjs"
+    "test:render": "node esbuild.mjs --production && node test/render-corpus.mjs",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.24.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "patch-package": "^8.0.0"
+  },
+  "dependencies": {
+    "pagedjs": "^0.4.3"
   }
 }

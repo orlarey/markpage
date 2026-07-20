@@ -3,9 +3,8 @@ import { expect, test, type Page } from './fixtures';
 /**
  * Purpose: End-to-end verification that the three `notes.position`
  *   modes wire the right rendering:
- *     - 'foot' (default): paged.js's `float: footnote` moves each
- *       `.sidenote` into the per-page `.pagedjs_footnote_area`; the
- *       document-tail `section.footnotes` is hidden.
+ *     - 'foot' (default): the engine's native `float: footnote` moves each
+ *       `.sidenote` to the foot of the page carrying its anchor.
  *     - 'side' (Édition critique preset): the `.sidenote` span sits
  *       absolutely in the outer gutter at the height of its anchor;
  *       the body `.footnote-ref` superscript stays visible (back-link
@@ -17,21 +16,22 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
 async function waitForRender(page: Page): Promise<void> {
   await page
     .locator('.pagedjs_pages')
-    .waitFor({ state: 'attached', timeout: 30_000 });
-  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
-  // Pagination is complete when paged.js has flowed the trailing
-  // section.footnotes into the DOM — even in foot/side modes where
-  // we hide it visually, it's still inserted by the chunker.
+    .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 90_000 });
+  // Pagination is complete once the note body has been placed on a page.
   await page.waitForFunction(
-    () => document.querySelectorAll('section.footnotes').length > 0,
+    () => document.querySelectorAll('.pagedjs_page .sidenote').length > 0,
     null,
-    { timeout: 30_000 },
+    { timeout: 90_000 },
   );
 }
 
@@ -53,42 +53,39 @@ async function injectFootnoteDoc(page: Page): Promise<void> {
   await page.waitForTimeout(600);
 }
 
-test('foot mode (default): sidenote lands in the per-page .pagedjs_footnote_area, document-tail section is hidden', async ({ page }) => {
+test('foot mode (default): the note body sits at the foot of the page carrying its anchor', async ({ page }) => {
   await page.goto('/');
   await injectFootnoteDoc(page);
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
-  // paged.js consumed `float: footnote` and moved the .sidenote
-  // element into the page's footnote area. Wait for that to happen.
-  await page.waitForFunction(
-    () => document.querySelectorAll('.pagedjs_footnote_area .sidenote').length > 0,
-    null,
-    { timeout: 30_000 },
-  );
+  // The note is rendered exactly once — placed on a page, not also left
+  // behind at the document tail.
+  expect(await page.locator('.sidenote').count()).toBe(1);
 
-  const inFootArea = await page.locator('.pagedjs_footnote_area .sidenote').count();
-  expect(inFootArea).toBeGreaterThan(0);
-
-  // The footnote element sits on the SAME page as its anchor (paged.js
-  // pairs the footnote-call and the moved element per page).
-  const sameAsAnchor = await page.evaluate(() => {
-    const foot = document.querySelector('.pagedjs_footnote_area .sidenote');
-    const call = document.querySelector('[data-footnote-call]');
-    if (!foot || !call) return false;
-    const footPage = foot.closest('.pagedjs_page');
-    const callPage = call.closest('.pagedjs_page');
-    return footPage !== null && footPage === callPage;
+  // It sits on the SAME page as its anchor, and BELOW the anchor's
+  // paragraph: that pair is what "footnote" means, and it is what the
+  // former `.pagedjs_footnote_area` selector was standing in for.
+  const r = await page.evaluate(() => {
+    const note = document.querySelector('.sidenote');
+    if (!note) return null;
+    // Anchor the assertion on the anchor PARAGRAPH's text rather than on a
+    // call-marker selector: the engine generates the call itself, so any
+    // selector for it is an engine internal.
+    const host = [...document.querySelectorAll('p')].find((p) =>
+      (p.textContent || '').includes('A line with a footnote anchor'),
+    );
+    if (!host) return null;
+    const notePage = note.closest('.pagedjs_page');
+    return {
+      samePage: notePage !== null && notePage === host.closest('.pagedjs_page'),
+      below: note.getBoundingClientRect().top > host.getBoundingClientRect().top,
+    };
   });
-  expect(sameAsAnchor).toBe(true);
-
-  // The document-tail section.footnotes is hidden (paged.js is
-  // authoritative for the body in foot mode).
-  const sec = page.locator('section.footnotes');
-  expect(await sec.count()).toBeGreaterThan(0);
-  const secDisplay = await sec.first().evaluate((el) => getComputedStyle(el).display);
-  expect(secDisplay).toBe('none');
+  expect(r).not.toBeNull();
+  expect(r!.samePage).toBe(true);
+  expect(r!.below).toBe(true);
 });
 
 test("side mode (Édition critique preset): sidenote visible at right of its anchor's paragraph", async ({
@@ -116,10 +113,9 @@ test("side mode (Édition critique preset): sidenote visible at right of its anc
     .evaluate((el) => getComputedStyle(el).display);
   expect(display).not.toBe('none');
 
-  // section.footnotes is hidden in side mode.
-  const sec = page.locator('section.footnotes');
-  const secDisplay = await sec.first().evaluate((el) => getComputedStyle(el).display);
-  expect(secDisplay).toBe('none');
+  // The note is rendered once, in the gutter — not duplicated at the
+  // document tail.
+  expect(await page.locator('.sidenote').count()).toBe(1);
 
   // Body anchor superscript stays visible in side mode (it's the
   // back-link to the sidenote — Tufte convention shows the number

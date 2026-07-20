@@ -673,7 +673,7 @@ Thanks to everyone who maintains these projects:
 - **Editing and rendering**:
   [CodeMirror](https://codemirror.net/) for the editor,
   [marked](https://marked.js.org/) for the Markdown parser,
-  [paged.js](https://pagedjs.org/) for paginated layout.
+  [Vivliostyle](https://vivliostyle.org/) for paginated layout.
 - **Diagrams and formulas**:
   [Mermaid](https://mermaid.js.org/) for flowcharts and sequence
   diagrams,

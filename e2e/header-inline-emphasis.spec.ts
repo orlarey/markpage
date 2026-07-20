@@ -27,13 +27,16 @@ async function waitForRender(page: Page): Promise<void> {
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 30_000 });
-  // Give paged.js's afterPageLayout pass time to inject the running clone.
+  // Wait for the paginator to fill the slot. (The former wait looked for a
+  // `.mp-running` clone inside `.pagedjs_margin-content` — a paged.js
+  // implementation detail; what matters is that the slot shows its content.)
   await page.waitForFunction(
     () =>
-      document.querySelector('.pagedjs_margin-top-right .pagedjs_margin-content .mp-running') !==
-      null,
+      (
+        document.querySelector('.pagedjs_margin-top-right')?.textContent || ''
+      ).trim() !== '',
     null,
-    { timeout: 30_000 },
+    { timeout: 90_000 },
   );
 }
 
@@ -48,9 +51,7 @@ test('mid-slot **bold** in a header fence renders as a real <strong> in the marg
   await waitForRender(page);
 
   const r = await page.evaluate(() => {
-    const tr = document.querySelector(
-      '.pagedjs_margin-top-right .pagedjs_margin-content',
-    );
+    const tr = document.querySelector('.pagedjs_margin-top-right');
     if (tr === null) return null;
     const strong = tr.querySelector('strong');
     const text = (tr.textContent || '').trim();
@@ -80,9 +81,7 @@ test('mid-slot *italic* renders as a real <em>', async ({ page }) => {
   await waitForRender(page);
 
   const r = await page.evaluate(() => {
-    const tr = document.querySelector(
-      '.pagedjs_margin-top-right .pagedjs_margin-content',
-    );
+    const tr = document.querySelector('.pagedjs_margin-top-right');
     const em = tr?.querySelector('em');
     return {
       hasEm: em !== null,

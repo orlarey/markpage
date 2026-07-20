@@ -473,7 +473,9 @@ describe('deriveSettingsForDoc', () => {
     const out = await deriveSettingsForDoc(md, active, noResolve);
     expect(out.language).toBe('en');
     expect(out.fonts.body).toBe('Inter');
-    expect(out.styles.body.align).toBe('left');
+    // Justified is the default body alignment for every document type; left
+    // is the exception a document opts into.
+    expect(out.styles.body.align).toBe('justify');
     expect(out.styles.h1.color).toBe(DEFAULT_ESSENTIAL_STYLE.accent);
   });
 
