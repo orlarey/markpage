@@ -3,7 +3,7 @@
  * Render the paginated preview with Vivliostyle Core instead of paged.js
  *   (branch `vivliostyle`; enabled via `localStorage markpage:engine`).
  * How: Build a standalone in-memory Document from the hydrated source — body
- *   carries id="preview-pane" so every scoped rule of pagedCss() applies — and
+ *   carries a neutral id (#mp-viv-root, swapped into the scoped pagedCss rules) — and
  *   hand it to `CoreViewer` via `DocumentOptions.documentObject`. None of the
  *   paged.js mitigation passes run in this mode: Vivliostyle's own
  *   fragmentation is measured (and so far holds) on the clean DOM.
@@ -33,19 +33,23 @@ nav.toc-plus .toc-entry a[href]::after {
 }
 `;
 
-/** Restore content-box on Vivliostyle's page scaffolding. The app's global
- *  `* { box-sizing: border-box }` reset makes Vivliostyle count the page
- *  margins twice (it sizes boxes assuming content-box, margins as padding) —
- *  the writable area collapses and the document explodes into sliver pages. */
+/** Restore content-box everywhere inside Vivliostyle pages. The app's global
+ *  `* { box-sizing: border-box }` reset (style.css) conflicts with the model
+ *  Vivliostyle computed its layout in: the author stylesheet of the standalone
+ *  document never sets box-sizing, so every box — scaffolding AND content —
+ *  was laid out as content-box, with the page margins carried as padding.
+ *  Rendering any of those boxes as border-box shrinks it (margins counted
+ *  twice → sliver-page explosion; content boxes → clipped paragraphs, squeezed
+ *  SVGs). The host must therefore render the whole page subtree content-box;
+ *  inline styles vivliostyle bakes on elements still win where present.
+ */
 function installHostFixes(): void {
   if (document.getElementById('mp-vivliostyle-boxfix')) return;
   const fix = document.createElement('style');
   fix.id = 'mp-vivliostyle-boxfix';
   fix.textContent = `
-    [data-vivliostyle-page-container], [data-vivliostyle-bleed-box],
-    [data-vivliostyle-page-box], [data-vivliostyle-page-area-container],
-    [data-vivliostyle-page-container] [data-vivliostyle-flow-chunk],
-    [data-vivliostyle-page-container] [style*="padding"] {
+    [data-vivliostyle-page-container],
+    [data-vivliostyle-page-container] * {
       box-sizing: content-box;
     }`;
   document.head.appendChild(fix);
@@ -144,9 +148,14 @@ export async function renderVivliostylePreview(
   base.setAttribute('href', document.baseURI);
   doc.head.appendChild(base);
   const style = doc.createElement('style');
-  style.textContent = `${css}\n${VIVLIOSTYLE_CSS_ADDENDUM}`;
+  // The scoped pagedCss rules key on #preview-pane — but Vivliostyle CLONES
+  // the source body into the host DOM as a wrapper inside every page, so
+  // reusing that id would (a) duplicate a host id and (b) let the app's
+  // style.css paint its pane background INSIDE the pages (the grey wash).
+  // Rename the scope to a neutral id that no host rule targets.
+  style.textContent = `${css.replaceAll('#preview-pane', '#mp-viv-root')}\n${VIVLIOSTYLE_CSS_ADDENDUM}`;
   doc.head.appendChild(style);
-  doc.body.id = 'preview-pane';
+  doc.body.id = 'mp-viv-root';
   doc.body.innerHTML = source.innerHTML;
   // applyPageRunningRuns() tags section membership as `data-page="mp-section-N"`
   // — a paged.js-internal side channel (its addPageAttributes reads

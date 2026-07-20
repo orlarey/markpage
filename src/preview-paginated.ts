@@ -521,6 +521,13 @@ export async function paginate(
       teardownPreviewer(currentPreviewer);
       currentPreviewer = null;
     }
+    // Oversized atomic blocks (a mermaid/math/figure taller than the page's
+    // content box) are unbreakable AND unplaceable: Vivliostyle paints them
+    // past the page edge — the diagram appears missing and the page half
+    // blank. Same engine-neutral pass as the paged.js path: measure at the
+    // final text width, then scale down (or give a dedicated page to) the
+    // ones that cannot fit. Never fragmented.
+    await fitOversizedAtomicBlocks(source, settings, renderTo);
     resetPageRunningCounter();
     prependDefaultFences(source, settings);
     const runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
