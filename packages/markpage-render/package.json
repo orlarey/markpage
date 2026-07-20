@@ -2,7 +2,7 @@
   "name": "@orlarey/markpage-render",
   "version": "0.1.0",
   "description": "markpage's Markdown render pipeline (fences, callouts, footnotes, refs) as a reusable marked setup — used by the web app and the VS Code preview.",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "author": "Yann Orlarey",
   "homepage": "https://markpage.org",
   "repository": {
