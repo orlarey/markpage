@@ -68,6 +68,16 @@ function installHostFixes(): void {
        rule is safe for the whole subtree. */
     [data-vivliostyle-page-container] svg * {
       box-sizing: border-box;
+    }
+    /* Vivliostyle MATERIALISES every ::before/::after as a real element
+       (<span data-adapt-pseudo>) while laying out. Once those pages land in
+       the host DOM, the host's own stylesheets match the same selectors and
+       generate the pseudo a SECOND time — an EBNF rule title reads "expr = =".
+       Everything generated is already in the DOM, so suppress host-side
+       pseudo content inside the pages wholesale. */
+    [data-vivliostyle-page-container] *::before,
+    [data-vivliostyle-page-container] *::after {
+      content: none !important;
     }`;
   document.head.appendChild(fix);
 }

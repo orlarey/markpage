@@ -1540,10 +1540,16 @@ function buildBodyPaddingCss(
   //  - `#mp-viv-root` is the body of the standalone document Vivliostyle lays
   //    out. Gutters must exist THERE to affect the text flow: applying them to
   //    the host copy after layout would not re-wrap a single line.
+  // Vivliostyle floats footnotes into ITS column box, a sibling of the body
+  // flow — so they escape the body padding and sit flush with the live area,
+  // ~20mm left of the text. The column is an engine-internal box that ignores
+  // author CSS, so inset our own `.sidenote` (what gets floated) instead.
+  const noteInset =
+    `#mp-viv-root .sidenote { margin-left: ${padInner}mm; margin-right: ${padOuter}mm; }`;
   if (!duplex) {
     return (
       `${scope} .pagedjs_page_content { ${rectoPadding} }\n` +
-      `#mp-viv-root { ${rectoPadding} }`
+      `#mp-viv-root { ${rectoPadding} }\n${noteInset}`
     );
   }
   return (
