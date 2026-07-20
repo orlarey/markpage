@@ -33,12 +33,20 @@ describe('pagedCss — simplex (default)', () => {
     expect(css).not.toContain('h1 { break-before: right; }');
   });
 
-  it('does not ask paged.js to paginate CSS-indented paragraphs', () => {
+  it('indents continuation paragraphs in CSS', () => {
     const css = pagedCss(A4);
-    expect(css).not.toContain('text-indent: 1.5em');
-    expect(css).not.toContain('#preview-pane p.mp-paragraph-continuation');
-    expect(css).not.toContain('#markpage-print-target p.mp-paragraph-continuation');
-    expect(css).not.toContain('p + p');
+    // This assertion used to be inverted: the paginated stylesheet was required
+    // NOT to carry a CSS first-line indent, because paged.js folded split
+    // fragments back onto page 1 when text-indent entered its geometry. The
+    // indent was delegated to inline spacer nodes injected after pagination.
+    // That mitigation went out with paged.js — and took the indent with it,
+    // leaving firstLineIndent doing nothing at all in the paginated view and
+    // the PDF. Vivliostyle fragments a text-indent paragraph correctly, so the
+    // rule belongs in the stylesheet again, as it always has in the continuous
+    // preview.
+    expect(css).toContain('p + p');
+    expect(css).toContain('p.mp-paragraph-continuation');
+    expect(css).toMatch(/text-indent: [\d.]+em/);
   });
 });
 

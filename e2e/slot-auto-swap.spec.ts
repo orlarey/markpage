@@ -26,6 +26,9 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
@@ -37,6 +40,14 @@ async function waitForRender(page: Page): Promise<void> {
     .locator('.pagedjs_page')
     .nth(1)
     .waitFor({ state: 'attached', timeout: 90_000 });
+  await page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('[data-vivliostyle-page-margin-box]')].some(
+        (b) => (b.textContent || '').trim() !== '',
+      ),
+    undefined,
+    { timeout: 90_000 },
+  );
 }
 
 /**
@@ -70,17 +81,12 @@ async function readPageMarginContent(
       const pages = Array.from(document.querySelectorAll('.pagedjs_page'));
       const p = pages[idx];
       if (!p) return null;
-      // Margin-box content lands on the ::after pseudo-element of
-      // .pagedjs_margin-content per paged.js's polished CSS:
-      //   .pagedjs_margin-<box> > .pagedjs_margin-content::after { content: ... }
-      // We read it via getComputedStyle and strip the surrounding quotes.
-      const inner = p.querySelector(
-        `.pagedjs_margin-${b} .pagedjs_margin-content`,
-      ) as HTMLElement | null;
-      if (!inner) return null;
-      const raw = getComputedStyle(inner, '::after').content ?? '';
-      // CSS content quotes the string. Strip outer quotes if present.
-      return raw.replace(/^"|"$/g, '');
+      // Read the text the slot actually shows. (The former version read the
+      // ::after content of a `.pagedjs_margin-content` child — a paged.js
+      // implementation detail; the engine now puts real text in the box.)
+      const box = p.querySelector(`.pagedjs_margin-${b}`);
+      if (!box) return null;
+      return (box.textContent || '').trim();
     },
     { idx: pageIdx, b: box },
   );

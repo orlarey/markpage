@@ -23,11 +23,25 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
-async function setAsymmetricMargins(settings: Page): Promise<void> {
+/** Select « Manuel (4 sliders) » so the four mm margin inputs become editable.
+ *  The app's default marginMode is 'derived', which disables them — a spec that
+ *  fills them without switching first just times out on a disabled input. */
+async function selectManualMargins(settings: Page): Promise<void> {
   await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  await settings
+    .getByText('Mode des marges', { exact: true })
+    .locator('xpath=following-sibling::select')
+    .selectOption({ label: 'Manuel (4 sliders)' });
+}
+
+async function setAsymmetricMargins(settings: Page): Promise<void> {
+  await selectManualMargins(settings);
   const left = settings
     .getByText('Gauche', { exact: true })
     .locator('xpath=following-sibling::input');
@@ -40,21 +54,32 @@ async function setAsymmetricMargins(settings: Page): Promise<void> {
   await right.blur();
 }
 
-/** Read `.pagedjs_page_content.left − .pagedjs_page.left` for the first N pages. */
-async function readAreaOffsets(page: Page, n: number): Promise<number[]> {
+/** The content area's left inset for the first N pages, as a FRACTION of the
+ *  page width. The preview is rendered at a fit-to-width zoom, so absolute
+ *  pixels are meaningless here: a 20 mm inset on A4 is 0.0952 of the page
+ *  whatever the zoom, but 75.6 px only at 1:1. */
+async function readAreaOffsetRatios(page: Page, n: number): Promise<number[]> {
   return page.evaluate((count) => {
     const pages = Array.from(document.querySelectorAll('.pagedjs_page')).slice(
       0,
       count,
     );
     return pages.map((p) => {
-      const area = p.querySelector('.pagedjs_page_content') as HTMLElement | null;
+      const area = p.querySelector(
+        '.pagedjs_page_content',
+      ) as HTMLElement | null;
       const aRect = area?.getBoundingClientRect();
       const pRect = p.getBoundingClientRect();
-      return aRect && pRect ? aRect.left - pRect.left : NaN;
+      if (!aRect || !pRect || pRect.width === 0) return NaN;
+      return (aRect.left - pRect.left) / pRect.width;
     });
   }, n);
 }
+
+/** 20 mm and 50 mm as fractions of A4's 210 mm width. */
+const INSET_20MM = 20 / 210;
+const INSET_50MM = 50 / 210;
+const TOLERANCE = 0.02;
 
 async function waitForRender(page: Page): Promise<void> {
   await page
@@ -76,11 +101,10 @@ test('simplex (default) keeps the page-2 content area at the same x as page 1', 
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
-  const offsets = await readAreaOffsets(page, 2);
-  // 20mm ≈ 75.6 px — both pages should be at this offset (within rounding).
-  expect(offsets[0]).toBeGreaterThan(60);
-  expect(offsets[0]).toBeLessThan(90);
-  expect(Math.abs(offsets[0] - offsets[1])).toBeLessThan(2);
+  const offsets = await readAreaOffsetRatios(page, 2);
+  // Both pages carry the same 20 mm left inset — simplex never mirrors.
+  expect(offsets[0]).toBeCloseTo(INSET_20MM, 2);
+  expect(Math.abs(offsets[0] - offsets[1])).toBeLessThan(TOLERANCE);
 });
 
 test('duplex mirrors the page-2 content area to the verso position', async ({
@@ -101,11 +125,10 @@ test('duplex mirrors the page-2 content area to the verso position', async ({
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
-  const offsets = await readAreaOffsets(page, 2);
-  // Page 1 (recto): nominal margin-left = 20mm → ~76 px.
-  expect(offsets[0]).toBeGreaterThan(60);
-  expect(offsets[0]).toBeLessThan(90);
-  // Page 2 (verso): mirrored margin-left = margin-right = 50mm → ~189 px.
-  expect(offsets[1]).toBeGreaterThan(170);
-  expect(offsets[1]).toBeLessThan(210);
+  const offsets = await readAreaOffsetRatios(page, 2);
+  // Page 1 (recto) keeps the nominal 20 mm left margin…
+  expect(offsets[0]).toBeCloseTo(INSET_20MM, 2);
+  // …while page 2 (verso) mirrors it: its left inset becomes the 50 mm right
+  // margin. That swap is the whole point of duplex.
+  expect(offsets[1]).toBeCloseTo(INSET_50MM, 2);
 });

@@ -15,6 +15,9 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 

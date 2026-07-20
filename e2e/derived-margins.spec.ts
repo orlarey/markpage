@@ -23,6 +23,9 @@ async function openSettings(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   return settingsPage;
 }
 
@@ -50,8 +53,19 @@ async function readPage1Geometry(page: Page) {
   });
 }
 
-test('manual mode (default) keeps the user margins on the preview', async ({ page }) => {
+test('manual mode honours the four mm margins on the preview', async ({
+  page,
+}) => {
   await page.goto('/');
+  // marginMode is 'derived' by default now (it changed with the settings /
+  // recipe work), so manual mode has to be SELECTED before its four mm
+  // sliders mean anything — they are disabled otherwise.
+  const settings = await openSettings(page);
+  await settings.getByRole('button', { name: 'Page', exact: true }).click();
+  await settings
+    .getByText('Mode des marges', { exact: true })
+    .locator('xpath=following-sibling::select')
+    .selectOption('manual');
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
@@ -59,13 +73,7 @@ test('manual mode (default) keeps the user margins on the preview', async ({ pag
   expect(g).not.toBeNull();
   // Compare RATIOS, never absolute px: the preview applies a fit-to-width
   // zoom (--mp-fit-zoom), so a pixel budget silently depends on the pane
-  // width. Manual default margins are 35 mm on A4 (210 mm) = 16.7%.
-  //
-  // KNOWN FAILURE (unrelated to the engine): this reads ~8% (=16.8 mm), the
-  // DERIVED canon — the app's default marginMode is no longer 'manual'. The
-  // premise of the test changed with the settings/recipe work, not with the
-  // Vivliostyle migration; the numbers stay as written so the discrepancy
-  // stays visible instead of being rubber-stamped.
+  // width. Manual margins are 35 mm on A4 (210 mm) = 16.7%.
   const leftRatio = g!.leftOffsetPx / g!.pageWidthPx;
   expect(leftRatio).toBeGreaterThan(0.15);
   expect(leftRatio).toBeLessThan(0.185);

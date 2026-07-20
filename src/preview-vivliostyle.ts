@@ -40,6 +40,17 @@ nav.toc-plus .toc-entry a[href]::after {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
 }
+/* A header/footer slot carrying inline markup (**bold**, *italic*) is fed by
+   the element() path: a .mp-running source div picked up by
+   \`content: element(name)\`. page-running.ts hides those sources with
+   \`display: none\` as a fallback for renderers with no running-element
+   support — the continuous preview, which would otherwise show the header
+   twice. paged.js resurrected the hidden source because it CLONED it;
+   Vivliostyle moves the element itself, so a display:none source yields an
+   empty margin box. Re-show it here, in the paginated stylesheet only:
+   \`position: running()\` has already taken it out of the page flow, and the
+   continuous preview keeps its fallback. */
+.mp-running { display: block !important; }
 `;
 
 /** Restore content-box everywhere inside Vivliostyle pages. The app's global
@@ -137,6 +148,17 @@ function linearizePages(renderTo: HTMLElement): void {
     pg.style.margin = ''; // let `.pagedjs_page { margin: 0 auto 24px }` center it
     for (const [sel, cls] of BOX_COMPAT) {
       pg.querySelector(sel)?.classList.add(cls);
+    }
+    // Margin boxes carry the running header / footer. paged.js named them
+    // `.pagedjs_margin-<slot>`; pagedCss keys its running-content typography
+    // on those 27 times over, so without this the headers and footers render
+    // unstyled. Vivliostyle names the slot in an attribute instead.
+    for (const mb of pg.querySelectorAll<HTMLElement>(
+      '[data-vivliostyle-page-margin-box]',
+    )) {
+      const slot = mb.getAttribute('data-vivliostyle-page-margin-box');
+      mb.classList.add('pagedjs_margin');
+      if (slot) mb.classList.add(`pagedjs_margin-${slot}`);
     }
   }
 }
@@ -280,27 +302,39 @@ export async function renderVivliostylePreview(
   // so translate: one rule per section name present in the document. This is
   // what routes content onto the named pages whose @page rules carry the
   // header/footer margin boxes.
-  const sectionNames = new Set<string>();
+  // applyPageRunningRuns() tags section membership as `data-page="mp-section-N"`
+  // and emits one `@page mp-section-N` rule per section. Vivliostyle honours the
+  // standard `page` property, but LOSES the page name on a page that starts
+  // inside a fragmented box (a split paragraph or list) — so a named band shows
+  // on only some pages. Every document with a title block has at least two
+  // sections (title, then body), which made headers and footers vanish from any
+  // body page that began mid-paragraph.
+  //
+  // So the DOMINANT section — the one tagging the most flow elements, i.e. the
+  // body — moves onto the UNNAMED `@page`, which applies to every page whether
+  // or not its name survived fragmentation. Minor sections keep named pages and
+  // override the baseline on their own (cleanly started) pages.
+  const flowCount = new Map<string, number>();
   for (const el of doc.querySelectorAll('[data-page]')) {
     const name = el.getAttribute('data-page');
-    if (name) sectionNames.add(name);
+    if (!name) continue;
+    flowCount.set(name, (flowCount.get(name) ?? 0) + 1);
   }
-  if (sectionNames.size === 1) {
-    // Vivliostyle loses the page NAME on pages that start inside certain
-    // fragmented boxes (split paragraphs/lists), so named margin boxes render
-    // on only part of the pages. A markpage document without header/footer
-    // fences is a single section — its rules can safely live on the UNNAMED
-    // @page, which applies to every page. Multi-section documents keep named
-    // pages (known gap: their boxes show only on cleanly-started pages).
-    const only = [...sectionNames][0]!;
+  let dominant: string | undefined;
+  for (const [name, n] of flowCount) {
+    if (dominant === undefined || n > flowCount.get(dominant)!) dominant = name;
+  }
+  if (dominant !== undefined) {
     style.textContent = style.textContent.replace(
-      new RegExp(`@page ${only}(:[a-z]+)?\\s*\\{`, 'g'),
+      new RegExp(`@page ${dominant}(:[a-z]+)?\\s*\\{`, 'g'),
       '@page $1 {',
     );
-  } else if (sectionNames.size > 1) {
-    style.textContent += [...sectionNames]
-      .map((n) => `[data-page="${n}"], [data-page="${n}"] * { page: ${n}; }`)
-      .join('\n');
+    const named = [...flowCount.keys()].filter((n) => n !== dominant);
+    if (named.length > 0) {
+      style.textContent += named
+        .map((n) => `[data-page="${n}"], [data-page="${n}"] * { page: ${n}; }`)
+        .join('\n');
+    }
   }
 
   renderTo.replaceChildren();

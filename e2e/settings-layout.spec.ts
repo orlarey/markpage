@@ -17,6 +17,9 @@ async function openLayoutSection(page: Page): Promise<Page> {
   await page.locator('button.menu-trigger', { hasText: 'Réglages' }).click();
   const settingsPage = await popupPromise;
   await settingsPage.waitForLoadState();
+  // The popup opens on the « Essentiel » single-page form; the rail with the
+  // per-domain items only exists in « Avancé ».
+  await settingsPage.getByRole('button', { name: 'Avancé', exact: true }).click();
   // Rail entries are buttons with the section label as text content.
   await settingsPage.getByRole('button', { name: 'Page', exact: true }).click();
   return settingsPage;
@@ -46,8 +49,16 @@ test('marginMode = manual disables the two measure inputs', async ({ page }) => 
   await page.goto('/');
   const settings = await openLayoutSection(page);
 
-  // The default profile ships with marginMode='manual'. Both measure
-  // inputs must therefore be disabled.
+  // Drive marginMode explicitly rather than leaning on the default: the
+  // default used to be 'manual' and is now 'derived', which silently inverted
+  // this test's starting state. The invariant under test is the LINK between
+  // the mode and the two inputs, not which mode ships by default.
+  await settings
+    .getByText('Mode des marges')
+    .locator('xpath=following-sibling::select')
+    .selectOption('manual');
+
+  // In manual mode the canon is not in play, so both measure inputs are off.
   const measure = settings
     .getByText('Mesure du texte (caractères / ligne)')
     .locator('xpath=following-sibling::input');

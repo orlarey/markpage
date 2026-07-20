@@ -117,25 +117,6 @@ export function markConsecutiveParagraphs(root: HTMLElement): void {
   }
 }
 
-/** Insert a real inline first-line spacer that paged.js can fragment safely. */
-export function insertParagraphIndentSpacers(
-  root: HTMLElement,
-  indentEm: number,
-): void {
-  root.querySelectorAll('.mp-first-line-indent').forEach((spacer) => spacer.remove());
-  if (indentEm <= 0) return;
-  for (const paragraph of root.querySelectorAll<HTMLElement>(
-    'p.mp-paragraph-continuation:not([data-split-from])',
-  )) {
-    const spacer = document.createElement('span');
-    spacer.className = 'mp-first-line-indent';
-    spacer.setAttribute('aria-hidden', 'true');
-    spacer.style.display = 'inline-block';
-    spacer.style.width = `${indentEm}em`;
-    paragraph.prepend(spacer);
-  }
-}
-
 /**
  * Purpose: The full Vivliostyle pipeline, shared verbatim by the on-screen
  *   preview and the print/PDF export so both produce the same pages.
@@ -1145,9 +1126,20 @@ export function pagedCss(s: PdfSettings): string {
       margin: ${styles.body.marginAbove ?? 1}em 0 ${styles.body.marginBelow ?? 1}em;
       text-indent: 0;
     }
-    /* First-line indents are real inline spacer nodes inserted after
-       pagination. CSS text-indent/generated content makes paged.js fold split
-       fragments back into page 1, so indentation must not enter its geometry. */
+    /* First-line indent, same rule as the continuous preview (preview.ts).
+       It used to be banned here — CSS text-indent made paged.js fold split
+       fragments back onto page 1, so the indent was delegated to inline spacer
+       nodes injected after pagination. That mitigation died with paged.js (its
+       injector was dead code), which left firstLineIndent silently doing
+       nothing in the paginated view and in the PDF: with the vertical spacing
+       switched off, paragraphs ran together with no separation at all.
+       Vivliostyle fragments a text-indent paragraph correctly — the indent
+       applies to the block's first formatted line only, so a continuation
+       fragment at the top of a page is NOT re-indented. */
+    ${SCOPE} p + p,
+    ${SCOPE} p.mp-paragraph-continuation {
+      text-indent: ${styles.body.firstLineIndent ?? 0}em;
+    }
     /* Prevent orphan headings at the foot of a page. This rule is
        intentionally unscoped: paged.js parses the selector itself
        and can't cope with our :where(...) scope, so we keep the
