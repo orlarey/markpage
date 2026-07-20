@@ -1,7 +1,7 @@
 /******************************* print-export.ts *******************************
  *
  * Purpose: Print-based PDF export (SPEC §13.6, phase 2). Paginates the print
- *   target with paged.js then calls `window.print()`.
+ *   target with Vivliostyle then calls `window.print()`.
  * How: Build content, mount an off-screen `<div id="markpage-print-target">`,
  *   paginate, install a screen/print toggle stylesheet, then invoke print().
  *
@@ -10,10 +10,10 @@
 // Why not just feed plain HTML and let Chrome paginate? Because Chrome's
 // print dialog "Margins" setting hard-overrides the @page margin we
 // declare in CSS, replacing it with the dialog's value (Default ≈ 12 mm,
-// None = 0 mm). The user's settings.margins were ignored. Going through
-// paged.js bakes the margins into the page DIV layout, where Chrome
-// can't touch them — at the cost of requiring "Margins: Aucune" in the
-// print dialog.
+// None = 0 mm). The user's settings.margins were ignored. Rendering
+// through the engine bakes the margins into the page DIV layout, where
+// Chrome can't touch them — at the cost of requiring "Margins: Aucune"
+// in the print dialog.
 
 import {
   applyPreviewMetadata,
@@ -26,12 +26,7 @@ import {
   layoutMosaicBlocks,
 } from '@orlarey/markpage-render';
 import { parseFrontmatter } from '@orlarey/markpage-render';
-import {
-  paginateOnce,
-  paginateWithVivliostyle,
-  pageContentGeomPx,
-  usesVivliostyleEngine,
-} from './preview-paginated';
+import { paginateOnce, pageContentGeomPx } from './preview-paginated';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
@@ -48,9 +43,9 @@ export async function exportViaPrint(
 ): Promise<void> {
   const { el: content, effectiveSettings } = await buildPrintContent(expandedSource, settings);
 
-  // Mount the target with measurable dimensions so paged.js can lay
+  // Mount the target with measurable dimensions so the engine can lay
   // out pages even though we don't want it visible on screen.
-  // `visibility: hidden` keeps the box in the layout (paged.js needs
+  // `visibility: hidden` keeps the box in the layout (layout needs
   // computed widths to fragment paragraphs), and the off-screen
   // position keeps it from scrolling onto the visible viewport. We
   // strip these inline styles after pagination so the @media print
@@ -62,26 +57,14 @@ export async function exportViaPrint(
     'position: fixed; left: -10000px; top: 0; ' +
     'width: 210mm; visibility: hidden; pointer-events: none;';
 
-  // Wait for fonts before paginating — paged.js measures glyph widths
+  // Wait for fonts before paginating — the engine measures glyph widths
   // to decide where lines break, so a re-flow once webfonts arrive
   // would shift the page boundaries.
   await document.fonts.ready;
 
-  // Run paged.js into the print target. Same renderer as the on-screen
-  // preview: identical fragmentation, identical page numbers (rendered
-  // as DOM children of each .pagedjs_page, not via @bottom-center which
-  // would need a non-zero @page margin). `paginateOnce` does not touch
-  // the global currentPreviewer state so the preview pane keeps its
-  // pages alive for when the user returns to it after printing.
-  // Same engine as the on-screen preview: when the Vivliostyle flag is on,
-  // the export goes through the exact same pipeline (identical pages, TOC
-  // numbers, running footers) instead of re-paginating with paged.js.
-  const teardownPrintPreviewer = usesVivliostyleEngine()
-    ? await (async () => {
-        await paginateWithVivliostyle(content, effectiveSettings, target);
-        return () => {}; // no ResizeObservers to disconnect in this mode
-      })()
-    : await paginateOnce(content, effectiveSettings, target);
+  // Same engine as the on-screen preview (Vivliostyle): identical pages, TOC
+  // numbers and running footers on screen and on paper.
+  const teardownPrintPreviewer = await paginateOnce(content, effectiveSettings, target);
 
   // Clear the inline staging styles so @media print can take over.
   target.style.cssText = '';
@@ -98,10 +81,6 @@ export async function exportViaPrint(
   document.title = filename.replace(/\.pdf$/i, '');
 
   const cleanup = (): void => {
-    // Disconnect the print render's ResizeObservers before we detach
-    // the target — otherwise their queued rAF callbacks fire on the
-    // now-removed pages and walk a corrupted DOM (the same null-deref
-    // family we patched in paged.js itself).
     teardownPrintPreviewer();
     target.remove();
     styleEl.remove();
@@ -118,7 +97,7 @@ export async function exportViaPrint(
 }
 
 /**
- * Purpose: Build the rendered HTML element to be fed into paged.js.
+ * Purpose: Build the rendered HTML element to be fed to the engine.
  * How: marked.parse, then apply metadata, then resolve mermaid / math placeholders.
  */
 async function buildPrintContent(
@@ -180,10 +159,8 @@ function printStylesheet(_settings: PdfSettings): string {
       #${PRINT_TARGET_ID} { display: block !important; }
 
       /* Force Chrome's printable area to the full paper. The user's
-         margins are baked into the .pagedjs_page divs; the @page rule
-         only needs to keep Chrome from carving extra margin around
-         them. !important defeats paged.js's polished @page rule that
-         would otherwise re-introduce the user's margins here. */
+         margins are baked into the page divs; the @page rule only needs
+         to keep Chrome from carving extra margin around them. */
       @page { margin: 0 !important; }
     }
   `;

@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   markConsecutiveParagraphs,
-  insertParagraphIndentSpacers,
-  markOrphanHeadingsForRepagination,
-  paginationContainsSourceEnd,
-  paginationHasVerticalOverflow,
   pagedCss,
 } from '../src/preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
@@ -65,108 +61,9 @@ describe('markConsecutiveParagraphs', () => {
   });
 });
 
-describe('insertParagraphIndentSpacers', () => {
-  it('adds a real spacer only to consecutive paragraphs', () => {
-    const root = document.createElement('div');
-    root.innerHTML = '<h2>Title</h2><p>First</p><p>Second</p><p>Third</p>';
-    markConsecutiveParagraphs(root);
 
-    insertParagraphIndentSpacers(root, 1.5);
 
-    const paragraphs = [...root.querySelectorAll('p')];
-    expect(paragraphs[0]?.querySelector('.mp-first-line-indent')).toBeNull();
-    expect(
-      paragraphs[1]?.querySelector<HTMLElement>('.mp-first-line-indent')
-        ?.style.width,
-    ).toBe('1.5em');
-    expect(
-      paragraphs[2]?.querySelectorAll('.mp-first-line-indent'),
-    ).toHaveLength(1);
-  });
-});
 
-describe('markOrphanHeadingsForRepagination', () => {
-  it('forces any h1-h4 that is the last substantive content on its page', () => {
-    const source = document.createElement('div');
-    source.innerHTML =
-      '<div class="keep-with-next"><h3 data-ref="orphan">Title</h3>' +
-      '<figure><p>Next page block</p></figure></div>';
-    const rendered = document.createElement('div');
-    rendered.innerHTML =
-      '<div class="pagedjs_page"><div class="pagedjs_page_content">' +
-      '<h3 data-ref="orphan">Title</h3></div></div>';
-
-    expect(markOrphanHeadingsForRepagination(source, rendered)).toBe(1);
-    expect(
-      source
-        .querySelector('.keep-with-next')
-        ?.classList.contains('mp-force-page-break'),
-    ).toBe(true);
-  });
-
-  it('does not move a heading that already has body content on the page', () => {
-    const source = document.createElement('div');
-    source.innerHTML = '<h2 data-ref="kept">Title</h2><p>Body</p>';
-    const rendered = document.createElement('div');
-    rendered.innerHTML =
-      '<div class="pagedjs_page"><div class="pagedjs_page_content">' +
-      '<h2 data-ref="kept">Title</h2><p>Body</p></div></div>';
-
-    expect(markOrphanHeadingsForRepagination(source, rendered)).toBe(0);
-    expect(source.querySelector('h2')?.className).toBe('');
-  });
-});
-
-describe('paginationContainsSourceEnd', () => {
-  it('rejects a render that stopped before the final body block', () => {
-    const source = document.createElement('div');
-    source.innerHTML =
-      '<p data-ref="first">First page</p><p data-ref="last">Last page</p>';
-    const rendered = document.createElement('div');
-    rendered.innerHTML =
-      '<div class="pagedjs_page"><p data-ref="first">First page</p></div>';
-
-    expect(paginationContainsSourceEnd(source, rendered)).toBe(false);
-  });
-
-  it('accepts a render containing the final body block', () => {
-    const source = document.createElement('div');
-    source.innerHTML =
-      '<p data-ref="first">First page</p><p data-ref="last">Last page</p>';
-    const rendered = document.createElement('div');
-    rendered.innerHTML =
-      '<div class="pagedjs_page"><p data-ref="first">First page</p></div>' +
-      '<div class="pagedjs_page"><p data-ref="last">Last page</p></div>';
-
-    expect(paginationContainsSourceEnd(source, rendered)).toBe(true);
-  });
-});
-
-describe('paginationHasVerticalOverflow', () => {
-  it('detects a clipped page containing more content than its page box', () => {
-    const rendered = document.createElement('div');
-    rendered.innerHTML = '<div class="pagedjs_page_content"></div>';
-    const content = rendered.firstElementChild as HTMLElement;
-    Object.defineProperties(content, {
-      clientHeight: { value: 900 },
-      scrollHeight: { value: 2400 },
-    });
-
-    expect(paginationHasVerticalOverflow(rendered)).toBe(true);
-  });
-
-  it('accepts a page whose content fits its fragment box', () => {
-    const rendered = document.createElement('div');
-    rendered.innerHTML = '<div class="pagedjs_page_content"></div>';
-    const content = rendered.firstElementChild as HTMLElement;
-    Object.defineProperties(content, {
-      clientHeight: { value: 900 },
-      scrollHeight: { value: 900 },
-    });
-
-    expect(paginationHasVerticalOverflow(rendered)).toBe(false);
-  });
-});
 
 describe('pagedCss — duplex (mirror margins on @page :left)', () => {
   const duplex: PdfSettings = { ...A4, duplex: true };
