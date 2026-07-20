@@ -26,7 +26,12 @@ import {
   layoutMosaicBlocks,
 } from '@orlarey/markpage-render';
 import { parseFrontmatter } from '@orlarey/markpage-render';
-import { paginateOnce, pageContentGeomPx } from './preview-paginated';
+import {
+  paginateOnce,
+  paginateWithVivliostyle,
+  pageContentGeomPx,
+  usesVivliostyleEngine,
+} from './preview-paginated';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
@@ -68,7 +73,15 @@ export async function exportViaPrint(
   // would need a non-zero @page margin). `paginateOnce` does not touch
   // the global currentPreviewer state so the preview pane keeps its
   // pages alive for when the user returns to it after printing.
-  const teardownPrintPreviewer = await paginateOnce(content, effectiveSettings, target);
+  // Same engine as the on-screen preview: when the Vivliostyle flag is on,
+  // the export goes through the exact same pipeline (identical pages, TOC
+  // numbers, running footers) instead of re-paginating with paged.js.
+  const teardownPrintPreviewer = usesVivliostyleEngine()
+    ? await (async () => {
+        await paginateWithVivliostyle(content, effectiveSettings, target);
+        return () => {}; // no ResizeObservers to disconnect in this mode
+      })()
+    : await paginateOnce(content, effectiveSettings, target);
 
   // Clear the inline staging styles so @media print can take over.
   target.style.cssText = '';

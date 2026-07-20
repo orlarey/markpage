@@ -487,11 +487,62 @@ export function markOrphanHeadingsForRepagination(
  * Purpose: Render `source` as paginated pages inside `renderTo` (preview pane).
  * How: Tear down any prior preview, wrap labels, hand off to a fresh Previewer.
  */
+/** Whether the preview/export should render with Vivliostyle Core instead of
+ *  paged.js (branch vivliostyle; dev flag until the migration decision). */
+export function usesVivliostyleEngine(): boolean {
+  return localStorage.getItem('markpage:engine') === 'vivliostyle';
+}
+
+/**
+ * Purpose: The full Vivliostyle pipeline, shared verbatim by the on-screen
+ *   preview and the print/PDF export so both produce the same pages.
+ * How: The engine-neutral content passes (TOC links, paragraph adjacency,
+ *   letterheads, oversized-atomic fitting, default header/footer fences +
+ *   section running CSS), then hand the clean DOM to Vivliostyle — none of
+ *   the paged.js mitigation passes run. Returns the page count.
+ */
+export async function paginateWithVivliostyle(
+  source: HTMLElement,
+  settings: PdfSettings,
+  renderTo: HTMLElement,
+): Promise<number> {
+  linkTocPlus(source);
+  markConsecutiveParagraphs(source);
+  groupLetterheads(source);
+  // Oversized atomic blocks (a mermaid/math/figure taller than the page's
+  // content box) are unbreakable AND unplaceable: Vivliostyle paints them
+  // past the page edge — the diagram appears missing and the page half
+  // blank. Engine-neutral: scale down / dedicate a page, never fragment.
+  await fitOversizedAtomicBlocks(source, settings, renderTo);
+  resetPageRunningCounter();
+  prependDefaultFences(source, settings);
+  const runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  const { renderVivliostylePreview } = await import('./preview-vivliostyle');
+  return renderVivliostylePreview(
+    source,
+    `${pagedCss(settings)}\n${runningCss}`,
+    renderTo,
+  );
+}
+
 export async function paginate(
   source: HTMLElement,
   settings: PdfSettings,
   renderTo: HTMLElement,
 ): Promise<void> {
+  // Alternative engine (branch vivliostyle) behind a localStorage flag. The
+  // shared pipeline lives in paginateWithVivliostyle so the PDF export uses
+  // the exact same rendering. Runs before any paged.js concern — including
+  // loading paged.js itself.
+  if (usesVivliostyleEngine()) {
+    if (currentPreviewer) {
+      teardownPreviewer(currentPreviewer);
+      currentPreviewer = null;
+    }
+    const pages = await paginateWithVivliostyle(source, settings, renderTo);
+    console.info(`[markpage] vivliostyle: ${pages} page(s)`);
+    return;
+  }
   const { Previewer } = await loadPagedJs();
   purgePagedJsStyles();
   // Each `Previewer` instance is single-shot — calling preview() twice on
@@ -511,35 +562,6 @@ export async function paginate(
   // Wrap consecutive sender / recipient blocks in a flex group so they
   // sit side-by-side (or a lone recipient floats right for FR letters).
   groupLetterheads(source);
-  // SPIKE (branch vivliostyle): alternative engine behind a localStorage
-  // flag. Deliberately skips EVERY paged.js mitigation pass below — the
-  // whole point is to measure Vivliostyle's own fragmentation on the clean
-  // hydrated DOM. Enable with: localStorage.setItem('markpage:engine',
-  // 'vivliostyle') then re-render.
-  if (localStorage.getItem('markpage:engine') === 'vivliostyle') {
-    if (currentPreviewer) {
-      teardownPreviewer(currentPreviewer);
-      currentPreviewer = null;
-    }
-    // Oversized atomic blocks (a mermaid/math/figure taller than the page's
-    // content box) are unbreakable AND unplaceable: Vivliostyle paints them
-    // past the page edge — the diagram appears missing and the page half
-    // blank. Same engine-neutral pass as the paged.js path: measure at the
-    // final text width, then scale down (or give a dedicated page to) the
-    // ones that cannot fit. Never fragmented.
-    await fitOversizedAtomicBlocks(source, settings, renderTo);
-    resetPageRunningCounter();
-    prependDefaultFences(source, settings);
-    const runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
-    const { renderVivliostylePreview } = await import('./preview-vivliostyle');
-    const pages = await renderVivliostylePreview(
-      source,
-      `${pagedCss(settings)}\n${runningCss}`,
-      renderTo,
-    );
-    console.info(`[markpage] vivliostyle spike: ${pages} page(s)`);
-    return;
-  }
   // In slides mode, compute the right zoom for every `demo zoom=auto`
   // block by measuring its natural height against the slide figure area.
   await applyAutoZoomForDemos(source, settings, renderTo);
