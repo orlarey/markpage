@@ -290,6 +290,9 @@ export async function renderVivliostylePreview(
     VIVLIOSTYLE_CSS_ADDENDUM,
   ].join('\n');
   doc.head.appendChild(style);
+  // Carry the document language into the standalone document: `hyphens: auto`
+  // is inert without it (the browser has no dictionary to choose).
+  if (source.lang) doc.documentElement.lang = source.lang;
   doc.body.id = 'mp-viv-root';
   // The construct stylesheets are scoped `:where(.markpage)` — without the
   // class an `adt` block loses `white-space: pre` and collapses onto one line.

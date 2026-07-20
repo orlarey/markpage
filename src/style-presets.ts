@@ -76,7 +76,7 @@ export const STYLE_PRESETS: Record<StylePresetId, Partial<PdfSettings>> = {
       body: {
         fontSize: 11,
         color: '#1a1a1a',
-        align: 'left',
+        align: 'justify',
         lineHeight: 1.45,
         marginAbove: 1.3,
         marginBelow: 1.3,

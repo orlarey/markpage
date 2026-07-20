@@ -169,7 +169,13 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     document.head.appendChild(el);
   }
   const s = settings.styles;
-  const align = s.body.align ?? 'left';
+  // Justified is markpage's default body alignment; left is the exception.
+  // This fallback only fires for a document whose style omits `align`.
+  const align = s.body.align ?? 'justify';
+  // `hyphens: auto` needs a language to pick a dictionary; without it the
+  // browser declines to hyphenate and justification opens rivers of white.
+  const pane = document.getElementById('preview-pane');
+  if (pane) pane.lang = settings.language;
   const f = settings.fonts;
   // Per-element family overrides the trio; the trio is the fallback
   // when the matrix leaves `family` undefined.
@@ -224,7 +230,14 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .admonition { ${blockBoxCss(s.callout)} ${inlineCss(s.callout)} }
     #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
     #preview-pane p,
-    #preview-pane li { text-align: ${align}; }
+    #preview-pane li {
+      text-align: ${align};
+      /* Justified text without hyphenation opens rivers of white, and French
+         suffers most (long words, short measure). The browser needs the
+         document language to pick a dictionary; it is set on the pane above. */
+      hyphens: auto;
+      -webkit-hyphens: auto;
+    }
     /* MathJax SVGs are sized in ex units (relative to the container's
        font-size), so scaling the math wrappers' font-size resizes the
        glyphs without re-rendering. */

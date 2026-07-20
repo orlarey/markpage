@@ -146,6 +146,9 @@ export async function paginateWithVivliostyle(
   resetPageRunningCounter();
   prependDefaultFences(source, settings);
   const runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  // Hyphenation is dictionary-based: without a `lang` the browser silently
+  // declines to hyphenate, and justified text keeps its rivers of white.
+  source.lang = settings.language;
   const { renderVivliostylePreview } = await import('./preview-vivliostyle');
   return renderVivliostylePreview(
     source,
@@ -1073,6 +1076,10 @@ export function pagedCss(s: PdfSettings): string {
       line-height: ${styles.body.lineHeight ?? 1.25};
       color: ${styles.body.color};
       ${styles.body.align ? `text-align: ${styles.body.align};` : ''}
+      /* Hyphenate: justification without it opens rivers of white. Needs the
+         document language to select a dictionary (set on the render root). */
+      hyphens: auto;
+      -webkit-hyphens: auto;
     }
 
     ${
