@@ -51,6 +51,14 @@ function installHostFixes(): void {
     [data-vivliostyle-page-container],
     [data-vivliostyle-page-container] * {
       box-sizing: content-box;
+    }
+    /* EXCEPT inside SVG: mermaid labels are HTML in <foreignObject>, laid out
+       at hydration time under the app's border-box reset. Rendering them
+       content-box grows them past their frozen foreignObject height — the
+       text gets clipped mid-glyph. SVG geometry ignores box-sizing, so the
+       rule is safe for the whole subtree. */
+    [data-vivliostyle-page-container] svg * {
+      box-sizing: border-box;
     }`;
   document.head.appendChild(fix);
 }
@@ -81,6 +89,30 @@ function linearizePages(renderTo: HTMLElement): void {
     pg.classList.add('pagedjs_page');
     pg.style.display = 'block';
     pg.style.margin = ''; // let `.pagedjs_page { margin: 0 auto 24px }` center it
+  }
+}
+
+/** Swap every rendered `<svg id>` for a clone of the pristine one in `source`.
+ *
+ *  Vivliostyle bakes the DOCUMENT's typography (paragraph margins,
+ *  orphans/widows, text-indent…) as inline styles onto the HTML living inside
+ *  `<foreignObject>` — its cascade never consults the `<style>` mermaid embeds
+ *  in the svg. A mermaid label then grows past its frozen foreignObject box
+ *  (24px tall, stamped to 50px) and clips mid-glyph.
+ *
+ *  Clone from `source` — the hydrated DOM we were handed — never from the
+ *  document Vivliostyle owns, which it stamps as well. Safe because these svgs
+ *  are atomic: fitOversizedAtomicBlocks guarantees they are never fragmented,
+ *  so a page copy is always the whole diagram. */
+function restorePristineSvgs(source: HTMLElement, renderTo: HTMLElement): void {
+  const pristine = new Map<string, Element>();
+  for (const el of source.querySelectorAll('svg[id]')) pristine.set(el.id, el);
+  if (pristine.size === 0) return;
+  for (const rendered of renderTo.querySelectorAll(
+    '[data-vivliostyle-page-container] svg[id]',
+  )) {
+    const original = pristine.get(rendered.id);
+    if (original) rendered.replaceWith(original.cloneNode(true));
   }
 }
 
@@ -222,6 +254,7 @@ export async function renderVivliostylePreview(
   });
 
   linearizePages(renderTo);
+  restorePristineSvgs(source, renderTo);
   resolveTocPageNumbers(renderTo);
   return pages;
 }

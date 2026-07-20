@@ -149,6 +149,11 @@ export async function paginateWithVivliostyle(
   settings: PdfSettings,
   renderTo: HTMLElement,
 ): Promise<number> {
+  // The derived (Van de Graaf) margins are computed from a DOM measurement of
+  // the body font's average character width — with fallback metrics the
+  // measure runs ~16% wide and every derived margin shrinks. Wait for the real
+  // fonts BEFORE pagedCss() measures (the paged.js pipeline did this too).
+  await ensureSettingsFontsLoaded(settings);
   linkTocPlus(source);
   markConsecutiveParagraphs(source);
   groupLetterheads(source);
@@ -1528,12 +1533,21 @@ function buildBodyPaddingCss(
   // Scope to .pagedjs_page_content (paged.js's content wrapper). The
   // `scope` prefix (`:where(#preview-pane, ...)`) keeps these rules
   // from leaking outside the paginated containers.
+  // #mp-viv-root is the body of the standalone document handed to
+  // Vivliostyle (preview-vivliostyle.ts): there is no .pagedjs_page_content
+  // wrapper there, so the gutters are carried by the body itself. Without
+  // this the text spans the full live area and the two-rectangle §9.6
+  // geometry collapses. Duplex refinement (mirrored gutters) is a known gap.
   if (!duplex) {
-    return `${scope} .pagedjs_page_content { ${rectoPadding} }`;
+    return (
+      `${scope} .pagedjs_page_content { ${rectoPadding} }\n` +
+      `#mp-viv-root { ${rectoPadding} }`
+    );
   }
   return (
     `${scope} .pagedjs_right_page .pagedjs_page_content { ${rectoPadding} }\n` +
-    `${scope} .pagedjs_left_page  .pagedjs_page_content { ${versoPadding} }`
+    `${scope} .pagedjs_left_page  .pagedjs_page_content { ${versoPadding} }\n` +
+    `#mp-viv-root { ${rectoPadding} }`
   );
 }
 
