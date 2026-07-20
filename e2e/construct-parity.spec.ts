@@ -46,6 +46,7 @@ const CONSTRUCTS: Record<string, string> = {
 interface Measure {
   found: boolean;
   h: number;
+  w: number;
   brokenRefs: number;
   clipped: number;
 }
@@ -79,9 +80,15 @@ async function measure(page: Page, sel: Record<string, string>): Promise<Record<
           }
         }
       }
+      // Un-zoom: the paginated pages carry --mp-fit-zoom, the continuous
+      // pane does not. Comparing raw px would compare two scales.
+      const pg = el.closest('[data-vivliostyle-page-container]');
+      const scale = pg ? pg.getBoundingClientRect().width / 793.7 : 1;
+      const r = el.getBoundingClientRect();
       out[name] = {
         found: true,
-        h: Math.round(el.getBoundingClientRect().height),
+        h: Math.round(r.height / scale),
+        w: Math.round(r.width / scale),
         brokenRefs,
         clipped,
       };
@@ -107,6 +114,9 @@ async function render(page: Page, paginated: boolean): Promise<Record<string, Me
   return measure(page, CONSTRUCTS);
 }
 
+/** Ratio within [0.5, 2] — a legitimate reflow or rescale, not a collapse. */
+const within = (r: number): boolean => r >= 0.5 && r <= 2;
+
 test('every construct survives pagination', async ({ page, browser }) => {
   const continuous = await render(page, false);
 
@@ -125,10 +135,18 @@ test('every construct survives pagination', async ({ page, browser }) => {
     if (!got.found) failures.push(`${name}: disappeared when paginated`);
     if (got.brokenRefs > 0) failures.push(`${name}: ${got.brokenRefs} broken <use> refs (empty glyphs)`);
     if (got.clipped > 0) failures.push(`${name}: ${got.clipped} clipped foreignObject labels`);
-    // Pagination legitimately reflows (narrower text block), so compare
-    // loosely: this catches a collapse (adt 63px -> 15px), not a reflow.
-    if (ref.h > 0 && Math.abs(got.h - ref.h) / ref.h > 0.4) {
-      failures.push(`${name}: height ${ref.h} -> ${got.h}`);
+    // Neither height, area nor aspect alone works — the two modes have
+    // different content widths (continuous = pane, paginated = text block),
+    // and constructs react differently:
+    //   - text reflows: AREA is conserved   (admonition 84x350 -> 64x518)
+    //   - svg scales:   ASPECT is conserved (chart 203x350 -> 297x518)
+    //   - a collapse conserves NEITHER      (adt 63x350 -> 15x518)
+    // So require one of the two to hold.
+    const ratio = (a: number, b: number): number => (b === 0 ? Infinity : a / b);
+    const areaOk = within(ratio(got.h * got.w, ref.h * ref.w));
+    const aspectOk = within(ratio(ratio(got.h, got.w), ratio(ref.h, ref.w)));
+    if (ref.h > 0 && ref.w > 0 && !areaOk && !aspectOk) {
+      failures.push(`${name}: collapsed ${ref.h}x${ref.w} -> ${got.h}x${got.w}`);
     }
   }
   expect(failures, failures.join(' | ')).toEqual([]);

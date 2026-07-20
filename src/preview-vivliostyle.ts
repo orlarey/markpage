@@ -131,13 +131,24 @@ function linearizePages(renderTo: HTMLElement): void {
   }
 }
 
-/** Selector for rendered objects whose DOM must survive layout byte-for-byte. */
-const PRISTINE_SELECTOR = '.math-inline, .math-block, .mermaid-block';
+/** Rendered objects whose DOM must survive layout byte-for-byte.
+ *
+ *  Every `<svg>`, plus the math wrappers. Not a list of "constructs that broke
+ *  once" — enumerating classes is exactly what let the category arrowheads
+ *  slip through — but the structural rule: any SVG carries internal
+ *  references (`<use href="#glyph">`, `marker-end="url(#head)"`, clip-path,
+ *  mask, filter) that Vivliostyle rewrites against the document URL, after
+ *  which they resolve to nothing. A formula loses its glyphs, an arrow loses
+ *  its head, and nothing errors. */
+const PRISTINE_SELECTOR = 'svg, .math-inline, .math-block';
 
-/** Tag each pristine block in `source` so its page copy can be matched back. */
+/** Tag each pristine block in `source` so its page copy can be matched back.
+ *  Outermost-first: tagging a wrapper AND its inner svg would restore the
+ *  wrapper, then look for an already-replaced child. */
 function tagPristineBlocks(source: HTMLElement): void {
   let n = 0;
   for (const el of source.querySelectorAll(PRISTINE_SELECTOR)) {
+    if (el.closest('[data-mp-pristine]')) continue; // already covered by an ancestor
     el.setAttribute('data-mp-pristine', String(n));
     n += 1;
   }
@@ -145,20 +156,10 @@ function tagPristineBlocks(source: HTMLElement): void {
 
 /** Swap every rendered pristine block for a clone of the untouched original.
  *
- *  Vivliostyle rewrites the DOM it lays out in two ways that break rendered
- *  SVG:
- *   - it absolutises every href against the document URL, so a MathJax
- *     `<use href="#glyph">` becomes `http://host/#glyph` and resolves to
- *     nothing — the formula gets a correctly-sized but EMPTY box;
- *   - it bakes the document's typography (paragraph margins, orphans/widows)
- *     as inline styles onto the HTML inside `<foreignObject>`, so mermaid
- *     labels outgrow their frozen boxes and clip mid-glyph.
- *
- *  Both are cured by restoring the original subtree after layout. Clone from
- *  `source` — the hydrated DOM we were handed — never from the document
- *  Vivliostyle owns, which it stamps too. Safe because these blocks are
- *  atomic: fitOversizedAtomicBlocks guarantees they are never fragmented, so
- *  a page copy is always the whole object. */
+ *  Clone from `source` — the hydrated DOM we were handed — never from the
+ *  document Vivliostyle owns, which it rewrites too. Safe because these blocks
+ *  are atomic: fitOversizedAtomicBlocks guarantees they are never fragmented,
+ *  so a page copy is always the whole object. */
 function restorePristineBlocks(source: HTMLElement, renderTo: HTMLElement): void {
   const pristine = new Map<string, Element>();
   for (const el of source.querySelectorAll('[data-mp-pristine]')) {
@@ -242,9 +243,20 @@ export async function renderVivliostylePreview(
   // reusing that id would (a) duplicate a host id and (b) let the app's
   // style.css paint its pane background INSIDE the pages (the grey wash).
   // Rename the scope to a neutral id that no host rule targets.
-  style.textContent = [hljsCss, blocksCss, constructsCss,
-    css.replaceAll('#preview-pane', '#mp-viv-root'),
-    VIVLIOSTYLE_CSS_ADDENDUM].join('\n');
+  // Every injected sheet is scoped to the app's render-target ids
+  // (`#preview-pane`, `#markpage-preview`…). The standalone document has none
+  // of them, so the scope must be rewritten in ALL of them — not just
+  // pagedCss. Missing this left `constructs.css` inert: the EBNF rule titles
+  // lost their alignment, and any other id-scoped construct rule with them.
+  const scoped = (sheet: string): string =>
+    sheet.replaceAll('#preview-pane', '#mp-viv-root');
+  style.textContent = [
+    hljsCss,
+    scoped(blocksCss),
+    scoped(constructsCss),
+    scoped(css),
+    VIVLIOSTYLE_CSS_ADDENDUM,
+  ].join('\n');
   doc.head.appendChild(style);
   doc.body.id = 'mp-viv-root';
   // The construct stylesheets are scoped `:where(.markpage)` — without the

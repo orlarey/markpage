@@ -70,10 +70,10 @@ tout comme $\alpha + \beta$, $\sum_{i=1}^{n} i$ et $\mathcal{A} \vDash \varphi$.
 ## Règle d'inférence
 
 ```inference "Produit"
-Gamma |- e1 : T1
-Gamma |- e2 : T2
+Γ ⊢ e₁ : T₁
+Γ ⊢ e₂ : T₂
 ---
-Gamma |- (e1, e2) : T1 * T2
+Γ ⊢ (e₁, e₂) : T₁ × T₂
 ```
 
 ---
@@ -233,6 +233,29 @@ def fixpoint(graph, algebra, policy):
                     if user not in worklist:
                         worklist.append(user)
         results.update(current)
+        # --- suite volontairement longue : ce bloc doit traverser une page ---
+        for phase in ("croissance", "elargissement", "retrecissement"):
+            policy.enter_phase(phase)
+            changed = True
+            rounds = 0
+            while changed and rounds < policy.max_rounds:
+                changed = False
+                rounds += 1
+                for n in sorted(component, key=order_key):
+                    deps = attributes_of_dependencies(n, current, cache)
+                    candidate = algebra.evaluate(n, deps)
+                    nxt = policy.stabilize(n, current[n], candidate, phase)
+                    if not policy.reached(n, current[n], nxt, phase):
+                        current[n] = nxt
+                        changed = True
+                        for user in dependents(n) & set(component):
+                            if user not in worklist:
+                                worklist.append(user)
+                    else:
+                        current[n] = policy.publish(n, current[n], nxt, phase)
+                    policy.check_budget(n, rounds)
+            policy.leave_phase(phase)
+        report.record(component, rounds=rounds, size=len(component))
     return results
 ```
 
@@ -299,12 +322,17 @@ Un conseil.
 ## Colonnes
 
 ::: columns
-Colonne de gauche : du texte qui doit rester dans sa gouttière sans
-déborder sur la colonne voisine.
+**Colonne de gauche**
 
-:::
-Colonne de droite : le second flux, à la même hauteur de base que le
-premier, avec sa propre longueur de ligne.
+Du texte qui doit rester dans sa gouttière sans déborder sur la colonne
+voisine.
+
+---
+
+**Colonne de droite**
+
+Le second flux, à la même hauteur de base que le premier, avec sa propre
+longueur de ligne.
 :::
 
 ## Typographie locale
