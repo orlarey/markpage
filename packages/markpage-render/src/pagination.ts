@@ -31,6 +31,17 @@ export function paginationCss(): string {
        a page foot. */
     h1, h2, h3, h4, h5, h6 { break-after: avoid; }
     h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + * { break-before: avoid; }
+    /* Code blocks fragment like prose: never leave fewer than three lines on
+       either side of a break — below that the whole block moves on. Same
+       contract as paragraphs, expressed natively instead of pre-chunking the
+       DOM ourselves (what splitLongPreBlocks did for paged.js).
+       KNOWN GAP: the other half of the intended rule — "the first chunk fills
+       the space left on the current page" — is NOT achieved. Vivliostyle
+       starts a long block on a fresh page even with 47 free lines above it,
+       and nothing in our CSS asks for that: every ancestor computes
+       break-inside/break-before: auto and no atomic page is involved.
+       Removing the break-before rule above does not change it either. */
+    pre { orphans: 3; widows: 3; }
     /* Reliable keep-with-next: the pair wrapped by keepLabelsWithNext(). */
     .keep-with-next { break-inside: avoid; }
     /* Added after a first pagination pass when a heading is found alone at
