@@ -18,6 +18,15 @@
  *******************************************************************************/
 
 import { CoreViewer } from '@vivliostyle/core';
+// Construct CSS as TEXT: the standalone document Vivliostyle lays out has none
+// of the app's global stylesheets, so fenced constructs (adt, tree, chart…)
+// lost their layout — an `adt` block collapsed onto a single line for want of
+// `white-space: pre`. Imported ?inline (not as a side effect) so we can inject
+// exactly these sheets and NOT style.css, whose global
+// `* { box-sizing: border-box }` reset breaks Vivliostyle's layout model.
+import constructsCss from '@orlarey/markpage-render/constructs.css?inline';
+import blocksCss from '@orlarey/blocks/styles.css?inline';
+import hljsCss from 'highlight.js/styles/atom-one-light.css?inline';
 
 /** Vivliostyle-specific author-CSS addendum, appended after pagedCss():
  *  - `target-counter(attr(href url), page)`: the strictly-typed form; the
@@ -92,26 +101,44 @@ function linearizePages(renderTo: HTMLElement): void {
   }
 }
 
-/** Swap every rendered `<svg id>` for a clone of the pristine one in `source`.
+/** Selector for rendered objects whose DOM must survive layout byte-for-byte. */
+const PRISTINE_SELECTOR = '.math-inline, .math-block, .mermaid-block';
+
+/** Tag each pristine block in `source` so its page copy can be matched back. */
+function tagPristineBlocks(source: HTMLElement): void {
+  let n = 0;
+  for (const el of source.querySelectorAll(PRISTINE_SELECTOR)) {
+    el.setAttribute('data-mp-pristine', String(n));
+    n += 1;
+  }
+}
+
+/** Swap every rendered pristine block for a clone of the untouched original.
  *
- *  Vivliostyle bakes the DOCUMENT's typography (paragraph margins,
- *  orphans/widows, text-indent…) as inline styles onto the HTML living inside
- *  `<foreignObject>` — its cascade never consults the `<style>` mermaid embeds
- *  in the svg. A mermaid label then grows past its frozen foreignObject box
- *  (24px tall, stamped to 50px) and clips mid-glyph.
+ *  Vivliostyle rewrites the DOM it lays out in two ways that break rendered
+ *  SVG:
+ *   - it absolutises every href against the document URL, so a MathJax
+ *     `<use href="#glyph">` becomes `http://host/#glyph` and resolves to
+ *     nothing — the formula gets a correctly-sized but EMPTY box;
+ *   - it bakes the document's typography (paragraph margins, orphans/widows)
+ *     as inline styles onto the HTML inside `<foreignObject>`, so mermaid
+ *     labels outgrow their frozen boxes and clip mid-glyph.
  *
- *  Clone from `source` — the hydrated DOM we were handed — never from the
- *  document Vivliostyle owns, which it stamps as well. Safe because these svgs
- *  are atomic: fitOversizedAtomicBlocks guarantees they are never fragmented,
- *  so a page copy is always the whole diagram. */
-function restorePristineSvgs(source: HTMLElement, renderTo: HTMLElement): void {
+ *  Both are cured by restoring the original subtree after layout. Clone from
+ *  `source` — the hydrated DOM we were handed — never from the document
+ *  Vivliostyle owns, which it stamps too. Safe because these blocks are
+ *  atomic: fitOversizedAtomicBlocks guarantees they are never fragmented, so
+ *  a page copy is always the whole object. */
+function restorePristineBlocks(source: HTMLElement, renderTo: HTMLElement): void {
   const pristine = new Map<string, Element>();
-  for (const el of source.querySelectorAll('svg[id]')) pristine.set(el.id, el);
+  for (const el of source.querySelectorAll('[data-mp-pristine]')) {
+    pristine.set(el.getAttribute('data-mp-pristine') ?? '', el);
+  }
   if (pristine.size === 0) return;
   for (const rendered of renderTo.querySelectorAll(
-    '[data-vivliostyle-page-container] svg[id]',
+    '[data-vivliostyle-page-container] [data-mp-pristine]',
   )) {
-    const original = pristine.get(rendered.id);
+    const original = pristine.get(rendered.getAttribute('data-mp-pristine') ?? '');
     if (original) rendered.replaceWith(original.cloneNode(true));
   }
 }
@@ -171,23 +198,29 @@ export async function renderVivliostylePreview(
   renderTo: HTMLElement,
 ): Promise<number> {
   installHostFixes();
+  tagPristineBlocks(source);
 
-  // Standalone document. <base> keeps relative image URLs resolving against
-  // the app; body#preview-pane re-activates every scoped pagedCss rule (the
-  // cascade is evaluated by Vivliostyle against THIS document's structure).
+  // Standalone document. NO <base>: Vivliostyle resolves every href against
+  // it, which rewrites a MathJax `<use href="#glyph">` into
+  // `http://host/#glyph`. The internal reference then resolves to nothing and
+  // the formula renders as a correctly-sized but EMPTY box. `loadDocument`
+  // already receives the base URL, which is what relative image srcs need.
   const doc = document.implementation.createHTMLDocument('markpage preview');
-  const base = doc.createElement('base');
-  base.setAttribute('href', document.baseURI);
-  doc.head.appendChild(base);
   const style = doc.createElement('style');
   // The scoped pagedCss rules key on #preview-pane — but Vivliostyle CLONES
   // the source body into the host DOM as a wrapper inside every page, so
   // reusing that id would (a) duplicate a host id and (b) let the app's
   // style.css paint its pane background INSIDE the pages (the grey wash).
   // Rename the scope to a neutral id that no host rule targets.
-  style.textContent = `${css.replaceAll('#preview-pane', '#mp-viv-root')}\n${VIVLIOSTYLE_CSS_ADDENDUM}`;
+  style.textContent = [hljsCss, blocksCss, constructsCss,
+    css.replaceAll('#preview-pane', '#mp-viv-root'),
+    VIVLIOSTYLE_CSS_ADDENDUM].join('\n');
   doc.head.appendChild(style);
   doc.body.id = 'mp-viv-root';
+  // The construct stylesheets are scoped `:where(.markpage)` — without the
+  // class an `adt` block loses `white-space: pre` and collapses onto one line.
+  // Same class the print target carries.
+  doc.body.classList.add('markpage');
   doc.body.innerHTML = source.innerHTML;
   // applyPageRunningRuns() tags section membership as `data-page="mp-section-N"`
   // — a paged.js-internal side channel (its addPageAttributes reads
@@ -254,7 +287,7 @@ export async function renderVivliostylePreview(
   });
 
   linearizePages(renderTo);
-  restorePristineSvgs(source, renderTo);
+  restorePristineBlocks(source, renderTo);
   resolveTocPageNumbers(renderTo);
   return pages;
 }
