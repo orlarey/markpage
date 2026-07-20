@@ -2,7 +2,7 @@
   "name": "@orlarey/blocks",
   "version": "0.1.1",
   "description": "Framework-agnostic renderers for markpage's fenced markdown blocks (chart, bda, category, adt, diff, tree) — self-contained HTML/SVG, no app dependencies.",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "author": "Yann Orlarey",
   "homepage": "https://markpage.org",
   "repository": {
