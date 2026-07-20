@@ -2,7 +2,7 @@
   "name": "@orlarey/marked",
   "version": "0.1.1",
   "description": "marked plugin for markpage's fenced blocks — `marked.use(markpageBlocks())`.",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "author": "Yann Orlarey",
   "homepage": "https://markpage.org",
   "repository": {

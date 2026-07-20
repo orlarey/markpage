@@ -1,10 +1,10 @@
 {
   "name": "markpage",
   "private": true,
-  "version": "0.37.3",
+  "version": "0.38.0",
   "type": "module",
   "description": "Client-side Markdown to PDF converter",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "author": "Yann Orlarey",
   "workspaces": [
     "packages/*"

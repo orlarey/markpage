@@ -66,4 +66,4 @@ VS Code **1.85** or newer. No other setup — math, diagrams and fonts are bundl
 
 ## License
 
-[MIT](https://github.com/orlarey/markpage/blob/main/LICENSE)
+[AGPL-3.0-or-later](https://github.com/orlarey/markpage/blob/main/LICENSE)
