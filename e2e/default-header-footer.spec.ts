@@ -16,6 +16,10 @@ import { expect, test, type Page } from './fixtures';
  *   real regression through: the running bands were dropping off every
  *   page that began inside a fragmented paragraph, which is why these
  *   tests now sweep all pages.
+ *
+ *   The COVER is exempt: it deliberately carries no running content
+ *   (classical practice leaves the title page bare, and a folio on page 1
+ *   is noise), so every sweep starts at the page after it.
  */
 
 async function openSettings(page: Page): Promise<Page> {
@@ -71,9 +75,11 @@ test('the default footer ` | {page} | ` numbers every page in the bottom-center'
   await waitForRender(page);
 
   const footers = await slotTextPerPage(page, 'bottom-center');
-  expect(footers.length).toBeGreaterThan(0);
+  expect(footers.length).toBeGreaterThan(1);
+  expect(footers[0], 'the cover must stay bare').toBe('');
   // Resolved counters, not the `counter(page)` declaration: page N shows N.
-  expect(footers).toEqual(footers.map((_, i) => String(i + 1)));
+  const numbered = footers.slice(1);
+  expect(numbered).toEqual(numbered.map((_, i) => String(i + 2)));
 });
 
 test('a custom default header from settings shows on every page', async ({
@@ -91,8 +97,10 @@ test('a custom default header from settings shows on every page', async ({
   await waitForRender(page);
 
   const headers = await slotTextPerPage(page, 'top-right');
-  expect(headers.length).toBeGreaterThan(0);
-  expect(headers).toEqual(headers.map(() => 'Mon en-tête'));
+  expect(headers.length).toBeGreaterThan(1);
+  expect(headers[0], 'the cover must stay bare').toBe('');
+  const body = headers.slice(1);
+  expect(body).toEqual(body.map(() => 'Mon en-tête'));
 });
 
 test('an in-doc ```header fence overrides the default header but keeps the default footer', async ({
@@ -122,7 +130,8 @@ test('an in-doc ```header fence overrides the default header but keeps the defau
 
   const headers = await slotTextPerPage(page, 'top-right');
   const footers = await slotTextPerPage(page, 'bottom-center');
-  expect(headers[0]).toBe('Section override');
+  // Page index 1 — index 0 is the bare cover.
+  expect(headers[1]).toBe('Section override');
   expect(headers).not.toContain('Défaut');
-  expect(footers[0]).toBe('1');
+  expect(footers[1]).toBe('2');
 });

@@ -1,8 +1,4 @@
 ---
-title: Proposition commerciale
-author: Yann Orlarey
-organization: Atelier Typographique
-date: 2026-07-20
 document-type: letter
 ---
 

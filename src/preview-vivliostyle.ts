@@ -34,6 +34,18 @@ import hljsCss from 'highlight.js/styles/atom-one-light.css?inline';
  *    TargetCounters parser and stays inert here.
  *  - `.toc-dots` keeps working as-is (border-bottom leader, engine-agnostic).
  */
+/** Blank every margin box. A named @page cascades on top of the unnamed one,
+ *  so a section that declares no band would otherwise inherit the previous
+ *  section's — SPEC §26.5 wants a band REPLACED, not merged. Emitted at the
+ *  head of a rule so the rule's own slot declarations still win. */
+const CLEAR_SLOTS = (['top', 'bottom'] as const)
+  .flatMap((band) =>
+    (['left', 'center', 'right'] as const).map(
+      (slot) => `@${band}-${slot} { content: none; }`,
+    ),
+  )
+  .join(' ');
+
 const VIVLIOSTYLE_CSS_ADDENDUM = `
 nav.toc-plus .toc-entry a[href]::after {
   content: target-counter(attr(href url), page);
@@ -114,7 +126,7 @@ const BOX_COMPAT: ReadonlyArray<readonly [string, string]> = [
  *  `pagedjs_page` (+ recto/verso) so the app chrome, zoom and page CSS apply.
  *  Safe because the viewer is frozen after load (autoResize: false, no
  *  navigation UI). */
-function linearizePages(renderTo: HTMLElement): void {
+function linearizePages(renderTo: HTMLElement, duplex: boolean): void {
   for (const sel of [
     '[data-vivliostyle-viewer-viewport]',
     '[data-vivliostyle-outer-zoom-box]',
@@ -126,18 +138,34 @@ function linearizePages(renderTo: HTMLElement): void {
     el.style.height = 'auto';
     el.style.overflow = 'visible';
     el.style.position = 'static';
-    // The spread container is display:flex (pages side by side, viewer-style);
-    // block turns the run into the vertical stack the preview pane scrolls.
+    // The spread container is display:flex (pages side by side, viewer-style).
+    // Simplex wants the vertical stack the preview pane scrolls; duplex wants
+    // facing pairs, laid out below.
     el.style.display = 'block';
   }
   const spread = renderTo.querySelector<HTMLElement>(
     '[data-vivliostyle-spread-container]',
   );
   spread?.classList.add('pagedjs_pages');
+  // Facing pages, on screen: a two-column grid. The cover is a recto, so it
+  // takes the RIGHT column of the first row on its own; every later page then
+  // flows verso-left / recto-right, which is what a reader of the printed
+  // duplex document actually sees — and the only way to judge whether the
+  // inner margins are right.
+  if (spread && duplex) {
+    spread.classList.add('mp-spread');
+    spread.style.display = 'grid';
+    spread.style.gridTemplateColumns = 'auto auto';
+    spread.style.justifyContent = 'center';
+    spread.style.alignItems = 'start';
+  }
+  let pageIndex = 0;
   for (const pg of renderTo.querySelectorAll<HTMLElement>(
     '[data-vivliostyle-page-container]',
   )) {
     pg.classList.add('pagedjs_page');
+    if (pageIndex === 0) pg.classList.add('pagedjs_first_page');
+    pageIndex += 1;
     // Recto / verso — duplex mirroring and margin-slot swapping key on these.
     pg.classList.add(
       pg.getAttribute('data-vivliostyle-page-side') === 'left'
@@ -160,6 +188,70 @@ function linearizePages(renderTo: HTMLElement): void {
       mb.classList.add('pagedjs_margin');
       if (slot) mb.classList.add(`pagedjs_margin-${slot}`);
     }
+  }
+  if (spread && duplex) {
+    // The first page opens the book on a recto: give it the right column so
+    // the pairs that follow line up verso | recto.
+    const first = spread.querySelector<HTMLElement>('.pagedjs_page');
+    if (first) first.style.gridColumn = '2';
+  }
+}
+
+/**
+ * Purpose: Re-inject the debug-guides diagonals, one SVG per page box. They
+ *   pair with the derived (Van de Graaf) margins and the duplex spread: the
+ *   canon IS a diagonal construction, so seeing the diagonals is how you judge
+ *   whether the text block sits where the canon puts it. The outlines
+ *   themselves live in style.css, gated on `.debug-layout`; only this injector
+ *   was lost with paged.js.
+ * How: A viewBox="0 0 100 100" overlay stretched over the page box, so the
+ *   segments are expressed in percentages and need no measuring. Simplex and
+ *   the cover get the full page X; a real duplex spread gets the internal
+ *   diagonal plus the two half-diagonals meeting at the spine.
+ *   Idempotent — a page that already carries its overlay is skipped.
+ */
+function injectGuidesSvg(renderTo: HTMLElement, duplex: boolean): void {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  for (const pagebox of renderTo.querySelectorAll<HTMLElement>(
+    '.pagedjs_pagebox',
+  )) {
+    if (pagebox.querySelector(':scope > svg.mp-guides-overlay')) continue;
+    const page = pagebox.closest('.pagedjs_page');
+    const isCover = page?.classList.contains('pagedjs_first_page') ?? false;
+    const isVerso = page?.classList.contains('pagedjs_left_page') ?? false;
+    const isRecto = page?.classList.contains('pagedjs_right_page') ?? false;
+    let lines: ReadonlyArray<readonly [number, number, number, number]>;
+    if (!duplex || isCover || (!isVerso && !isRecto)) {
+      lines = [
+        [0, 0, 100, 100],
+        [100, 0, 0, 100],
+      ];
+    } else if (isVerso) {
+      lines = [
+        [100, 0, 0, 100],
+        [0, 0, 100, 50],
+        [100, 50, 0, 100],
+      ];
+    } else {
+      lines = [
+        [0, 0, 100, 100],
+        [0, 50, 100, 100],
+        [100, 0, 0, 50],
+      ];
+    }
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'mp-guides-overlay');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    for (const [x1, y1, x2, y2] of lines) {
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', String(x1));
+      line.setAttribute('y1', String(y1));
+      line.setAttribute('x2', String(x2));
+      line.setAttribute('y2', String(y2));
+      svg.appendChild(line);
+    }
+    pagebox.insertBefore(svg, pagebox.firstChild);
   }
 }
 
@@ -259,6 +351,7 @@ export async function renderVivliostylePreview(
   source: HTMLElement,
   css: string,
   renderTo: HTMLElement,
+  options: { duplex?: boolean } = {},
 ): Promise<number> {
   installHostFixes();
   tagPristineBlocks(source);
@@ -337,7 +430,35 @@ export async function renderVivliostylePreview(
       style.textContent += named
         .map((n) => `[data-page="${n}"], [data-page="${n}"] * { page: ${n}; }`)
         .join('\n');
+      // A named page inherits the unnamed @page it cascades from, which now
+      // carries the body's band — so the title page came out wearing the
+      // body's header and footer. SPEC §26.5 says a section's band REPLACES
+      // the previous one rather than merging with it, so clear all six slots
+      // at the head of every named rule; the rule's own declarations follow
+      // and win. The dominant section is already anonymous by here, so this
+      // matches only the minor ones.
+      style.textContent = style.textContent.replace(
+        /@page mp-section-\d+[^{]*\{/g,
+        (head) => `${head} ${CLEAR_SLOTS}`,
+      );
     }
+  }
+
+  // The generated cover — `h1.doc-title` plus the author/organization/date
+  // block — carries no running content at all: classical practice leaves the
+  // title page bare, and it is page 1, so a folio there is noise. Clearing the
+  // minor sections above is not enough on its own: the cover sits in the
+  // section opened by the settings' DEFAULT header/footer fences, so the page
+  // counter is that section's own declaration and legitimately outranks the
+  // reset. Give the cover a page of its own instead.
+  const coverParts = doc.querySelectorAll<HTMLElement>(
+    '.doc-title, .preview-metadata',
+  );
+  if (coverParts.length > 0) {
+    for (const el of coverParts) el.setAttribute('data-page', 'mp-cover');
+    style.textContent += `
+      [data-page="mp-cover"], [data-page="mp-cover"] * { page: mp-cover; }
+      @page mp-cover { ${CLEAR_SLOTS} }`;
   }
 
   renderTo.replaceChildren();
@@ -375,7 +496,8 @@ export async function renderVivliostylePreview(
     viewer.loadDocument({ url: document.baseURI }, { documentObject: doc });
   });
 
-  linearizePages(renderTo);
+  linearizePages(renderTo, options.duplex === true);
+  injectGuidesSvg(renderTo, options.duplex === true);
   restorePristineBlocks(source, renderTo);
   resolveTocPageNumbers(renderTo);
   return pages;

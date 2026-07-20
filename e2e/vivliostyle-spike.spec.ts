@@ -46,7 +46,9 @@ test('vivliostyle engine: complete, ordered, in-bounds pagination', async ({ pag
       hasPagedjsClass: containers.every((c) => c.classList.contains('pagedjs_page')),
       tocHasUnresolved: txt.includes('??'),
       tocAfterSample: tocAfter.slice(0, 40),
-      footerNumbers: containers.slice(0, 5).every((c, i) => {
+      // The cover carries no running content by design, so start at page 2.
+      footerNumbers: containers.slice(1, 5).every((c, k) => {
+        const i = k + 1;
         const r2 = c.getBoundingClientRect();
         return [...c.querySelectorAll('*')].some((el) => {
           const b = el.getBoundingClientRect();

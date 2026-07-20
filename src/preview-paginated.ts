@@ -154,6 +154,7 @@ export async function paginateWithVivliostyle(
     source,
     `${pagedCss(settings)}\n${runningCss}`,
     renderTo,
+    { duplex: settings.duplex },
   );
 }
 

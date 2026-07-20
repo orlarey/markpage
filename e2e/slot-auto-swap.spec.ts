@@ -99,8 +99,9 @@ test('simplex: outer-right content lands at top-right on every page', async ({ p
   await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
   await waitForRender(page);
 
-  // Both pages should show OUTER at top-right (simplex = no swap).
-  for (const idx of [0, 1]) {
+  // Page 0 is the bare cover (no running content by design); check the two
+  // body pages after it. Both show OUTER at top-right — simplex never swaps.
+  for (const idx of [1, 2]) {
     expect(await readPageMarginContent(page, idx, 'top-right')).toContain('OUTER');
     expect(await readPageMarginContent(page, idx, 'top-left')).toContain('INNER');
     expect(await readPageMarginContent(page, idx, 'top-center')).toContain('CENTER');
@@ -124,13 +125,14 @@ test('duplex: outer-right content swaps to top-left on verso pages', async ({ pa
   await waitForRender(page);
   await page.waitForTimeout(500); // settle after duplex toggle
 
-  // Page 0 = recto: nominal mapping (no swap).
-  expect(await readPageMarginContent(page, 0, 'top-right')).toContain('OUTER');
-  expect(await readPageMarginContent(page, 0, 'top-left')).toContain('INNER');
-  // Page 1 = verso: swapped mapping.
+  // Page 0 is the bare cover. Page 1 = verso, page 2 = recto.
+  // Recto: nominal mapping (no swap).
+  expect(await readPageMarginContent(page, 2, 'top-right')).toContain('OUTER');
+  expect(await readPageMarginContent(page, 2, 'top-left')).toContain('INNER');
+  // Verso: swapped mapping.
   expect(await readPageMarginContent(page, 1, 'top-right')).toContain('INNER');
   expect(await readPageMarginContent(page, 1, 'top-left')).toContain('OUTER');
   // Center stays put on both faces.
-  expect(await readPageMarginContent(page, 0, 'top-center')).toContain('CENTER');
   expect(await readPageMarginContent(page, 1, 'top-center')).toContain('CENTER');
+  expect(await readPageMarginContent(page, 2, 'top-center')).toContain('CENTER');
 });

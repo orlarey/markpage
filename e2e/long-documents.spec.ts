@@ -97,6 +97,24 @@ test('body text is justified and hyphenated; code is neither', async ({
   expect(styles.code).toEqual({ align: 'left', hyphens: 'none' });
 });
 
+test('letter: no generated cover page', async ({ page }) => {
+  const markdown = readFileSync(join(process.cwd(), 'LETTER.md'), 'utf8');
+  await renderDoc(page, markdown);
+
+  // A letterhead document names its author in the `sender` block, so the
+  // generated author/organization/date block is suppressed. Without that, a
+  // letter carrying only `document-type: letter` opened on a spurious page
+  // showing the PROFILE's placeholders — "Prénom Nom", "Mon organisation" —
+  // and doubled its page count.
+  await expect(page.locator('.preview-metadata')).toHaveCount(0);
+  const firstPageText = await page
+    .locator('.pagedjs_page')
+    .first()
+    .textContent();
+  expect(firstPageText).toContain('Atelier Typographique');
+  expect(firstPageText).not.toContain('Prénom Nom');
+});
+
 test('letter: logo, sender, recipient and signature all render', async ({
   page,
 }) => {

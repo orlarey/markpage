@@ -87,6 +87,23 @@ export function applyPreviewMetadata(
 ): void {
   target.querySelector('.preview-metadata')?.remove();
 
+  // Document types with no cover (a letter) get no identity block: without
+  // this, a letter carrying only `document-type: letter` opened on a page
+  // showing the profile's placeholder author and organization.
+  // A letterhead document carries its own identity: the `sender` block names
+  // who is writing, with address and legal identifiers. A generated cover would
+  // restate it — and, with the profile's placeholder author and organization,
+  // restate it WRONGLY: a letter whose frontmatter is just
+  // `document-type: letter` opened on a page reading "Prénom Nom / Mon
+  // organisation".
+  //
+  // Keyed on the letterhead rather than on the document type on purpose: the
+  // type is a semantic shorthand expanded into concrete style keys when the
+  // document is written, so it is not available here — settings are derived
+  // from the flattened stack patch, which has no notion of "letter". The
+  // presence of a sender block is both available and more truthful.
+  if (target.querySelector('.letterhead-sender, .letterhead-recipient')) return;
+
   const lines = metadataLines(settings, frontmatter);
   if (lines.length === 0) return;
 
