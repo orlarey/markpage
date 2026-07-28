@@ -24,3 +24,6 @@ vscode/test/__shots__/
 # Local reproduction material for bug reports: real user documents that must
 # never be versioned or published. Kept on disk, never in git.
 bugs/
+
+# Local pagination test doc — never version (accidentally swept in once)
+A-GUIDED-TOUR-OF-TLIB.md
