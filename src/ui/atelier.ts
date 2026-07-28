@@ -55,6 +55,59 @@ const DOC_TYPES: ReadonlyArray<readonly [string, string]> = [
 ];
 const SIZES = ['A4', 'Letter', 'A5', 'B5'];
 
+/** Strip a matching pair of surrounding quotes — front-matter values arrive
+ *  from parseStackDoc as raw scalars, and `color-crans` is stored quoted. */
+function unquote(v: string): string {
+  const t = v.trim();
+  return (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+    ? t.slice(1, -1)
+    : t;
+}
+
+/**
+ * Read the atelier's own vocabulary keys back out of a document's front-matter
+ * so the panel opens on the style already in the document instead of the
+ * defaults — otherwise touching any control would overwrite the existing style
+ * from scratch. Missing keys fall back to DEFAULT_ATELIER_STATE; the returned
+ * `crans` string is empty when the document declares none (openAtelier then
+ * keeps its default family).
+ *
+ * `fm` is the raw `Map<string,string>` from parseStackDoc(...).frontmatter —
+ * the typed Frontmatter interface omits `document-type`, which lives in the
+ * stack layer.
+ */
+export function atelierStateFromFrontmatter(fm: Map<string, string>): {
+  state: AtelierState;
+  crans: string;
+} {
+  const raw = (k: string): string | undefined => {
+    const v = fm.get(k);
+    return v === undefined ? undefined : unquote(v);
+  };
+  const str = (k: string, d: string): string => {
+    const v = raw(k);
+    return v && v.trim() ? v.trim() : d;
+  };
+  const num = (k: string, d: number): number => {
+    const v = raw(k);
+    const n = v === undefined ? NaN : Number(v);
+    return Number.isFinite(n) ? n : d;
+  };
+  const D = DEFAULT_ATELIER_STATE;
+  return {
+    state: {
+      docType: str('document-type', D.docType),
+      pageSize: str('page-size', D.pageSize),
+      pair: str('font-pair', D.pair),
+      base: num('font-base', D.base),
+      mathScale: num('math-scale', D.mathScale),
+      hue: num('color-hue', D.hue),
+    },
+    crans: raw('color-crans') ?? '',
+  };
+}
+
 /** Serialize the cran map back to the compact `color-crans` string (SPEC §8). */
 export function serializeCrans(crans: Map<string, Cran>): string {
   const jetons: string[] = [];
@@ -110,14 +163,23 @@ const CSS = `
 
 /**
  * Mount the atelier as an overlay. Returns a teardown. `onChange` fires on every
- * edit with the current front-matter keys; `initial` seeds the controls.
+ * edit with the current front-matter keys; `initial` seeds the non-colour
+ * controls and `initialCrans` (a compact `color-crans` string, empty for none)
+ * seeds the colour map — pass both from atelierStateFromFrontmatter to edit the
+ * document's existing style rather than the defaults.
  */
 export function openAtelier(
   initial: AtelierState,
   onChange: (keys: Map<string, string>) => void,
+  initialCrans = '',
 ): () => void {
   const state: AtelierState = { ...initial };
+  // Seed the default family, then overlay whatever the document declared, so
+  // an element the document omits still gets a chip (and a full round-trip of
+  // an atelier-written doc replaces every default).
   const crans = parseColorCrans(DEFAULT_CRANS);
+  if (initialCrans)
+    for (const [el, c] of parseColorCrans(initialCrans)) crans.set(el, c);
 
   if (!document.getElementById('mp-atelier-css')) {
     const style = document.createElement('style');

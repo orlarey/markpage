@@ -92,7 +92,7 @@ import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
-import { openAtelier, DEFAULT_ATELIER_STATE } from './ui/atelier';
+import { openAtelier, atelierStateFromFrontmatter } from './ui/atelier';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
@@ -2776,11 +2776,19 @@ async function bootstrap(): Promise<void> {
   // the vocabulary keys into the current document's front-matter, which the
   // render pipeline already reads. Opens on Cmd/Ctrl+Shift+A.
   const triggerAtelier = (): void => {
-    openAtelier({ ...DEFAULT_ATELIER_STATE }, (keys) => {
-      // setValue dispatches a doc change → the editor's own updateListener
-      // already schedules the live preview; a second call here double-renders.
-      editor.setValue(setFrontmatterKeys(editor.getValue(), keys));
-    });
+    // Open on the style already in the document (not the defaults) so the panel
+    // edits the existing style instead of overwriting it from scratch.
+    const fm = parseStackDoc(editor.getValue(), '__leaf__').frontmatter;
+    const { state, crans } = atelierStateFromFrontmatter(fm);
+    openAtelier(
+      state,
+      (keys) => {
+        // setValue dispatches a doc change → the editor's own updateListener
+        // already schedules the live preview; a second call here double-renders.
+        editor.setValue(setFrontmatterKeys(editor.getValue(), keys));
+      },
+      crans,
+    );
   };
 
   const onAppKeydown = (e: KeyboardEvent): void => {
