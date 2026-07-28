@@ -156,9 +156,13 @@ un élément se pose sur un **cran** de la carte **saturation × valeur**.
 
 ::: definition [Cran]
 Une position **discrète et aimantée** dans un espace de réglage. La carte
-couleur en présente une grille $C_{sat} \times C_{val}$ ; une icône d'élément
-glissée **saute** de cran en cran, elle ne prend jamais une valeur libre.
+couleur en présente une grille **6 × 6** (saturation × valeur) **plus une
+colonne de neutres** ; une icône d'élément glissée **saute** de cran en cran,
+elle ne prend jamais une valeur libre.
 :::
+
+La taille **6 × 6 + gris** est **figée** (I3) : assez de nuances pour une famille
+riche, assez peu pour ne pas rouvrir les degrés de liberté.
 
 L'aimantation est ce qui empêche de rouvrir les 150 degrés de liberté sous une
 forme spatiale : on ne fixe pas « saturation 34 % », on pose l'élément sur *le*
@@ -264,21 +268,42 @@ notes, code en découlent par le ratio de la paire.
 
 ### Paires (V1, indicatives)
 
-| Paire | Titres | Corps | Caractère |
-| :-- | :-- | :-- | :-- |
-| Moderne | sans | sans | humaniste, neutre |
-| Classique | serif | serif | serif de livre, sobre |
-| Éditorial | grotesque | serif | titres tranchés, corps lisible |
-| Élégant | serif ancienne | serif ancienne | raffiné |
-| Technique | condensé | sans | dense, façon rapport |
-| Contraste | grotesque | serif ancienne | fort écart titre / corps |
+Une paire fixe **quatre rôles** : titres, corps, code (toujours monospace), et
+**maths** (voir ci-dessous). La colonne *Maths* nomme le jeu de fontes MathJax
+qui **s'harmonise** avec le texte.
 
-::: caution [Dépendance polices]
-Les vraies paires supposent des fontes **disponibles**. markpage embarque déjà
-Roboto Condensed / Mono ; pour des paires curées (Palatino, une didone…) il
-faudra trancher **quoi bundler vs charger** — recoupe la feuille de route
-*catalogue de polices*. Une paire ne doit jamais retomber silencieusement sur un
-générique en production.
+| Paire | Titres | Corps | Maths | Caractère |
+| :-- | :-- | :-- | :-- | :-- |
+| Moderne | sans | sans | Fira Math | humaniste, neutre |
+| Classique | serif | serif | New CM | serif de livre, sobre |
+| Éditorial | grotesque | serif | STIX Two | titres tranchés, corps lisible |
+| Élégant | serif ancienne | serif ancienne | New CM | raffiné |
+| Technique | condensé | sans | Fira Math | dense, façon rapport |
+| Contraste | grotesque | serif ancienne | STIX Two | fort écart titre / corps |
+
+### La police mathématique
+
+Les maths (MathJax) sont un **quatrième rôle** de la paire, **pas** un axe à part
+ni un réglage exposé : elle doit **s'accorder** au texte — un corps serif appelle
+des maths serif (New CM, STIX Two), un corps sans appelle des maths sans (Fira
+Math). Le rôle *maths* est donc **baké dans la paire**, comme l'échelle et les
+graisses. Jeux MathJax candidats : **New CM**, **Fira Math**, **STIX Two**,
+**Asana**, **TeX**.
+
+La **seule poignée** propre aux maths est `mathScale` — le corps des formules
+**relatif** au corps du texte — qui **existe déjà** dans markpage (les maths
+paraissent souvent trop petites ou trop grosses selon la fonte). Elle vit à côté
+de la taille de base.
+
+::: caution [Dépendances fontes — texte ET maths]
+Deux limites à porter en implémentation. **(1) Texte :** les paires supposent des
+fontes **disponibles** ; markpage embarque déjà Roboto Condensed / Mono, mais
+des paires curées (Palatino, une didone…) posent la question **bundler vs
+charger** (feuille de route *catalogue de polices*). Une paire ne doit jamais
+retomber silencieusement sur un générique en production. **(2) Maths :** le
+**sélecteur de jeu de fontes MathJax** était différé en attendant la stabilité de
+`mathjax-full@4` (seul `mathScale` a été livré). V1 pourra donc n'harmoniser que
+sur un **sous-ensemble** disponible, quitte à compléter quand v4 se stabilise.
 :::
 
 ---
@@ -373,14 +398,20 @@ I7 — **Côté rédaction, un seul degré de liberté**
 
 ---
 
+## Tranché
+
+- **Nombre de crans** de la carte couleur : **6 × 6 + colonne de gris**, figé
+  (§4, I3).
+- **Police mathématique** : quatrième rôle **baké dans la paire**, harmonisé au
+  texte ; seule poignée propre = `mathScale` (§6).
+
 ## À trancher / hors V1
 
-- **Nombre de crans** de la carte couleur ($C_{sat}$, $C_{val}$, pas de gris) —
-  paramètre de spec, pas une vérité des maquettes. Trop de crans rouvre les
-  degrés de liberté ; trop peu étouffe.
 - **Nombre de bacs couleur** : un seul (teinte) + les neutres suffit-il presque
   toujours, ou faut-il un **second bac** pour un accent tranché ? Les maquettes
   n'en montrent qu'un.
+- **Jeu de fontes MathJax** : quels jeux réellement disponibles en V1 (dépend de
+  la stabilité `mathjax-full@4`) et lesquels associer à chaque paire.
 - **Vocabulaire de pile** pour la table des crans couleur, la paire, l'ancre — la
   forme exacte à figer (recoupe [STACK-SPEC](STACK-SPEC.md) et
   [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)).
