@@ -339,10 +339,32 @@ body,
   padding-top: 40px;
 }
 
-#preview-pane .pagedjs_page {
-  /* Style-editor page fill (STYLE-EDITOR-SPEC §4): main.ts sets --mp-page-bg
-     from the derived `page` colour; white when the style leaves it unset. */
+/* Page fill (STYLE-EDITOR-SPEC §4): --mp-page-bg carries the derived `page`
+   colour (white when unset). Painted on BOTH the preview and the print target
+   so the exported PDF matches the screen. `print-color-adjust: exact` keeps the
+   browser from dropping the fill when printing (backgrounds are omitted by
+   default). main.ts sets the var on #preview-pane; print-export.ts sets it on
+   #markpage-print-target. */
+:is(#preview-pane, #markpage-print-target) .pagedjs_page {
   background: var(--mp-page-bg, white);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+/* The cover page carries its OWN fill (--mp-cover-bg from the derived `cover`
+   colour), so a tinted title page can sit over plain body pages.
+   `:has(.doc-title, .preview-metadata)` targets only a real cover — a letter or
+   cover-less document has no title block, so its first page keeps the page
+   fill. Higher specificity than the rule above, so it wins; falls back to the
+   page fill, then white, when the style leaves `cover` unset. */
+:is(#preview-pane, #markpage-print-target)
+  .pagedjs_page:has(.doc-title, .preview-metadata) {
+  background: var(--mp-cover-bg, var(--mp-page-bg, white));
+}
+
+/* Preview-only page chrome — never on the print target, where the box-shadow,
+   inter-page margin and fit-zoom would corrupt the printed sheet. */
+#preview-pane .pagedjs_page {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   margin: 0 auto 24px;
   /* Page zoom: main.ts sets --mp-fit-zoom = min(z, paneWidth/pageWidth) so a
@@ -351,16 +373,6 @@ body,
      zooming in on a wide pane. `zoom` reflows, so vertical scroll and
      click-to-source stay correct. */
   zoom: var(--mp-fit-zoom, 1);
-}
-
-/* The cover page carries its OWN fill (main.ts sets --mp-cover-bg from the
-   derived `cover` colour), so a tinted title page can sit over plain body
-   pages. `:has(.doc-title, .preview-metadata)` targets only a real cover — a
-   letter or cover-less document has no title block, so its first page keeps the
-   page fill. Higher specificity than the rule above, so it wins; falls back to
-   the page fill, then white, when the style leaves `cover` unset. */
-#preview-pane .pagedjs_page:has(.doc-title, .preview-metadata) {
-  background: var(--mp-cover-bg, var(--mp-page-bg, white));
 }
 
 /* ::: background — per-page backdrop layer (BACKGROUND-SPEC). The marked
