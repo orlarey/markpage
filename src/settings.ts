@@ -13,6 +13,9 @@ import {
   parseColorCrans,
   deriveElementColors,
   backgroundColor,
+  resolveFontPairing,
+  deriveFontSizes,
+  DEFAULT_FONT_RATIO,
 } from '@orlarey/markpage-render';
 export type { MathFontSet };
 
@@ -1029,6 +1032,32 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
     const coverBg = backgroundColor(hue, crans, 'cover');
     if (pageBg) s = { ...s, pageBackground: pageBg };
     if (coverBg) s = { ...s, coverBackground: coverBg };
+  }
+
+  // Style-editor fonts axis (STYLE-EDITOR-SPEC §6): a pairing sets the three
+  // families + the maths font set, the anchor + ratio derive every text size.
+  const pairing =
+    fm['font-pair'] !== undefined ? resolveFontPairing(fm['font-pair']) : undefined;
+  if (pairing) {
+    s = {
+      ...s,
+      fonts: { headings: pairing.headings, body: pairing.body, code: pairing.code },
+      mathFontSet: pairing.math,
+    };
+  }
+  if (pairing || fm['font-base'] !== undefined) {
+    const ratio = pairing ? pairing.ratio : DEFAULT_FONT_RATIO;
+    const base = fm['font-base'] ?? (s.styles.body.fontSize ?? 11);
+    const sizes = deriveFontSizes(base, ratio);
+    const styles = { ...s.styles };
+    for (const [key, pt] of sizes) {
+      const k = key as ElementKey;
+      if (styles[k]) styles[k] = { ...styles[k], fontSize: pt };
+    }
+    s = { ...s, styles };
+  }
+  if (fm['math-scale'] !== undefined) {
+    s = { ...s, mathScale: fm['math-scale'] };
   }
 
   return s;

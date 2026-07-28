@@ -48,6 +48,12 @@ export interface Frontmatter {
   // rotating the hue pivots the whole family (see style-vocabulary.ts).
   'color-hue'?: number;
   'color-crans'?: string;
+  // Style-editor fonts axis (docs/STYLE-EDITOR-SPEC.md §6). `font-pair` names a
+  // curated pairing (headings/body/code/maths + scale ratio); `font-base` is the
+  // body size anchor (pt); `math-scale` sizes the maths relative to the body.
+  'font-pair'?: string;
+  'font-base'?: number;
+  'math-scale'?: number;
   // A full style profile serialized as JSON (markpage's per-element `styles` +
   // fonts + layout), written by markpage for external renderers (the VS Code
   // preview) so a document carries its complete typography. Authored as a
@@ -257,11 +263,22 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'font-mono':
     case 'markpage-profile':
     case 'color-crans':
+    case 'font-pair':
       meta[key] = value;
       break;
     case 'color-hue': {
       const h = Number(value);
       if (Number.isFinite(h)) meta['color-hue'] = h;
+      break;
+    }
+    case 'font-base': {
+      const n = Number(value);
+      if (Number.isFinite(n)) meta['font-base'] = n;
+      break;
+    }
+    case 'math-scale': {
+      const n = Number(value);
+      if (Number.isFinite(n)) meta['math-scale'] = n;
       break;
     }
     case 'slides':

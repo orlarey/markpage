@@ -144,3 +144,81 @@ export function backgroundColor(
   const cran = crans.get(which);
   return cran ? cranToHex(hue, cran) : null;
 }
+
+/*───────────────────────── FONTS axis (SPEC §6) ─────────────────────────────*
+ * A style's fonts are one curated PAIRING (`font-pair`) plus a single anchor
+ * (`font-base`). The pairing bakes four roles — headings / body / code / maths
+ * — and a scale ratio; the anchor is the body size, and every text element's
+ * size DERIVES as base × ratio^step. Reduction by generation (SPEC §6), the
+ * complement of the colour axis's reduction by grouping.
+ *---------------------------------------------------------------------------*/
+import type { MathFontSet } from './mathjax-fontsets';
+
+export interface FontPairing {
+  id: string;
+  name: string;
+  char: string;
+  headings: string; // family names — resolved by the host's font loader
+  body: string;
+  code: string;
+  math: MathFontSet; // the harmonised MathJax font set (SPEC §6)
+  ratio: number; // the modular-scale ratio baked into the pairing
+}
+
+/** The curated pairings (SPEC §6). Families are real entries of the app's
+ *  Google-Fonts catalogue, so they load on demand; the math set harmonises with
+ *  the text (serif body → serif math, sans body → Fira Math). Provisional while
+ *  the font catalogue is finalised (SPEC "à trancher"). */
+export const FONT_PAIRINGS: FontPairing[] = [
+  { id: 'moderne', name: 'Moderne', char: 'Sans humaniste, neutre',
+    headings: 'Inter', body: 'Inter', code: 'JetBrains Mono', math: 'fira', ratio: 1.22 },
+  { id: 'classique', name: 'Classique', char: 'Serif de livre, sobre',
+    headings: 'Source Serif 4', body: 'Source Serif 4', code: 'IBM Plex Mono', math: 'stix2', ratio: 1.25 },
+  { id: 'editorial', name: 'Éditorial', char: 'Grotesque + serif',
+    headings: 'Inter', body: 'Lora', code: 'JetBrains Mono', math: 'stix2', ratio: 1.28 },
+  { id: 'elegant', name: 'Élégant', char: 'Serif ancienne, raffinée',
+    headings: 'EB Garamond', body: 'EB Garamond', code: 'IBM Plex Mono', math: 'newcm', ratio: 1.3 },
+  { id: 'technique', name: 'Technique', char: 'Condensé dense, façon rapport',
+    headings: 'Roboto Condensed', body: 'Roboto', code: 'Roboto Mono', math: 'fira', ratio: 1.2 },
+  { id: 'contraste', name: 'Contraste', char: 'Fort écart titre / corps',
+    headings: 'Poppins', body: 'PT Serif', code: 'Source Code Pro', math: 'stix2', ratio: 1.34 },
+];
+
+export const resolveFontPairing = (id: string): FontPairing | undefined =>
+  FONT_PAIRINGS.find((p) => p.id === id.trim().toLowerCase());
+
+/** Type-scale step per element (SPEC §6): the exponent of the ratio. Body is the
+ *  anchor (0); headings climb, the apparatus (notes/légende/en-tête/métadonnées)
+ *  sits one step below. Element keys are markpage's ElementKey names. */
+export const FONT_STEPS: Record<string, number> = {
+  title: 5,
+  h1: 4,
+  h2: 3,
+  h3: 2,
+  h4: 1,
+  body: 0,
+  quote: 0,
+  'code-inline': -0.5,
+  'code-block': -0.5,
+  metadata: -1,
+  caption: -1,
+  footnote: -1,
+  'running-content': -1,
+};
+
+/** Default modular-scale ratio when a size anchor is set without a pairing. */
+export const DEFAULT_FONT_RATIO = 1.25;
+
+/** Derive the point size of every scaled element from the anchor and ratio:
+ *  `size(el) = round½(base · ratio^step)`. Rounded to the nearest half-point so
+ *  the sizes read clean. */
+export function deriveFontSizes(
+  base: number,
+  ratio: number,
+): Map<string, number> {
+  const sizes = new Map<string, number>();
+  for (const [key, step] of Object.entries(FONT_STEPS)) {
+    sizes.set(key, Math.round(base * ratio ** step * 2) / 2);
+  }
+  return sizes;
+}

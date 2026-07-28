@@ -125,5 +125,11 @@ export {
   parseColorCrans,
   deriveElementColors,
   backgroundColor,
+  FONT_PAIRINGS,
+  FONT_STEPS,
+  DEFAULT_FONT_RATIO,
+  resolveFontPairing,
+  deriveFontSizes,
   type Cran,
+  type FontPairing,
 } from './style-vocabulary';
