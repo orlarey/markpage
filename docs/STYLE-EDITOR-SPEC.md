@@ -333,7 +333,7 @@ aperçu **persistant** à droite.
 
 ## Sérialisation
 
-Un style se **sérialise proprement** sur le modèle de la pile
+Un style se **sérialise** sur le modèle de la pile
 ([STACK-SPEC](STACK-SPEC.md)) : un document-style porte, en clés de front-matter
 ou dérivées,
 
@@ -341,18 +341,49 @@ ou dérivées,
 document-type: report        # choix galerie-formats
 page-size: A4                # ajustable circonstanciel
 cover: true                  # ajustable circonstanciel
-font-pair: classique         # choix galerie-polices
+font-pair: classique         # choix galerie-polices (fixe titres/corps/code/maths)
 font-base: 10.5              # la poignée globale
-color-hue: 213               # bac (teinte)
-# + la table des crans par élément (couleur), forme à figer
+math-scale: 1.0              # corps des maths, relatif au texte
+color-hue: 213               # LE bac — une seule teinte (I : un seul bac)
+color-crans: "page:n0 cover:4,4 titre:4,4 h1:4,3 h2:3,2 corps:n4 notes:n3 code:n4 en-tete:n2"
 ```
 
 Un document contenu fait `extends: <ce-style>` ; l'aplatissement
 ([STACK-SPEC](STACK-SPEC.md), moteur `extends` + `insert`) produit le `.md`
-autonome rendu *in fine*. Les clés existantes (`page-size`, `margins`, `font-*`,
-[FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)) restent le vocabulaire ; ce qui manque
-(la table des crans couleur, la paire, l'ancre) est à **ajouter au vocabulaire de
-la pile** — c'est le vrai travail d'intégration.
+autonome rendu *in fine*.
+
+### La table des crans (le cœur de l'intégration)
+
+::: important [Stocker le cran, pas la couleur]
+Chaque élément a une **position** sur la carte, pas un hexadécimal. On sérialise
+**le cran**, pas la couleur résolue — sinon la coordination « une seule teinte,
+toute la famille pivote » (§4) ne survivrait pas à la sauvegarde. `color-crans`
+encode la table `{élément → cran}` : `4,3` = saturation-cran 4, valeur-cran 3
+(teinté) ; `n4` = neutre cran 4 (hors teinte). La couleur finale est **dérivée**
+de `color-hue` + le cran au rendu.
+:::
+
+Contrainte réelle : le front-matter markpage est un **sous-ensemble plat de
+YAML** — paires scalaires, **pas** de listes ni de dictionnaires imbriqués
+([FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)). La table ne peut donc pas être un dict
+YAML. **Forme retenue : une chaîne scalaire compacte**, une seule clé
+`color-crans` listant toutes les positions :
+
+```yaml
+color-hue: 213
+color-crans: "page:n0 cover:4,4 titre:4,4 h1:4,3 h2:3,2 corps:n4 notes:n3 code:n4 en-tete:n2"
+```
+
+Une clé, dense, portable ; un petit **parseur maison** la relit (jetons
+`élément:cran`, `cran` = `s,v` teinté ou `n<i>` neutre). Écarté : une clé plate
+par élément (`color-h1: 4,3`…), plus lisible mais verbeuse et bruyante dans le
+front-matter.
+
+C'est **ça, « figer le vocabulaire de pile »** : la forme est arrêtée, reste à
+écrire le code qui la lit et la dérive en couleurs. Les clés existantes
+(`page-size`, `margins`, `font-*`) restent le vocabulaire ; ce qui s'ajoute
+(`color-hue`, `color-crans`, `font-pair`, `font-base`, `math-scale`) est le vrai
+**premier chantier** d'intégration.
 
 ::: warning [Le piège de dérivation, déjà rencontré]
 Les réglages sont dérivés au rendu d'un **patch de pile**, pas du type de
@@ -402,19 +433,17 @@ I7 — **Côté rédaction, un seul degré de liberté**
 
 - **Nombre de crans** de la carte couleur : **6 × 6 + colonne de gris**, figé
   (§4, I3).
+- **Un seul bac couleur** : une teinte + les neutres. Pas de second bac en V1 —
+  la colonne de gris couvre déjà les besoins d'accent neutre.
 - **Police mathématique** : quatrième rôle **baké dans la paire**, harmonisé au
-  texte ; seule poignée propre = `mathScale` (§6).
+  texte ; seule poignée propre = `math-scale` (§6).
+- **Sérialisation de la couleur** : **une chaîne scalaire compacte** unique
+  (`color-crans: "…"`), pas une clé par élément (§8).
 
 ## À trancher / hors V1
 
-- **Nombre de bacs couleur** : un seul (teinte) + les neutres suffit-il presque
-  toujours, ou faut-il un **second bac** pour un accent tranché ? Les maquettes
-  n'en montrent qu'un.
 - **Jeu de fontes MathJax** : quels jeux réellement disponibles en V1 (dépend de
   la stabilité `mathjax-full@4`) et lesquels associer à chaque paire.
-- **Vocabulaire de pile** pour la table des crans couleur, la paire, l'ancre — la
-  forme exacte à figer (recoupe [STACK-SPEC](STACK-SPEC.md) et
-  [FRONTMATTER-SPEC](FRONTMATTER-SPEC.md)).
 - **Catalogue de polices** : quoi bundler vs charger (feuille de route
   *catalogue de polices*).
 - **Échappatoire fine** : la fiche d'élément de l'atelier est le lieu naturel
