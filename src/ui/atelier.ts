@@ -6,15 +6,20 @@
  * those keys via `setFrontmatterKeys` and the existing render pipeline (which
  * already reads them, slices 1–3) shows the result.
  *
- * This first cut ships the format + fonts galleries and the colour HUE with a
- * sensible fixed cran family; per-element cran editing (the drag map) is the
- * next enrichment. Kept host-simple: plain DOM + a scoped <style>, no framework.
+ * Colour is the full map now: a 6×6 saturation × value grid plus a neutral
+ * column, element chips dragged onto crans, the hue rotating the whole family —
+ * the swatches are cranToHex(hue, cran), the exact colour the render derives.
  *
  *****************************************************************************/
 
-import { FONT_PAIRINGS } from '@orlarey/markpage-render';
+import {
+  FONT_PAIRINGS,
+  cranToHex,
+  parseColorCrans,
+  type Cran,
+} from '@orlarey/markpage-render';
 
-/** The style the atelier composes, 1:1 with the front-matter vocabulary. */
+/** The non-colour style the atelier composes. Colour lives in a `Cran` map. */
 export interface AtelierState {
   docType: string; // document-type
   pageSize: string; // page-size
@@ -33,11 +38,12 @@ export const DEFAULT_ATELIER_STATE: AtelierState = {
   hue: 213,
 };
 
-// A clean, hue-rotatable colour family (SPEC §4 crans): page white, near-black
-// body, tinted headings/cover, grey apparatus. The atelier writes this verbatim
-// and only rotates `color-hue` for now.
+// The default cran family (SPEC §4): page white, near-black body, tinted
+// headings/cover, grey apparatus. The map seeds from this; drags edit it.
 const DEFAULT_CRANS =
   'page:n0 cover:4,4 titre:4,4 h1:4,3 h2:3,2 corps:n5 notes:n3 code:n4 en-tete:n2 legende:n3';
+
+const GRID = 6; // 6×6 sat×value + a 6-step neutral column (SPEC §4, I3)
 
 const DOC_TYPES: ReadonlyArray<readonly [string, string]> = [
   ['note', 'Note technique'],
@@ -49,8 +55,20 @@ const DOC_TYPES: ReadonlyArray<readonly [string, string]> = [
 ];
 const SIZES = ['A4', 'Letter', 'A5', 'B5'];
 
-/** Turn a state into the front-matter keys it serializes to (SPEC §8). */
-export function stateToKeys(s: AtelierState): Map<string, string> {
+/** Serialize the cran map back to the compact `color-crans` string (SPEC §8). */
+export function serializeCrans(crans: Map<string, Cran>): string {
+  const jetons: string[] = [];
+  for (const [el, c] of crans) {
+    jetons.push(`${el}:${c.kind === 'neutral' ? `n${c.g}` : `${c.s},${c.v}`}`);
+  }
+  return jetons.join(' ');
+}
+
+/** State + cran map → the front-matter keys they serialize to (SPEC §8). */
+export function buildKeys(
+  s: AtelierState,
+  crans: Map<string, Cran>,
+): Map<string, string> {
   return new Map<string, string>([
     ['document-type', s.docType],
     ['page-size', s.pageSize],
@@ -58,13 +76,13 @@ export function stateToKeys(s: AtelierState): Map<string, string> {
     ['font-base', String(s.base)],
     ['math-scale', String(s.mathScale)],
     ['color-hue', String(Math.round(s.hue))],
-    ['color-crans', `"${DEFAULT_CRANS}"`],
+    ['color-crans', `"${serializeCrans(crans)}"`],
   ]);
 }
 
 const CSS = `
 .mp-atelier-scrim { position: fixed; inset: 0; background: rgba(20,25,40,.28); z-index: 200; display: flex; justify-content: flex-end; }
-.mp-atelier { width: min(420px, 100vw); height: 100%; overflow-y: auto; background: var(--bg,#fff); box-shadow: -8px 0 30px rgba(0,0,0,.2); padding: 1.2rem 1.3rem 2rem; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1a1f2b; }
+.mp-atelier { width: min(440px, 100vw); height: 100%; overflow-y: auto; background: var(--bg,#fff); box-shadow: -8px 0 30px rgba(0,0,0,.2); padding: 1.2rem 1.3rem 2rem; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1a1f2b; }
 .mp-atelier h2 { margin: 0 0 .2rem; font-size: 1.05rem; }
 .mp-atelier .sub { margin: 0 0 1.2rem; color: #5c6473; font-size: .85rem; }
 .mp-atelier section { border-top: 1px solid #e4e7ee; padding-top: 1rem; margin-top: 1rem; }
@@ -79,7 +97,15 @@ const CSS = `
 .mp-atelier .hue { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 6px; background: linear-gradient(to right, hsl(0,70%,50%), hsl(60,70%,50%), hsl(120,70%,50%), hsl(180,70%,50%), hsl(240,70%,50%), hsl(300,70%,50%), hsl(360,70%,50%)); }
 .mp-atelier .hue::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #1a1f2b; cursor: grab; }
 .mp-atelier .close { position: absolute; top: .8rem; right: .9rem; border: 0; background: transparent; font-size: 1.3rem; cursor: pointer; color: #5c6473; }
-.mp-atelier .note { font-size: .76rem; color: #868d9b; margin-top: .4rem; }
+.mp-atelier .note { font-size: .76rem; color: #868d9b; margin-top: .5rem; }
+.mp-cmap { display: grid; grid-template-columns: repeat(${GRID + 1}, 1fr); gap: 3px; margin-top: .3rem; }
+.mp-cc { position: relative; min-height: 40px; min-width: 0; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 2px; align-content: center; justify-content: center; padding: 2px; cursor: pointer; }
+.mp-cc.gray { box-shadow: inset -1px 0 0 #cdd2dc; }
+.mp-cc.target { box-shadow: 0 0 0 3px #3b6fb0; }
+.mp-cc.bg::after { content: ""; position: absolute; inset: 0; border-radius: 5px; box-shadow: inset 0 0 0 2px #3b6fb0; pointer-events: none; }
+.mp-chip { font-size: .6rem; font-weight: 600; line-height: 1; padding: 2px 4px; border-radius: 10px; cursor: grab; user-select: none; white-space: nowrap; border: 1.5px solid rgba(0,0,0,.18); touch-action: none; }
+.mp-chip.ghost { position: fixed; z-index: 300; pointer-events: none; transform: translate(-50%,-50%) scale(1.1); }
+.mp-caxis { display: flex; justify-content: space-between; font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: #868d9b; margin-top: .25rem; }
 `;
 
 /**
@@ -91,6 +117,7 @@ export function openAtelier(
   onChange: (keys: Map<string, string>) => void,
 ): () => void {
   const state: AtelierState = { ...initial };
+  const crans = parseColorCrans(DEFAULT_CRANS);
 
   if (!document.getElementById('mp-atelier-css')) {
     const style = document.createElement('style');
@@ -107,7 +134,7 @@ export function openAtelier(
   panel.setAttribute('aria-label', 'Atelier de style');
   scrim.appendChild(panel);
 
-  const emit = (): void => onChange(stateToKeys(state));
+  const emit = (): void => onChange(buildKeys(state, crans));
 
   const close = (): void => {
     scrim.remove();
@@ -176,6 +203,7 @@ export function openAtelier(
     get: () => number,
     set: (v: number) => void,
     fmt: (v: number) => string,
+    onInput: (() => void) | null = null,
     cls = '',
   ): HTMLElement => {
     const row = document.createElement('div');
@@ -194,6 +222,7 @@ export function openAtelier(
     input.addEventListener('input', () => {
       set(Number(input.value));
       out.textContent = fmt(get());
+      if (onInput) onInput();
       emit();
     });
     row.append(lab, input, out);
@@ -229,18 +258,117 @@ export function openAtelier(
     slider('Maths', 0.8, 1.2, 0.05, () => state.mathScale, (v) => (state.mathScale = v), (v) => `×${v.toFixed(2)}`),
   );
 
-  // ── Colour ──
+  // ── Colour map ──
   const col = document.createElement('section');
   const ch = document.createElement('h3');
   ch.textContent = 'Couleur';
-  const hue = slider('Teinte', 0, 359, 1, () => state.hue, (v) => (state.hue = v), (v) => `${Math.round(v)}°`, 'hue');
+  const cmap = document.createElement('div');
+  cmap.className = 'mp-cmap';
+
+  // Build the grid: column 0 = neutral (g=row), columns 1..GRID = tint(s,v=row).
+  const cells: HTMLElement[] = [];
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c <= GRID; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'mp-cc' + (c === 0 ? ' gray' : '');
+      if (c === 0) cell.dataset.g = String(r);
+      else {
+        cell.dataset.s = String(c - 1);
+        cell.dataset.v = String(r);
+      }
+      cmap.appendChild(cell);
+      cells.push(cell);
+    }
+  }
+  const cellCran = (el: HTMLElement): Cran =>
+    el.dataset.g !== undefined
+      ? { kind: 'neutral', g: Number(el.dataset.g) }
+      : { kind: 'tint', s: Number(el.dataset.s), v: Number(el.dataset.v) };
+  const cellFor = (cran: Cran): HTMLElement =>
+    cran.kind === 'neutral'
+      ? cells[cran.g * (GRID + 1)]
+      : cells[cran.v * (GRID + 1) + cran.s + 1];
+
+  const light = (hex: string): boolean => {
+    const n = parseInt(hex.slice(1), 16);
+    const r = (n >> 16) & 255;
+    const g = (n >> 8) & 255;
+    const b = n & 255;
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140;
+  };
+
+  const renderMap = (): void => {
+    for (const cell of cells) {
+      cell.style.background = cranToHex(state.hue, cellCran(cell));
+      cell.classList.remove('bg');
+      for (const chip of [...cell.querySelectorAll('.mp-chip')]) chip.remove();
+    }
+    for (const [el, cran] of crans) {
+      const cell = cellFor(cran);
+      const chip = document.createElement('div');
+      chip.className = 'mp-chip';
+      chip.textContent = el;
+      const hex = cranToHex(state.hue, cran);
+      chip.style.background = hex;
+      chip.style.color = light(hex) ? '#1a1f2b' : '#fff';
+      chip.style.borderColor = light(hex) ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.3)';
+      attachDrag(chip, el);
+      cell.appendChild(chip);
+      if (el === 'page' || el === 'cover') cell.classList.add('bg');
+    }
+  };
+
+  function attachDrag(chip: HTMLElement, el: string): void {
+    chip.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const ghost = chip.cloneNode(true) as HTMLElement;
+      ghost.classList.add('ghost');
+      document.body.appendChild(ghost);
+      const move = (ev: PointerEvent): void => {
+        ghost.style.left = `${ev.clientX}px`;
+        ghost.style.top = `${ev.clientY}px`;
+        for (const c of cells) c.classList.remove('target');
+        const under = document.elementFromPoint(ev.clientX, ev.clientY);
+        const cell = under?.closest('.mp-cc');
+        if (cell) cell.classList.add('target');
+      };
+      const up = (ev: PointerEvent): void => {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        ghost.remove();
+        for (const c of cells) c.classList.remove('target');
+        const under = document.elementFromPoint(ev.clientX, ev.clientY);
+        const cell = under?.closest<HTMLElement>('.mp-cc');
+        if (cell) {
+          crans.set(el, cellCran(cell));
+          renderMap();
+          emit();
+        }
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    });
+  }
+
+  const axis = document.createElement('div');
+  axis.className = 'mp-caxis';
+  axis.innerHTML = '<span>gris · discret → vif</span><span>clair ↑ · sombre ↓</span>';
   const cnote = document.createElement('p');
   cnote.className = 'note';
-  cnote.textContent = 'La teinte fait pivoter toute la famille. Édition par élément (la carte) à venir.';
-  col.append(ch, hue, cnote);
+  cnote.textContent =
+    'Glisse une icône sur un cran. page/cover (cerclés) sont les fonds ; la colonne de gauche donne les neutres. La teinte fait pivoter toute la famille.';
+
+  col.append(
+    ch,
+    slider('Teinte', 0, 359, 1, () => state.hue, (v) => (state.hue = v), (v) => `${Math.round(v)}°`, renderMap, 'hue'),
+    cmap,
+    axis,
+    cnote,
+  );
 
   panel.append(fmt, fonts, col);
   document.body.appendChild(scrim);
+  renderMap();
 
   return close;
 }
