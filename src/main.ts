@@ -92,6 +92,7 @@ import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
+import { openAtelier, DEFAULT_ATELIER_STATE } from './ui/atelier';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
@@ -2771,6 +2772,16 @@ async function bootstrap(): Promise<void> {
   // only fire when the editor has focus. The shortcuts here are global and
   // independent of focus, so Cmd+S works even when the user is in the
   // filename input or the settings panel.
+  // The style atelier (STYLE-EDITOR-SPEC): compose a style; every change writes
+  // the vocabulary keys into the current document's front-matter, which the
+  // render pipeline already reads. Opens on Cmd/Ctrl+Shift+A.
+  const triggerAtelier = (): void => {
+    openAtelier({ ...DEFAULT_ATELIER_STATE }, (keys) => {
+      editor.setValue(setFrontmatterKeys(editor.getValue(), keys));
+      scheduleLivePreview();
+    });
+  };
+
   const onAppKeydown = (e: KeyboardEvent): void => {
     if (e.defaultPrevented) return;
     const mod = e.ctrlKey || e.metaKey;
@@ -2781,6 +2792,10 @@ async function bootstrap(): Promise<void> {
       if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         triggerGuides();
+      } else if (e.key.toLowerCase() === 'a') {
+        // Cmd/Ctrl+Shift+A: open the style atelier.
+        e.preventDefault();
+        triggerAtelier();
       } else if (e.key === 'Enter') {
         // Cmd/Ctrl+Shift+Enter: start the fullscreen presentation.
         e.preventDefault();
