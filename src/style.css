@@ -353,6 +353,16 @@ body,
   zoom: var(--mp-fit-zoom, 1);
 }
 
+/* The cover page carries its OWN fill (main.ts sets --mp-cover-bg from the
+   derived `cover` colour), so a tinted title page can sit over plain body
+   pages. `:has(.doc-title, .preview-metadata)` targets only a real cover — a
+   letter or cover-less document has no title block, so its first page keeps the
+   page fill. Higher specificity than the rule above, so it wins; falls back to
+   the page fill, then white, when the style leaves `cover` unset. */
+#preview-pane .pagedjs_page:has(.doc-title, .preview-metadata) {
+  background: var(--mp-cover-bg, var(--mp-page-bg, white));
+}
+
 /* ::: background — per-page backdrop layer (BACKGROUND-SPEC). The marked
    renderer emits a hidden zero-height `.mp-bg` sentinel in the flow;
    applyBackgrounds() clones a `.mp-bg-layer` into each page's box, behind the

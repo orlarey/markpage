@@ -34,6 +34,8 @@ export interface ToolbarHandlers {
   // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
   onPresent(): void;
   onToggleGuides(): void;
+  // Open the style atelier (also on Cmd/Ctrl+Shift+A).
+  onOpenAtelier(): void;
   // Click the conflict badge (⛓️‍💥) → open the keep-mine / take-disk menu,
   // anchored on the badge (Phase 4 two-way sync).
   onResolveConflict(anchor: HTMLElement): void;
@@ -106,6 +108,7 @@ export function mountToolbar(
       onTogglePreview: handlers.onTogglePreview,
       onPresent: handlers.onPresent,
       onToggleGuides: handlers.onToggleGuides,
+      onOpenAtelier: handlers.onOpenAtelier,
     });
   viewBtn.addEventListener('click', () => openView(viewBtn));
 

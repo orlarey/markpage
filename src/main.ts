@@ -830,11 +830,17 @@ async function bootstrap(): Promise<void> {
   const updatePreview = async (source: string): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
-    // Style-editor page fill (STYLE-EDITOR-SPEC §4): drive the CSS var that
-    // style.css reads on every .pagedjs_page; empty string falls back to white.
+    // Style-editor page fill (STYLE-EDITOR-SPEC §4): drive the CSS vars that
+    // style.css reads on the pages; empty string falls back (page → white,
+    // cover → page). The cover carries its own fill so the format×colour
+    // coupling (a tinted title page over plain body pages) is visible.
     previewEl.style.setProperty(
       '--mp-page-bg',
       r.effectiveSettings.pageBackground ?? '',
+    );
+    previewEl.style.setProperty(
+      '--mp-cover-bg',
+      r.effectiveSettings.coverBackground ?? '',
     );
     if (previewPaginated) {
       // Queue behind any in-flight paginate so paged.js never runs twice over
@@ -2756,6 +2762,8 @@ async function bootstrap(): Promise<void> {
         void enterPresentation();
       },
       onToggleGuides: triggerGuides,
+      // Lazy: triggerAtelier is declared just below this options object.
+      onOpenAtelier: () => triggerAtelier(),
       onResolveConflict: (anchor) => {
         openConflictMenu(anchor, {
           onKeepMine: () => {
