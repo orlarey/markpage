@@ -9,6 +9,10 @@
  *******************************************************************************/
 
 import type { Frontmatter, MathFontSet } from '@orlarey/markpage-render';
+import {
+  parseColorCrans,
+  deriveElementColors,
+} from '@orlarey/markpage-render';
 export type { MathFontSet };
 
 export type PageSize =
@@ -990,6 +994,24 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
     fontsChanged = true;
   }
   if (fontsChanged) s = { ...s, fonts };
+
+  // Style-editor colour axis: derive per-element colours from (hue, crans) and
+  // splice them onto the element styles (STYLE-EDITOR-SPEC §8). Backgrounds
+  // (page / cover) are handled elsewhere once their settings fields exist.
+  if (fm['color-crans'] !== undefined) {
+    const colors = deriveElementColors(
+      fm['color-hue'] ?? 0,
+      parseColorCrans(fm['color-crans']),
+    );
+    if (colors.size > 0) {
+      const styles = { ...s.styles };
+      for (const [key, hex] of colors) {
+        const k = key as ElementKey;
+        if (styles[k]) styles[k] = { ...styles[k], color: hex };
+      }
+      s = { ...s, styles };
+    }
+  }
 
   return s;
 }

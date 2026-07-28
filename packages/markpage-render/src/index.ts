@@ -118,3 +118,12 @@ export {
   PRE_SPLIT_TARGET_LINES,
   PRE_SPLIT_SLACK_LINES,
 } from './pre-split';
+export {
+  hsvToHex,
+  cranToHex,
+  parseCran,
+  parseColorCrans,
+  deriveElementColors,
+  backgroundColor,
+  type Cran,
+} from './style-vocabulary';

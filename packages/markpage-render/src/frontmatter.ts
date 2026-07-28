@@ -41,6 +41,13 @@ export interface Frontmatter {
   'font-body'?: string;
   'font-heading'?: string;
   'font-mono'?: string;
+  // Style-editor colour axis (docs/STYLE-EDITOR-SPEC.md §8). `color-hue` is the
+  // single bin's hue (0–359); `color-crans` a compact table of per-element
+  // positions on the 6×6 sat×value grid (`s,v`) or neutral column (`n<i>`),
+  // e.g. "titre:4,4 h1:4,3 corps:n4". Colours are DERIVED from (hue, cran) so
+  // rotating the hue pivots the whole family (see style-vocabulary.ts).
+  'color-hue'?: number;
+  'color-crans'?: string;
   // A full style profile serialized as JSON (markpage's per-element `styles` +
   // fonts + layout), written by markpage for external renderers (the VS Code
   // preview) so a document carries its complete typography. Authored as a
@@ -249,8 +256,14 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'font-heading':
     case 'font-mono':
     case 'markpage-profile':
+    case 'color-crans':
       meta[key] = value;
       break;
+    case 'color-hue': {
+      const h = Number(value);
+      if (Number.isFinite(h)) meta['color-hue'] = h;
+      break;
+    }
     case 'slides':
       meta.slides = parseBool(value);
       break;
