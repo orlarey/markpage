@@ -13,6 +13,7 @@ import type { PdfSettings, Style } from './settings';
 import { blockBoxCss, inlineCss } from './style-emit';
 import {
   quoteFontFamily,
+  fontFamilyStack,
   loadSettingsFonts,
   settingsFontFamilies,
 } from './font-loader';
@@ -835,9 +836,9 @@ export function pagedCss(s: PdfSettings): string {
   // when the matrix leaves `family` undefined.
   const bodyName = (styles.body.family ?? '').trim() || s.fonts.body;
   const codeName = (styles['code-inline'].family ?? '').trim() || s.fonts.code;
-  const headingsFamily = fontFamilyChain(s.fonts.headings, 'sans');
-  const bodyFamily = fontFamilyChain(bodyName, 'sans');
-  const codeFamily = fontFamilyChain(codeName, 'mono');
+  const headingsFamily = fontFamilyStack(s.fonts.headings);
+  const bodyFamily = fontFamilyStack(bodyName);
+  const codeFamily = fontFamilyStack(codeName, 'mono');
   // All typography rules below are scoped to the two containers that
   // host paginated content: `#preview-pane` for the on-screen aperçu
   // (paged.js writes its `.pagedjs_pages` tree there), and
@@ -1321,25 +1322,6 @@ export function pagedCss(s: PdfSettings): string {
        glyphs without re-rendering. */
     ${SCOPE} :is(.math-inline, .math-block) { font-size: ${s.mathScale}em; }
   `;
-}
-
-/**
- * Purpose: Build a CSS `font-family` value with sensible fallbacks.
- * How: Quote the head, append generic + bundled (`mono` vs proportional) tail.
- */
-function fontFamilyChain(name: string, kind: 'sans' | 'mono'): string {
-  const head = quoteFontFamily(name);
-  // If the user picked a non-bundled, unknown family, we still emit
-  // it; the browser falls through to the fallbacks if it can't load.
-  // Bundled families (Roboto Condensed / Roboto Mono) are still
-  // listed last as a network-free safety net.
-  if (kind === 'mono') {
-    return `${head}, "Roboto Mono", monospace`;
-  }
-  // Headings/body: tail with Noto Sans Math + Symbols (so math
-  // glyphs and arrows resolve even when the chosen family lacks
-  // them) and Roboto Condensed as the final bundled fallback.
-  return `${head}, "Roboto Condensed", "Noto Sans Math", "Noto Sans Symbols", sans-serif`;
 }
 
 /**
