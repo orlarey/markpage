@@ -768,6 +768,64 @@ async function bootstrap(): Promise<void> {
   // Render `source` into the preview pane, paginated (paged.js A4 pages) or
   // continuous, per `previewPaginated`. Called when entering preview, on a
   // settings change, and — debounced — live while typing.
+  // Progress overlay for paginated rendering. The layout engine's work
+  // dominates the wait (~85%, measured) and shows only its first page while it
+  // runs, so a long document looks frozen. This covers the pane and reports the
+  // live page count — Vivliostyle emits its `[data-vivliostyle-page-container]`
+  // elements progressively — so the wait reads as work. Shown only after a
+  // short delay so a fast render never flashes it, and torn down when
+  // pagination resolves. Returns a stop() to call in a `finally`.
+  const beginPaginationProgress = (pane: HTMLElement): (() => void) => {
+    let overlay: HTMLElement | null = null;
+    let poll = 0;
+    const place = (el: HTMLElement): void => {
+      const r = pane.getBoundingClientRect();
+      el.style.left = `${r.left}px`;
+      el.style.top = `${r.top}px`;
+      el.style.width = `${r.width}px`;
+      el.style.height = `${r.height}px`;
+    };
+    const show = (): void => {
+      overlay = document.createElement('div');
+      overlay.className = 'mp-pagination-progress';
+      overlay.setAttribute('role', 'status');
+      overlay.setAttribute('aria-live', 'polite');
+      const spinner = document.createElement('div');
+      spinner.className = 'mp-pp-spinner';
+      const label = document.createElement('div');
+      label.className = 'mp-pp-label';
+      label.textContent = t('preview.paginating');
+      overlay.append(spinner, label);
+      place(overlay);
+      document.body.appendChild(overlay);
+      // Count the page containers the engine has emitted so far and rebuild
+      // the label each tick: "Mise en page… 34 pages".
+      poll = window.setInterval(() => {
+        const n = pane.querySelectorAll(
+          '[data-vivliostyle-page-container]',
+        ).length;
+        label.textContent = t('preview.paginating');
+        if (n > 0) {
+          const count = document.createElement('span');
+          count.className = 'mp-pp-count';
+          count.textContent = String(n);
+          label.append(' ', count, ` ${t('preview.paginating.pages')}`);
+        }
+      }, 200);
+    };
+    // Delay the reveal so only genuinely slow paginations surface it. Paginated
+    // mode re-paginates on every typing pause (schedulePaginatedPreview, 500ms
+    // debounce); a small or medium document re-lays-out well under this delay,
+    // so editing never blinks the overlay. Only a document heavy enough to take
+    // over ~1s — the ones that actually look frozen — reaches it.
+    const delay = window.setTimeout(show, 1000);
+    return () => {
+      window.clearTimeout(delay);
+      window.clearInterval(poll);
+      overlay?.remove();
+    };
+  };
+
   const updatePreview = async (source: string): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
@@ -778,7 +836,12 @@ async function bootstrap(): Promise<void> {
       const turn = paginateLock.then(async () => {
         if (r.myReq !== previewReqId) return;
         previewEl.classList.remove('continuous');
-        await paginate(r.built, r.effectiveSettings, previewEl);
+        const stopProgress = beginPaginationProgress(previewEl);
+        try {
+          await paginate(r.built, r.effectiveSettings, previewEl);
+        } finally {
+          stopProgress();
+        }
         if (r.myReq !== previewReqId) return;
         dirty = false;
         fitPreviewWidth();
