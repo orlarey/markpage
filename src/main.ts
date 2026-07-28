@@ -2777,8 +2777,9 @@ async function bootstrap(): Promise<void> {
   // render pipeline already reads. Opens on Cmd/Ctrl+Shift+A.
   const triggerAtelier = (): void => {
     openAtelier({ ...DEFAULT_ATELIER_STATE }, (keys) => {
+      // setValue dispatches a doc change → the editor's own updateListener
+      // already schedules the live preview; a second call here double-renders.
       editor.setValue(setFrontmatterKeys(editor.getValue(), keys));
-      scheduleLivePreview();
     });
   };
 
