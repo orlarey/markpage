@@ -69,6 +69,13 @@ export async function exportViaPrint(
   // Clear the inline staging styles so @media print can take over.
   target.style.cssText = '';
 
+  // Carry the derived page / cover fills onto the print target — the same CSS
+  // vars the preview uses (style.css paints both targets). Set after the
+  // cssText reset above so they survive it; empty string falls back
+  // (page → white, cover → page).
+  target.style.setProperty('--mp-page-bg', effectiveSettings.pageBackground ?? '');
+  target.style.setProperty('--mp-cover-bg', effectiveSettings.coverBackground ?? '');
+
   // Apply the screen/print toggle. Note we install this AFTER paginate
   // so the on-screen `display: none` doesn't fight paged.js's
   // measurement pass.

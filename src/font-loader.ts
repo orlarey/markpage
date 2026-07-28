@@ -112,6 +112,32 @@ export function quoteFontFamily(name: string): string {
   return /\s/.test(name) ? `"${name}"` : name;
 }
 
+/**
+ * Purpose: The CSS `font-family` chain for a chosen family — one builder shared
+ *   by the continuous and paginated previews so the two can never disagree on
+ *   the visible typeface (they did: continuous flashed one fallback, paginated
+ *   another).
+ * How: The chosen family, then a system generic OF THE SAME SCRIPT CATEGORY as
+ *   the *visible* swap fallback (a system serif behind a serif — NOT the bundled
+ *   "Roboto Condensed", whose network-free availability always won the swap and
+ *   made every serif body flash a condensed sans before the real font arrived),
+ *   then the Noto math/symbol faces to cover stray unicode glyphs the family
+ *   lacks (real maths is MathJax SVG). `mono` closes on `monospace`, whose
+ *   bundled Roboto Mono is a metric-compatible stand-in that doesn't jar.
+ *   Category comes from the catalogue; an unknown/custom family is treated
+ *   `sans` (the historical default).
+ */
+export function fontFamilyStack(
+  name: string,
+  kind?: 'sans' | 'serif' | 'mono',
+): string {
+  const head = quoteFontFamily(name);
+  const cat = kind ?? findFont(name)?.family ?? 'sans';
+  if (cat === 'mono') return `${head}, "Roboto Mono", monospace`;
+  const generic = cat === 'serif' ? 'serif' : 'sans-serif';
+  return `${head}, ${generic}, "Noto Sans Math", "Noto Sans Symbols"`;
+}
+
 // Track the families we've already requested so a settings change
 // that flips back to a previously-loaded font doesn't re-inject the
 // same <link> — and so multiple paged renders don't pile up

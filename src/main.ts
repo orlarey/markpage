@@ -92,6 +92,7 @@ import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
+import { openAtelier, atelierStateFromFrontmatter } from './ui/atelier';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
@@ -829,6 +830,18 @@ async function bootstrap(): Promise<void> {
   const updatePreview = async (source: string): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
+    // Style-editor page fill (STYLE-EDITOR-SPEC §4): drive the CSS vars that
+    // style.css reads on the pages; empty string falls back (page → white,
+    // cover → page). The cover carries its own fill so the format×colour
+    // coupling (a tinted title page over plain body pages) is visible.
+    previewEl.style.setProperty(
+      '--mp-page-bg',
+      r.effectiveSettings.pageBackground ?? '',
+    );
+    previewEl.style.setProperty(
+      '--mp-cover-bg',
+      r.effectiveSettings.coverBackground ?? '',
+    );
     if (previewPaginated) {
       // Queue behind any in-flight paginate so paged.js never runs twice over
       // the same element at once. If a newer build superseded us while we
@@ -2749,6 +2762,8 @@ async function bootstrap(): Promise<void> {
         void enterPresentation();
       },
       onToggleGuides: triggerGuides,
+      // Lazy: triggerAtelier is declared just below this options object.
+      onOpenAtelier: () => triggerAtelier(),
       onResolveConflict: (anchor) => {
         openConflictMenu(anchor, {
           onKeepMine: () => {
@@ -2765,6 +2780,25 @@ async function bootstrap(): Promise<void> {
   // only fire when the editor has focus. The shortcuts here are global and
   // independent of focus, so Cmd+S works even when the user is in the
   // filename input or the settings panel.
+  // The style atelier (STYLE-EDITOR-SPEC): compose a style; every change writes
+  // the vocabulary keys into the current document's front-matter, which the
+  // render pipeline already reads. Opens on Cmd/Ctrl+Shift+A.
+  const triggerAtelier = (): void => {
+    // Open on the style already in the document (not the defaults) so the panel
+    // edits the existing style instead of overwriting it from scratch.
+    const fm = parseStackDoc(editor.getValue(), '__leaf__').frontmatter;
+    const { state, crans } = atelierStateFromFrontmatter(fm);
+    openAtelier(
+      state,
+      (keys) => {
+        // setValue dispatches a doc change → the editor's own updateListener
+        // already schedules the live preview; a second call here double-renders.
+        editor.setValue(setFrontmatterKeys(editor.getValue(), keys));
+      },
+      crans,
+    );
+  };
+
   const onAppKeydown = (e: KeyboardEvent): void => {
     if (e.defaultPrevented) return;
     const mod = e.ctrlKey || e.metaKey;
@@ -2775,6 +2809,10 @@ async function bootstrap(): Promise<void> {
       if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         triggerGuides();
+      } else if (e.key.toLowerCase() === 'a') {
+        // Cmd/Ctrl+Shift+A: open the style atelier.
+        e.preventDefault();
+        triggerAtelier();
       } else if (e.key === 'Enter') {
         // Cmd/Ctrl+Shift+Enter: start the fullscreen presentation.
         e.preventDefault();

@@ -38,6 +38,9 @@ const FR = {
   'toolbar.guides': 'Guides',
   'toolbar.guides-title':
     'Afficher les guides typographiques sur l’aperçu : zone imprimable, live area, diagonales du canon (Cmd/Ctrl+Maj+G)',
+  'toolbar.atelier': 'Atelier de style',
+  'toolbar.atelier-title':
+    'Composer le style du document — format, polices, couleur — en direct (Cmd/Ctrl+Maj+A)',
   'toolbar.style': 'Format',
   'toolbar.style-title': 'Mise en forme (titres, gras, listes…)',
   'toolbar.view': 'Vue',
@@ -535,6 +538,9 @@ const EN: Record<keyof typeof FR, string> = {
   'toolbar.guides': 'Guides',
   'toolbar.guides-title':
     'Toggle typographic guides on the preview: page area, live area, Van de Graaf diagonals (Cmd/Ctrl+Shift+G)',
+  'toolbar.atelier': 'Style atelier',
+  'toolbar.atelier-title':
+    'Compose the document style — format, fonts, colour — live (Cmd/Ctrl+Shift+A)',
   'toolbar.style': 'Format',
   'toolbar.style-title': 'Formatting (headings, bold, lists…)',
   'toolbar.view': 'View',

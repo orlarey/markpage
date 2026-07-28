@@ -11,7 +11,7 @@ import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
 import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
 import { blockBoxCss, inlineCss } from './style-emit';
-import { quoteFontFamily } from './font-loader';
+import { quoteFontFamily, fontFamilyStack } from './font-loader';
 
 /**
  * Purpose: Heading underline CSS fragment using the editor's neutral border colour.
@@ -198,9 +198,9 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   // when the matrix leaves `family` undefined.
   const bodyName = (s.body.family ?? '').trim() || f.body;
   const codeName = (s['code-inline'].family ?? '').trim() || f.code;
-  const headFam = `${quoteFontFamily(f.headings)}, "Roboto Condensed", sans-serif`;
-  const bodyFam = `${quoteFontFamily(bodyName)}, "Roboto Condensed", sans-serif`;
-  const codeFam = `${quoteFontFamily(codeName)}, "Roboto Mono", monospace`;
+  const headFam = fontFamilyStack(f.headings);
+  const bodyFam = fontFamilyStack(bodyName);
+  const codeFam = fontFamilyStack(codeName, 'mono');
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
@@ -252,6 +252,8 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
     /* Auto-numbered figure / algorithm / table / listing caption. */
     #preview-pane .caption { ${inlineCss(s.caption)} }
+    /* Footnotes / sidenotes — one step below the body on the type scale. */
+    #preview-pane .footnotes, #preview-pane .sidenote { ${inlineCss(s.footnote)} }
     /* Inline links — color and underline come from styles['inline-link']. */
     #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
     /* Block math, mermaid, admonitions, tables — user-configurable

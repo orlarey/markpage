@@ -9,6 +9,14 @@
  *******************************************************************************/
 
 import type { Frontmatter, MathFontSet } from '@orlarey/markpage-render';
+import {
+  parseColorCrans,
+  deriveElementColors,
+  backgroundColor,
+  resolveFontPairing,
+  deriveFontSizes,
+  DEFAULT_FONT_RATIO,
+} from '@orlarey/markpage-render';
 export type { MathFontSet };
 
 export type PageSize =
@@ -116,6 +124,7 @@ export type ElementKey =
   | 'callout'
   | 'table'
   | 'caption'
+  | 'footnote'
   | 'running-content';
 
 export const ELEMENT_KEYS: ElementKey[] = [
@@ -135,6 +144,7 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'callout',
   'table',
   'caption',
+  'footnote',
   'running-content',
 ];
 
@@ -232,6 +242,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   caption: {
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
+  },
+  footnote: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'italic'],
   },
   'running-content': {
     category: 'inline',
@@ -349,6 +363,12 @@ export interface PdfSettings {
   //   - asana: Asana Math (modern serif, generous x-height)
   //   - tex:   classic MathJax TeX font (legacy look)
   mathFontSet: MathFontSet;
+  // Style-editor background surfaces (STYLE-EDITOR-SPEC §4): the page and cover
+  // fill colours, DERIVED at render from the `page` / `cover` entries of
+  // `color-crans`. Optional and transient — undefined leaves the default white
+  // page and a bare (page-coloured) cover, so existing profiles are unaffected.
+  pageBackground?: string;
+  coverBackground?: string;
 
   // === Layout / typography (SPEC §9.5 / §9.6 / §9.7) ============================
   // When `duplex: true`, pages alternate recto/verso semantics:
@@ -497,6 +517,9 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     },
     table: {},
     caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
+    // Footnotes sit one step below the body on the type scale — smaller by the
+    // pairing's ratio, not a hardcoded size (STYLE-EDITOR-SPEC, notes = step -1).
+    footnote: { fontSize: 9, color: '#57606a' },
     'running-content': { fontSize: 9, color: '#57606a', weight: 400, italic: false },
   },
   // Default header / footer for new profiles. Matches the previous
@@ -990,6 +1013,52 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
     fontsChanged = true;
   }
   if (fontsChanged) s = { ...s, fonts };
+
+  // Style-editor colour axis (STYLE-EDITOR-SPEC §8): derive per-element text
+  // colours AND the page / cover background fills from (hue, crans).
+  if (fm['color-crans'] !== undefined) {
+    const hue = fm['color-hue'] ?? 0;
+    const crans = parseColorCrans(fm['color-crans']);
+    const colors = deriveElementColors(hue, crans);
+    if (colors.size > 0) {
+      const styles = { ...s.styles };
+      for (const [key, hex] of colors) {
+        const k = key as ElementKey;
+        if (styles[k]) styles[k] = { ...styles[k], color: hex };
+      }
+      s = { ...s, styles };
+    }
+    const pageBg = backgroundColor(hue, crans, 'page');
+    const coverBg = backgroundColor(hue, crans, 'cover');
+    if (pageBg) s = { ...s, pageBackground: pageBg };
+    if (coverBg) s = { ...s, coverBackground: coverBg };
+  }
+
+  // Style-editor fonts axis (STYLE-EDITOR-SPEC §6): a pairing sets the three
+  // families + the maths font set, the anchor + ratio derive every text size.
+  const pairing =
+    fm['font-pair'] !== undefined ? resolveFontPairing(fm['font-pair']) : undefined;
+  if (pairing) {
+    s = {
+      ...s,
+      fonts: { headings: pairing.headings, body: pairing.body, code: pairing.code },
+      mathFontSet: pairing.math,
+    };
+  }
+  if (pairing || fm['font-base'] !== undefined) {
+    const ratio = pairing ? pairing.ratio : DEFAULT_FONT_RATIO;
+    const base = fm['font-base'] ?? (s.styles.body.fontSize ?? 11);
+    const sizes = deriveFontSizes(base, ratio);
+    const styles = { ...s.styles };
+    for (const [key, pt] of sizes) {
+      const k = key as ElementKey;
+      if (styles[k]) styles[k] = { ...styles[k], fontSize: pt };
+    }
+    s = { ...s, styles };
+  }
+  if (fm['math-scale'] !== undefined) {
+    s = { ...s, mathScale: fm['math-scale'] };
+  }
 
   return s;
 }
