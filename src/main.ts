@@ -829,6 +829,12 @@ async function bootstrap(): Promise<void> {
   const updatePreview = async (source: string): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
+    // Style-editor page fill (STYLE-EDITOR-SPEC §4): drive the CSS var that
+    // style.css reads on every .pagedjs_page; empty string falls back to white.
+    previewEl.style.setProperty(
+      '--mp-page-bg',
+      r.effectiveSettings.pageBackground ?? '',
+    );
     if (previewPaginated) {
       // Queue behind any in-flight paginate so paged.js never runs twice over
       // the same element at once. If a newer build superseded us while we

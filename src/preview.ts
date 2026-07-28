@@ -252,6 +252,8 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .preview-metadata { ${inlineCss(s.metadata)} }
     /* Auto-numbered figure / algorithm / table / listing caption. */
     #preview-pane .caption { ${inlineCss(s.caption)} }
+    /* Footnotes / sidenotes — one step below the body on the type scale. */
+    #preview-pane .footnotes, #preview-pane .sidenote { ${inlineCss(s.footnote)} }
     /* Inline links — color and underline come from styles['inline-link']. */
     #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
     /* Block math, mermaid, admonitions, tables — user-configurable

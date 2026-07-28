@@ -12,6 +12,7 @@ import type { Frontmatter, MathFontSet } from '@orlarey/markpage-render';
 import {
   parseColorCrans,
   deriveElementColors,
+  backgroundColor,
 } from '@orlarey/markpage-render';
 export type { MathFontSet };
 
@@ -120,6 +121,7 @@ export type ElementKey =
   | 'callout'
   | 'table'
   | 'caption'
+  | 'footnote'
   | 'running-content';
 
 export const ELEMENT_KEYS: ElementKey[] = [
@@ -139,6 +141,7 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'callout',
   'table',
   'caption',
+  'footnote',
   'running-content',
 ];
 
@@ -236,6 +239,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   caption: {
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
+  },
+  footnote: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'italic'],
   },
   'running-content': {
     category: 'inline',
@@ -353,6 +360,12 @@ export interface PdfSettings {
   //   - asana: Asana Math (modern serif, generous x-height)
   //   - tex:   classic MathJax TeX font (legacy look)
   mathFontSet: MathFontSet;
+  // Style-editor background surfaces (STYLE-EDITOR-SPEC §4): the page and cover
+  // fill colours, DERIVED at render from the `page` / `cover` entries of
+  // `color-crans`. Optional and transient — undefined leaves the default white
+  // page and a bare (page-coloured) cover, so existing profiles are unaffected.
+  pageBackground?: string;
+  coverBackground?: string;
 
   // === Layout / typography (SPEC §9.5 / §9.6 / §9.7) ============================
   // When `duplex: true`, pages alternate recto/verso semantics:
@@ -501,6 +514,9 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     },
     table: {},
     caption: { fontSize: 10, color: '#57606a', italic: true, align: 'center', marginAbove: 0.4, marginBelow: 0.4 },
+    // Footnotes sit one step below the body on the type scale — smaller by the
+    // pairing's ratio, not a hardcoded size (STYLE-EDITOR-SPEC, notes = step -1).
+    footnote: { fontSize: 9, color: '#57606a' },
     'running-content': { fontSize: 9, color: '#57606a', weight: 400, italic: false },
   },
   // Default header / footer for new profiles. Matches the previous
@@ -995,14 +1011,12 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
   }
   if (fontsChanged) s = { ...s, fonts };
 
-  // Style-editor colour axis: derive per-element colours from (hue, crans) and
-  // splice them onto the element styles (STYLE-EDITOR-SPEC §8). Backgrounds
-  // (page / cover) are handled elsewhere once their settings fields exist.
+  // Style-editor colour axis (STYLE-EDITOR-SPEC §8): derive per-element text
+  // colours AND the page / cover background fills from (hue, crans).
   if (fm['color-crans'] !== undefined) {
-    const colors = deriveElementColors(
-      fm['color-hue'] ?? 0,
-      parseColorCrans(fm['color-crans']),
-    );
+    const hue = fm['color-hue'] ?? 0;
+    const crans = parseColorCrans(fm['color-crans']);
+    const colors = deriveElementColors(hue, crans);
     if (colors.size > 0) {
       const styles = { ...s.styles };
       for (const [key, hex] of colors) {
@@ -1011,6 +1025,10 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
       }
       s = { ...s, styles };
     }
+    const pageBg = backgroundColor(hue, crans, 'page');
+    const coverBg = backgroundColor(hue, crans, 'cover');
+    if (pageBg) s = { ...s, pageBackground: pageBg };
+    if (coverBg) s = { ...s, coverBackground: coverBg };
   }
 
   return s;

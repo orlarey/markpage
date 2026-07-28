@@ -340,7 +340,9 @@ body,
 }
 
 #preview-pane .pagedjs_page {
-  background: white;
+  /* Style-editor page fill (STYLE-EDITOR-SPEC §4): main.ts sets --mp-page-bg
+     from the derived `page` colour; white when the style leaves it unset. */
+  background: var(--mp-page-bg, white);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   margin: 0 auto 24px;
   /* Page zoom: main.ts sets --mp-fit-zoom = min(z, paneWidth/pageWidth) so a

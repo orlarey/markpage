@@ -44,4 +44,22 @@ describe('color-crans → element colours', () => {
     const g2 = render('color-hue: 120\ncolor-crans: "corps:n4"');
     expect(b2.styles.body.color).toBe(g2.styles.body.color);
   });
+
+  it('notes drives the footnote colour, which is smaller than body by default', () => {
+    expect(DEFAULT_SETTINGS.styles.footnote.fontSize).toBeLessThan(
+      DEFAULT_SETTINGS.styles.body.fontSize as number,
+    );
+    const s = render('color-hue: 213\ncolor-crans: "notes:n2"');
+    expect(s.styles.footnote.color).toBe(cranToHex(213, { kind: 'neutral', g: 2 }));
+  });
+
+  it('page and cover crans become the background fields', () => {
+    const s = render('color-hue: 213\ncolor-crans: "page:n0 cover:5,3"');
+    expect(s.pageBackground).toBe('#ffffff'); // n0 = white
+    expect(s.coverBackground).toBe(cranToHex(213, { kind: 'tint', s: 5, v: 3 }));
+    // absent → left undefined (default white page, no cover fill)
+    const none = render('color-hue: 213\ncolor-crans: "h1:4,3"');
+    expect(none.pageBackground).toBeUndefined();
+    expect(none.coverBackground).toBeUndefined();
+  });
 });

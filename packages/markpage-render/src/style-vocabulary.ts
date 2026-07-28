@@ -106,6 +106,8 @@ const COLOR_TARGETS: Record<string, readonly string[]> = {
   corps: ['body'],
   body: ['body'],
   code: ['code-inline', 'code-block'],
+  notes: ['footnote'],
+  footnote: ['footnote'],
   legende: ['caption'],
   'légende': ['caption'],
   caption: ['caption'],

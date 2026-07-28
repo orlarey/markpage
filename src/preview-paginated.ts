@@ -1205,6 +1205,7 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} .preview-metadata { ${inlineCss(styles.metadata)} }
     /* Auto-numbered figure / algorithm / table / listing caption. */
     ${SCOPE} .caption { ${inlineCss(styles.caption)} }
+    ${SCOPE} .footnotes, ${SCOPE} .sidenote { ${inlineCss(styles.footnote)} }
     /* Inline links — color + underline from styles['inline-link']. */
     ${SCOPE} a { ${inlineCss(styles['inline-link'])} text-decoration: ${styles['inline-link'].underline ? 'underline' : 'none'}; }
     /* Block math, mermaid, admonitions, tables — user-configurable
