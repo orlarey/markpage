@@ -162,6 +162,29 @@ function stepSize(base: number, ratio: number, step: number, scale: number): str
   return `${(base * scale * Math.pow(ratio, step)).toFixed(1)}pt`;
 }
 
+/** Perceptual-ish lightness test for choosing ink over a swatch/fill. */
+function isLight(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255) > 140;
+}
+
+/** The fixed specimen lines the in-panel preview paints — element name (a cran
+ *  key), which family kind, its type-scale step, and the sample text. */
+const PV_LINES: ReadonlyArray<{
+  cran: string;
+  kind: 'head' | 'body' | 'mono';
+  step: number;
+  text: string;
+}> = [
+  { cran: 'en-tete', kind: 'head', step: -1, text: 'Note technique' },
+  { cran: 'titre', kind: 'head', step: 3, text: 'Un aperçu de TLIB' },
+  { cran: 'h1', kind: 'head', step: 2, text: 'Signatures et algèbres' },
+  { cran: 'corps', kind: 'body', step: 0, text: "Une seule traversée de l'arbre, plusieurs interprétations : le pli est l'unité de travail." },
+  { cran: 'h2', kind: 'head', step: 1, text: 'Le pli comme unité' },
+  { cran: 'code', kind: 'mono', step: -0.5, text: 'fold(tree, algebra)' },
+  { cran: 'notes', kind: 'body', step: -1, text: "Chaque terme clos se convertit à l'identique." },
+];
+
 /** Build one mini page diagram for the Format gallery (or the card thumb).
  *  Margins are expressed as fractions of the box so no measuring is needed. */
 function drawPage(
@@ -287,6 +310,14 @@ const CSS = `
 .mp-chip.ghost { position: fixed; z-index: 300; pointer-events: none; transform: translate(-50%,-50%) scale(1.1); }
 .mp-caxis { display: flex; justify-content: space-between; font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: #868d9b; margin-top: .25rem; }
 @media (prefers-reduced-motion: reduce) { .mp-card { transition: none; } }
+
+/* unified preview */
+.mp-pv { display: flex; gap: 8px; align-items: stretch; margin-bottom: 1.2rem; }
+.mp-pv-cover { flex: 0 0 92px; border-radius: 6px; border: 1px solid #e4e7ee; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; padding: .7rem; text-align: center; }
+.mp-pv-cover .c-eb { font-size: .5rem; letter-spacing: .13em; text-transform: uppercase; opacity: .75; }
+.mp-pv-page { flex: 1; min-width: 0; border-radius: 6px; border: 1px solid #e4e7ee; padding: .8rem .95rem; display: flex; flex-direction: column; gap: .28rem; overflow: hidden; }
+.mp-pv-line { margin: 0; overflow-wrap: break-word; }
+.mp-pv-line.is-code { border-radius: 5px; padding: .22rem .45rem; align-self: flex-start; background: rgba(128,128,128,.12); }
 `;
 
 /**
@@ -324,7 +355,12 @@ export function openAtelier(
   panel.setAttribute('aria-label', 'Atelier de style');
   scrim.appendChild(panel);
 
-  const emit = (): void => onChange(buildKeys(state, crans));
+  // Assigned once the in-panel preview is built; emit repaints it on every edit.
+  let refreshPreview: () => void = () => {};
+  const emit = (): void => {
+    onChange(buildKeys(state, crans));
+    refreshPreview();
+  };
 
   const close = (): void => {
     scrim.remove();
@@ -352,6 +388,61 @@ export function openAtelier(
   sub.textContent =
     'Un style = format × polices × couleur. Chaque onglet règle un axe ; le document se met à jour en direct.';
   panel.append(closeBtn, h2, sub);
+
+  // ── unified preview (fixed content, all three axes at once) ──
+  // The atelier writes the document, so the app's own preview is the source of
+  // truth; this in-panel specimen stays visible while you tweak any axis and
+  // shows the style on CONSISTENT content, the way the prototype did.
+  const pv = document.createElement('div');
+  pv.className = 'mp-pv';
+  const pvCover = document.createElement('div');
+  pvCover.className = 'mp-pv-cover';
+  const pvCoverEb = document.createElement('span');
+  pvCoverEb.className = 'c-eb';
+  pvCoverEb.textContent = 'couverture';
+  const pvCoverTitle = document.createElement('span');
+  pvCoverTitle.textContent = 'Un aperçu de TLIB';
+  pvCover.append(pvCoverEb, pvCoverTitle);
+  const pvPage = document.createElement('div');
+  pvPage.className = 'mp-pv-page';
+  const lineEls = PV_LINES.map((line) => {
+    const el = document.createElement('div');
+    el.className = 'mp-pv-line' + (line.kind === 'mono' ? ' is-code' : '');
+    el.textContent = line.text;
+    pvPage.appendChild(el);
+    return { ...line, el };
+  });
+  pv.append(pvCover, pvPage);
+  panel.appendChild(pv);
+
+  const renderPreview = (): void => {
+    const layout = DOC_TYPES.find(([id]) => id === state.docType)?.[1];
+    const pair = FONT_PAIRINGS.find((p) => p.id === state.pair) ?? FONT_PAIRINGS[0];
+    const famFor = (kind: 'head' | 'body' | 'mono'): string =>
+      specimenFamily(kind === 'mono' ? pair.code : kind === 'head' ? pair.headings : pair.body, kind);
+    const colorFor = (name: string): string => {
+      const c = crans.get(name);
+      return c ? cranToHex(state.hue, c) : '#1a1f2b';
+    };
+    const hasCover = layout?.cover === true;
+    pvCover.style.display = hasCover ? '' : 'none';
+    if (hasCover) {
+      const bg = colorFor('cover');
+      pvCover.style.background = bg;
+      const ink = isLight(bg) ? '#1a1f2b' : '#fff';
+      pvCover.style.color = ink;
+      pvCoverTitle.style.cssText = `font-family:${famFor('head')};font-weight:700;font-size:${stepSize(state.base, pair.ratio, 1, 1.3)};line-height:1.15`;
+    }
+    pvPage.style.background = colorFor('page');
+    for (const line of lineEls) {
+      line.el.style.color = colorFor(line.cran);
+      line.el.style.fontFamily = famFor(line.kind);
+      line.el.style.fontSize = stepSize(state.base, pair.ratio, line.step, 1.3);
+      line.el.style.fontWeight = line.kind === 'head' ? '700' : '400';
+      line.el.style.lineHeight = line.step >= 2 ? '1.12' : '1.4';
+    }
+  };
+  refreshPreview = renderPreview;
 
   // ── tabs ──
   const TABS: ReadonlyArray<readonly [string, string]> = [
@@ -591,14 +682,6 @@ export function openAtelier(
       ? cells[cran.g * (GRID + 1)]
       : cells[cran.v * (GRID + 1) + cran.s + 1];
 
-  const light = (hex: string): boolean => {
-    const n = parseInt(hex.slice(1), 16);
-    const r = (n >> 16) & 255;
-    const g = (n >> 8) & 255;
-    const b = n & 255;
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140;
-  };
-
   const renderMap = (): void => {
     for (const cell of cells) {
       cell.style.background = cranToHex(state.hue, cellCran(cell));
@@ -612,8 +695,8 @@ export function openAtelier(
       chip.textContent = el;
       const hex = cranToHex(state.hue, cran);
       chip.style.background = hex;
-      chip.style.color = light(hex) ? '#1a1f2b' : '#fff';
-      chip.style.borderColor = light(hex) ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.3)';
+      chip.style.color = isLight(hex) ? '#1a1f2b' : '#fff';
+      chip.style.borderColor = isLight(hex) ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.3)';
       attachDrag(chip, el);
       cell.appendChild(chip);
       if (el === 'page' || el === 'cover') cell.classList.add('bg');
@@ -671,6 +754,7 @@ export function openAtelier(
   renderSizeSeg();
   renderPairGallery();
   renderMap();
+  renderPreview();
   selectTab(activeTab);
 
   document.body.appendChild(scrim);
