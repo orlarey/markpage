@@ -960,6 +960,17 @@ async function bootstrap(): Promise<void> {
 
   attachStyleContextMenu(editor.view.dom, editor.view);
 
+  // Continuous mode paints from the stylesheet applyPreviewStyles injects.
+  // deriveSettingsForDoc yields the recipe/stack settings ONLY — it doesn't
+  // fold in the atelier's colour/font vocabulary. buildPreviewDom re-asserts
+  // that vocabulary for the render, but the settings-from-frontmatter and
+  // undo/redo paths call applyPreviewStyles(derived) directly, so without this
+  // the continuous preview reverts to the recipe (a colour change dropping the
+  // fonts, and vice-versa). Fold the vocabulary on top here too, from the leaf
+  // front-matter, so every applyPreviewStyles/loadSettingsFonts sees it.
+  const styleForPreview = (settings: PdfSettings, source: string): PdfSettings =>
+    applyStyleVocabulary(settings, parseFrontmatter(source).meta);
+
   scheduleSettingsFromFrontmatter = debounce((source: string) => {
     void (async () => {
       const preserveHistoricalFrontmatter =
@@ -1018,9 +1029,10 @@ async function bootstrap(): Promise<void> {
         suppressEditorPreview = false;
         lastAppliedSettingsFrontmatter = frontmatterSnapshot(canonical);
       }
-      registerCustomFonts(derived.customFonts);
-      applyPreviewStyles(derived);
-      void loadSettingsFonts(derived).catch((err: unknown) => {
+      const styled = styleForPreview(derived, source);
+      registerCustomFonts(styled.customFonts);
+      applyPreviewStyles(styled);
+      void loadSettingsFonts(styled).catch((err: unknown) => {
         console.error('Font load failed', err);
       });
       refreshSettingsForm?.();
@@ -1037,9 +1049,10 @@ async function bootstrap(): Promise<void> {
       if (source !== editor.getValue()) return;
       state.settings = derived;
       lastAppliedSettingsFrontmatter = frontmatterSnapshot(source);
-      registerCustomFonts(derived.customFonts);
-      applyPreviewStyles(derived);
-      void loadSettingsFonts(derived).catch((err: unknown) => {
+      const styled = styleForPreview(derived, source);
+      registerCustomFonts(styled.customFonts);
+      applyPreviewStyles(styled);
+      void loadSettingsFonts(styled).catch((err: unknown) => {
         console.error('Font load failed', err);
       });
       refreshSettingsForm?.();
