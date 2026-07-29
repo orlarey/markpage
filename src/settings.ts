@@ -970,6 +970,55 @@ export function serializeProfile(s: PdfSettings): string {
   });
 }
 
+/**
+ * Every field of `PdfSettings` that defines the FUNDAMENTAL style
+ * (docs/FUNDAMENTAL-SETTINGS.md) — the complete, interpretation-free snapshot,
+ * as opposed to `serializeProfile`'s partial subset (kept for the VS Code
+ * interop). Everything a self-contained style file must carry to reproduce the
+ * look on any engine, with nothing derivable left out.
+ */
+export const FUNDAMENTAL_STYLE_KEYS = [
+  // page frame + canon inputs (until the canon becomes a producer of resolved margins)
+  'pageSize', 'margins', 'marginMode', 'measureChars', 'liveAreaChars',
+  'duplex', 'chapterBreak', 'notes',
+  // running content
+  'header', 'footer',
+  // typography
+  'fonts', 'styles', 'mathScale', 'mathFontSet',
+  // surfaces + language
+  'pageBackground', 'coverBackground', 'language',
+  // cover / metadata
+  'author', 'organization', 'date',
+  // fonts registry + figure caps
+  'customFonts', 'mermaidMaxScale', 'mermaidMaxWidthPct', 'mermaidMaxHeightPct',
+] as const;
+
+export type FundamentalStyle = Record<string, unknown>;
+
+/** Snapshot the complete fundamental style from settings. */
+export function serializeFundamentalStyle(s: PdfSettings): FundamentalStyle {
+  const rec = s as unknown as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const k of FUNDAMENTAL_STYLE_KEYS) {
+    if (rec[k] !== undefined) out[k] = rec[k];
+  }
+  return out;
+}
+
+/** Apply a fundamental-style snapshot onto a base — the import side. Each field
+ *  is a complete value (whole `styles` record, `fonts` trio, …), so a
+ *  key-level replace is the correct merge; unknown/extra keys are ignored. */
+export function applyFundamentalStyle(
+  base: PdfSettings,
+  fs: FundamentalStyle,
+): PdfSettings {
+  const out: Record<string, unknown> = { ...(base as unknown as Record<string, unknown>) };
+  for (const k of FUNDAMENTAL_STYLE_KEYS) {
+    if (fs[k] !== undefined) out[k] = fs[k];
+  }
+  return out as unknown as PdfSettings;
+}
+
 // Page formats a `page-size:` key may select. SLIDES_16_9 is intentionally
 // excluded — slides are opted into via the dedicated `slides:` key.
 const FRONTMATTER_PAGE_SIZES: PageSize[] = ['A3', 'A4', 'A5', 'B5', 'LETTER', 'LEGAL'];

@@ -93,6 +93,7 @@ import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
 import { openAtelier, atelierStateFromFrontmatter } from './ui/atelier';
+import { exportFundamentalStyle, importFundamentalStyle } from './fundamental-style';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
@@ -834,9 +835,16 @@ async function bootstrap(): Promise<void> {
     };
   };
 
+  // The RESOLVED fundamental style (state.settings + frontmatter vocabulary +
+  // stack patch), captured from the last render. state.settings alone is only
+  // the recipe BASE — the atelier's font-pair/colour/size vocabulary is applied
+  // at render into effectiveSettings, so a faithful style export must use this.
+  let lastEffectiveSettings: PdfSettings = state.settings;
+
   const updatePreview = async (source: string): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
+    lastEffectiveSettings = r.effectiveSettings;
     // Style-editor page fill (STYLE-EDITOR-SPEC §4): drive the CSS vars that
     // style.css reads on the pages; empty string falls back (page → white,
     // cover → page). The cover carries its own fill so the format×colour
@@ -2764,6 +2772,30 @@ async function bootstrap(): Promise<void> {
             );
             view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
             globalThis.alert(t('export-menu.embed-profile-done'));
+          },
+          onExportStyle: () => {
+            // Stamp the COMPLETE fundamental style into the doc as a
+            // `markpage-style: |` block — a self-contained, loss-free style file.
+            const view = editor.view;
+            // Export the RESOLVED style (vocabulary applied), not the recipe base.
+            const next = exportFundamentalStyle(view.state.doc.toString(), lastEffectiveSettings);
+            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
+            globalThis.alert(t('export-menu.export-style-done'));
+          },
+          onImportStyle: () => {
+            const imported = importFundamentalStyle(editor.getValue(), state.settings);
+            if (!imported) {
+              globalThis.alert(t('export-menu.import-style-none'));
+              return;
+            }
+            state.settings = imported;
+            registerCustomFonts(imported.customFonts);
+            applyPreviewStyles(imported);
+            void loadSettingsFonts(imported).catch((err: unknown) => {
+              console.error('Font load failed', err);
+            });
+            refreshSettingsForm?.();
+            if (viewMode === 'preview') void updatePreview(editor.getValue());
           },
           onShareLink: triggerShareLink,
           onShareEmail: triggerShareEmail,

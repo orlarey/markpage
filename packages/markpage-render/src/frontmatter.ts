@@ -132,7 +132,24 @@ const PROFILE_KEY = 'markpage-profile';
  *   fenced block.
  */
 export function embedProfileInFrontmatter(source: string, profileJson: string): string {
-  const block = [`${PROFILE_KEY}: |`, `  ${profileJson}`];
+  return embedBlockInFrontmatter(source, PROFILE_KEY, profileJson);
+}
+
+/**
+ * Purpose: Insert or replace a one-line `key: |` block-scalar in a document's
+ *   frontmatter (creating the frontmatter if absent) — the generic form behind
+ *   `embedProfileInFrontmatter`, reused for the fundamental-style embed
+ *   (`markpage-style`). Pure text transform.
+ * How: Emit the value as a `| ` block scalar; strip any prior block for the same
+ *   key (its line + indented/blank continuation) and append the fresh one before
+ *   the closing fence.
+ */
+export function embedBlockInFrontmatter(
+  source: string,
+  key: string,
+  value: string,
+): string {
+  const block = [`${key}: |`, `  ${value}`];
 
   if (!FENCE_RE.test(source)) {
     return ['---', ...block, '---', '', source].join('\n');
@@ -147,11 +164,10 @@ export function embedProfileInFrontmatter(source: string, profileJson: string): 
   }
   if (end < 0) return ['---', ...block, '---', '', source].join('\n');
 
-  // Rebuild the keys between the fences, dropping any existing profile block.
   const kept: string[] = [];
   for (let i = 1; i < end; i += 1) {
     const m = /^([A-Za-z_][\w-]*)\s*:/.exec(lines[i] ?? '');
-    if (m && m[1] === PROFILE_KEY) {
+    if (m && m[1] === key) {
       // Skip the key line and its indented / blank continuation lines.
       let j = i + 1;
       while (j < end && (lines[j] === '' || /^\s/.test(lines[j] ?? ''))) j += 1;

@@ -129,6 +129,14 @@ const FR = {
   'export-menu.embed-profile-hint': 'dans le frontmatter',
   'export-menu.embed-profile-done':
     'Profil de style intégré au frontmatter du document.',
+  'export-menu.export-style': 'Exporter le style fondamental',
+  'export-menu.export-style-hint': 'bloc markpage-style',
+  'export-menu.export-style-done':
+    'Style fondamental complet exporté dans le frontmatter (markpage-style).',
+  'export-menu.import-style': 'Importer le style fondamental',
+  'export-menu.import-style-hint': 'depuis markpage-style',
+  'export-menu.import-style-none':
+    'Aucun bloc markpage-style trouvé dans ce document.',
   'export-menu.onedrive': 'OneDrive…',
   'onedrive.uploaded': 'Document envoyé sur OneDrive (dossier Apps/markpage).',
   'onedrive.uploaded-with-link':
@@ -626,6 +634,14 @@ const EN: Record<keyof typeof FR, string> = {
   'export-menu.embed-profile-hint': 'into the frontmatter',
   'export-menu.embed-profile-done':
     "Style profile embedded into the document's frontmatter.",
+  'export-menu.export-style': 'Export fundamental style',
+  'export-menu.export-style-hint': 'markpage-style block',
+  'export-menu.export-style-done':
+    'Complete fundamental style exported into the frontmatter (markpage-style).',
+  'export-menu.import-style': 'Import fundamental style',
+  'export-menu.import-style-hint': 'from markpage-style',
+  'export-menu.import-style-none':
+    'No markpage-style block found in this document.',
   'export-menu.onedrive': 'OneDrive…',
   'onedrive.uploaded': 'Document uploaded to OneDrive (folder Apps/markpage).',
   'onedrive.uploaded-with-link':

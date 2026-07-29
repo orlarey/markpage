@@ -28,6 +28,7 @@ export {
 export {
   parseFrontmatter,
   embedProfileInFrontmatter,
+  embedBlockInFrontmatter,
   type Frontmatter,
   type ParseResult,
 } from './frontmatter';

@@ -37,6 +37,8 @@ export interface FileMenuOptions {
   onPdf(): void;
   onLatex(): void;
   onEmbedProfile(): void;
+  onExportStyle(): void;
+  onImportStyle(): void;
   onShareLink(): void;
   onShareEmail(): void;
 }
@@ -129,6 +131,8 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),
     item(t('export-menu.latex'), '', opts.onLatex),
     item(t('export-menu.embed-profile'), t('export-menu.embed-profile-hint'), opts.onEmbedProfile),
+    item(t('export-menu.export-style'), t('export-menu.export-style-hint'), opts.onExportStyle),
+    item(t('export-menu.import-style'), t('export-menu.import-style-hint'), opts.onImportStyle),
     sep(),
     item(t('export-menu.share-link'), '', opts.onShareLink),
     item(t('export-menu.share-email'), '', opts.onShareEmail),
