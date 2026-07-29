@@ -26,6 +26,43 @@ canon** (voir plus bas).
 
 ---
 
+## Cible d'architecture
+
+À terme, **markpage ne connaît QUE les réglages fondamentaux**. Il *rend*, point — plus de
+recette, plus de canon, plus de vocabulaire, plus de menu Réglages *à l'intérieur*. Toute
+l'interprétation vit dans des **producteurs externes** qui *fabriquent* un style fondamental.
+
+```text
+OUTILS EXTERNES (producteurs)            MARKPAGE (consommateur)
+─────────────────────────────           ───────────────────────
+atelier · matrice couleurs      ──▶      style fondamental
+galerie templates · paires      style    (text.*, running.*, styles,
+recettes (document-type)        file       fonts, notes, cover, …)
+canon (measureChars → text.*)                     │
+vocabulaire                                       ▼
+                                          RENDU — écrit du CSS verbatim,
+                                          aucune interprétation
+```
+
+Le **document** = contenu markdown + un style fondamental (embarqué via le bloc
+`markpage-style`, ou référencé). Le menu Réglages **disparaît** : on *charge / applique* un
+style produit ailleurs. Le format d'export/import du style fondamental (§ ci-dessous et
+`src/fundamental-style.ts`) **est** le contrat entre producteurs et cœur.
+
+### Chemin de migration (incrémental, chaque phase livrable seule)
+
+1. **Figer l'interface** — le style fondamental comme unique porteur de style (bloc
+   `markpage-style`). *✅ amorcé (export/import) — à raffiner : lisibilité, autonomie.*
+2. **Purifier la géométrie** — canon → producteur de `text.*` résolu ; sortir
+   `measureChars` / `liveAreaChars` / `marginMode` du cœur.
+3. **Rendu 100 % fondamental** — retirer recette/vocabulaire/canon de `buildPreviewDom` /
+   `deriveSettingsForDoc` ; le rendu lit le style résolu directement.
+4. **Extraire les producteurs** — recette/vocabulaire/atelier/canon → couche « authoring »
+   séparée (potentiellement un paquet/outil à part) qui **émet** un style fondamental.
+5. **Supprimer le menu Réglages** — remplacé par « charger/appliquer un style » + producteurs.
+
+---
+
 ## Inventaire des réglages fondamentaux
 
 ### 1. Géométrie de page (paginé) — *à résoudre*
