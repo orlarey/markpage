@@ -181,7 +181,7 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applyFrontmatterToSettings, serializeProfile, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applyFrontmatterToSettings, applyStyleVocabulary, serializeProfile, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   flattenForRender,
   applyProfilePatch,
@@ -714,7 +714,14 @@ async function bootstrap(): Promise<void> {
     // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
     // effective settings once and use them for pagination.
     let effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
-    if (stylePatch) effectiveSettings = applyProfilePatch(effectiveSettings, stylePatch.patch);
+    if (stylePatch) {
+      effectiveSettings = applyProfilePatch(effectiveSettings, stylePatch.patch);
+      // The stack profile patch rewrites every per-element colour and font, so
+      // it clobbers the atelier's colour/font vocabulary that a `document-type`
+      // recipe pulled through the flatten. Re-assert the vocabulary LAST so the
+      // atelier's choices win over the inherited recipe (idempotent otherwise).
+      effectiveSettings = applyStyleVocabulary(effectiveSettings, meta);
+    }
     const built = document.createElement('div');
     renderPreview(built, resolved);
     applyPreviewMetadata(built, effectiveSettings, meta);

@@ -1014,6 +1014,31 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
   }
   if (fontsChanged) s = { ...s, fonts };
 
+  return applyStyleVocabulary(s, fm);
+}
+
+/**
+ * Purpose: Apply the style-editor vocabulary axes (colour × fonts) — the axes
+ *   the atelier writes — on top of whatever settings it's handed.
+ * How: colour-crans → per-element text colours + page/cover fills (STYLE-EDITOR
+ *   -SPEC §8); font-pair → the three families + maths set, and font-pair/base →
+ *   the derived type scale (§6); math-scale → the maths zoom.
+ *
+ * Kept SEPARATE from the rest of applyLayoutOverrides and EXPORTED because the
+ * render composes settings as `base → stack profile patch → vocabulary`: a
+ * document carrying a `document-type` recipe flattens through the stack, whose
+ * profile patch (applyProfilePatch) rewrites every per-element colour and font
+ * and would otherwise clobber the vocabulary. buildPreviewDom re-asserts the
+ * vocabulary LAST by calling this after the patch, so the atelier's choices win
+ * over the inherited recipe. Idempotent — re-applying with the same front-matter
+ * yields the same settings.
+ */
+export function applyStyleVocabulary(
+  settings: PdfSettings,
+  fm: Frontmatter,
+): PdfSettings {
+  let s = settings;
+
   // Style-editor colour axis (STYLE-EDITOR-SPEC §8): derive per-element text
   // colours AND the page / cover background fills from (hue, crans).
   if (fm['color-crans'] !== undefined) {
