@@ -127,6 +127,10 @@ const MODEL_VALUES: Record<DocumentModel, ModelValues> = {
     chapterBreak: 'next-recto',
     notesPosition: 'foot',
     alignment: 'justify',
+    // A bound book folios at the outer corner (verso bottom-left, recto
+    // bottom-right), not centred — the convention, and what the duplex spread
+    // needs to read right. The other models inherit the 'center' default.
+    pagination: 'outer',
   },
   letter: {
     pageSize: 'A4',

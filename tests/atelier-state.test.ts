@@ -21,7 +21,6 @@ describe('atelierStateFromFrontmatter', () => {
     const { state, crans } = atelierStateFromFrontmatter(
       fm({
         'document-type': 'book',
-        'page-size': 'A5',
         'font-pair': 'moderne',
         'font-base': '12',
         'math-scale': '0.9',
@@ -31,13 +30,20 @@ describe('atelierStateFromFrontmatter', () => {
     );
     expect(state).toEqual({
       docType: 'book',
-      pageSize: 'A5',
       pair: 'moderne',
       base: 12,
       mathScale: 0.9,
       hue: 210,
     });
     expect(crans).toBe('corps:n5 titre:4,4');
+  });
+
+  it('does not read or write page-size (size follows the document-type)', () => {
+    const { state } = atelierStateFromFrontmatter(
+      fm({ 'document-type': 'book', 'page-size': 'A5' }),
+    );
+    expect(state).not.toHaveProperty('pageSize');
+    expect([...buildKeys(state, new Map()).keys()]).not.toContain('page-size');
   });
 
   it('keeps defaults for absent or malformed numeric keys', () => {
@@ -54,7 +60,7 @@ describe('atelierStateFromFrontmatter', () => {
       'page:n0 corps:n5 titre:4,4 h1:4,3 notes:n3',
     );
     const written = buildKeys(
-      { docType: 'paper', pageSize: 'B5', pair: 'technique', base: 11, mathScale: 1.05, hue: 42 },
+      { docType: 'paper', pair: 'technique', base: 11, mathScale: 1.05, hue: 42 },
       crans,
     );
     // buildKeys quotes color-crans; simulate what the parser hands back.
@@ -63,7 +69,6 @@ describe('atelierStateFromFrontmatter', () => {
     );
     expect(back.state).toEqual({
       docType: 'paper',
-      pageSize: 'B5',
       pair: 'technique',
       base: 11,
       mathScale: 1.05,

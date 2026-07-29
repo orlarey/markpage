@@ -306,11 +306,15 @@ describe('writeStyleToLeaf', () => {
     const source = ['---', 'document-type: book', '---', '', '# Book'].join(
       '\n',
     );
-    const settings = applyEssentialStyle(
+    // Build the book settings the way real code does — through the contextual
+    // essential style — so the footer reflects book's `pagination: 'outer'`
+    // (which lives in MODEL_VALUES.book, read by contextualEssentialStyle, not by
+    // a bare DEFAULT_ESSENTIAL_STYLE spread). Otherwise the footer stays at the
+    // 'center' default and reads as a spurious `pagination` variation.
+    const book = applyEssentialStyle(
       clone(DEFAULT_SETTINGS),
-      DEFAULT_ESSENTIAL_STYLE,
+      contextualEssentialStyle('book', DEFAULT_ESSENTIAL_STYLE.appearance),
     );
-    const book = applyDocumentModel(settings, 'book');
     book.pageSize = 'A4';
 
     const withVariation = setFrontmatterKeys(

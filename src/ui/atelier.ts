@@ -23,10 +23,12 @@ import {
 } from '@orlarey/markpage-render';
 import { loadGoogleFont } from '../font-loader';
 
-/** The non-colour style the atelier composes. Colour lives in a `Cran` map. */
+/** The non-colour style the atelier composes. Colour lives in a `Cran` map.
+ *  Page size is intentionally NOT here: it is implied by the document-type
+ *  (book → B5, slides → 16:9, …), so writing an independent page-size would
+ *  clobber that. Size stays the detailed Réglages' job. */
 export interface AtelierState {
   docType: string; // document-type
-  pageSize: string; // page-size
   pair: string; // font-pair
   base: number; // font-base (pt)
   mathScale: number; // math-scale
@@ -35,7 +37,6 @@ export interface AtelierState {
 
 export const DEFAULT_ATELIER_STATE: AtelierState = {
   docType: 'report',
-  pageSize: 'A4',
   pair: 'classique',
   base: 10.5,
   mathScale: 1,
@@ -63,14 +64,13 @@ interface DocLayout {
   wide?: boolean;
 }
 const DOC_TYPES: ReadonlyArray<readonly [string, DocLayout]> = [
-  ['note', { label: 'Note technique', desc: 'en-tête + folio', header: true, folio: 'center' }],
+  ['tech-note', { label: 'Note technique', desc: 'en-tête + folio', header: true, folio: 'center' }],
   ['report', { label: 'Rapport', desc: 'couverture · folio', folio: 'center', cover: true }],
   ['paper', { label: 'Article', desc: 'marges canon · folio', folio: 'center' }],
   ['book', { label: 'Livre', desc: 'recto-verso · en-têtes', duplex: true, header: true, folio: 'outer', cover: true }],
   ['letter', { label: 'Lettre', desc: 'marges larges', folio: 'none', wide: true }],
   ['slides', { label: 'Diapos', desc: '16:9 · pleine page', folio: 'none', landscape: true }],
 ];
-const SIZES = ['A4', 'Letter', 'A5', 'B5'];
 
 /** Strip a matching pair of surrounding quotes — front-matter values arrive
  *  from parseStackDoc as raw scalars, and `color-crans` is stored quoted. */
@@ -115,7 +115,6 @@ export function atelierStateFromFrontmatter(fm: Map<string, string>): {
   return {
     state: {
       docType: str('document-type', D.docType),
-      pageSize: str('page-size', D.pageSize),
       pair: str('font-pair', D.pair),
       base: num('font-base', D.base),
       mathScale: num('math-scale', D.mathScale),
@@ -141,7 +140,6 @@ export function buildKeys(
 ): Map<string, string> {
   return new Map<string, string>([
     ['document-type', s.docType],
-    ['page-size', s.pageSize],
     ['font-pair', s.pair],
     ['font-base', String(s.base)],
     ['math-scale', String(s.mathScale)],
@@ -561,32 +559,11 @@ export function openAtelier(
       tplGallery.appendChild(card);
     }
   };
-  const sizeOver = document.createElement('div');
-  sizeOver.className = 'mp-over';
-  const sizeRow = document.createElement('div');
-  sizeRow.className = 'mp-orow';
-  const sizeLabel = document.createElement('span');
-  sizeLabel.textContent = 'Taille physique';
-  const sizeSeg = document.createElement('div');
-  sizeSeg.className = 'mp-seg';
-  const renderSizeSeg = (): void => {
-    sizeSeg.replaceChildren();
-    for (const s of SIZES) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = s;
-      b.classList.toggle('on', s === state.pageSize);
-      b.addEventListener('click', () => {
-        state.pageSize = s;
-        renderSizeSeg();
-        emit();
-      });
-      sizeSeg.appendChild(b);
-    }
-  };
-  sizeRow.append(sizeLabel, sizeSeg);
-  sizeOver.appendChild(sizeRow);
-  panelFormat.append(tplGallery, sizeOver);
+  const fmtNote = document.createElement('p');
+  fmtNote.className = 'note';
+  fmtNote.textContent =
+    'Chaque type porte sa mise en page : marges (canon ou fixes), recto-verso, folio, et sa taille de page. La taille se règle dans les Réglages détaillés.';
+  panelFormat.append(tplGallery, fmtNote);
 
   // ══ FONTS panel ══
   const pairGallery = document.createElement('div');
@@ -751,7 +728,6 @@ export function openAtelier(
 
   // paint everything, show the first tab
   renderTplGallery();
-  renderSizeSeg();
   renderPairGallery();
   renderMap();
   renderPreview();
