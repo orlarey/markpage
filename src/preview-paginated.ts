@@ -664,19 +664,44 @@ const PX_PER_MM = 96 / 25.4;
 const ATOMIC_TRIM_SAFETY_MM = 3;
 
 /**
- * Purpose: The SINGLE point where the Van de Graaf canon is computed — the two
- *   nested rectangles (text block ⊂ live area) for a page, in mm. Phase 2 of the
- *   fundamental-settings migration (docs/FUNDAMENTAL-SETTINGS.md): the seed of
- *   the future `resolveGeometry` producer that will emit resolved `text.*`.
- *   Returns null in manual mode (the user's four margins are authoritative).
- * How: measure the body font's average char width ONCE, then derive both
- *   rectangles (measureChars → text block, liveAreaChars → the enclosing one),
- *   centred in simplex, mirrored in duplex.
+ * The resolved page geometry — the *fundamental-settings* view of the layout,
+ * in mm (docs/FUNDAMENTAL-SETTINGS.md §1). Everything downstream in the render
+ * speaks this vocabulary; the raw production inputs (marginMode / measureChars
+ * / liveAreaChars) live only inside `resolveGeometry`.
+ *   text     — the prose rectangle (spine-aware margins + its own width/height)
+ *   running  — horizontal anchors of the header/footer band (= live-area sides)
+ *   header   — distance from the page TOP to the header band
+ *   footer   — distance from the page BOTTOM to the footer band
+ *   gutter   — blank strip between the text block and the running/live area
+ *   sidenote — outer-margin note geometry derived from the gutters (§9.7.1)
  */
-function resolveCanon(
+export interface ResolvedGeometry {
+  page: { w: number; h: number };
+  text: CanonicalMargins;
+  running: { inner: number; outer: number };
+  header: { top: number };
+  footer: { bottom: number };
+  gutter: { inner: number; outer: number };
+  sidenote: { gap: number; width: number };
+}
+
+/**
+ * Purpose: The SINGLE boundary that turns the production inputs (marginMode /
+ *   measureChars / liveAreaChars) into resolved fundamental geometry. Phase 2
+ *   of the fundamental-settings migration (docs/FUNDAMENTAL-SETTINGS.md): the
+ *   seed of the future external geometry producer. Returns null in manual mode
+ *   (the user's four mm margins are then authoritative).
+ * How: measure the body font's average char width ONCE, derive the two Van de
+ *   Graaf rectangles (measureChars → text block, liveAreaChars → the enclosing
+ *   live area), centred in simplex / mirrored in duplex, then FLATTEN them into
+ *   the fundamental vocabulary — text = the inner rectangle; running/header/
+ *   footer = the live-area anchors; gutter = the strip between them; sidenote
+ *   geometry derived from the gutters.
+ */
+export function resolveGeometry(
   s: PdfSettings,
   sizeMm: { w: number; h: number },
-): { textBlock: CanonicalMargins; liveArea: CanonicalMargins } | null {
+): ResolvedGeometry | null {
   if (s.marginMode !== 'derived') return null;
   const bodyName = (s.styles.body.family ?? '').trim() || s.fonts.body;
   const charW = measureAverageCharWidth(bodyName, s.styles.body.fontSize ?? 11);
@@ -685,23 +710,40 @@ function resolveCanon(
       computeCanonicalMargins(sizeMm.w, sizeMm.h, chars, charW),
       s.duplex,
     );
-  return { textBlock: rect(s.measureChars), liveArea: rect(s.liveAreaChars) };
+  const text = rect(s.measureChars);
+  const live = rect(s.liveAreaChars);
+  const gutter = {
+    inner: Math.max(0, text.inner - live.inner),
+    outer: Math.max(0, text.outer - live.outer),
+  };
+  // §9.7.1 — sidenote gap = innerGutter / 4 (clamped so tight live areas don't
+  // glue the note to the text); width fills the rest of the outer gutter.
+  const gap = Math.max(1.5, gutter.inner / 4);
+  return {
+    page: { w: sizeMm.w, h: sizeMm.h },
+    text,
+    running: { inner: live.inner, outer: live.outer },
+    header: { top: live.top },
+    footer: { bottom: live.bottom },
+    gutter,
+    sidenote: { gap, width: Math.max(5, gutter.outer - gap) },
+  };
 }
 
 /** Geometry of the normal text rectangle and the physical page, in CSS px. */
 function atomicPageGeometryPx(settings: PdfSettings): AtomicPageGeometryPx {
   const page = pageSizeMm(settings);
-  const textCanon = resolveCanon(settings, page)?.textBlock ?? null;
-  const leftRecto = textCanon?.inner ?? settings.margins.left;
+  const text = resolveGeometry(settings, page)?.text ?? null;
+  const leftRecto = text?.inner ?? settings.margins.left;
   const leftVerso = settings.duplex
-    ? (textCanon?.outer ?? settings.margins.right)
+    ? (text?.outer ?? settings.margins.right)
     : leftRecto;
-  const top = textCanon?.top ?? settings.margins.top;
+  const top = text?.top ?? settings.margins.top;
   const textWidth =
-    textCanon?.width ??
+    text?.width ??
     Math.max(1, page.w - settings.margins.left - settings.margins.right);
   const textHeight =
-    textCanon?.height ??
+    text?.height ??
     Math.max(1, page.h - settings.margins.top - settings.margins.bottom);
   return {
     textWidth: textWidth * PX_PER_MM,
@@ -876,16 +918,13 @@ export function pagedCss(s: PdfSettings): string {
   // `margins.right` as outer — same convention as §9.5.2 for duplex.
   // This is purely cosmetic in simplex (no spine, no swap), and it lets
   // the rest of the code branch on a single shape regardless of mode.
-  // §9.6 derived geometry: TWO canonical rectangles on the same diagonals —
-  //   - text block: tighter, holds the actual prose;
-  //   - live area:  enclosing rectangle (width = liveAreaChars × charWidth) that
-  //                 also hosts the header/footer bands and the inner/outer gutters.
-  // Computed once by the canon kernel (resolveCanon). The @page margin = LIVE
-  // AREA margins; body padding pushes the text back to text-block dimensions
-  // (§9.6.4). Null in manual mode.
-  const canon = resolveCanon(s, sizeMm);
-  const textBlockCanon = canon?.textBlock ?? null;
-  const liveAreaCanon = canon?.liveArea ?? null;
+  // §9.6 derived geometry, resolved once by the single producer
+  // (resolveGeometry) into the fundamental vocabulary: `text` is the prose
+  // rectangle; `running`/`header`/`footer` are the live-area anchors; `gutter`
+  // is the strip between them. The @page margin = live-area sides + text
+  // top/bottom; body padding pushes the text back to text-block width (§9.6.4).
+  // Null in manual mode (the four mm sliders are then authoritative).
+  const geo = resolveGeometry(s, sizeMm);
   // In derived mode, vertical margins (top / bottom) come from the text
   // block and horizontal margins from the live area. Horizontal geometry is
   // centred in simplex; the classical inner/outer asymmetry is kept only for
@@ -897,20 +936,19 @@ export function pagedCss(s: PdfSettings): string {
   // below) so it visually sits in the live area, not in the blank
   // page-edge zone. In manual mode, behave exactly as before: the
   // user's four sliders are authoritative.
-  const effMargins =
-    textBlockCanon !== null && liveAreaCanon !== null
-      ? {
-          top: textBlockCanon.top,
-          bottom: textBlockCanon.bottom,
-          inner: liveAreaCanon.inner,
-          outer: liveAreaCanon.outer,
-        }
-      : {
-          top: m.top,
-          bottom: m.bottom,
-          inner: m.left,
-          outer: m.right,
-        };
+  const effMargins = geo
+    ? {
+        top: geo.text.top,
+        bottom: geo.text.bottom,
+        inner: geo.running.inner,
+        outer: geo.running.outer,
+      }
+    : {
+        top: m.top,
+        bottom: m.bottom,
+        inner: m.left,
+        outer: m.right,
+      };
   // §9.5.2 — when duplex is on, the inner margin (binding) stays
   // physically on the spine side of the open book. On recto (@page
   // :right), inner = LEFT and outer = RIGHT; on verso (@page :left)
@@ -940,10 +978,9 @@ export function pagedCss(s: PdfSettings): string {
   // The body padding is applied on `.pagedjs_page_content`, scoped
   // to the page parity classes paged.js sets. In duplex on a verso
   // the inner/outer paddings swap, mirroring the margin swap above.
-  const bodyPaddingRule =
-    textBlockCanon !== null && liveAreaCanon !== null
-      ? buildBodyPaddingCss(SCOPE, textBlockCanon, liveAreaCanon, s.duplex)
-      : '';
+  const bodyPaddingRule = geo
+    ? buildBodyPaddingCss(SCOPE, geo.gutter, s.duplex)
+    : '';
 
   // §9.7 — sidenote rendering (notes.position === 'side'). The
   // footnoteRef renderer always emits `<sup class="footnote-ref">` +
@@ -956,13 +993,7 @@ export function pagedCss(s: PdfSettings): string {
   //     the line of its anchor. Requires derived mode to know the outer
   //     gutter width — degrades silently in manual mode (sidenotes
   //     still hidden, footnote section visible).
-  const sidenoteRule = buildSidenoteCss(
-    SCOPE,
-    s.notes.position,
-    textBlockCanon,
-    liveAreaCanon,
-    s.duplex,
-  );
+  const sidenoteRule = buildSidenoteCss(SCOPE, s.notes.position, geo, s.duplex);
   // §9.6.6 — in derived mode the @top-* / @bottom-* margin boxes are
   // taller than the canonical-blank zone (the @page margin is set to
   // the TEXT BLOCK top / bottom, not the live area). We want the
@@ -987,20 +1018,19 @@ export function pagedCss(s: PdfSettings): string {
   // of its arguments (= 0,1,0 for class lists), so the total here is
   // (0,2,0) — equal to paged.js's, and our rules come later in the
   // cascade so they win.
-  const marginBoxAlignRule =
-    textBlockCanon !== null && liveAreaCanon !== null
-      ? `
+  const marginBoxAlignRule = geo
+    ? `
     ${SCOPE} .pagedjs_pagebox :is(.pagedjs_margin-top-left, .pagedjs_margin-top-center, .pagedjs_margin-top-right,
         .pagedjs_margin-top-left-corner, .pagedjs_margin-top-right-corner) {
       align-items: flex-start;
-      padding-top: ${liveAreaCanon.top}mm;
+      padding-top: ${geo.header.top}mm;
     }
     ${SCOPE} .pagedjs_pagebox :is(.pagedjs_margin-bottom-left, .pagedjs_margin-bottom-center, .pagedjs_margin-bottom-right,
         .pagedjs_margin-bottom-left-corner, .pagedjs_margin-bottom-right-corner) {
       align-items: flex-end;
-      padding-bottom: ${liveAreaCanon.bottom}mm;
+      padding-bottom: ${geo.footer.bottom}mm;
     }`
-      : '';
+    : '';
   // CSS custom properties exposing the canonical geometry so the
   // debug-guides overlay (style.css, gated on `.debug-layout`) can
   // draw the live-area and text-block outlines as pseudo-elements on
@@ -1010,18 +1040,12 @@ export function pagedCss(s: PdfSettings): string {
   // no canonical decomposition: live area = text block = user margins,
   // and the gutters collapse to zero.
   const eff = effMargins;
-  const gutInner =
-    textBlockCanon !== null && liveAreaCanon !== null
-      ? Math.max(0, textBlockCanon.inner - liveAreaCanon.inner)
-      : 0;
-  const gutOuter =
-    textBlockCanon !== null && liveAreaCanon !== null
-      ? Math.max(0, textBlockCanon.outer - liveAreaCanon.outer)
-      : 0;
-  const liveTop = liveAreaCanon?.top ?? eff.top;
-  const liveBottom = liveAreaCanon?.bottom ?? eff.bottom;
-  const liveInner = liveAreaCanon?.inner ?? eff.inner;
-  const liveOuter = liveAreaCanon?.outer ?? eff.outer;
+  const gutInner = geo?.gutter.inner ?? 0;
+  const gutOuter = geo?.gutter.outer ?? 0;
+  const liveTop = geo?.header.top ?? eff.top;
+  const liveBottom = geo?.footer.bottom ?? eff.bottom;
+  const liveInner = geo?.running.inner ?? eff.inner;
+  const liveOuter = geo?.running.outer ?? eff.outer;
   const canonVarsRule = `
     ${SCOPE} {
       --mp-live-top: ${liveTop}mm;
@@ -1210,8 +1234,8 @@ export function pagedCss(s: PdfSettings): string {
       },
       pageW: sizeMm.w,
       pageH: sizeMm.h,
-      textBlockInner: textBlockCanon?.inner ?? null,
-      liveAreaInner: liveAreaCanon?.inner ?? null,
+      textBlockInner: geo?.text.inner ?? null,
+      liveAreaInner: geo?.running.inner ?? null,
     })}
 
     /* Images: cap both width and height to the page's content area so
@@ -1495,8 +1519,7 @@ function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
  */
 function buildBodyPaddingCss(
   scope: string,
-  textBlock: CanonicalMargins,
-  liveArea: CanonicalMargins,
+  gutter: { inner: number; outer: number },
   duplex: boolean,
 ): string {
   // Vertical padding is ZERO: the @page margin (in derived mode) is
@@ -1504,8 +1527,8 @@ function buildBodyPaddingCss(
   // area has the text-block height natively. Only the horizontal
   // gutters (inner / outer) need to be subtracted from the live area
   // to recover the text-block width.
-  const padInner = Math.max(0, textBlock.inner - liveArea.inner);
-  const padOuter = Math.max(0, textBlock.outer - liveArea.outer);
+  const padInner = gutter.inner;
+  const padOuter = gutter.outer;
   // CSS padding shorthand is `top right bottom left`. On recto:
   //   right = outer, left = inner.
   const rectoPadding = `padding: 0 ${padOuter}mm 0 ${padInner}mm;`;
@@ -1583,8 +1606,7 @@ function centerCanonicalHorizontally(
 function buildSidenoteCss(
   scope: string,
   position: 'foot' | 'side' | 'end',
-  textBlock: CanonicalMargins | null,
-  liveArea: CanonicalMargins | null,
+  geo: ResolvedGeometry | null,
   duplex: boolean,
 ): string {
   // === 'end' mode ============================================
@@ -1629,17 +1651,13 @@ function buildSidenoteCss(
   // in the outer gutter at the height of its anchor. Requires the
   // canonical margins so we know the gutter width; degrades silently
   // to plain hide if `marginMode === 'manual'`.
-  if (textBlock === null || liveArea === null) {
+  if (geo === null) {
     return `${scope} .sidenote { display: none; }`;
   }
-  const outerGutter = Math.max(0, textBlock.outer - liveArea.outer);
-  const innerGutter = Math.max(0, textBlock.inner - liveArea.inner);
-  // Visual breathing between the text block and the sidenote area.
-  // Default rule §9.7.1: gap = innerGutter / 4 (sound when innerGutter
-  // is itself derived; clamp to a sensible minimum so very tight live
-  // areas don't end up with sidenotes glued to the text).
-  const gap = Math.max(1.5, innerGutter / 4);
-  const noteWidth = Math.max(5, outerGutter - gap);
+  // The note sits in the outer gutter; its width and the breathing gap
+  // to the text block are resolved geometry (§9.7.1).
+  const outerGutter = geo.gutter.outer;
+  const noteWidth = geo.sidenote.width;
   // §9.7.5 — margin figures (`img.margin`) share the same outer-gutter
   // positioning as sidenotes. The selector targets BOTH so authors
   // can mix `[^id]` footnote anchors with `![alt](url){.margin}`
@@ -1730,12 +1748,12 @@ export function pageContentGeomPx(s: PdfSettings): {
   const PX_PER_MM = 96 / 25.4;
   const sizeMm = pageSizeMm(s);
   // Mosaic content sits in the text block; its size is the canonical measure,
-  // matching pagedCss. Resolved by the single canon kernel (resolveCanon) so
-  // the production inputs (measureChars/marginMode) have exactly one reader in
+  // matching pagedCss. Resolved by the single geometry producer (resolveGeometry)
+  // so the production inputs (measureChars/marginMode) have exactly one reader in
   // the render path. width/height are unaffected by the horizontal centering.
-  const tb = resolveCanon(s, sizeMm)?.textBlock;
-  if (tb) {
-    return { width: tb.width * PX_PER_MM, height: tb.height * PX_PER_MM };
+  const text = resolveGeometry(s, sizeMm)?.text;
+  if (text) {
+    return { width: text.width * PX_PER_MM, height: text.height * PX_PER_MM };
   }
   const m = s.margins;
   return {
