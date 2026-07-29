@@ -3,12 +3,15 @@
  * The style atelier (docs/STYLE-EDITOR-SPEC.md) — a live panel that composes a
  * style from the three axes and writes the vocabulary keys into the current
  * document's front-matter. Every change calls `onChange(keys)`; main.ts splices
- * those keys via `setFrontmatterKeys` and the existing render pipeline (which
- * already reads them, slices 1–3) shows the result.
+ * those keys via `setFrontmatterKeys` and the render pipeline shows the result.
  *
- * Colour is the full map now: a 6×6 saturation × value grid plus a neutral
- * column, element chips dragged onto crans, the hue rotating the whole family —
- * the swatches are cranToHex(hue, cran), the exact colour the render derives.
+ * Three tabs, one axis each, following the `atelier-complet` prototype:
+ *   - Format: a gallery of document-type cards, each a mini page diagram
+ *     (margins, header band, folio, cover badge, duplex spread) + a size choice.
+ *   - Polices: a gallery of pairing cards, each a live type specimen rendered in
+ *     the real families + a base size and maths scale.
+ *   - Couleur: the 6×6 saturation × value map + neutral column, element chips
+ *     dragged onto crans, the hue rotating the whole family (cranToHex swatches).
  *
  *****************************************************************************/
 
@@ -18,6 +21,7 @@ import {
   parseColorCrans,
   type Cran,
 } from '@orlarey/markpage-render';
+import { loadGoogleFont } from '../font-loader';
 
 /** The non-colour style the atelier composes. Colour lives in a `Cran` map. */
 export interface AtelierState {
@@ -45,13 +49,26 @@ const DEFAULT_CRANS =
 
 const GRID = 6; // 6×6 sat×value + a 6-step neutral column (SPEC §4, I3)
 
-const DOC_TYPES: ReadonlyArray<readonly [string, string]> = [
-  ['note', 'Note technique'],
-  ['report', 'Rapport'],
-  ['paper', 'Article'],
-  ['book', 'Livre'],
-  ['letter', 'Lettre'],
-  ['slides', 'Diapos'],
+/** Layout characteristics per document-type, for the Format gallery's page
+ *  diagram + one-line description. Presentation only — the real layout is the
+ *  recipe's job; this visualises what picking the type means. */
+interface DocLayout {
+  label: string;
+  desc: string;
+  duplex?: boolean;
+  header?: boolean;
+  folio: 'center' | 'outer' | 'none';
+  cover?: boolean;
+  landscape?: boolean;
+  wide?: boolean;
+}
+const DOC_TYPES: ReadonlyArray<readonly [string, DocLayout]> = [
+  ['note', { label: 'Note technique', desc: 'en-tête + folio', header: true, folio: 'center' }],
+  ['report', { label: 'Rapport', desc: 'couverture · folio', folio: 'center', cover: true }],
+  ['paper', { label: 'Article', desc: 'marges canon · folio', folio: 'center' }],
+  ['book', { label: 'Livre', desc: 'recto-verso · en-têtes', duplex: true, header: true, folio: 'outer', cover: true }],
+  ['letter', { label: 'Lettre', desc: 'marges larges', folio: 'none', wide: true }],
+  ['slides', { label: 'Diapos', desc: '16:9 · pleine page', folio: 'none', landscape: true }],
 ];
 const SIZES = ['A4', 'Letter', 'A5', 'B5'];
 
@@ -133,24 +150,134 @@ export function buildKeys(
   ]);
 }
 
+/** A CSS font-family value for a specimen: the real family + a same-category
+ *  system fallback so the specimen still reads before the web font loads. */
+function specimenFamily(name: string, kind: 'head' | 'body' | 'mono'): string {
+  const generic = kind === 'mono' ? 'monospace' : 'serif, sans-serif';
+  return `"${name}", ${generic}`;
+}
+
+/** Point size of a specimen line: base · displayScale · ratio^step. */
+function stepSize(base: number, ratio: number, step: number, scale: number): string {
+  return `${(base * scale * Math.pow(ratio, step)).toFixed(1)}pt`;
+}
+
+/** Build one mini page diagram for the Format gallery (or the card thumb).
+ *  Margins are expressed as fractions of the box so no measuring is needed. */
+function drawPage(
+  layout: DocLayout,
+  height: number,
+  side: 'single' | 'verso' | 'recto',
+  isCover: boolean,
+): HTMLElement {
+  const ratio = layout.landscape ? 9 / 16 : 1.414;
+  const w = layout.landscape ? height * (16 / 9) : height / ratio;
+  const p = document.createElement('div');
+  p.className = 'mp-pg';
+  p.style.width = `${w}px`;
+  p.style.height = `${height}px`;
+  if (isCover) {
+    const t = document.createElement('div');
+    t.className = 'mp-pg-cover';
+    t.innerHTML =
+      '<i style="height:3px;opacity:.6"></i><i style="height:2px;width:60%;opacity:.4;margin:2px auto 0"></i>';
+    p.appendChild(t);
+    return p;
+  }
+  const mt = height * 0.12;
+  const mb = height * 0.15;
+  let ml: number;
+  let mr: number;
+  if (layout.duplex) {
+    const inner = w * 0.1;
+    const outer = w * 0.19;
+    [ml, mr] = side === 'verso' ? [outer, inner] : [inner, outer];
+  } else if (layout.wide) {
+    ml = mr = w * 0.17;
+  } else if (layout.landscape) {
+    ml = mr = w * 0.05;
+  } else {
+    ml = mr = w * 0.13;
+  }
+  const tb = document.createElement('div');
+  tb.className = 'mp-pg-tb';
+  tb.style.cssText = `left:${ml}px;top:${mt}px;width:${w - ml - mr}px;height:${height - mt - mb}px`;
+  p.appendChild(tb);
+  if (layout.header) {
+    const b = document.createElement('div');
+    b.className = 'mp-pg-band';
+    const bw = (w - ml - mr) * 0.5;
+    b.style.cssText = `top:${mt * 0.5}px;width:${bw}px;left:${side === 'verso' ? w - mr - bw : ml}px`;
+    p.appendChild(b);
+  }
+  if (layout.folio !== 'none') {
+    const f = document.createElement('div');
+    f.className = 'mp-pg-folio';
+    const left =
+      layout.folio === 'center' ? w / 2 - 1.5 : side === 'verso' ? ml * 0.5 : w - mr * 0.5 - 3;
+    f.style.left = `${left}px`;
+    p.appendChild(f);
+  }
+  return p;
+}
+
 const CSS = `
 .mp-atelier-scrim { position: fixed; inset: 0; background: rgba(20,25,40,.28); z-index: 200; display: flex; justify-content: flex-end; }
-.mp-atelier { width: min(440px, 100vw); height: 100%; overflow-y: auto; background: var(--bg,#fff); box-shadow: -8px 0 30px rgba(0,0,0,.2); padding: 1.2rem 1.3rem 2rem; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1a1f2b; }
+.mp-atelier { width: min(520px, 100vw); height: 100%; overflow-y: auto; background: #fff; box-shadow: -8px 0 30px rgba(0,0,0,.2); padding: 1.2rem 1.4rem 2.4rem; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1a1f2b; }
 .mp-atelier h2 { margin: 0 0 .2rem; font-size: 1.05rem; }
-.mp-atelier .sub { margin: 0 0 1.2rem; color: #5c6473; font-size: .85rem; }
-.mp-atelier section { border-top: 1px solid #e4e7ee; padding-top: 1rem; margin-top: 1rem; }
-.mp-atelier h3 { font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: #868d9b; margin: 0 0 .7rem; }
-.mp-atelier .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
-.mp-atelier button.opt { font: inherit; font-size: .82rem; border: 1.5px solid #e4e7ee; background: #fff; border-radius: 8px; padding: .5rem .4rem; cursor: pointer; }
-.mp-atelier button.opt.on { border-color: #3b6fb0; box-shadow: 0 0 0 3px rgba(59,111,176,.1); font-weight: 600; }
-.mp-atelier .row { display: flex; align-items: center; gap: .7rem; margin: .5rem 0; }
-.mp-atelier .row label { font-size: .84rem; color: #5c6473; min-width: 6rem; }
-.mp-atelier .row input[type=range] { flex: 1; accent-color: #3b6fb0; }
-.mp-atelier .row output { font-variant-numeric: tabular-nums; font-size: .82rem; min-width: 3.2rem; text-align: right; }
-.mp-atelier .hue { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 6px; background: linear-gradient(to right, hsl(0,70%,50%), hsl(60,70%,50%), hsl(120,70%,50%), hsl(180,70%,50%), hsl(240,70%,50%), hsl(300,70%,50%), hsl(360,70%,50%)); }
-.mp-atelier .hue::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #1a1f2b; cursor: grab; }
+.mp-atelier .sub { margin: 0 0 1.1rem; color: #5c6473; font-size: .85rem; line-height: 1.4; }
 .mp-atelier .close { position: absolute; top: .8rem; right: .9rem; border: 0; background: transparent; font-size: 1.3rem; cursor: pointer; color: #5c6473; }
-.mp-atelier .note { font-size: .76rem; color: #868d9b; margin-top: .5rem; }
+.mp-atelier .note { font-size: .76rem; color: #868d9b; margin-top: .6rem; line-height: 1.4; }
+
+/* tabs */
+.mp-tabs { display: inline-flex; border: 1px solid #cdd2dc; border-radius: 9px; overflow: hidden; margin-bottom: 1.1rem; }
+.mp-tabs button { font: inherit; font-size: .85rem; font-weight: 600; border: 0; background: #fff; color: #5c6473; padding: .45rem 1rem; cursor: pointer; border-right: 1px solid #e4e7ee; }
+.mp-tabs button:last-child { border-right: 0; }
+.mp-tabs button.on { background: #3b6fb0; color: #fff; }
+.mp-panel { display: none; }
+.mp-panel.on { display: block; }
+
+/* galleries */
+.mp-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .7rem; }
+.mp-card { border: 1.5px solid #e4e7ee; border-radius: 10px; background: #fff; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .1s; }
+.mp-card:hover { border-color: #cdd2dc; transform: translateY(-1px); }
+.mp-card.on { border-color: #3b6fb0; box-shadow: 0 0 0 3px rgba(59,111,176,.1); }
+.mp-tpl { padding: .7rem .55rem .6rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: .45rem; }
+.mp-tpl .thumb { height: 72px; display: flex; align-items: center; justify-content: center; position: relative; }
+.mp-tpl .name { font-weight: 650; font-size: .86rem; }
+.mp-tpl .desc { font-size: .68rem; color: #5c6473; line-height: 1.3; }
+.mp-pg { background: #fff; border: 1px solid #c7cdd7; border-radius: 2px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.mp-pg-tb { position: absolute; border: 1px dashed #3b6fb0; opacity: .5; border-radius: 1px; }
+.mp-pg-band { position: absolute; height: 2px; background: #3b6fb0; opacity: .5; border-radius: 2px; }
+.mp-pg-folio { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #5c6473; bottom: 3px; }
+.mp-pg-cover { position: absolute; left: 22%; right: 22%; top: 36%; display: flex; flex-direction: column; gap: 2px; }
+.mp-pg-cover i { background: #1a1f2b; border-radius: 1px; display: block; }
+.mp-spread { display: flex; gap: 2px; }
+.mp-cover-badge { position: absolute; top: -6px; right: -6px; background: #3b6fb0; color: #fff; font-size: .55rem; font-weight: 700; padding: 1px 5px; border-radius: 9px; }
+.mp-pair { padding: .8rem .85rem .85rem; display: flex; flex-direction: column; gap: .55rem; text-align: left; }
+.mp-pair .s-head { line-height: 1.06; }
+.mp-pair .s-body { line-height: 1.35; color: #5c6473; }
+.mp-pair .s-code { background: rgba(128,128,128,.1); border-radius: 5px; padding: .2rem .4rem; align-self: flex-start; }
+.mp-pair .p-meta { border-top: 1px solid #e4e7ee; padding-top: .45rem; }
+.mp-pair .p-name { font-weight: 650; font-size: .86rem; }
+.mp-pair .p-char { font-size: .68rem; color: #5c6473; }
+
+/* overrides (size seg, sliders) */
+.mp-over { border-top: 1px solid #e4e7ee; margin-top: 1.1rem; padding-top: 1rem; display: grid; gap: .85rem; }
+.mp-orow { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.mp-orow > span { font-size: .84rem; color: #5c6473; }
+.mp-seg { display: inline-flex; border: 1px solid #cdd2dc; border-radius: 7px; overflow: hidden; }
+.mp-seg button { font: inherit; font-size: .78rem; border: 0; background: #fff; color: #5c6473; padding: .3rem .6rem; cursor: pointer; border-right: 1px solid #e4e7ee; }
+.mp-seg button:last-child { border-right: 0; }
+.mp-seg button.on { background: #3b6fb0; color: #fff; }
+.mp-row { display: flex; align-items: center; gap: .7rem; margin: .1rem 0; }
+.mp-row label { font-size: .84rem; color: #5c6473; min-width: 6.5rem; }
+.mp-row input[type=range] { flex: 1; accent-color: #3b6fb0; }
+.mp-row output { font-variant-numeric: tabular-nums; font-size: .82rem; min-width: 3.4rem; text-align: right; }
+
+/* colour map */
+.mp-hue { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 6px; background: linear-gradient(to right, hsl(0,70%,50%), hsl(60,70%,50%), hsl(120,70%,50%), hsl(180,70%,50%), hsl(240,70%,50%), hsl(300,70%,50%), hsl(360,70%,50%)); }
+.mp-hue::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #1a1f2b; cursor: grab; }
 .mp-cmap { display: grid; grid-template-columns: repeat(${GRID + 1}, 1fr); gap: 3px; margin-top: .3rem; }
 .mp-cc { position: relative; min-height: 40px; min-width: 0; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 2px; align-content: center; justify-content: center; padding: 2px; cursor: pointer; }
 .mp-cc.gray { box-shadow: inset -1px 0 0 #cdd2dc; }
@@ -159,6 +286,7 @@ const CSS = `
 .mp-chip { font-size: .6rem; font-weight: 600; line-height: 1; padding: 2px 4px; border-radius: 10px; cursor: grab; user-select: none; white-space: nowrap; border: 1.5px solid rgba(0,0,0,.18); touch-action: none; }
 .mp-chip.ghost { position: fixed; z-index: 300; pointer-events: none; transform: translate(-50%,-50%) scale(1.1); }
 .mp-caxis { display: flex; justify-content: space-between; font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; color: #868d9b; margin-top: .25rem; }
+@media (prefers-reduced-motion: reduce) { .mp-card { transition: none; } }
 `;
 
 /**
@@ -221,42 +349,45 @@ export function openAtelier(
   h2.textContent = 'Atelier de style';
   const sub = document.createElement('p');
   sub.className = 'sub';
-  sub.textContent = 'Un style = format × polices × couleur. Écrit dans le document, rendu en direct.';
+  sub.textContent =
+    'Un style = format × polices × couleur. Chaque onglet règle un axe ; le document se met à jour en direct.';
   panel.append(closeBtn, h2, sub);
 
-  // ── helper: a gallery of option buttons ──
-  const gallery = (
-    options: ReadonlyArray<readonly [string, string]>,
-    current: () => string,
-    set: (v: string) => void,
-  ): HTMLElement => {
-    const grid = document.createElement('div');
-    grid.className = 'grid';
-    const paint = (): void => {
-      for (const b of grid.children) {
-        (b as HTMLElement).classList.toggle(
-          'on',
-          (b as HTMLElement).dataset.v === current(),
-        );
-      }
-    };
-    for (const [value, label] of options) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'opt';
-      b.dataset.v = value;
-      b.textContent = label;
-      b.addEventListener('click', () => {
-        set(value);
-        paint();
-        emit();
-      });
-      grid.appendChild(b);
-    }
-    paint();
-    return grid;
+  // ── tabs ──
+  const TABS: ReadonlyArray<readonly [string, string]> = [
+    ['format', 'Format'],
+    ['fonts', 'Polices'],
+    ['color', 'Couleur'],
+  ];
+  const tabsBar = document.createElement('div');
+  tabsBar.className = 'mp-tabs';
+  const panelFormat = document.createElement('div');
+  const panelFonts = document.createElement('div');
+  const panelColor = document.createElement('div');
+  const panelOf: Record<string, HTMLElement> = {
+    format: panelFormat,
+    fonts: panelFonts,
+    color: panelColor,
   };
+  for (const el of Object.values(panelOf)) el.className = 'mp-panel';
+  let activeTab = 'format';
+  const selectTab = (id: string): void => {
+    activeTab = id;
+    for (const b of tabsBar.children)
+      (b as HTMLElement).classList.toggle('on', (b as HTMLElement).dataset.t === id);
+    for (const [k, el] of Object.entries(panelOf)) el.classList.toggle('on', k === id);
+  };
+  for (const [id, label] of TABS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.t = id;
+    b.textContent = label;
+    b.addEventListener('click', () => selectTab(id));
+    tabsBar.appendChild(b);
+  }
+  panel.append(tabsBar, panelFormat, panelFonts, panelColor);
 
+  // ── slider helper (fonts + colour) ──
   const slider = (
     label: string,
     min: number,
@@ -269,7 +400,7 @@ export function openAtelier(
     cls = '',
   ): HTMLElement => {
     const row = document.createElement('div');
-    row.className = 'row';
+    row.className = 'mp-row';
     const lab = document.createElement('label');
     lab.textContent = label;
     const input = document.createElement('input');
@@ -291,42 +422,151 @@ export function openAtelier(
     return row;
   };
 
-  // ── Format ──
-  const fmt = document.createElement('section');
-  const fh = document.createElement('h3');
-  fh.textContent = 'Format';
-  fmt.append(
-    fh,
-    gallery(DOC_TYPES, () => state.docType, (v) => (state.docType = v)),
-    gallery(
-      SIZES.map((s) => [s, s] as const),
-      () => state.pageSize,
-      (v) => (state.pageSize = v),
-    ),
-  );
+  // ══ FORMAT panel ══
+  const tplGallery = document.createElement('div');
+  tplGallery.className = 'mp-gallery';
+  const renderTplGallery = (): void => {
+    tplGallery.replaceChildren();
+    for (const [id, layout] of DOC_TYPES) {
+      const card = document.createElement('div');
+      card.className = 'mp-card mp-tpl' + (id === state.docType ? ' on' : '');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      if (layout.duplex) {
+        const spread = document.createElement('div');
+        spread.className = 'mp-spread';
+        spread.append(drawPage(layout, 64, 'verso', false), drawPage(layout, 64, 'recto', false));
+        thumb.appendChild(spread);
+      } else {
+        thumb.appendChild(drawPage(layout, 64, 'single', false));
+      }
+      if (layout.cover) {
+        const badge = document.createElement('div');
+        badge.className = 'mp-cover-badge';
+        badge.textContent = 'couv.';
+        thumb.appendChild(badge);
+      }
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = layout.label;
+      const desc = document.createElement('div');
+      desc.className = 'desc';
+      desc.textContent = layout.desc;
+      card.append(thumb, name, desc);
+      const pick = (): void => {
+        state.docType = id;
+        renderTplGallery();
+        emit();
+      };
+      card.addEventListener('click', pick);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          pick();
+        }
+      });
+      tplGallery.appendChild(card);
+    }
+  };
+  const sizeOver = document.createElement('div');
+  sizeOver.className = 'mp-over';
+  const sizeRow = document.createElement('div');
+  sizeRow.className = 'mp-orow';
+  const sizeLabel = document.createElement('span');
+  sizeLabel.textContent = 'Taille physique';
+  const sizeSeg = document.createElement('div');
+  sizeSeg.className = 'mp-seg';
+  const renderSizeSeg = (): void => {
+    sizeSeg.replaceChildren();
+    for (const s of SIZES) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = s;
+      b.classList.toggle('on', s === state.pageSize);
+      b.addEventListener('click', () => {
+        state.pageSize = s;
+        renderSizeSeg();
+        emit();
+      });
+      sizeSeg.appendChild(b);
+    }
+  };
+  sizeRow.append(sizeLabel, sizeSeg);
+  sizeOver.appendChild(sizeRow);
+  panelFormat.append(tplGallery, sizeOver);
 
-  // ── Fonts ──
-  const fonts = document.createElement('section');
-  const foh = document.createElement('h3');
-  foh.textContent = 'Polices';
-  fonts.append(
-    foh,
-    gallery(
-      FONT_PAIRINGS.map((p) => [p.id, p.name] as const),
-      () => state.pair,
-      (v) => (state.pair = v),
-    ),
-    slider('Taille de base', 9, 13, 0.5, () => state.base, (v) => (state.base = v), (v) => `${v} pt`),
+  // ══ FONTS panel ══
+  const pairGallery = document.createElement('div');
+  pairGallery.className = 'mp-gallery';
+  const renderPairGallery = (): void => {
+    pairGallery.replaceChildren();
+    for (const p of FONT_PAIRINGS) {
+      const card = document.createElement('div');
+      card.className = 'mp-card mp-pair' + (p.id === state.pair ? ' on' : '');
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      const head = document.createElement('div');
+      head.className = 's-head';
+      head.textContent = 'Signatures';
+      head.style.cssText = `font-family:${specimenFamily(p.headings, 'head')};font-weight:700;font-size:${stepSize(state.base, p.ratio, 2, 1.15)}`;
+      const body = document.createElement('div');
+      body.className = 's-body';
+      body.textContent = "Une seule traversée de l'arbre, plusieurs interprétations.";
+      body.style.cssText = `font-family:${specimenFamily(p.body, 'body')};font-size:${stepSize(state.base, p.ratio, 0, 1.15)}`;
+      const code = document.createElement('div');
+      code.className = 's-code';
+      code.textContent = 'fold(tree)';
+      code.style.cssText = `font-family:${specimenFamily(p.code, 'mono')};font-size:${stepSize(state.base, p.ratio, -0.5, 1.15)}`;
+      const meta = document.createElement('div');
+      meta.className = 'p-meta';
+      const nm = document.createElement('div');
+      nm.className = 'p-name';
+      nm.textContent = p.name;
+      const ch = document.createElement('div');
+      ch.className = 'p-char';
+      ch.textContent = p.char;
+      meta.append(nm, ch);
+      card.append(head, body, code, meta);
+      const pick = (): void => {
+        state.pair = p.id;
+        renderPairGallery();
+        emit();
+      };
+      card.addEventListener('click', pick);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          pick();
+        }
+      });
+      pairGallery.appendChild(card);
+    }
+  };
+  const fontOver = document.createElement('div');
+  fontOver.className = 'mp-over';
+  fontOver.append(
+    slider('Taille de base', 9, 13, 0.5, () => state.base, (v) => (state.base = v), (v) => `${v.toFixed(1).replace('.', ',')} pt`, renderPairGallery),
     slider('Maths', 0.8, 1.2, 0.05, () => state.mathScale, (v) => (state.mathScale = v), (v) => `×${v.toFixed(2)}`),
   );
+  panelFonts.append(pairGallery, fontOver);
 
-  // ── Colour map ──
-  const col = document.createElement('section');
-  const ch = document.createElement('h3');
-  ch.textContent = 'Couleur';
+  // Load the pairing families so the specimens render in the real fonts, then
+  // repaint the gallery. Best-effort — a failed load just shows the fallback.
+  const families = new Set<string>();
+  for (const p of FONT_PAIRINGS) {
+    families.add(p.headings);
+    families.add(p.body);
+    families.add(p.code);
+  }
+  void Promise.allSettled([...families].map((f) => loadGoogleFont(f))).then(() =>
+    renderPairGallery(),
+  );
+
+  // ══ COLOUR panel ══
   const cmap = document.createElement('div');
   cmap.className = 'mp-cmap';
-
   // Build the grid: column 0 = neutral (g=row), columns 1..GRID = tint(s,v=row).
   const cells: HTMLElement[] = [];
   for (let r = 0; r < GRID; r++) {
@@ -419,18 +659,20 @@ export function openAtelier(
   cnote.className = 'note';
   cnote.textContent =
     'Glisse une icône sur un cran. page/cover (cerclés) sont les fonds ; la colonne de gauche donne les neutres. La teinte fait pivoter toute la famille.';
-
-  col.append(
-    ch,
-    slider('Teinte', 0, 359, 1, () => state.hue, (v) => (state.hue = v), (v) => `${Math.round(v)}°`, renderMap, 'hue'),
+  panelColor.append(
+    slider('Teinte', 0, 359, 1, () => state.hue, (v) => (state.hue = v), (v) => `${Math.round(v)}°`, renderMap, 'mp-hue'),
     cmap,
     axis,
     cnote,
   );
 
-  panel.append(fmt, fonts, col);
-  document.body.appendChild(scrim);
+  // paint everything, show the first tab
+  renderTplGallery();
+  renderSizeSeg();
+  renderPairGallery();
   renderMap();
+  selectTab(activeTab);
 
+  document.body.appendChild(scrim);
   return close;
 }
