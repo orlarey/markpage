@@ -1729,20 +1729,12 @@ export function pageContentGeomPx(s: PdfSettings): {
 } {
   const PX_PER_MM = 96 / 25.4;
   const sizeMm = pageSizeMm(s);
-  if (s.marginMode === 'derived') {
-    // Mosaic content sits in the text block; its width is the canonical
-    // measure (measureChars × char width), matching pagedCss.
-    const bodyName = (s.styles.body.family ?? '').trim() || s.fonts.body;
-    const charWidthMm = measureAverageCharWidth(
-      bodyName,
-      s.styles.body.fontSize ?? 11,
-    );
-    const tb = computeCanonicalMargins(
-      sizeMm.w,
-      sizeMm.h,
-      s.measureChars,
-      charWidthMm,
-    );
+  // Mosaic content sits in the text block; its size is the canonical measure,
+  // matching pagedCss. Resolved by the single canon kernel (resolveCanon) so
+  // the production inputs (measureChars/marginMode) have exactly one reader in
+  // the render path. width/height are unaffected by the horizontal centering.
+  const tb = resolveCanon(s, sizeMm)?.textBlock;
+  if (tb) {
     return { width: tb.width * PX_PER_MM, height: tb.height * PX_PER_MM };
   }
   const m = s.margins;
