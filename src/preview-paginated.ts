@@ -663,26 +663,35 @@ function figureNaturalWidthPx(el: Element): number {
 const PX_PER_MM = 96 / 25.4;
 const ATOMIC_TRIM_SAFETY_MM = 3;
 
+/**
+ * Purpose: The SINGLE point where the Van de Graaf canon is computed — the two
+ *   nested rectangles (text block ⊂ live area) for a page, in mm. Phase 2 of the
+ *   fundamental-settings migration (docs/FUNDAMENTAL-SETTINGS.md): the seed of
+ *   the future `resolveGeometry` producer that will emit resolved `text.*`.
+ *   Returns null in manual mode (the user's four margins are authoritative).
+ * How: measure the body font's average char width ONCE, then derive both
+ *   rectangles (measureChars → text block, liveAreaChars → the enclosing one),
+ *   centred in simplex, mirrored in duplex.
+ */
+function resolveCanon(
+  s: PdfSettings,
+  sizeMm: { w: number; h: number },
+): { textBlock: CanonicalMargins; liveArea: CanonicalMargins } | null {
+  if (s.marginMode !== 'derived') return null;
+  const bodyName = (s.styles.body.family ?? '').trim() || s.fonts.body;
+  const charW = measureAverageCharWidth(bodyName, s.styles.body.fontSize ?? 11);
+  const rect = (chars: number): CanonicalMargins =>
+    centerCanonicalHorizontally(
+      computeCanonicalMargins(sizeMm.w, sizeMm.h, chars, charW),
+      s.duplex,
+    );
+  return { textBlock: rect(s.measureChars), liveArea: rect(s.liveAreaChars) };
+}
+
 /** Geometry of the normal text rectangle and the physical page, in CSS px. */
 function atomicPageGeometryPx(settings: PdfSettings): AtomicPageGeometryPx {
   const page = pageSizeMm(settings);
-  const bodyName =
-    (settings.styles.body.family ?? '').trim() || settings.fonts.body;
-  const textCanon =
-    settings.marginMode === 'derived'
-      ? centerCanonicalHorizontally(
-          computeCanonicalMargins(
-            page.w,
-            page.h,
-            settings.measureChars,
-            measureAverageCharWidth(
-              bodyName,
-              settings.styles.body.fontSize ?? 11,
-            ),
-          ),
-          settings.duplex,
-        )
-      : null;
+  const textCanon = resolveCanon(settings, page)?.textBlock ?? null;
   const leftRecto = textCanon?.inner ?? settings.margins.left;
   const leftVerso = settings.duplex
     ? (textCanon?.outer ?? settings.margins.right)
@@ -867,42 +876,16 @@ export function pagedCss(s: PdfSettings): string {
   // `margins.right` as outer — same convention as §9.5.2 for duplex.
   // This is purely cosmetic in simplex (no spine, no swap), and it lets
   // the rest of the code branch on a single shape regardless of mode.
-  const bodyFontSizePt = styles.body.fontSize ?? 11;
-  // §9.6 derived geometry: TWO canonical rectangles on the same
-  // diagonals.
+  // §9.6 derived geometry: TWO canonical rectangles on the same diagonals —
   //   - text block: tighter, holds the actual prose;
-  //   - live area:  enclosing rectangle (with width = liveAreaChars ×
-  //                 charWidth) that also hosts the header / footer
-  //                 bands and the inner / outer gutters.
-  // The @page margin = LIVE AREA margins (= canonical blanks). The
-  // body content area becomes the live area, and we add internal
-  // padding on `.pagedjs_page_content` to push the actual text back
-  // to text-block dimensions — that padding *is* the header band /
-  // footer band / gutters of §9.6.4.
-  const textBlockCanon =
-    s.marginMode === 'derived'
-      ? centerCanonicalHorizontally(
-          computeCanonicalMargins(
-            sizeMm.w,
-            sizeMm.h,
-            s.measureChars,
-            measureAverageCharWidth(bodyName, bodyFontSizePt),
-          ),
-          s.duplex,
-        )
-      : null;
-  const liveAreaCanon =
-    s.marginMode === 'derived'
-      ? centerCanonicalHorizontally(
-          computeCanonicalMargins(
-            sizeMm.w,
-            sizeMm.h,
-            s.liveAreaChars,
-            measureAverageCharWidth(bodyName, bodyFontSizePt),
-          ),
-          s.duplex,
-        )
-      : null;
+  //   - live area:  enclosing rectangle (width = liveAreaChars × charWidth) that
+  //                 also hosts the header/footer bands and the inner/outer gutters.
+  // Computed once by the canon kernel (resolveCanon). The @page margin = LIVE
+  // AREA margins; body padding pushes the text back to text-block dimensions
+  // (§9.6.4). Null in manual mode.
+  const canon = resolveCanon(s, sizeMm);
+  const textBlockCanon = canon?.textBlock ?? null;
+  const liveAreaCanon = canon?.liveArea ?? null;
   // In derived mode, vertical margins (top / bottom) come from the text
   // block and horizontal margins from the live area. Horizontal geometry is
   // centred in simplex; the classical inner/outer asymmetry is kept only for
