@@ -1082,8 +1082,14 @@ export function applyFundamentalStyle(
   fs: FundamentalStyle,
 ): PdfSettings {
   const out: Record<string, unknown> = { ...(base as unknown as Record<string, unknown>) };
+  // A named style is COMPLETE: its fundamental fields fully define the look, so
+  // set each present key AND clear each absent one. Otherwise an optional field
+  // the style omits (e.g. `coverBackground` on a cover-less style) would leak in
+  // from the previously-applied style — switching Rapport (navy cover) → Article
+  // (no cover) would keep the navy cover, with a washed-out title on top.
   for (const k of FUNDAMENTAL_STYLE_KEYS) {
     if (fs[k] !== undefined) out[k] = fs[k];
+    else delete out[k];
   }
   // A fundamental style carrying a resolved geometry supersedes the base's canon
   // producer: drop the authoring object so `withBakedGeometry` honours the

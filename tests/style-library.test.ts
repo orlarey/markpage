@@ -65,6 +65,18 @@ describe('applyNamedStyle', () => {
     expect(applyNamedStyle('   ', DEFAULT_SETTINGS).found).toBe(false);
   });
 
+  it('clears an inherited coverBackground when the new style has no cover', () => {
+    // Switching Rapport (navy cover) → Article (no cover) must not keep the navy
+    // cover: a named style fully defines its fundamental fields.
+    const withNavyCover = { ...DEFAULT_SETTINGS, coverBackground: '#162138' };
+    const r = applyNamedStyle('article', withNavyCover);
+    expect(r.found).toBe(true);
+    expect(r.settings.coverBackground).toBeUndefined();
+    // A style that DOES define a cover still sets it.
+    expect(applyNamedStyle('rapport', DEFAULT_SETTINGS).settings.coverBackground)
+      .toBeTruthy();
+  });
+
   it('does not touch document metadata (author) when applying a style', () => {
     const base = {
       ...DEFAULT_SETTINGS,
