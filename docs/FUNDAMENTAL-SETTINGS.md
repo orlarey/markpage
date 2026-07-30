@@ -246,6 +246,28 @@ les images/blocs réels ; ils consommeront la géométrie résolue) :
 - zoom auto des démos de slides, `slidesFigureCss`, `slidesDemoBleedMm`, groupement de figures ;
 - ajustement des blocs atomiques surdimensionnés.
 
+### Résolution 2d (implémentée)
+
+Le canon est **sorti du cœur** et devient un producteur pur dans la couche de
+préparation :
+
+```text
+bakePageGeometry(authoring, pageMm, bodyFont, duplex) → PageGeometry
+  authoring = { marginMode, margins, measureChars, liveAreaChars }   // objet distinct
+  PageGeometry = { text{top,bottom,inner,outer}, running{inner,outer},
+                   header{top}, footer{bottom}, sidenote{gap,width} } // fondamental, mm
+```
+
+- **derived** : deux rectangles Van de Graaf (canon), gouttières > 0.
+- **manual** : `text = running = margins`, `header.top = margins.top`,
+  `footer.bottom = margins.bottom`, gouttières = 0 → aucune bande, sidenotes masquées.
+
+La géométrie est **toujours présente** (plus de `null`). Le producteur tourne à la
+préparation ; `preview-paginated` ne lit QUE `pageGeometry` — il n'importe plus
+`computeCanonicalMargins` / `measureAverageCharWidth`, et ne connaît plus
+`marginMode` / `measureChars` / `liveAreaChars`. L'export du style fondamental
+(`markpage-style`) porte `pageGeometry` résolu, jamais les inputs du canon.
+
 ---
 
 ## À trancher
@@ -253,11 +275,18 @@ les images/blocs réels ; ils consommeront la géométrie résolue) :
 1. ✅ **Résolu — gouttières supprimées** : le bloc de texte est posé directement (`text.*`),
    les gouttières `margin`/`gutter` disparaissent (§1a).
 2. **`pageSize`** : on garde l'enum (lookup trivial → mm) ou on stocke `page.{w,h}` en mm ?
-3. **Où vivent les inputs de production** (`measureChars`, `liveAreaChars`, `marginMode`,
-   `document-type`, `font-pair`, `color-crans`…) : dans le frontmatter uniquement, ou
-   dans un objet « recette/authoring » distinct de l'objet fondamental ?
-4. **Type de la géométrie** : un nouveau `PageGeometry { page, text{top,bottom,inner,outer},
-   header, footer, sidenote }` ; l'actuel `Margins {top,right,bottom,left}` disparaît.
+3. ✅ **Résolu (2d)** — les inputs de production géométriques (`measureChars`,
+   `liveAreaChars`, `marginMode`, `margins` manuels) vivent dans un **objet authoring
+   distinct**, persisté à côté du style fondamental (via la pile / le frontmatter),
+   jamais dans l'objet fondamental ni dans son export. Le canon les lit → cuit la
+   géométrie.
+4. ✅ **Résolu (2d)** — un `PageGeometry` **terminal** rejoint les fondamentaux :
+   `{ text{top,bottom,inner,outer}, running{inner,outer}, header{top}, footer{bottom},
+   sidenote{gap,width} }` (dimensions de `text` dérivées de `pageSize`). L'ancien
+   `Margins {top,right,bottom,left}` quitte le type fondamental (il devient un input
+   authoring du producteur manuel). Le rendu ne lit QUE `pageGeometry` ; il déduit les
+   bandes canoniques de la géométrie elle-même (bandes ⟺ `header.top < text.top` ;
+   colonne de sidenotes ⟺ `gutter.outer > 0`), donc plus aucun signal `mode` au rendu.
 5. **Stockage des fentes** : les **6 gabarits résolus** directement, ou les 2 chaînes
    `header`/`footer` parsées au `|` (statu quo) ?
 6. ✅ **Résolu — colonnes partagées** : en-tête et pied partagent l'empan
