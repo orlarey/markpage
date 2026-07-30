@@ -126,7 +126,11 @@ const BOX_COMPAT: ReadonlyArray<readonly [string, string]> = [
  *  `pagedjs_page` (+ recto/verso) so the app chrome, zoom and page CSS apply.
  *  Safe because the viewer is frozen after load (autoResize: false, no
  *  navigation UI). */
-function linearizePages(renderTo: HTMLElement, duplex: boolean): void {
+function linearizePages(
+  renderTo: HTMLElement,
+  duplex: boolean,
+  useSpread = true,
+): void {
   for (const sel of [
     '[data-vivliostyle-viewer-viewport]',
     '[data-vivliostyle-outer-zoom-box]',
@@ -152,7 +156,7 @@ function linearizePages(renderTo: HTMLElement, duplex: boolean): void {
   // flows verso-left / recto-right, which is what a reader of the printed
   // duplex document actually sees — and the only way to judge whether the
   // inner margins are right.
-  if (spread && duplex) {
+  if (spread && duplex && useSpread) {
     spread.classList.add('mp-spread');
     spread.style.display = 'grid';
     spread.style.gridTemplateColumns = 'auto auto';
@@ -189,7 +193,7 @@ function linearizePages(renderTo: HTMLElement, duplex: boolean): void {
       if (slot) mb.classList.add(`pagedjs_margin-${slot}`);
     }
   }
-  if (spread && duplex) {
+  if (spread && duplex && useSpread) {
     // The first page opens the book on a recto: give it the right column so
     // the pairs that follow line up verso | recto.
     const first = spread.querySelector<HTMLElement>('.pagedjs_page');
@@ -351,7 +355,7 @@ export async function renderVivliostylePreview(
   source: HTMLElement,
   css: string,
   renderTo: HTMLElement,
-  options: { duplex?: boolean } = {},
+  options: { duplex?: boolean; spread?: boolean } = {},
 ): Promise<number> {
   installHostFixes();
   tagPristineBlocks(source);
@@ -496,7 +500,7 @@ export async function renderVivliostylePreview(
     viewer.loadDocument({ url: document.baseURI }, { documentObject: doc });
   });
 
-  linearizePages(renderTo, options.duplex === true);
+  linearizePages(renderTo, options.duplex === true, options.spread !== false);
   injectGuidesSvg(renderTo, options.duplex === true);
   restorePristineBlocks(source, renderTo);
   resolveTocPageNumbers(renderTo);

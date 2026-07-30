@@ -127,6 +127,7 @@ export async function paginateWithVivliostyle(
   source: HTMLElement,
   settings: PdfSettings,
   renderTo: HTMLElement,
+  opts: { spread?: boolean } = {},
 ): Promise<number> {
   // The derived (Van de Graaf) margins are computed from a DOM measurement of
   // the body font's average character width — with fallback metrics the
@@ -152,7 +153,7 @@ export async function paginateWithVivliostyle(
     source,
     `${pagedCss(settings)}\n${runningCss}`,
     renderTo,
-    { duplex: settings.duplex },
+    { duplex: settings.duplex, spread: opts.spread ?? true },
   );
 }
 
@@ -182,7 +183,10 @@ export async function paginateOnce(
   settings: PdfSettings,
   renderTo: HTMLElement,
 ): Promise<() => void> {
-  await paginateWithVivliostyle(source, settings, renderTo);
+  // Print/PDF export: sequential single pages (one per sheet). The facing-page
+  // spread grid is a screen affordance only — in a PDF it would put two pages
+  // per sheet. Recto/verso margin mirroring still applies (page-side classes).
+  await paginateWithVivliostyle(source, settings, renderTo, { spread: false });
   return () => {};
 }
 
