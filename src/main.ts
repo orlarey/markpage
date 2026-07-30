@@ -211,6 +211,7 @@ import {
   saveProfileSettings,
 } from './settings-profiles';
 import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
+import { withBakedGeometry } from './geometry-producer';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
 import { initMcp } from './mcp';
@@ -723,6 +724,13 @@ async function bootstrap(): Promise<void> {
       // atelier's choices win over the inherited recipe (idempotent otherwise).
       effectiveSettings = applyStyleVocabulary(effectiveSettings, meta);
     }
+    // Bake the terminal page geometry LAST — after every setting that feeds the
+    // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
+    // reads a resolved `pageGeometry` and never the production inputs.
+    effectiveSettings = withBakedGeometry(
+      effectiveSettings,
+      pageSizeMm(effectiveSettings),
+    );
     const built = document.createElement('div');
     renderPreview(built, resolved);
     applyPreviewMetadata(built, effectiveSettings, meta);

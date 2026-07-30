@@ -53,7 +53,8 @@ import {
 } from '@orlarey/markpage-render';
 import { parseFrontmatter } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
-import { pageContentGeomPx, paginate } from './preview-paginated';
+import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
+import { withBakedGeometry } from './geometry-producer';
 import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   findShowcaseEntry,
@@ -119,7 +120,8 @@ async function run(): Promise<void> {
   // hand it to paged.js.
   const built = document.createElement('div');
   const { meta } = parseFrontmatter(entry.source);
-  const effectiveSettings = applyFrontmatterToSettings(settings, meta);
+  const withFm = applyFrontmatterToSettings(settings, meta);
+  const effectiveSettings = withBakedGeometry(withFm, pageSizeMm(withFm));
   renderPreview(built, entry.source);
   applyPreviewMetadata(built, effectiveSettings, meta);
   annotateSourceLines(built, entry.source);

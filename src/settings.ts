@@ -17,7 +17,9 @@ import {
   deriveFontSizes,
   DEFAULT_FONT_RATIO,
 } from '@orlarey/markpage-render';
+import type { PageGeometry } from './typography';
 export type { MathFontSet };
+export type { PageGeometry };
 
 export type PageSize =
   | 'A3'
@@ -412,6 +414,13 @@ export interface PdfSettings {
   //             carries the reference).
   //   - 'end':  endnotes — single section at the document tail (§17 variant).
   notes: { position: 'foot' | 'side' | 'end' };
+  // The terminal, resolved page geometry (docs/FUNDAMENTAL-SETTINGS.md
+  // "Résolution 2d"). Baked by the canon producer (src/geometry-producer.ts,
+  // `withBakedGeometry`) at the end of settings resolution and consumed verbatim
+  // by the render — which never reads marginMode / measureChars / liveAreaChars
+  // / margins. Optional so direct callers (tests, ad-hoc renders) still work:
+  // the render bakes on the fly when it's absent.
+  pageGeometry?: PageGeometry;
 }
 
 /**

@@ -108,3 +108,41 @@ export function computeCanonicalMargins(
     height: textHeight,
   };
 }
+
+/**
+ * The terminal, resolved page geometry — a *fundamental* setting
+ * (docs/FUNDAMENTAL-SETTINGS.md §1, "Résolution 2d"). In mm. Produced by the
+ * canon (or the manual pass-through) in the prep layer and consumed verbatim by
+ * the render, which never sees the production inputs (marginMode / measureChars
+ * / liveAreaChars / margins).
+ *   text     — the prose rectangle (spine-aware margins + its own width/height)
+ *   running  — horizontal anchors of the header/footer band (= live-area sides)
+ *   header   — distance from the page TOP to the header band
+ *   footer   — distance from the page BOTTOM to the footer band
+ *   sidenote — outer-margin note geometry (gap to the text + column width)
+ * The render derives the canonical banding from the geometry itself: bands
+ * apply iff `header.top < text.top`; the sidenote column exists iff the outer
+ * gutter (`text.outer − running.outer`) is positive.
+ */
+export interface PageGeometry {
+  text: CanonicalMargins;
+  running: { inner: number; outer: number };
+  header: { top: number };
+  footer: { bottom: number };
+  sidenote: { gap: number; width: number };
+}
+
+/**
+ * A single-sided document has no spine: its text and live-area rectangles must
+ * be horizontally centred. The classical 1:2 inner/outer canon remains
+ * meaningful only for facing pages, where it is mirrored on verso. Width and
+ * vertical geometry stay unchanged.
+ */
+export function centerCanonicalHorizontally(
+  canon: CanonicalMargins,
+  duplex: boolean,
+): CanonicalMargins {
+  if (duplex) return canon;
+  const side = (canon.inner + canon.outer) / 2;
+  return { ...canon, inner: side, outer: side };
+}
