@@ -869,12 +869,11 @@ async function bootstrap(): Promise<void> {
         }
       }, 200);
     };
-    // Delay the reveal so only genuinely slow paginations surface it. Paginated
-    // mode re-paginates on every typing pause (schedulePaginatedPreview, 500ms
-    // debounce); a small or medium document re-lays-out well under this delay,
-    // so editing never blinks the overlay. Only a document heavy enough to take
-    // over ~1s — the ones that actually look frozen — reaches it.
-    const delay = window.setTimeout(show, 1000);
+    // The pane is cleared while a render runs, so surface the spinner quickly —
+    // a short delay still lets a fast (small-doc) render finish first without a
+    // flash, but a slow one shows "Mise en page… N pages" promptly instead of an
+    // unexplained blank.
+    const delay = window.setTimeout(show, 400);
     return () => {
       window.clearTimeout(delay);
       window.clearInterval(poll);
@@ -905,40 +904,31 @@ async function bootstrap(): Promise<void> {
       r.effectiveSettings.coverBackground ?? '',
     );
     if (previewPaginated) {
-      // Double-buffer: render the new pages into a HIDDEN off-screen buffer so
-      // the PREVIOUS render stays on screen the whole time, then swap atomically
-      // when this render finishes — but only if it's still the latest (a newer
-      // edit advanced previewReqId, so its own buffer supersedes this one). No
-      // serialization: each render is independent, so a new edit "interrupts"
-      // the visible state instantly (the stale render just gets discarded).
-      // The buffer lives INSIDE #preview-pane so the scoped pagedCss + fit-zoom
-      // still apply to it while it renders.
+      // Show a CLEAR "rendering" state: clear the stale pages now (so you never
+      // wonder whether you're looking at the current render) and let the progress
+      // spinner mark the wait — pages reappear only when the new render is ready.
+      // We still render into a HIDDEN buffer inside the pane (so the scoped
+      // pagedCss + fit-zoom apply and two overlapping renders never fight over
+      // the pane) and swap it in on completion. No serialization: a newer edit
+      // clears the pane again and supersedes this render (previewReqId guard).
+      previewEl.classList.remove('continuous');
       const buffer = document.createElement('div');
       buffer.style.cssText =
         'position: absolute; top: 0; left: 0; width: 100%; ' +
         'visibility: hidden; pointer-events: none;';
-      previewEl.appendChild(buffer);
-      const stopProgress = beginPaginationProgress(buffer);
+      previewEl.replaceChildren(buffer); // clears old pages → pane goes blank
+      const stopProgress = beginPaginationProgress(previewEl);
       try {
         await paginate(r.built, r.effectiveSettings, buffer);
       } finally {
         stopProgress();
       }
-      if (r.myReq !== previewReqId) {
-        buffer.remove(); // superseded — drop it, keep the visible render
-        return;
-      }
-      // Swap: drop the old pages, move the freshly rendered pages into the pane
-      // (unwrapping the buffer so the pane's structure is unchanged), preserving
-      // the scroll position.
-      const scrollTop = previewEl.scrollTop;
-      previewEl.classList.remove('continuous');
-      for (const child of [...previewEl.children]) {
-        if (child !== buffer) child.remove();
-      }
-      previewEl.append(...buffer.childNodes);
-      buffer.remove();
-      previewEl.scrollTop = scrollTop;
+      // Superseded: a newer render already cleared the pane and owns it. Do
+      // nothing (this render's buffer was detached by that replaceChildren).
+      if (r.myReq !== previewReqId) return;
+      // Reveal the freshly rendered pages, at the top (fresh content).
+      previewEl.replaceChildren(...buffer.childNodes);
+      previewEl.scrollTop = 0;
       dirty = false;
       fitPreviewWidth();
     } else {

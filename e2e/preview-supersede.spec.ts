@@ -11,7 +11,10 @@ async function setDoc(page: import('@playwright/test').Page, md: string) {
   await page.keyboard.press('ControlOrMeta+v');
 }
 
-test('double-buffer: pane never blanks; latest edit wins', async ({ page }) => {
+// The paginated preview clears the pane and shows a spinner while it renders,
+// then reveals the pages when ready. Renders don't serialize: a new edit
+// supersedes the in-flight one, so the LATEST content wins without waiting.
+test('paginated preview: latest edit wins, no queue wait', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('markpage:preview-paginated', '1');
     localStorage.setItem('markpage:preview-visible', '1');
@@ -19,27 +22,13 @@ test('double-buffer: pane never blanks; latest edit wins', async ({ page }) => {
   });
   await page.goto('/');
   await setDoc(page, mk('ALPHA'));
-  await expect(page.locator('#preview-pane [data-vivliostyle-page-container]').first()).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('#preview-pane')).toContainText('ALPHA');
-
-  // Edit → BETA. While it re-paginates, the pane must keep showing pages (ALPHA),
-  // never go blank.
-  await setDoc(page, mk('BETA'));
-  let sawBlank = false;
-  for (let i = 0; i < 12; i++) {
-    const n = await page.locator('#preview-pane [data-vivliostyle-page-container]').count();
-    if (n === 0) sawBlank = true;
-    await page.waitForTimeout(120);
-  }
-  expect(sawBlank).toBe(false);
-  await expect(page.locator('#preview-pane')).toContainText('BETA', { timeout: 60000 });
-  await expect(page.locator('#preview-pane')).not.toContainText('ALPHA');
+  await expect(page.locator('#preview-pane')).toContainText('ALPHA', { timeout: 60000 });
 
   // Rapid supersession: three quick edits — only the last survives.
   await setDoc(page, mk('ONE'));
   await setDoc(page, mk('TWO'));
   await setDoc(page, mk('THREE'));
   await expect(page.locator('#preview-pane')).toContainText('THREE', { timeout: 60000 });
+  await expect(page.locator('#preview-pane')).not.toContainText('ALPHA');
   await expect(page.locator('#preview-pane')).not.toContainText('ONE');
-  await expect(page.locator('#preview-pane')).not.toContainText('BETA');
 });
