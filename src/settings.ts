@@ -1056,8 +1056,8 @@ export const FUNDAMENTAL_STYLE_KEYS = [
   'fonts', 'styles', 'mathScale', 'mathFontSet',
   // surfaces + language
   'pageBackground', 'coverBackground', 'language',
-  // cover / metadata
-  'author', 'organization', 'date',
+  // NOTE: author / organization / date are DOCUMENT metadata, not style —
+  // they live in the doc front-matter, never in a named/exported style.
   // fonts registry + figure caps
   'customFonts', 'mermaidMaxScale', 'mermaidMaxWidthPct', 'mermaidMaxHeightPct',
 ] as const;

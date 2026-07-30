@@ -18,6 +18,10 @@ export interface Frontmatter {
   author?: string;
   organization?: string;
   date?: string;
+  // Named style from the library (docs/FUNDAMENTAL-SETTINGS.md, document-style
+  // model): the document references its complete fundamental style by NAME; the
+  // style itself is never in the document.
+  'document-style'?: string;
   // TeX source prepended to every MathJax invocation — define macros once
   // at the top of the doc and use them in every formula thereafter.
   'mathjax-preamble'?: string;
@@ -280,6 +284,7 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'markpage-profile':
     case 'color-crans':
     case 'font-pair':
+    case 'document-style':
       meta[key] = value;
       break;
     case 'color-hue': {

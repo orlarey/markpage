@@ -93,7 +93,18 @@ import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
 import { openAtelier, atelierStateFromFrontmatter } from './ui/atelier';
-import { exportFundamentalStyle, importFundamentalStyle } from './fundamental-style';
+import {
+  allStyles,
+  applyNamedStyle,
+  findStyle,
+  loadUserStyles,
+  parseStyleFile,
+  saveUserStyle,
+  serializeStyleFile,
+  slugify,
+  type NamedStyle,
+} from './style-library';
+import { openDocumentStyleMenu } from './ui/document-style-menu';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
@@ -182,7 +193,7 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applyFrontmatterToSettings, applyStyleVocabulary, serializeProfile, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applyFrontmatterToSettings, applyStyleVocabulary, serializeProfile, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   flattenForRender,
   applyProfilePatch,
@@ -681,17 +692,21 @@ async function bootstrap(): Promise<void> {
     return null;
   };
 
-  // Derive the document's settings from its stack, THEN let an embedded
-  // fundamental style (`markpage-style` block) supersede them — so a document
-  // carrying a self-contained style is authoritative everywhere state.settings
-  // flows (Réglages panel, continuous + paginated preview), not only right after
-  // the one-shot "Import style" menu action.
+  // Derive the document's settings from its stack, THEN resolve its named style
+  // (`document-style:` front-matter) from the library and apply it as the
+  // authoritative fundamental style — so a document renders from its named style
+  // everywhere state.settings flows (Réglages panel, continuous + paginated
+  // preview), not only right after a menu action.
   const deriveDocSettings = async (
     src: string,
     base: PdfSettings,
   ): Promise<PdfSettings> => {
     const derived = await deriveSettingsForDoc(src, base, resolveByName);
-    return importFundamentalStyle(src, derived) ?? derived;
+    const name = parseFrontmatter(src).meta['document-style'];
+    const r = applyNamedStyle(name, derived);
+    if (name && name.trim() && !r.found)
+      console.warn(`[markpage] unknown document-style: "${name}"`);
+    return r.settings;
   };
 
   // STACK-SPEC §12.1 (Étape 1 — dérivation au chargement): the Réglages panel
@@ -742,18 +757,18 @@ async function bootstrap(): Promise<void> {
       // atelier's choices win over the inherited recipe (idempotent otherwise).
       effectiveSettings = applyStyleVocabulary(effectiveSettings, meta);
     }
-    // A doc carrying an embedded fundamental style (`markpage-style` block) is
-    // authoritative: apply it OVER the recipe/stack-derived settings so the
-    // document renders from its self-contained style on every pass — not only
-    // right after the one-shot "Import style" menu action. This is the
-    // producer→consumer contract (docs/FUNDAMENTAL-SETTINGS.md): the render
-    // consumes the embedded fundamental style verbatim.
-    const embedded = importFundamentalStyle(resolved, effectiveSettings);
-    if (embedded) effectiveSettings = embedded;
+    // The document's NAMED style (`document-style:` front-matter) is the
+    // authoritative style: resolve it from the library and apply it LAST, over
+    // the recipe/stack/frontmatter/vocabulary layers. The style is never in the
+    // document — only its name (docs/FUNDAMENTAL-SETTINGS.md, document-style model).
+    effectiveSettings = applyNamedStyle(
+      meta['document-style'],
+      effectiveSettings,
+    ).settings;
     // Bake the terminal page geometry LAST — after every setting that feeds the
     // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
-    // reads a resolved `pageGeometry` and never the production inputs. A pure
-    // embedded style already carries pageGeometry (authoring dropped) → no-op.
+    // reads a resolved `pageGeometry` and never the production inputs. A named
+    // style already carries pageGeometry (authoring dropped) → no-op.
     effectiveSettings = withBakedGeometry(
       effectiveSettings,
       pageSizeMm(effectiveSettings),
@@ -1030,11 +1045,13 @@ async function bootstrap(): Promise<void> {
       if (source !== editor.getValue()) return;
       state.settings = derived;
       lastAppliedSettingsFrontmatter = snapshot;
-      const canonical = writeStyleToLeaf(
-        source,
-        derived,
-        DEFAULT_SETTINGS,
-      );
+      // document-style model: a doc that NAMES its style keeps a minimal
+      // front-matter — never canonicalise the resolved style back into dotted
+      // keys (that's the legacy stack/profile convergence, STACK §12).
+      const named = (parseFrontmatter(source).meta['document-style'] ?? '').trim();
+      const canonical = named
+        ? source
+        : writeStyleToLeaf(source, derived, DEFAULT_SETTINGS);
       if (!preserveHistoricalFrontmatter && canonical !== source) {
         // Canonicalisation only touches the style keys in frontmatter. Apply a
         // minimal CodeMirror change so a user editing the YAML keeps their
@@ -2347,12 +2364,19 @@ async function bootstrap(): Promise<void> {
     // delta — until the profile store is retired. We replace the editor text
     // in place; the editor callback persists it (preview suppressed: the block
     // below does the anchored render with the fresh content).
-    const withStyle = writeStyleToLeaf(
-      editor.getValue(),
-      s,
-      DEFAULT_SETTINGS,
-      variationKey ? new Set([variationKey]) : new Set(),
-    );
+    // Skip the round-trip write when the doc names its style (document-style
+    // model): the style lives in the library, not in the document.
+    const namedNow = (
+      parseFrontmatter(editor.getValue()).meta['document-style'] ?? ''
+    ).trim();
+    const withStyle = namedNow
+      ? editor.getValue()
+      : writeStyleToLeaf(
+          editor.getValue(),
+          s,
+          DEFAULT_SETTINGS,
+          variationKey ? new Set([variationKey]) : new Set(),
+        );
     if (withStyle !== editor.getValue()) {
       suppressEditorPreview = true;
       editor.setValue(withStyle);
@@ -2803,30 +2827,6 @@ async function bootstrap(): Promise<void> {
             view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
             globalThis.alert(t('export-menu.embed-profile-done'));
           },
-          onExportStyle: () => {
-            // Stamp the COMPLETE fundamental style into the doc as a
-            // `markpage-style: |` block — a self-contained, loss-free style file.
-            const view = editor.view;
-            // Export the RESOLVED style (vocabulary applied), not the recipe base.
-            const next = exportFundamentalStyle(view.state.doc.toString(), lastEffectiveSettings);
-            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
-            globalThis.alert(t('export-menu.export-style-done'));
-          },
-          onImportStyle: () => {
-            const imported = importFundamentalStyle(editor.getValue(), state.settings);
-            if (!imported) {
-              globalThis.alert(t('export-menu.import-style-none'));
-              return;
-            }
-            state.settings = imported;
-            registerCustomFonts(imported.customFonts);
-            applyPreviewStyles(imported);
-            void loadSettingsFonts(imported).catch((err: unknown) => {
-              console.error('Font load failed', err);
-            });
-            refreshSettingsForm?.();
-            if (viewMode === 'preview') void updatePreview(editor.getValue());
-          },
           onShareLink: triggerShareLink,
           onShareEmail: triggerShareEmail,
         });
@@ -2836,6 +2836,66 @@ async function bootstrap(): Promise<void> {
       },
       onStyle(anchor) {
         openStyleMenu(editor.view, anchor.x, anchor.y);
+      },
+      onDocStyle(anchor) {
+        // Set `document-style: <key>` in the doc front-matter; the change handler
+        // re-derives + re-renders (deriveDocSettings applies the named style).
+        const setDocStyle = (key: string): void => {
+          editor.setValue(
+            setFrontmatterKeys(
+              editor.getValue(),
+              new Map([['document-style', key]]),
+            ),
+          );
+        };
+        openDocumentStyleMenu(anchor, {
+          current: parseFrontmatter(editor.getValue()).meta['document-style'],
+          styles: allStyles(),
+          userKeys: new Set(loadUserStyles().map((s) => s.key)),
+          onPick: (style) => setDocStyle(style.key),
+          onExport: () => {
+            const cur = parseFrontmatter(editor.getValue()).meta['document-style'];
+            const suggested = (cur && findStyle(cur)?.name) || 'Mon style';
+            const name = (globalThis.prompt(t('docstyle.export'), suggested) ?? '').trim();
+            if (!name) return;
+            const entry: NamedStyle = {
+              key: slugify(name),
+              name,
+              style: serializeFundamentalStyle(lastEffectiveSettings),
+            };
+            downloadTextFile(
+              serializeStyleFile(entry),
+              `${entry.key || 'style'}.mpstyle.json`,
+              'application/json',
+            );
+            globalThis.alert(t('docstyle.exported'));
+          },
+          onImport: () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json,application/json';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+            input.addEventListener('change', () => {
+              const file = input.files?.[0];
+              input.remove();
+              if (!file) return;
+              void file.text().then((text) => {
+                const entry = parseStyleFile(text);
+                if (!entry) {
+                  globalThis.alert(t('docstyle.import-none'));
+                  return;
+                }
+                saveUserStyle(entry);
+                setDocStyle(entry.key);
+                globalThis.alert(
+                  t('docstyle.imported').replace('{name}', entry.name),
+                );
+              });
+            });
+            input.click();
+          },
+        });
       },
       onHelp: triggerHelp,
       onSettings: triggerSettings,

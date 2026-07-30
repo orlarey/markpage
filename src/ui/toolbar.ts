@@ -28,6 +28,8 @@ export interface ToolbarHandlers {
   // Commit a new name for the current document (inline title edit).
   onRenameCurrent(name: string): void;
   onStyle(anchor: { x: number; y: number }): void;
+  // Open the document-style menu (named-style library), anchored on its trigger.
+  onDocStyle(anchor: HTMLElement): void;
   onHelp(): void;
   onSettings(): void;
   onTogglePreview(): void;
@@ -98,6 +100,10 @@ export function mountToolbar(
     const r = styleBtn.getBoundingClientRect();
     handlers.onStyle({ x: r.left, y: r.bottom + 4 });
   });
+
+  // [Style ▾] — pick the document's named style from the library.
+  const docStyleBtn = trigger(t('toolbar.docstyle'), t('toolbar.docstyle-title'));
+  docStyleBtn.addEventListener('click', () => handlers.onDocStyle(docStyleBtn));
 
   // [Vue ▾] — view actions (Aperçu / Présenter / Repères).
   const viewBtn = trigger(t('toolbar.view'), t('toolbar.view-title'));
@@ -178,6 +184,7 @@ export function mountToolbar(
         const r = hamburger.getBoundingClientRect();
         handlers.onStyle({ x: Math.max(4, r.right - 220), y: r.bottom + 4 });
       }),
+      entry(t('toolbar.docstyle'), () => handlers.onDocStyle(hamburger)),
       entry(t('toolbar.view'), () => openView(hamburger)),
       entry(t('toolbar.settings'), () => handlers.onSettings()),
       entry(t('toolbar.help'), () => handlers.onHelp()),
@@ -259,7 +266,7 @@ export function mountToolbar(
   // ---- assemble -----------------------------------------------------------
   const menusLeft = document.createElement('div');
   menusLeft.className = 'toolbar-menus-left';
-  menusLeft.append(fileBtn, styleBtn, viewBtn);
+  menusLeft.append(fileBtn, styleBtn, docStyleBtn, viewBtn);
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';

@@ -50,9 +50,16 @@ const distinctive = (): PdfSettings => {
 describe('fundamental style export/import', () => {
   it('is COMPLETE — every fundamental PdfSettings field is a fundamental key', () => {
     // Guards against a new settings field being forgotten in the export.
-    // `authoring` is the geometry PRODUCTION object — deliberately excluded from
-    // the fundamental style (its resolved result is carried by `pageGeometry`).
-    const NON_FUNDAMENTAL = new Set(['authoring']);
+    // `authoring` is the geometry PRODUCTION object — excluded from the style
+    // (its resolved result is carried by `pageGeometry`). author/organization/
+    // date are DOCUMENT metadata — they live in the doc front-matter, not the
+    // style (document-style model).
+    const NON_FUNDAMENTAL = new Set([
+      'authoring',
+      'author',
+      'organization',
+      'date',
+    ]);
     const missing = Object.keys(DEFAULT_SETTINGS).filter(
       (k) =>
         !NON_FUNDAMENTAL.has(k) &&

@@ -55,7 +55,7 @@ import { parseFrontmatter } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
-import { importFundamentalStyle } from './fundamental-style';
+import { applyNamedStyle } from './style-library';
 import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   findShowcaseEntry,
@@ -122,7 +122,7 @@ async function run(): Promise<void> {
   const built = document.createElement('div');
   const { meta } = parseFrontmatter(entry.source);
   const withFm = applyFrontmatterToSettings(settings, meta);
-  const withStyle = importFundamentalStyle(entry.source, withFm) ?? withFm;
+  const withStyle = applyNamedStyle(meta['document-style'], withFm).settings;
   const effectiveSettings = withBakedGeometry(withStyle, pageSizeMm(withStyle));
   renderPreview(built, entry.source);
   applyPreviewMetadata(built, effectiveSettings, meta);
