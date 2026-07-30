@@ -201,6 +201,12 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   const headFam = fontFamilyStack(f.headings);
   const bodyFam = fontFamilyStack(bodyName);
   const codeFam = fontFamilyStack(codeName, 'mono');
+  // Inline code sized RELATIVE to context (em) so it shrinks inside a small
+  // footnote/caption instead of staying at the body's absolute code size.
+  const codeEm = (
+    (s['code-inline'].fontSize ?? s.body.fontSize ?? 11) /
+    (s.body.fontSize ?? 11)
+  ).toFixed(3);
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
@@ -222,7 +228,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane.continuous p.mp-paragraph-continuation {
       text-indent: ${s.body.firstLineIndent ?? 0}em;
     }
-    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${s['code-inline'].fontSize}pt; color: ${s['code-inline'].color}; }
+    #preview-pane :is(code, pre) { font-family: ${codeFam}; font-size: ${codeEm}em; color: ${s['code-inline'].color}; }
     /* Inline code inside a heading: keep the mono font but track the
        heading's own font-size instead of the body-code one. */
     #preview-pane :is(h1, h2, h3, h4, h5, h6) code { font-size: inherit; }

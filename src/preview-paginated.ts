@@ -14,6 +14,7 @@ import { blockBoxCss, inlineCss } from './style-emit';
 import {
   quoteFontFamily,
   fontFamilyStack,
+  findFont,
   loadSettingsFonts,
   settingsFontFamilies,
 } from './font-loader';
@@ -860,6 +861,18 @@ export function pagedCss(s: PdfSettings): string {
   const headingsFamily = fontFamilyStack(s.fonts.headings);
   const bodyFamily = fontFamilyStack(bodyName);
   const codeFamily = fontFamilyStack(codeName, 'mono');
+  // Inline bold: use real Bold (700) when the body font ships it; fall back to
+  // Medium (500) for families without a bold face (e.g. Roboto Condensed) rather
+  // than letting the browser synthesise a muddy faux-bold.
+  const bodySize = styles.body.fontSize ?? 11;
+  const boldWeight = findFont(bodyName)?.weights.includes(700) ? 700 : 500;
+  // Inline code is sized RELATIVE to its context (em), so `code` inside a small
+  // footnote/sidenote/caption shrinks with the surrounding text instead of
+  // staying at the body's absolute code size. In body text the ratio reproduces
+  // the requested absolute size.
+  const codeInlineEm = (
+    (styles['code-inline'].fontSize ?? bodySize) / bodySize
+  ).toFixed(3);
   // All typography rules below are scoped to the two containers that
   // host paginated content: `#preview-pane` for the on-screen aperçu
   // (paged.js writes its `.pagedjs_pages` tree there), and
@@ -1143,11 +1156,11 @@ export function pagedCss(s: PdfSettings): string {
     /* Inline emphasis defaults to Medium so we never ask the browser
        to synthesise Bold from Roboto Condensed (which only ships
        Regular and Medium). Per-heading weight is set above. */
-    ${SCOPE} :is(strong, b) { font-weight: 500; }
+    ${SCOPE} :is(strong, b) { font-weight: ${boldWeight}; }
 
     ${SCOPE} :is(code, pre) {
       font-family: ${codeFamily};
-      font-size: ${styles['code-inline'].fontSize}pt;
+      font-size: ${codeInlineEm}em;
       color: ${styles['code-inline'].color};
     }
     /* Block code: <pre> wrapper + tree SVG + algorithm get the
@@ -1191,6 +1204,13 @@ export function pagedCss(s: PdfSettings): string {
     /* Auto-numbered figure / algorithm / table / listing caption. */
     ${SCOPE} .caption { ${inlineCss(styles.caption)} }
     ${SCOPE} .footnotes, ${SCOPE} .sidenote { ${inlineCss(styles.footnote)} }
+    /* Footnote typography, UNSCOPED: in 'foot' mode Vivliostyle floats the
+       .sidenote into its own footnote area, outside #preview-pane, so the scoped
+       rule above never reaches it — the note (and its inline code) would render
+       at body size. Sizing .sidenote directly (like the float rule) makes the
+       whole note shrink, and the em code inside then scales with it. */
+    .sidenote { ${inlineCss(styles.footnote)} }
+    .sidenote :is(code, pre) { font-family: ${codeFamily}; font-size: ${codeInlineEm}em; }
     /* Inline links — color + underline from styles['inline-link']. */
     ${SCOPE} a { ${inlineCss(styles['inline-link'])} text-decoration: ${styles['inline-link'].underline ? 'underline' : 'none'}; }
     /* Block math, mermaid, admonitions, tables — user-configurable
