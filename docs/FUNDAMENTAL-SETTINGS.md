@@ -54,7 +54,9 @@ style produit ailleurs. Le format d'export/import du style fondamental (§ ci-de
 1. **Figer l'interface** — le style fondamental comme unique porteur de style (bloc
    `markpage-style`). *✅ amorcé (export/import) — à raffiner : lisibilité, autonomie.*
 2. **Purifier la géométrie** — canon → producteur de `text.*` résolu ; sortir
-   `measureChars` / `liveAreaChars` / `marginMode` du cœur.
+   `measureChars` / `liveAreaChars` / `marginMode` du cœur. *✅ fait — `PageGeometry`
+   terminal, `bakePageGeometry` producteur, objet `authoring` distinct (voir
+   « Résolution 2d »).*
 3. **Rendu 100 % fondamental** — retirer recette/vocabulaire/canon de `buildPreviewDom` /
    `deriveSettingsForDoc` ; le rendu lit le style résolu directement.
 4. **Extraire les producteurs** — recette/vocabulaire/atelier/canon → couche « authoring »
