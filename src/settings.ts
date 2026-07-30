@@ -432,6 +432,12 @@ export interface PdfSettings {
   // / margins. Optional so direct callers (tests, ad-hoc renders) still work:
   // the render bakes on the fly when it's absent.
   pageGeometry?: PageGeometry;
+  // Chapter opening (docs/FUNDAMENTAL-SETTINGS.md §1): the vertical DROP (mm) of a
+  // chapter title below the text-block top on the first page of a chapter — the
+  // classic book "sink" that starts each chapter lower down the page. Only
+  // meaningful when `chapterBreak` forces each h1 onto a fresh page. Optional:
+  // absent / 0 keeps chapter titles at the top of the page.
+  chapter?: { drop: number };
 }
 
 /**
@@ -661,6 +667,7 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
       d.chapterBreak,
     authoring: mergeAuthoring(obj),
     pageGeometry: obj.pageGeometry as PageGeometry | undefined,
+    chapter: obj.chapter as PdfSettings['chapter'],
     notes: merge(
       d.notes,
       obj.notes as Partial<PdfSettings['notes']> | undefined,
@@ -1049,7 +1056,7 @@ export function serializeProfile(s: PdfSettings): string {
 export const FUNDAMENTAL_STYLE_KEYS = [
   // page frame + RESOLVED geometry (the canon inputs are authoring, not
   // fundamental — they never appear here; pageGeometry is the terminal result).
-  'pageSize', 'pageGeometry', 'duplex', 'chapterBreak', 'notes',
+  'pageSize', 'pageGeometry', 'duplex', 'chapterBreak', 'chapter', 'notes',
   // running content
   'header', 'footer',
   // typography

@@ -1041,6 +1041,14 @@ export function pagedCss(s: PdfSettings): string {
       : s.chapterBreak === 'next-recto'
         ? 'h1 { break-before: right; }'
         : '';
+  // Chapter opening "drop": on the first page of each chapter (every h1 starts a
+  // page under chapterBreak), sink the title `chapter.drop` mm below the text-block
+  // top. padding-top (not margin) survives the page break — a top margin would be
+  // discarded at the page edge. The cover title (h1.doc-title) is exempt.
+  const chapterDropRule =
+    s.chapterBreak !== 'none' && s.chapter && s.chapter.drop > 0
+      ? `${SCOPE} h1:not(.doc-title) { padding-top: ${s.chapter.drop}mm; }`
+      : '';
   // Cover page (a title/metadata block on a tinted `coverBackground`): keep the
   // title + metadata legible against the fill, and isolate the cover so body
   // content starts on the next page — the next RECTO in duplex, inserting a
@@ -1066,6 +1074,7 @@ export function pagedCss(s: PdfSettings): string {
     ${runningContentRule}
     ${sidenoteRule}
     ${chapterBreakRule}
+    ${chapterDropRule}
     ${coverBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */

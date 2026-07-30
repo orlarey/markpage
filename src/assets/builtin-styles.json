@@ -682,7 +682,10 @@
       "mermaidMaxWidthPct": 1,
       "mermaidMaxHeightPct": 0.7,
       "pageBackground": "#ffffff",
-      "coverBackground": "#382516"
+      "coverBackground": "#382516",
+      "chapter": {
+        "drop": 45
+      }
     }
   },
   {
