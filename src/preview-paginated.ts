@@ -1034,9 +1034,12 @@ export function pagedCss(s: PdfSettings): string {
   const coverInkRule = coverInk
     ? `${SCOPE} h1.doc-title, ${SCOPE} .preview-metadata { color: ${coverInk}; }`
     : '';
-  // Unscoped like chapterBreakRule (the engine parses break rules itself).
+  // Break before the first block AFTER the cover — whether the cover carries a
+  // metadata block (title + author/org/date) or just the title. The `:not`
+  // keeps the metadata itself on the cover when present. Unscoped like
+  // chapterBreakRule (the engine parses break rules itself).
   const coverBreakRule = s.coverBackground
-    ? `.preview-metadata + * { break-before: ${s.duplex ? 'right' : 'page'}; }`
+    ? `.preview-metadata + *, h1.doc-title + *:not(.preview-metadata) { break-before: ${s.duplex ? 'right' : 'page'}; }`
     : '';
   return `
     ${pageRule}
