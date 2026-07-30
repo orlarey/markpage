@@ -816,6 +816,28 @@ function sectionSlug(text: string): string {
 
 
 /**
+ * A legible ink for text sitting on `bg`: near-white on a dark background, near-
+ * black on a light one (WCAG relative luminance). Returns '' for a missing /
+ * unparseable colour so callers can skip the override. Used to keep the cover
+ * title/metadata readable on a tinted cover — the one place text sits on a
+ * style-chosen surface rather than the page.
+ */
+function readableInk(bg: string | undefined): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec((bg ?? '').trim());
+  if (!m) return '';
+  const n = parseInt(m[1], 16);
+  const lin = (u: number): number => {
+    const c = u / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const L =
+    0.2126 * lin((n >> 16) & 255) +
+    0.7152 * lin((n >> 8) & 255) +
+    0.0722 * lin(n & 255);
+  return L > 0.5 ? '#1a1a1a' : '#f5f2ec';
+}
+
+/**
  * Purpose: Build the @page rules + minimal fragmentation policy from user settings.
  * How: Template literal scoped to `#preview-pane` / `#markpage-print-target`.
  */
@@ -1002,6 +1024,20 @@ export function pagedCss(s: PdfSettings): string {
       : s.chapterBreak === 'next-recto'
         ? 'h1 { break-before: right; }'
         : '';
+  // Cover page (a title/metadata block on a tinted `coverBackground`): keep the
+  // title + metadata legible against the fill, and isolate the cover so body
+  // content starts on the next page — the next RECTO in duplex, inserting a
+  // blank verso (classic book title-page convention). Both gated on a cover fill.
+  // The title + metadata blocks only ever appear on the cover page, so colour
+  // them directly (engine-agnostic; no page-container :has needed).
+  const coverInk = readableInk(s.coverBackground);
+  const coverInkRule = coverInk
+    ? `${SCOPE} h1.doc-title, ${SCOPE} .preview-metadata { color: ${coverInk}; }`
+    : '';
+  // Unscoped like chapterBreakRule (the engine parses break rules itself).
+  const coverBreakRule = s.coverBackground
+    ? `.preview-metadata + * { break-before: ${s.duplex ? 'right' : 'page'}; }`
+    : '';
   return `
     ${pageRule}
     ${bodyPaddingRule}
@@ -1010,6 +1046,7 @@ export function pagedCss(s: PdfSettings): string {
     ${runningContentRule}
     ${sidenoteRule}
     ${chapterBreakRule}
+    ${coverBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */
     ${SCOPE} {
@@ -1261,6 +1298,9 @@ export function pagedCss(s: PdfSettings): string {
        font-size), so scaling the math wrappers' font-size resizes the
        glyphs without re-rendering. */
     ${SCOPE} :is(.math-inline, .math-block) { font-size: ${s.mathScale}em; }
+    /* Cover ink LAST so it overrides the per-element title/metadata colour when
+       the cover is tinted (same specificity, wins on source order). */
+    ${coverInkRule}
   `;
 }
 
