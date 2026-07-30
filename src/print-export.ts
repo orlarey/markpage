@@ -28,6 +28,7 @@ import {
 import { parseFrontmatter } from '@orlarey/markpage-render';
 import { paginateOnce, pageContentGeomPx, pageSizeMm } from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
+import { importFundamentalStyle } from './fundamental-style';
 import { applyFrontmatterToSettings, type PdfSettings } from './settings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
@@ -117,7 +118,8 @@ async function buildPrintContent(
   // Same per-doc override hook as the preview path: a frontmatter
   // `slides: true` forces the SLIDES_16_9 page format.
   const withFm = applyFrontmatterToSettings(settings, meta);
-  const effectiveSettings = withBakedGeometry(withFm, pageSizeMm(withFm));
+  const withStyle = importFundamentalStyle(source, withFm) ?? withFm;
+  const effectiveSettings = withBakedGeometry(withStyle, pageSizeMm(withStyle));
   renderPreview(el, source);
   applyPreviewMetadata(el, effectiveSettings, meta);
   const preamble = meta['mathjax-preamble'] ?? '';

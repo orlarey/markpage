@@ -681,10 +681,23 @@ async function bootstrap(): Promise<void> {
     return null;
   };
 
+  // Derive the document's settings from its stack, THEN let an embedded
+  // fundamental style (`markpage-style` block) supersede them — so a document
+  // carrying a self-contained style is authoritative everywhere state.settings
+  // flows (Réglages panel, continuous + paginated preview), not only right after
+  // the one-shot "Import style" menu action.
+  const deriveDocSettings = async (
+    src: string,
+    base: PdfSettings,
+  ): Promise<PdfSettings> => {
+    const derived = await deriveSettingsForDoc(src, base, resolveByName);
+    return importFundamentalStyle(src, derived) ?? derived;
+  };
+
   // STACK-SPEC §12.1 (Étape 1 — dérivation au chargement): the Réglages panel
   // reflects the boot doc's own stack (extends chain + dotted style keys),
   // not just the app-wide profile it was seeded from above.
-  state.settings = await deriveSettingsForDoc(initialDoc, state.settings, resolveByName);
+  state.settings = await deriveDocSettings(initialDoc, state.settings);
 
   // Builds the rendered DOM subtree (Markdown + post-processing) shared by
   // both render modes. Returns null if a newer request superseded this one
@@ -729,9 +742,18 @@ async function bootstrap(): Promise<void> {
       // atelier's choices win over the inherited recipe (idempotent otherwise).
       effectiveSettings = applyStyleVocabulary(effectiveSettings, meta);
     }
+    // A doc carrying an embedded fundamental style (`markpage-style` block) is
+    // authoritative: apply it OVER the recipe/stack-derived settings so the
+    // document renders from its self-contained style on every pass — not only
+    // right after the one-shot "Import style" menu action. This is the
+    // producer→consumer contract (docs/FUNDAMENTAL-SETTINGS.md): the render
+    // consumes the embedded fundamental style verbatim.
+    const embedded = importFundamentalStyle(resolved, effectiveSettings);
+    if (embedded) effectiveSettings = embedded;
     // Bake the terminal page geometry LAST — after every setting that feeds the
     // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
-    // reads a resolved `pageGeometry` and never the production inputs.
+    // reads a resolved `pageGeometry` and never the production inputs. A pure
+    // embedded style already carries pageGeometry (authoring dropped) → no-op.
     effectiveSettings = withBakedGeometry(
       effectiveSettings,
       pageSizeMm(effectiveSettings),
@@ -1002,11 +1024,7 @@ async function bootstrap(): Promise<void> {
       preserveHistoricalFrontmatterOnce = false;
       const snapshot = frontmatterSnapshot(source);
       if (snapshot === lastAppliedSettingsFrontmatter) return;
-      const derived = await deriveSettingsForDoc(
-        source,
-        state.settings,
-        resolveByName,
-      );
+      const derived = await deriveDocSettings(source, state.settings);
       // A newer edit superseded this derivation while an extends layer was
       // resolving. Only publish settings for the source still in the editor.
       if (source !== editor.getValue()) return;
@@ -1065,11 +1083,7 @@ async function bootstrap(): Promise<void> {
 
   const refreshSettingsFromHistory = (source: string): void => {
     void (async () => {
-      const derived = await deriveSettingsForDoc(
-        source,
-        state.settings,
-        resolveByName,
-      );
+      const derived = await deriveDocSettings(source, state.settings);
       if (source !== editor.getValue()) return;
       state.settings = derived;
       lastAppliedSettingsFrontmatter = frontmatterSnapshot(source);
@@ -1373,7 +1387,7 @@ async function bootstrap(): Promise<void> {
     // STACK-SPEC §12.1: Réglages follows the doc — derive its settings from
     // its own stack before rendering, so the panel never shows the outgoing
     // doc's values.
-    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+    state.settings = await deriveDocSettings(content, state.settings);
     editor.setValue(content);
     dirty = true;
     // Keep the split open across doc switches — refresh it for the new doc.
@@ -1412,7 +1426,7 @@ async function bootstrap(): Promise<void> {
     const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
-    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+    state.settings = await deriveDocSettings(content, state.settings);
     editor.setValue(content);
     dirty = true;
     // Keep the split open — refresh it for the new empty doc.
@@ -1438,7 +1452,7 @@ async function bootstrap(): Promise<void> {
     editor.setValue(setExtendsInSource(editor.getValue(), picked === '' ? null : picked));
     dirty = true;
     // A new parent changes the effective style — re-derive before the form refresh.
-    state.settings = await deriveSettingsForDoc(editor.getValue(), state.settings, resolveByName);
+    state.settings = await deriveDocSettings(editor.getValue(), state.settings);
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     refreshSettingsForm?.(); // reflect the new parent in the open form
   };
@@ -1456,7 +1470,7 @@ async function bootstrap(): Promise<void> {
     const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
-    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+    state.settings = await deriveDocSettings(content, state.settings);
     editor.setValue(content);
     dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
@@ -1518,14 +1532,14 @@ async function bootstrap(): Promise<void> {
       const fresh = await createDoc('Sans titre');
       currentDoc = fresh;
       await setCurrentDocId(fresh.uuid);
-      state.settings = await deriveSettingsForDoc('', state.settings, resolveByName);
+      state.settings = await deriveDocSettings('', state.settings);
       editor.setValue('');
     } else {
       const next = remaining[0];
       currentDoc = next;
       await setCurrentDocId(next.uuid);
       const content = (await loadDocContent(next)) ?? '';
-      state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+      state.settings = await deriveDocSettings(content, state.settings);
       editor.setValue(content);
     }
     dirty = true;
@@ -1554,7 +1568,7 @@ async function bootstrap(): Promise<void> {
     if (!isModified(currentDoc)) return;
     currentDoc = await revertDoc(currentDoc.uuid);
     const content = (await loadCommittedContent(currentDoc)) ?? '';
-    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+    state.settings = await deriveDocSettings(content, state.settings);
     editor.setValue(content);
     dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
@@ -1603,7 +1617,7 @@ async function bootstrap(): Promise<void> {
   const applyDiskContent = async (content: string): Promise<void> => {
     await saveDraft(currentDoc.uuid, content);
     currentDoc = await commitDoc(currentDoc.uuid);
-    state.settings = await deriveSettingsForDoc(content, state.settings, resolveByName);
+    state.settings = await deriveDocSettings(content, state.settings);
     editor.setValue(content);
     toolbarCtrl.setModified(false);
     dirty = true;
@@ -3023,7 +3037,7 @@ async function bootstrap(): Promise<void> {
       const entry = await createDoc(name ?? 'Sans titre', markdown);
       currentDoc = entry;
       await setCurrentDocId(entry.uuid);
-      state.settings = await deriveSettingsForDoc(markdown, state.settings, resolveByName);
+      state.settings = await deriveDocSettings(markdown, state.settings);
       editor.setValue(markdown);
       dirty = true;
       if (viewMode === 'preview') void updatePreview(editor.getValue());
