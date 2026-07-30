@@ -2951,10 +2951,6 @@ async function bootstrap(): Promise<void> {
       if (e.key.toLowerCase() === 'g') {
         e.preventDefault();
         triggerGuides();
-      } else if (e.key.toLowerCase() === 'a') {
-        // Cmd/Ctrl+Shift+A: open the style atelier.
-        e.preventDefault();
-        triggerAtelier();
       } else if (e.key === 'Enter') {
         // Cmd/Ctrl+Shift+Enter: start the fullscreen presentation.
         e.preventDefault();
@@ -2985,10 +2981,6 @@ async function bootstrap(): Promise<void> {
         e.preventDefault();
         triggerDownload();
         break;
-      case ',':
-        e.preventDefault();
-        triggerSettings();
-        break;
     }
   };
   globalThis.addEventListener('keydown', onAppKeydown);
@@ -3007,7 +2999,6 @@ async function bootstrap(): Promise<void> {
     void triggerOpen();
   };
   editorShortcuts.exportPdf = triggerDownload;
-  editorShortcuts.settings = triggerSettings;
   editorShortcuts.guides = triggerGuides;
 
   renderToolbar();

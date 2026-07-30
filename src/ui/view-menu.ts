@@ -79,7 +79,6 @@ export function openViewMenu(anchor: HTMLElement, opts: ViewMenuOptions): void {
     item(t('toolbar.preview'), 'Cmd/Ctrl + ↵', opts.onTogglePreview, opts.viewMode === 'preview'),
     item(t('toolbar.present'), 'Cmd/Ctrl + ⇧ + ↵', opts.onPresent),
     item(t('toolbar.guides'), 'Cmd/Ctrl + ⇧ + G', opts.onToggleGuides, opts.guides),
-    item(t('toolbar.atelier'), 'Cmd/Ctrl + ⇧ + A', opts.onOpenAtelier),
   );
 
   document.body.appendChild(menu);

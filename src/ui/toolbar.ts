@@ -118,9 +118,10 @@ export function mountToolbar(
     });
   viewBtn.addEventListener('click', () => openView(viewBtn));
 
-  // [Réglages ▾] — settings / profiles panel.
-  const settingsBtn = trigger(t('toolbar.settings'), t('toolbar.settings-title'));
-  settingsBtn.addEventListener('click', () => handlers.onSettings());
+  // [Réglages] and the style atelier are retired: the document-style menu is the
+  // sole styling surface (docs/FUNDAMENTAL-SETTINGS.md). `onSettings` /
+  // `onOpenAtelier` remain in the handler contract but are no longer reachable
+  // from the UI (removed in a later phase along with the panel code itself).
 
   // [?] — Help, a compact icon at the end of the bar.
   const helpBtn = document.createElement('button');
@@ -186,7 +187,6 @@ export function mountToolbar(
       }),
       entry(t('toolbar.docstyle'), () => handlers.onDocStyle(hamburger)),
       entry(t('toolbar.view'), () => openView(hamburger)),
-      entry(t('toolbar.settings'), () => handlers.onSettings()),
       entry(t('toolbar.help'), () => handlers.onHelp()),
     );
     document.body.appendChild(sheet);
@@ -278,7 +278,7 @@ export function mountToolbar(
 
   const menusRight = document.createElement('div');
   menusRight.className = 'toolbar-menus-right';
-  menusRight.append(settingsBtn, helpBtn);
+  menusRight.append(helpBtn);
 
   const right = document.createElement('div');
   right.className = 'toolbar-right';
