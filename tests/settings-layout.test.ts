@@ -4,10 +4,19 @@ import { parseFrontmatter, embedProfileInFrontmatter } from '@orlarey/markpage-r
 import {
   applyFrontmatterToSettings,
   DEFAULT_SETTINGS,
+  DEFAULT_GEOMETRY_AUTHORING,
   mergeWithDefaults,
   serializeProfile,
   validateLayoutSettings,
 } from '../src/settings';
+
+/** Build settings with overridden geometry authoring inputs. */
+function withAuthoring(over: Partial<typeof DEFAULT_GEOMETRY_AUTHORING>) {
+  return {
+    ...DEFAULT_SETTINGS,
+    authoring: { ...DEFAULT_GEOMETRY_AUTHORING, ...over },
+  };
+}
 
 /** Parse a YAML frontmatter block and fold it onto DEFAULT_SETTINGS. */
 function applyYaml(yaml: string) {
@@ -22,16 +31,16 @@ describe('DEFAULT_SETTINGS — layout fields (§9.5 / §9.6 / §9.7)', () => {
     // authoritative, no recto/verso, no forced chapter break.
     expect(DEFAULT_SETTINGS.duplex).toBe(false);
     expect(DEFAULT_SETTINGS.chapterBreak).toBe('none');
-    expect(DEFAULT_SETTINGS.marginMode).toBe('manual');
+    expect(DEFAULT_SETTINGS.authoring?.marginMode).toBe('manual');
   });
 
   it('seeds the two canonical measures (still stored in manual mode)', () => {
-    expect(DEFAULT_SETTINGS.measureChars).toBe(66);
-    expect(DEFAULT_SETTINGS.liveAreaChars).toBe(85);
+    expect(DEFAULT_SETTINGS.authoring?.measureChars).toBe(66);
+    expect(DEFAULT_SETTINGS.authoring?.liveAreaChars).toBe(85);
     // Invariant of the live area model — liveAreaChars must contain the
     // text block strictly.
-    expect(DEFAULT_SETTINGS.liveAreaChars).toBeGreaterThan(
-      DEFAULT_SETTINGS.measureChars,
+    expect(DEFAULT_SETTINGS.authoring!.liveAreaChars).toBeGreaterThan(
+      DEFAULT_SETTINGS.authoring!.measureChars,
     );
   });
 
@@ -55,15 +64,15 @@ describe('applyFrontmatterToSettings — per-doc layout/typography overrides', (
   });
 
   it('expands margins shorthand (1 / 2 / 4 values) and forces manual mode', () => {
-    expect(applyYaml('margins: 20').settings.margins).toEqual({
+    expect(applyYaml('margins: 20').settings.authoring?.margins).toEqual({
       top: 20, right: 20, bottom: 20, left: 20,
     });
-    expect(applyYaml('margins: 25 35').settings.margins).toEqual({
+    expect(applyYaml('margins: 25 35').settings.authoring?.margins).toEqual({
       top: 25, right: 35, bottom: 25, left: 35,
     });
     const four = applyYaml('margins: 10 20 30 40').settings;
-    expect(four.margins).toEqual({ top: 10, right: 20, bottom: 30, left: 40 });
-    expect(four.marginMode).toBe('manual');
+    expect(four.authoring?.margins).toEqual({ top: 10, right: 20, bottom: 30, left: 40 });
+    expect(four.authoring?.marginMode).toBe('manual');
   });
 
   it('toggles the footer page number via page-numbers', () => {
@@ -81,7 +90,7 @@ describe('applyFrontmatterToSettings — per-doc layout/typography overrides', (
   it('still honours slides, which wins over page-size and clamps margins', () => {
     const s = applyYaml('page-size: A3\nmargins: 40\nslides: true').settings;
     expect(s.pageSize).toBe('SLIDES_16_9');
-    expect(s.margins.top).toBeLessThanOrEqual(10); // slide vertical-margin cap
+    expect(s.authoring!.margins.top).toBeLessThanOrEqual(10); // slide vertical-margin cap
   });
 
   it('parser stores margins already expanded to a box', () => {
@@ -98,7 +107,7 @@ describe('serializeProfile + embedProfileInFrontmatter — portable style profil
     expect(obj.styles).toEqual(DEFAULT_SETTINGS.styles);
     expect(obj.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
     expect(obj.footer).toBe(DEFAULT_SETTINGS.footer);
-    expect(obj.marginMode).toBe(DEFAULT_SETTINGS.marginMode);
+    expect(obj.marginMode).toBe(DEFAULT_SETTINGS.authoring?.marginMode);
     expect(obj.notesPosition).toBe(DEFAULT_SETTINGS.notes.position);
   });
 
@@ -143,13 +152,14 @@ describe('mergeWithDefaults — backward compat with legacy profiles', () => {
     const merged = mergeWithDefaults(legacy);
     expect(merged.duplex).toBe(DEFAULT_SETTINGS.duplex);
     expect(merged.chapterBreak).toBe(DEFAULT_SETTINGS.chapterBreak);
-    expect(merged.marginMode).toBe(DEFAULT_SETTINGS.marginMode);
-    expect(merged.measureChars).toBe(DEFAULT_SETTINGS.measureChars);
-    expect(merged.liveAreaChars).toBe(DEFAULT_SETTINGS.liveAreaChars);
+    // Legacy flat margins migrate into the authoring object.
+    expect(merged.authoring?.marginMode).toBe('manual');
+    expect(merged.authoring?.measureChars).toBe(66);
+    expect(merged.authoring?.liveAreaChars).toBe(85);
     expect(merged.notes).toEqual(DEFAULT_SETTINGS.notes);
   });
 
-  it('preserves explicit layout values from a forward-compat profile', () => {
+  it('migrates legacy flat geometry inputs into the authoring object', () => {
     const future = {
       duplex: true,
       chapterBreak: 'next-recto',
@@ -161,9 +171,9 @@ describe('mergeWithDefaults — backward compat with legacy profiles', () => {
     const merged = mergeWithDefaults(future);
     expect(merged.duplex).toBe(true);
     expect(merged.chapterBreak).toBe('next-recto');
-    expect(merged.marginMode).toBe('derived');
-    expect(merged.measureChars).toBe(52);
-    expect(merged.liveAreaChars).toBe(85);
+    expect(merged.authoring?.marginMode).toBe('derived');
+    expect(merged.authoring?.measureChars).toBe(52);
+    expect(merged.authoring?.liveAreaChars).toBe(85);
     expect(merged.notes.position).toBe('side');
   });
 
@@ -172,9 +182,12 @@ describe('mergeWithDefaults — backward compat with legacy profiles', () => {
       ...DEFAULT_SETTINGS,
       duplex: true,
       chapterBreak: 'next-recto' as const,
-      marginMode: 'derived' as const,
-      measureChars: 60,
-      liveAreaChars: 80,
+      authoring: {
+        ...DEFAULT_GEOMETRY_AUTHORING,
+        marginMode: 'derived' as const,
+        measureChars: 60,
+        liveAreaChars: 80,
+      },
       notes: { position: 'side' as const },
     };
     const roundTripped = mergeWithDefaults(
@@ -182,9 +195,9 @@ describe('mergeWithDefaults — backward compat with legacy profiles', () => {
     );
     expect(roundTripped.duplex).toBe(true);
     expect(roundTripped.chapterBreak).toBe('next-recto');
-    expect(roundTripped.marginMode).toBe('derived');
-    expect(roundTripped.measureChars).toBe(60);
-    expect(roundTripped.liveAreaChars).toBe(80);
+    expect(roundTripped.authoring?.marginMode).toBe('derived');
+    expect(roundTripped.authoring?.measureChars).toBe(60);
+    expect(roundTripped.authoring?.liveAreaChars).toBe(80);
     expect(roundTripped.notes.position).toBe('side');
   });
 
@@ -204,56 +217,42 @@ describe('validateLayoutSettings — guards on the two measures', () => {
   });
 
   it('emits an error when liveAreaChars equals measureChars (no room for the gutters)', () => {
-    const issues = validateLayoutSettings({
-      ...DEFAULT_SETTINGS,
-      measureChars: 70,
-      liveAreaChars: 70,
-    });
+    const issues = validateLayoutSettings(
+      withAuthoring({ measureChars: 70, liveAreaChars: 70 }),
+    );
     const err = issues.find((i) => i.field === 'liveAreaChars');
     expect(err?.severity).toBe('error');
   });
 
   it('emits an error when liveAreaChars < measureChars', () => {
-    const issues = validateLayoutSettings({
-      ...DEFAULT_SETTINGS,
-      measureChars: 70,
-      liveAreaChars: 60,
-    });
+    const issues = validateLayoutSettings(
+      withAuthoring({ measureChars: 70, liveAreaChars: 60 }),
+    );
     expect(issues.some((i) => i.severity === 'error')).toBe(true);
   });
 
   it('emits a warning when measureChars falls outside Bringhurst 45-75', () => {
-    const tooNarrow = validateLayoutSettings({
-      ...DEFAULT_SETTINGS,
-      measureChars: 40,
-    });
+    const tooNarrow = validateLayoutSettings(withAuthoring({ measureChars: 40 }));
     expect(tooNarrow.some((i) => i.field === 'measureChars' && i.severity === 'warning'))
       .toBe(true);
 
-    const tooWide = validateLayoutSettings({
-      ...DEFAULT_SETTINGS,
-      measureChars: 80,
-    });
+    const tooWide = validateLayoutSettings(withAuthoring({ measureChars: 80 }));
     expect(tooWide.some((i) => i.field === 'measureChars' && i.severity === 'warning'))
       .toBe(true);
   });
 
   it('emits a warning when liveAreaChars exceeds the soft cap (110 chars)', () => {
-    const issues = validateLayoutSettings({
-      ...DEFAULT_SETTINGS,
-      measureChars: 50,
-      liveAreaChars: 120,
-    });
+    const issues = validateLayoutSettings(
+      withAuthoring({ measureChars: 50, liveAreaChars: 120 }),
+    );
     expect(issues.some((i) => i.field === 'liveAreaChars' && i.severity === 'warning'))
       .toBe(true);
   });
 
   it('reports both issues independently (measureChars + liveAreaChars)', () => {
-    const issues = validateLayoutSettings({
-      ...DEFAULT_SETTINGS,
-      measureChars: 80, // out of band
-      liveAreaChars: 70, // < measureChars
-    });
+    const issues = validateLayoutSettings(
+      withAuthoring({ measureChars: 80, liveAreaChars: 70 }),
+    );
     expect(issues.some((i) => i.field === 'measureChars')).toBe(true);
     expect(issues.some((i) => i.field === 'liveAreaChars')).toBe(true);
   });

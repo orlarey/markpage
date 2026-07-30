@@ -7,7 +7,11 @@
  *
  *******************************************************************************/
 
-import type { PdfSettings } from './settings';
+import {
+  DEFAULT_GEOMETRY_AUTHORING,
+  type PdfSettings,
+  type GeometryAuthoring,
+} from './settings';
 
 export type DocumentModel =
   | 'tech-note'
@@ -76,8 +80,8 @@ export const DEFAULT_ESSENTIAL_STYLE: EssentialStyle = {
 
 interface ModelValues {
   pageSize: PdfSettings['pageSize'];
-  marginMode: PdfSettings['marginMode'];
-  margins?: PdfSettings['margins'];
+  marginMode: GeometryAuthoring['marginMode'];
+  margins?: GeometryAuthoring['margins'];
   measureChars: number;
   liveAreaChars: number;
   duplex: boolean;
@@ -270,13 +274,17 @@ export function applyDocumentModel(
   const v = MODEL_VALUES[model];
   const styles = cloneStyles(settings.styles);
   styles.body = { ...styles.body, align: v.alignment };
+  const base = settings.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
   return {
     ...settings,
     pageSize: v.pageSize,
-    marginMode: v.marginMode,
-    margins: v.margins ? { ...v.margins } : settings.margins,
-    measureChars: v.measureChars,
-    liveAreaChars: v.liveAreaChars,
+    authoring: {
+      ...base,
+      marginMode: v.marginMode,
+      margins: v.margins ? { ...v.margins } : base.margins,
+      measureChars: v.measureChars,
+      liveAreaChars: v.liveAreaChars,
+    },
     duplex: v.duplex,
     chapterBreak: v.chapterBreak,
     notes: { position: v.notesPosition },
@@ -290,16 +298,17 @@ export function detectDocumentModel(
 ): DocumentModel | null {
   for (const model of DOCUMENT_MODELS) {
     const v = MODEL_VALUES[model];
+    const a = settings.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
     if (
       settings.pageSize === v.pageSize &&
-      settings.marginMode === v.marginMode &&
-      settings.measureChars === v.measureChars &&
-      settings.liveAreaChars === v.liveAreaChars &&
+      a.marginMode === v.marginMode &&
+      a.measureChars === v.measureChars &&
+      a.liveAreaChars === v.liveAreaChars &&
       settings.duplex === v.duplex &&
       settings.chapterBreak === v.chapterBreak &&
       settings.notes.position === v.notesPosition &&
       settings.styles.body.align === v.alignment &&
-      (!v.margins || sameMargins(settings.margins, v.margins))
+      (!v.margins || sameMargins(a.margins, v.margins))
     ) {
       return model;
     }
@@ -313,14 +322,15 @@ export function detectDocumentModelLayout(
 ): DocumentModel | null {
   for (const model of DOCUMENT_MODELS) {
     const v = MODEL_VALUES[model];
+    const a = settings.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
     if (
       settings.pageSize === v.pageSize &&
-      settings.marginMode === v.marginMode &&
-      settings.measureChars === v.measureChars &&
-      settings.liveAreaChars === v.liveAreaChars &&
+      a.marginMode === v.marginMode &&
+      a.measureChars === v.measureChars &&
+      a.liveAreaChars === v.liveAreaChars &&
       settings.duplex === v.duplex &&
       settings.chapterBreak === v.chapterBreak &&
-      (!v.margins || sameMargins(settings.margins, v.margins))
+      (!v.margins || sameMargins(a.margins, v.margins))
     ) {
       return model;
     }
@@ -600,8 +610,8 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function sameMargins(
-  a: PdfSettings['margins'],
-  b: PdfSettings['margins'],
+  a: GeometryAuthoring['margins'],
+  b: GeometryAuthoring['margins'],
 ): boolean {
   return (
     a.top === b.top &&

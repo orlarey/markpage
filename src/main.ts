@@ -210,7 +210,12 @@ import {
   migrateLegacySettingsIfNeeded,
   saveProfileSettings,
 } from './settings-profiles';
-import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
+import {
+  pageContentGeomPx,
+  pageSizeMm,
+  paginate,
+  geometryFor,
+} from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
@@ -767,10 +772,13 @@ async function bootstrap(): Promise<void> {
       .forEach((s) => s.remove());
     const sheet = document.createElement('div');
     sheet.className = 'mp-continuous-sheet';
-    const { w } = pageSizeMm(effectiveSettings);
-    const m = effectiveSettings.margins;
-    sheet.style.width = `${w}mm`;
-    sheet.style.padding = `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`;
+    const sizeMm = pageSizeMm(effectiveSettings);
+    const t = geometryFor(effectiveSettings, sizeMm).text;
+    sheet.style.width = `${sizeMm.w}mm`;
+    // padding = top right bottom left (right = outer, left = inner). In manual
+    // mode text.* equals the four sliders; in derived mode the continuous sheet
+    // now matches the paginated text block instead of ignoring the canon.
+    sheet.style.padding = `${t.top}mm ${t.outer}mm ${t.bottom}mm ${t.inner}mm`;
     while (built.firstChild) sheet.appendChild(built.firstChild);
     previewEl.classList.add('continuous');
     previewEl.replaceChildren(sheet);

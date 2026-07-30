@@ -4,7 +4,22 @@ import {
   markConsecutiveParagraphs,
   pagedCss,
 } from '../src/preview-paginated';
-import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_GEOMETRY_AUTHORING,
+  type PdfSettings,
+} from '../src/settings';
+
+/** Build settings whose geometry authoring inputs override the defaults. */
+function withAuthoring(
+  base: PdfSettings,
+  over: Partial<typeof DEFAULT_GEOMETRY_AUTHORING>,
+): PdfSettings {
+  return {
+    ...base,
+    authoring: { ...(base.authoring ?? DEFAULT_GEOMETRY_AUTHORING), ...over },
+  };
+}
 
 /**
  * Purpose: Lock in the CSS shape emitted by `pagedCss` for the §9.5
@@ -14,7 +29,7 @@ import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
  */
 
 const A4 = DEFAULT_SETTINGS; // marginMode: 'manual', duplex: false, chapterBreak: 'none'
-const m = A4.margins;
+const m = DEFAULT_GEOMETRY_AUTHORING.margins;
 
 describe('pagedCss — simplex (default)', () => {
   it('emits a single @page rule with the nominal margins', () => {
@@ -129,7 +144,7 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
   //   top_TB   ≈ 38.61 mm, bottom_TB ≈ 77.22 mm
   //   inner gutter = inner_TB − inner_LA ≈ 12.29 mm
   //   outer gutter = outer_TB − outer_LA ≈ 24.58 mm
-  const derivedSimplex: PdfSettings = { ...A4, marginMode: 'derived' };
+  const derivedSimplex: PdfSettings = withAuthoring(A4, { marginMode: 'derived' });
   const derivedDuplex: PdfSettings = { ...derivedSimplex, duplex: true };
 
   it('centres the derived live area horizontally in simplex', () => {
@@ -184,7 +199,7 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
   });
 
   it('falls back to the manual margins when marginMode === "manual" (unchanged)', () => {
-    const css = pagedCss({ ...A4, marginMode: 'manual' });
+    const css = pagedCss(withAuthoring(A4, { marginMode: 'manual' }));
     expect(css).toContain(
       `margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`,
     );
@@ -252,7 +267,7 @@ describe('pagedCss — letterhead signature alignment', () => {
     // plus the effective live-area margin to land at 110 mm from the physical
     // page edge. In simplex the centred text margin is ≈ 40.97 mm, hence
     // 110 − 40.97 ≈ 69.0 mm.
-    const css = pagedCss({ ...A4, marginMode: 'derived' });
+    const css = pagedCss(withAuthoring(A4, { marginMode: 'derived' }));
     expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*69\.\d+mm/);
   });
 });

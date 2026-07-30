@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import { pagedCss } from '../src/preview-paginated';
-import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_GEOMETRY_AUTHORING,
+  type PdfSettings,
+} from '../src/settings';
+
+/** Override the geometry authoring inputs on top of DEFAULT_SETTINGS. */
+function withAuthoring(over: Partial<typeof DEFAULT_GEOMETRY_AUTHORING>): PdfSettings {
+  return {
+    ...DEFAULT_SETTINGS,
+    authoring: { ...DEFAULT_GEOMETRY_AUTHORING, ...over },
+  };
+}
 
 /**
  * Purpose: Lock in the §9.7 sidenote CSS branching emitted by
@@ -40,8 +52,7 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
 
   it("'side' in derived mode emits absolute positioning, keeps the body sup visible, adds the in-sidenote number prefix", () => {
     const css = pagedCss({
-      ...A4,
-      marginMode: 'derived',
+      ...withAuthoring({ marginMode: 'derived' }),
       notes: { position: 'side' },
     });
     // The body sup STAYS visible in side mode (Tufte: number appears
@@ -63,8 +74,7 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
 
   it("'side' in duplex emits an additional left override for the verso", () => {
     const css = pagedCss({
-      ...A4,
-      marginMode: 'derived',
+      ...withAuthoring({ marginMode: 'derived' }),
       duplex: true,
       notes: { position: 'side' },
     });
@@ -76,8 +86,7 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
 
   it("'side' caps img.margin width to the sidenote area (no overflow)", () => {
     const css = pagedCss({
-      ...A4,
-      marginMode: 'derived',
+      ...withAuthoring({ marginMode: 'derived' }),
       notes: { position: 'side' },
     });
     expect(css).toMatch(/img\.margin \{[\s\S]*max-width: \d+\.?\d*mm;[\s\S]*height: auto;/);
@@ -88,8 +97,7 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
     // sidenote can't be positioned safely. We hide it; the visible
     // path is whatever section.footnotes already provides.
     const css = pagedCss({
-      ...A4,
-      marginMode: 'manual',
+      ...withAuthoring({ marginMode: 'manual' }),
       notes: { position: 'side' },
     });
     expect(css).toContain('.sidenote { display: none;');
@@ -103,10 +111,11 @@ describe('pagedCss — sidenote width derives from outer gutter (§9.7.1)', () =
   it('sidenote width ≈ outerGutter − gap, with gap = innerGutter / 4', () => {
     // Use the "Édition critique" preset values: measure 52, liveArea 85.
     const s: PdfSettings = {
-      ...A4,
-      marginMode: 'derived',
-      measureChars: 52,
-      liveAreaChars: 85,
+      ...withAuthoring({
+        marginMode: 'derived',
+        measureChars: 52,
+        liveAreaChars: 85,
+      }),
       duplex: true,
       notes: { position: 'side' },
     };

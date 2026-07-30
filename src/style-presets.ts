@@ -111,7 +111,6 @@ export function applyStylePreset(
   return {
     ...base,
     ...preset,
-    margins: { ...base.margins, ...(preset.margins ?? {}) },
     fonts: { ...base.fonts, ...(preset.fonts ?? {}) },
     styles: preset.styles
       ? { ...base.styles, ...preset.styles }

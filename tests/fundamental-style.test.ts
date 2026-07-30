@@ -6,18 +6,24 @@ import {
   applyFundamentalStyle,
   type PdfSettings,
 } from '../src/settings';
+import { bakePageGeometry } from '../src/geometry-producer';
 
 const clone = (s: PdfSettings): PdfSettings => JSON.parse(JSON.stringify(s));
 
-// A style that touches every corner: fonts, per-element, layout + canon, notes,
-// running content, math, surfaces, language, metadata, figure caps, custom fonts.
+// A style that touches every corner: fonts, per-element, resolved geometry,
+// notes, running content, math, surfaces, language, metadata, figure caps,
+// custom fonts. Geometry is fundamental as the RESOLVED pageGeometry — the canon
+// inputs (authoring) are deliberately NOT part of the fundamental style.
 const distinctive = (): PdfSettings => {
   const s = clone(DEFAULT_SETTINGS);
   s.pageSize = 'B5';
-  s.margins = { top: 18, right: 22, bottom: 30, left: 14 };
-  s.marginMode = 'derived';
-  s.measureChars = 60;
-  s.liveAreaChars = 80;
+  s.authoring = {
+    marginMode: 'derived',
+    margins: { top: 18, right: 22, bottom: 30, left: 14 },
+    measureChars: 60,
+    liveAreaChars: 80,
+  };
+  s.pageGeometry = bakePageGeometry(s, { w: 176, h: 250 });
   s.duplex = true;
   s.chapterBreak = 'next-recto';
   s.notes = { position: 'side' };
@@ -42,10 +48,15 @@ const distinctive = (): PdfSettings => {
 };
 
 describe('fundamental style export/import', () => {
-  it('is COMPLETE — every PdfSettings field is a fundamental key', () => {
+  it('is COMPLETE — every fundamental PdfSettings field is a fundamental key', () => {
     // Guards against a new settings field being forgotten in the export.
+    // `authoring` is the geometry PRODUCTION object — deliberately excluded from
+    // the fundamental style (its resolved result is carried by `pageGeometry`).
+    const NON_FUNDAMENTAL = new Set(['authoring']);
     const missing = Object.keys(DEFAULT_SETTINGS).filter(
-      (k) => !(FUNDAMENTAL_STYLE_KEYS as readonly string[]).includes(k),
+      (k) =>
+        !NON_FUNDAMENTAL.has(k) &&
+        !(FUNDAMENTAL_STYLE_KEYS as readonly string[]).includes(k),
     );
     expect(missing).toEqual([]);
   });

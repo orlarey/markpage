@@ -233,9 +233,8 @@ export function groupAdjacentFiguresForSlides(
 ): void {
   if (settings.pageSize !== 'SLIDES_16_9') return;
   const sizeMm = pageSizeMm(settings);
-  const m = settings.margins;
   const PX_PER_MM = 96 / 25.4;
-  const slideContentPx = (sizeMm.w - m.left - m.right) * PX_PER_MM;
+  const slideContentPx = geometryFor(settings, sizeMm).text.width * PX_PER_MM;
   const WIDTH_TOLERANCE = 1.1; // tolerate ~10% overflow (small scale-down)
   const COL_GAP_PX = 32; // matches the 2em column-gap in .figure-row CSS
   const children = Array.from(root.children);
@@ -441,13 +440,12 @@ export async function applyAutoZoomForDemos(
   if (demos.length === 0) return;
   const doc = root.ownerDocument;
   const sizeMm = pageSizeMm(settings);
-  const m = settings.margins;
+  const text = geometryFor(settings, sizeMm).text;
   const PX_PER_MM = 96 / 25.4;
   const MAX_FIG_HEIGHT_RATIO = 0.55;
-  const widthMm = sizeMm.w - m.left - m.right;
+  const widthMm = text.width;
   const widthPx = widthMm * PX_PER_MM;
-  const maxHeightPx =
-    (sizeMm.h - m.top - m.bottom) * MAX_FIG_HEIGHT_RATIO * PX_PER_MM;
+  const maxHeightPx = text.height * MAX_FIG_HEIGHT_RATIO * PX_PER_MM;
   const MIN_ZOOM = 0.35;
   // Inject the same paginated-context CSS used by paged.js, so the
   // typography that will shape the final slide is also shaping our
@@ -667,7 +665,7 @@ const ATOMIC_TRIM_SAFETY_MM = 3;
  * layer (tests, ad-hoc renders). Either way the render never touches the canon
  * production inputs.
  */
-function geometryFor(
+export function geometryFor(
   s: PdfSettings,
   sizeMm: { w: number; h: number },
 ): PageGeometry {
@@ -823,7 +821,6 @@ function sectionSlug(text: string): string {
  */
 export function pagedCss(s: PdfSettings): string {
   const sizeMm = pageSizeMm(s);
-  const m = s.margins;
   const styles = s.styles;
   // Running-content typography reaches all six @top-* / @bottom-*
   // boxes — header, footer, and (since v0.16) the page counter too,
@@ -1185,7 +1182,7 @@ export function pagedCss(s: PdfSettings): string {
       display: block;
       margin: 0.6em auto;
       max-width: 100%;
-      max-height: ${sizeMm.h - m.top - m.bottom - 4}mm;
+      max-height: ${geo.text.height - 4}mm;
       width: auto;
       height: auto;
       object-fit: contain;
@@ -1303,9 +1300,8 @@ function slidesBreakCss(s: PdfSettings): string {
 function slidesFigureCss(s: PdfSettings): string {
   if (s.pageSize !== 'SLIDES_16_9') return '';
   const sizeMm = pageSizeMm(s);
-  const m = s.margins;
   const MAX_FIG_HEIGHT_RATIO = 0.55;
-  const maxH = (sizeMm.h - m.top - m.bottom) * MAX_FIG_HEIGHT_RATIO;
+  const maxH = geometryFor(s, sizeMm).text.height * MAX_FIG_HEIGHT_RATIO;
   const SCOPE = ':where(#preview-pane, #markpage-print-target)';
   return `
     ${SCOPE} .bda-svg,
@@ -1398,9 +1394,10 @@ function slidesFigureCss(s: PdfSettings): string {
  */
 function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
   const SAFETY_MM = 5;
+  const text = geometryFor(s, pageSizeMm(s)).text;
   return {
-    left: Math.max(0, s.margins.left - SAFETY_MM),
-    right: Math.max(0, s.margins.right - SAFETY_MM),
+    left: Math.max(0, text.inner - SAFETY_MM),
+    right: Math.max(0, text.outer - SAFETY_MM),
   };
 }
 

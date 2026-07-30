@@ -12,7 +12,7 @@
  *
  *****************************************************************************/
 
-import type { PdfSettings } from './settings';
+import { DEFAULT_GEOMETRY_AUTHORING, type PdfSettings } from './settings';
 import {
   computeCanonicalMargins,
   measureAverageCharWidth,
@@ -38,7 +38,8 @@ export function bakePageGeometry(
   s: PdfSettings,
   sizeMm: { w: number; h: number },
 ): PageGeometry {
-  if (s.marginMode === 'derived') {
+  const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
+  if (a.marginMode === 'derived') {
     const bodyName = (s.styles.body.family ?? '').trim() || s.fonts.body;
     const charW = measureAverageCharWidth(
       bodyName,
@@ -49,8 +50,8 @@ export function bakePageGeometry(
         computeCanonicalMargins(sizeMm.w, sizeMm.h, chars, charW),
         s.duplex,
       );
-    const text = rect(s.measureChars);
-    const live = rect(s.liveAreaChars);
+    const text = rect(a.measureChars);
+    const live = rect(a.liveAreaChars);
     const gutterInner = Math.max(0, text.inner - live.inner);
     const gutterOuter = Math.max(0, text.outer - live.outer);
     // §9.7.1 — sidenote gap = innerGutter / 4 (clamped so tight live areas
@@ -66,7 +67,7 @@ export function bakePageGeometry(
   }
   // Manual mode: the four sliders are the terminal geometry (inner = left,
   // outer = right), with no distinct live area (running = text, zero gutters).
-  const m = s.margins;
+  const m = a.margins;
   const text: CanonicalMargins = {
     top: m.top,
     bottom: m.bottom,
@@ -86,12 +87,16 @@ export function bakePageGeometry(
   };
 }
 
-/** Return a copy of `s` with its `pageGeometry` freshly baked. Call at the end
- *  of the settings-resolution pipeline (after fonts / pageSize / duplex are
- *  final) so the geometry matches what the render will actually use. */
+/** Return a copy of `s` with its `pageGeometry` freshly baked from its authoring
+ *  inputs. Call at the end of the settings-resolution pipeline (after fonts /
+ *  pageSize / duplex are final) so the geometry matches what the render will use.
+ *  A pure fundamental style (no authoring — e.g. an imported `markpage-style`)
+ *  is returned untouched: its baked `pageGeometry` is honoured verbatim, the
+ *  producer stays out of the loop. */
 export function withBakedGeometry(
   s: PdfSettings,
   sizeMm: { w: number; h: number },
 ): PdfSettings {
+  if (!s.authoring) return s;
   return { ...s, pageGeometry: bakePageGeometry(s, sizeMm) };
 }

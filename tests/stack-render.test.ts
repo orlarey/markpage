@@ -464,7 +464,8 @@ describe('applyProfilePatch', () => {
     });
     expect(out.fonts.body).toBe('Lora');
     expect(out.pageSize).toBe('A5');
-    expect(out.margins).toEqual({ top: 20, right: 30, bottom: 20, left: 30 });
+    expect(out.authoring?.margins).toEqual({ top: 20, right: 30, bottom: 20, left: 30 });
+    expect(out.authoring?.marginMode).toBe('manual');
     expect(out.footer).toBe('');
   });
 });

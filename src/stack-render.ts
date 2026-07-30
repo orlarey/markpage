@@ -63,7 +63,7 @@ export function extractStyleFromSettings(
   };
 }
 
-import { serializeProfile, DEFAULT_SETTINGS, type PdfSettings, type PageSize, type Style } from './settings';
+import { serializeProfile, DEFAULT_SETTINGS, DEFAULT_GEOMETRY_AUTHORING, type PdfSettings, type PageSize, type Style } from './settings';
 import {
   APPEARANCES,
   DENSITIES,
@@ -227,10 +227,7 @@ export function settingsForRecipe(
     fonts: styled.fonts,
     styles: styled.styles,
     pageSize: styled.pageSize,
-    margins: styled.margins,
-    marginMode: styled.marginMode,
-    measureChars: styled.measureChars,
-    liveAreaChars: styled.liveAreaChars,
+    authoring: styled.authoring,
     duplex: styled.duplex,
     chapterBreak: styled.chapterBreak,
     notes: styled.notes,
@@ -634,13 +631,27 @@ export function applyProfilePatch(settings: PdfSettings, patch: ProfilePatch): P
   }
 
   if (patch.pageSize) out = { ...out, pageSize: patch.pageSize as PageSize };
-  if (patch.margins) out = { ...out, marginMode: 'manual', margins: patch.margins };
-  if (patch.marginMode === 'manual' || patch.marginMode === 'derived')
-    out = { ...out, marginMode: patch.marginMode };
-  if (Number.isFinite(patch.measureChars))
-    out = { ...out, measureChars: patch.measureChars! };
-  if (Number.isFinite(patch.liveAreaChars))
-    out = { ...out, liveAreaChars: patch.liveAreaChars! };
+  // Geometry production inputs fold into the authoring object, not the
+  // fundamental settings. A `margins` patch forces manual mode (as before).
+  let a = out.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
+  let aChanged = false;
+  if (patch.margins) {
+    a = { ...a, marginMode: 'manual', margins: patch.margins };
+    aChanged = true;
+  }
+  if (patch.marginMode === 'manual' || patch.marginMode === 'derived') {
+    a = { ...a, marginMode: patch.marginMode };
+    aChanged = true;
+  }
+  if (Number.isFinite(patch.measureChars)) {
+    a = { ...a, measureChars: patch.measureChars! };
+    aChanged = true;
+  }
+  if (Number.isFinite(patch.liveAreaChars)) {
+    a = { ...a, liveAreaChars: patch.liveAreaChars! };
+    aChanged = true;
+  }
+  if (aChanged) out = { ...out, authoring: a };
   if (patch.duplex !== undefined) out = { ...out, duplex: patch.duplex };
   if (
     patch.chapterBreak === 'none' ||
@@ -700,10 +711,7 @@ export async function deriveSettingsForDoc(
       fonts: styled.fonts,
       styles: styled.styles,
       pageSize: styled.pageSize,
-      margins: styled.margins,
-      marginMode: styled.marginMode,
-      measureChars: styled.measureChars,
-      liveAreaChars: styled.liveAreaChars,
+      authoring: styled.authoring,
       duplex: styled.duplex,
       chapterBreak: styled.chapterBreak,
       notes: styled.notes,

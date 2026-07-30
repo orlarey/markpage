@@ -266,6 +266,33 @@ export interface Margins {
 }
 
 /**
+ * Purpose: The geometry PRODUCTION inputs — a distinct *authoring* object, NOT a
+ *   fundamental setting (docs/FUNDAMENTAL-SETTINGS.md "Résolution 2d"). The canon
+ *   producer (`src/geometry-producer.ts`) reads it to bake the terminal
+ *   `PageGeometry`; the render never sees it, and it is excluded from the
+ *   fundamental-style export.
+ * How:
+ *   - 'manual':  the four `margins.*` mm sliders are the terminal geometry.
+ *   - 'derived': the page area is computed via the Van de Graaf canon from the
+ *                two character measures — two nested similar rectangles (text
+ *                block ⊂ live area). Centred in simplex; classical inner:outer
+ *                asymmetry mirrored only in duplex.
+ * A document that carries a fundamental style with NO authoring object (e.g. a
+ * pure imported `markpage-style`) is rendered from its baked `pageGeometry`
+ * verbatim — the producer does not re-bake and clobber it.
+ */
+export interface GeometryAuthoring {
+  marginMode: 'manual' | 'derived';
+  margins: Margins;
+  // Characters per line of the text block (§9.6.2). Bringhurst band 45–75, 66
+  // canonical. Drives the text-block width via canvas-measured char width.
+  measureChars: number;
+  // Characters per line at the LIVE AREA scale (§9.6.3); strictly greater than
+  // measureChars — the space between the two becomes header / footer / gutters.
+  liveAreaChars: number;
+}
+
+/**
  * Purpose: One metadata line of the title block (author / organization).
  */
 export interface MetadataField {
@@ -314,7 +341,6 @@ export interface FontTrio {
  */
 export interface PdfSettings {
   pageSize: PageSize;
-  margins: Margins;
   fonts: FontTrio;
   author: MetadataField;
   organization: MetadataField;
@@ -385,27 +411,12 @@ export interface PdfSettings {
   //                   blank verso inserted if needed. Degenerates to 'next-page'
   //                   in simplex (all pages are :right).
   chapterBreak: 'none' | 'next-page' | 'next-recto';
-  // Layout-mode lever (§9.6):
-  //   - 'manual':  the 4 `margins.*` sliders pilot the page. Compat with all
-  //                pre-§9.6 profiles, and the path for power-users who want
-  //                full control.
-  //   - 'derived': the page area is computed from the two measures below via
-  //                the Van de Graaf canon — two nested similar rectangles on
-  //                the construction diagonals (text block ⊂ live area).
-  //                Horizontal blanks are centred in simplex; the classical
-  //                inner:outer ratio is used and mirrored only in duplex. The 4
-  //                `margins.*` values become read-only in the UI and are
-  //                recomputed on each change.
-  marginMode: 'manual' | 'derived';
-  // Number of characters per line of the text block (§9.6.2). 45–75 is the
-  // Bringhurst readability band; 66 is the canonical centre. Drives the text
-  // block width via canvas-measured character width of the body font.
-  measureChars: number;
-  // Number of characters per line at the LIVE AREA scale (§9.6.3). Must be
-  // strictly greater than measureChars — the live area encloses the text
-  // block. The space between the two becomes header / footer / gutters,
-  // dimensioned automatically by the canon's geometry.
-  liveAreaChars: number;
+  // Geometry production inputs — a DISTINCT authoring object, NOT fundamental
+  // (see GeometryAuthoring). Read only by the canon producer to bake
+  // `pageGeometry`; excluded from the fundamental-style export. Optional: a pure
+  // imported fundamental style has NO authoring — the producer then honours its
+  // baked `pageGeometry` verbatim instead of re-baking (withBakedGeometry).
+  authoring?: GeometryAuthoring;
   // Footnote placement (§9.7.2). The same `[^id]` Markdown syntax compiles to
   // a different rendering depending on this setting:
   //   - 'foot': classical numbered footnote section at the page bottom (§17).
@@ -424,12 +435,23 @@ export interface PdfSettings {
 }
 
 /**
+ * Purpose: Default geometry authoring inputs — manual mode with the historical
+ *   four mm margins, plus the two canon measures kept ready for a switch to
+ *   'derived'. Used as the seed and as the producer's fallback.
+ */
+export const DEFAULT_GEOMETRY_AUTHORING: GeometryAuthoring = {
+  marginMode: 'manual',
+  margins: { top: 25, bottom: 25, left: 35, right: 35 },
+  measureChars: 66,
+  liveAreaChars: 85,
+};
+
+/**
  * Purpose: Out-of-the-box settings used as the seed for the first
  *   profile and as the fallback for missing fields in `mergeWithDefaults`.
  */
 export const DEFAULT_SETTINGS: PdfSettings = {
   pageSize: 'A4',
-  margins: { top: 25, bottom: 25, left: 35, right: 35 },
   fonts: {
     headings: 'Roboto Condensed',
     body: 'Roboto Condensed',
@@ -558,9 +580,7 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   // round of inputs from the user.
   duplex: false,
   chapterBreak: 'none',
-  marginMode: 'manual',
-  measureChars: 66,
-  liveAreaChars: 85,
+  authoring: DEFAULT_GEOMETRY_AUTHORING,
   notes: { position: 'foot' },
 };
 
@@ -603,7 +623,6 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     partial ? { ...def, ...partial } : def;
   return {
     pageSize: (obj.pageSize as PageSize | undefined) ?? d.pageSize,
-    margins: merge(d.margins, obj.margins as Partial<Margins> | undefined),
     fonts: merge(d.fonts, obj.fonts as Partial<FontTrio> | undefined),
     author: merge(d.author, obj.author as Partial<MetadataField> | undefined),
     organization: merge(
@@ -640,15 +659,54 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
     chapterBreak:
       (obj.chapterBreak as PdfSettings['chapterBreak'] | undefined) ??
       d.chapterBreak,
-    marginMode:
-      (obj.marginMode as PdfSettings['marginMode'] | undefined) ?? d.marginMode,
-    measureChars: (obj.measureChars as number | undefined) ?? d.measureChars,
-    liveAreaChars:
-      (obj.liveAreaChars as number | undefined) ?? d.liveAreaChars,
+    authoring: mergeAuthoring(obj),
+    pageGeometry: obj.pageGeometry as PageGeometry | undefined,
     notes: merge(
       d.notes,
       obj.notes as Partial<PdfSettings['notes']> | undefined,
     ),
+  };
+}
+
+/**
+ * Purpose: Resolve the geometry authoring object from a persisted / imported
+ *   blob, tolerating three shapes: the new nested `authoring`, the pre-2d flat
+ *   fields (marginMode / margins / measureChars / liveAreaChars), or neither.
+ * How: nested wins over flat; both fall back to DEFAULT_GEOMETRY_AUTHORING. When
+ *   NEITHER is present, a blob carrying a resolved `pageGeometry` is treated as a
+ *   pure fundamental style → authoring stays `undefined` (the producer honours
+ *   its geometry verbatim); otherwise defaults seed editable geometry.
+ */
+function mergeAuthoring(
+  obj: Record<string, unknown>,
+): GeometryAuthoring | undefined {
+  const a = obj.authoring as Partial<GeometryAuthoring> | undefined;
+  const legacy =
+    obj.marginMode !== undefined ||
+    obj.margins !== undefined ||
+    obj.measureChars !== undefined ||
+    obj.liveAreaChars !== undefined;
+  if (!a && !legacy) {
+    return obj.pageGeometry !== undefined
+      ? undefined
+      : DEFAULT_GEOMETRY_AUTHORING;
+  }
+  const d = DEFAULT_GEOMETRY_AUTHORING;
+  return {
+    marginMode:
+      (a?.marginMode ??
+        (obj.marginMode as GeometryAuthoring['marginMode'] | undefined)) ??
+      d.marginMode,
+    margins: {
+      ...d.margins,
+      ...((a?.margins ?? (obj.margins as Partial<Margins> | undefined)) ?? {}),
+    },
+    measureChars:
+      (a?.measureChars ?? (obj.measureChars as number | undefined)) ??
+      d.measureChars,
+    liveAreaChars:
+      (a?.liveAreaChars ?? (obj.liveAreaChars as number | undefined)) ??
+      d.liveAreaChars,
   };
 }
 
@@ -720,25 +778,26 @@ export interface LayoutValidationIssue {
  */
 export function validateLayoutSettings(s: PdfSettings): LayoutValidationIssue[] {
   const issues: LayoutValidationIssue[] = [];
-  if (s.measureChars < 45 || s.measureChars > 75) {
+  const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
+  if (a.measureChars < 45 || a.measureChars > 75) {
     issues.push({
       field: 'measureChars',
       severity: 'warning',
-      message: `measureChars=${s.measureChars} sort de la zone de lisibilité (Bringhurst 45-75)`,
+      message: `measureChars=${a.measureChars} sort de la zone de lisibilité (Bringhurst 45-75)`,
     });
   }
-  if (s.liveAreaChars <= s.measureChars) {
+  if (a.liveAreaChars <= a.measureChars) {
     issues.push({
       field: 'liveAreaChars',
       severity: 'error',
-      message: `liveAreaChars (${s.liveAreaChars}) doit être strictement supérieur à measureChars (${s.measureChars})`,
+      message: `liveAreaChars (${a.liveAreaChars}) doit être strictement supérieur à measureChars (${a.measureChars})`,
     });
   }
-  if (s.liveAreaChars > 110) {
+  if (a.liveAreaChars > 110) {
     issues.push({
       field: 'liveAreaChars',
       severity: 'warning',
-      message: `liveAreaChars=${s.liveAreaChars} risque de sortir de la largeur d'une A4 standard à 11 pt`,
+      message: `liveAreaChars=${a.liveAreaChars} risque de sortir de la largeur d'une A4 standard à 11 pt`,
     });
   }
   return issues;
@@ -963,14 +1022,15 @@ export function applyFrontmatterToSettings(
  *   margins, whether the footer carries a page number). Compact JSON, one line.
  */
 export function serializeProfile(s: PdfSettings): string {
+  const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
   return JSON.stringify({
     fonts: s.fonts,
     styles: s.styles,
     pageSize: s.pageSize,
-    margins: s.margins,
-    marginMode: s.marginMode,
-    measureChars: s.measureChars,
-    liveAreaChars: s.liveAreaChars,
+    margins: a.margins,
+    marginMode: a.marginMode,
+    measureChars: a.measureChars,
+    liveAreaChars: a.liveAreaChars,
     duplex: s.duplex,
     chapterBreak: s.chapterBreak,
     notesPosition: s.notes.position,
@@ -987,9 +1047,9 @@ export function serializeProfile(s: PdfSettings): string {
  * look on any engine, with nothing derivable left out.
  */
 export const FUNDAMENTAL_STYLE_KEYS = [
-  // page frame + canon inputs (until the canon becomes a producer of resolved margins)
-  'pageSize', 'margins', 'marginMode', 'measureChars', 'liveAreaChars',
-  'duplex', 'chapterBreak', 'notes',
+  // page frame + RESOLVED geometry (the canon inputs are authoring, not
+  // fundamental — they never appear here; pageGeometry is the terminal result).
+  'pageSize', 'pageGeometry', 'duplex', 'chapterBreak', 'notes',
   // running content
   'header', 'footer',
   // typography
@@ -1025,6 +1085,10 @@ export function applyFundamentalStyle(
   for (const k of FUNDAMENTAL_STYLE_KEYS) {
     if (fs[k] !== undefined) out[k] = fs[k];
   }
+  // A fundamental style carrying a resolved geometry supersedes the base's canon
+  // producer: drop the authoring object so `withBakedGeometry` honours the
+  // imported `pageGeometry` verbatim instead of re-baking over it.
+  if (fs.pageGeometry !== undefined) delete out.authoring;
   return out as unknown as PdfSettings;
 }
 
@@ -1049,7 +1113,11 @@ function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettin
 
   if (fm.margins) {
     const { top, right, bottom, left } = fm.margins;
-    s = { ...s, marginMode: 'manual', margins: { top, right, bottom, left } };
+    const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
+    s = {
+      ...s,
+      authoring: { ...a, marginMode: 'manual', margins: { top, right, bottom, left } },
+    };
   }
 
   if (fm['page-numbers'] !== undefined) {
@@ -1156,11 +1224,15 @@ export function applyStyleVocabulary(
  */
 function slidesSettings(settings: PdfSettings): PdfSettings {
   const SLIDE_MARGIN_CAP_MM = 10;
-  const m = settings.margins;
+  const a = settings.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
+  const m = a.margins;
   const top = Math.min(m.top, SLIDE_MARGIN_CAP_MM);
   const bottom = Math.min(m.bottom, SLIDE_MARGIN_CAP_MM);
   if (top === m.top && bottom === m.bottom) return settings;
-  return { ...settings, margins: { ...m, top, bottom } };
+  return {
+    ...settings,
+    authoring: { ...a, margins: { ...m, top, bottom } },
+  };
 }
 
 export function metadataLines(

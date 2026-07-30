@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { bakePageGeometry } from '../src/geometry-producer';
-import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_GEOMETRY_AUTHORING,
+  type GeometryAuthoring,
+  type PdfSettings,
+} from '../src/settings';
 
 /**
  * Purpose: Lock the `bakePageGeometry` contract — the canon *producer* that
@@ -14,18 +19,18 @@ import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
 const A4 = { w: 210, h: 297 };
 
 function derived(over: Partial<PdfSettings> = {}): PdfSettings {
-  return {
-    ...DEFAULT_SETTINGS,
+  const authoring: GeometryAuthoring = {
+    ...DEFAULT_GEOMETRY_AUTHORING,
     marginMode: 'derived',
     measureChars: 66,
     liveAreaChars: 85,
-    ...over,
   };
+  return { ...DEFAULT_SETTINGS, authoring, ...over };
 }
 
 describe('bakePageGeometry — manual mode', () => {
   it('is a pass-through of the four mm margins (no live area, no gutters)', () => {
-    const m = DEFAULT_SETTINGS.margins; // manual by default
+    const m = DEFAULT_GEOMETRY_AUTHORING.margins; // manual by default
     const g = bakePageGeometry(DEFAULT_SETTINGS, A4);
     expect(g.text.top).toBe(m.top);
     expect(g.text.bottom).toBe(m.bottom);

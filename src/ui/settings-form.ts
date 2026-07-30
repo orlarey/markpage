@@ -22,15 +22,24 @@ import {
   PAGE_SIZE_LABELS,
   WEIGHT_OPTIONS,
   validateLayoutSettings,
+  DEFAULT_GEOMETRY_AUTHORING,
   type Align,
   type AttrName,
   type DateMode,
   type ElementKey,
+  type GeometryAuthoring,
   type LayoutValidationIssue,
   type MetadataField,
   type PdfSettings,
   type Style,
 } from '../settings';
+
+/** Ensure `s` carries a geometry authoring object (seeding defaults if a pure
+ *  imported fundamental style left it absent), and return it for in-place edit. */
+function ensureAuthoring(s: PdfSettings): GeometryAuthoring {
+  if (!s.authoring) s.authoring = { ...DEFAULT_GEOMETRY_AUTHORING };
+  return s.authoring;
+}
 import { MATH_FONT_SETS, type MathFontSet } from '@orlarey/markpage-render';
 import {
   FONT_PACKS,
@@ -299,47 +308,47 @@ export function buildSettingsForm(
               section(t('settings.section.margins'), [
                 numberField(
                   t('settings.field.margin-top'),
-                  current.margins.top,
+                  ensureAuthoring(current).margins.top,
                   0,
                   100,
                   (v) => {
-                    current.margins.top = v;
+                    ensureAuthoring(current).margins.top = v;
                     emit();
                   },
-                  { disabled: current.marginMode === 'derived' },
+                  { disabled: ensureAuthoring(current).marginMode === 'derived' },
                 ),
                 numberField(
                   t('settings.field.margin-bottom'),
-                  current.margins.bottom,
+                  ensureAuthoring(current).margins.bottom,
                   0,
                   100,
                   (v) => {
-                    current.margins.bottom = v;
+                    ensureAuthoring(current).margins.bottom = v;
                     emit();
                   },
-                  { disabled: current.marginMode === 'derived' },
+                  { disabled: ensureAuthoring(current).marginMode === 'derived' },
                 ),
                 numberField(
                   t('settings.field.margin-left'),
-                  current.margins.left,
+                  ensureAuthoring(current).margins.left,
                   0,
                   100,
                   (v) => {
-                    current.margins.left = v;
+                    ensureAuthoring(current).margins.left = v;
                     emit();
                   },
-                  { disabled: current.marginMode === 'derived' },
+                  { disabled: ensureAuthoring(current).marginMode === 'derived' },
                 ),
                 numberField(
                   t('settings.field.margin-right'),
-                  current.margins.right,
+                  ensureAuthoring(current).margins.right,
                   0,
                   100,
                   (v) => {
-                    current.margins.right = v;
+                    ensureAuthoring(current).margins.right = v;
                     emit();
                   },
-                  { disabled: current.marginMode === 'derived' },
+                  { disabled: ensureAuthoring(current).marginMode === 'derived' },
                 ),
               ]),
             ],
@@ -1359,7 +1368,7 @@ export function buildSettingsForm(
   ] as const;
 
   interface LayoutPresetBundle {
-    marginMode: PdfSettings['marginMode'];
+    marginMode: GeometryAuthoring['marginMode'];
     measureChars: number;
     liveAreaChars: number;
     duplex: boolean;
@@ -1411,12 +1420,13 @@ export function buildSettingsForm(
   };
 
   function detectActiveLayoutPreset(s: PdfSettings): LayoutPresetId | null {
+    const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
     for (const id of LAYOUT_PRESETS) {
       const p = LAYOUT_PRESET_BUNDLES[id];
       if (
-        s.marginMode === p.marginMode &&
-        s.measureChars === p.measureChars &&
-        s.liveAreaChars === p.liveAreaChars &&
+        a.marginMode === p.marginMode &&
+        a.measureChars === p.measureChars &&
+        a.liveAreaChars === p.liveAreaChars &&
         s.duplex === p.duplex &&
         s.chapterBreak === p.chapterBreak &&
         s.notes.position === p.notesPosition
@@ -1429,9 +1439,10 @@ export function buildSettingsForm(
 
   function applyLayoutPreset(s: PdfSettings, id: LayoutPresetId): void {
     const p = LAYOUT_PRESET_BUNDLES[id];
-    s.marginMode = p.marginMode;
-    s.measureChars = p.measureChars;
-    s.liveAreaChars = p.liveAreaChars;
+    const a = ensureAuthoring(s);
+    a.marginMode = p.marginMode;
+    a.measureChars = p.measureChars;
+    a.liveAreaChars = p.liveAreaChars;
     s.duplex = p.duplex;
     s.chapterBreak = p.chapterBreak;
     s.notes = { position: p.notesPosition };
@@ -1448,7 +1459,7 @@ export function buildSettingsForm(
    */
   function buildLayoutSection(): HTMLElement[] {
     const issues = validateLayoutSettings(current);
-    const derived = current.marginMode === 'derived';
+    const derived = ensureAuthoring(current).marginMode === 'derived';
     return [
       section(t('settings.section.layout'), [
         // Preset dropdown — '' = Custom (current config does not match any).
@@ -1467,12 +1478,12 @@ export function buildSettingsForm(
               ? t('settings.preset.none')
               : t(`settings.preset.${v}` as 'settings.preset.report'),
         ),
-        selectField<PdfSettings['marginMode']>(
+        selectField<GeometryAuthoring['marginMode']>(
           t('settings.field.margin-mode'),
           ['manual', 'derived'],
-          current.marginMode,
+          ensureAuthoring(current).marginMode,
           (v) => {
-            current.marginMode = v;
+            ensureAuthoring(current).marginMode = v;
             emit();
             refresh();
           },
@@ -1483,11 +1494,11 @@ export function buildSettingsForm(
         ),
         numberField(
           t('settings.field.measure-chars'),
-          current.measureChars,
+          ensureAuthoring(current).measureChars,
           30,
           100,
           (v) => {
-            current.measureChars = v;
+            ensureAuthoring(current).measureChars = v;
             emit();
             refresh();
           },
@@ -1495,11 +1506,11 @@ export function buildSettingsForm(
         ),
         numberField(
           t('settings.field.live-area-chars'),
-          current.liveAreaChars,
+          ensureAuthoring(current).liveAreaChars,
           35,
           120,
           (v) => {
-            current.liveAreaChars = v;
+            ensureAuthoring(current).liveAreaChars = v;
             emit();
             refresh();
           },

@@ -27,9 +27,9 @@ describe('document-model recipes', () => {
     const result = applyDocumentModel(before, 'book');
 
     expect(result.pageSize).toBe('B5');
-    expect(result.marginMode).toBe('derived');
-    expect(result.measureChars).toBe(60);
-    expect(result.liveAreaChars).toBe(80);
+    expect(result.authoring?.marginMode).toBe('derived');
+    expect(result.authoring?.measureChars).toBe(60);
+    expect(result.authoring?.liveAreaChars).toBe(80);
     expect(result.duplex).toBe(true);
     expect(result.chapterBreak).toBe('next-recto');
     expect(result.notes.position).toBe('foot');
@@ -41,8 +41,8 @@ describe('document-model recipes', () => {
     const result = applyDocumentModel(defaults(), 'slides');
 
     expect(result.pageSize).toBe('SLIDES_16_9');
-    expect(result.marginMode).toBe('manual');
-    expect(result.margins).toEqual({
+    expect(result.authoring?.marginMode).toBe('manual');
+    expect(result.authoring?.margins).toEqual({
       top: 10,
       right: 14,
       bottom: 10,
@@ -56,8 +56,8 @@ describe('document-model recipes', () => {
     const result = applyDocumentModel(defaults(), 'letter');
 
     expect(result.pageSize).toBe('A4');
-    expect(result.marginMode).toBe('manual');
-    expect(result.margins).toEqual({
+    expect(result.authoring?.marginMode).toBe('manual');
+    expect(result.authoring?.margins).toEqual({
       top: 20,
       right: 25,
       bottom: 25,
@@ -71,7 +71,7 @@ describe('document-model recipes', () => {
 
   it('reports a model as custom after one controlled dimension changes', () => {
     const result = applyDocumentModel(defaults(), 'report');
-    result.measureChars = 72;
+    result.authoring!.measureChars = 72;
     expect(detectDocumentModel(result)).toBeNull();
   });
 });
