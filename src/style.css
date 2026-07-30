@@ -280,6 +280,9 @@ body,
   min-height: 0;
   background: #e9eaee;
   padding: 24px 0;
+  /* Containing block for the off-screen double-buffer the paginated preview
+     renders into while the previous render stays visible (main.ts). */
+  position: relative;
 }
 
 /* Continuous (non-paginated) live preview: the rendered content flows in a

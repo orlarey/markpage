@@ -821,12 +821,6 @@ async function bootstrap(): Promise<void> {
     previewEl.replaceChildren(sheet);
   };
 
-  // Serializes paged.js renders. Two concurrent `Previewer().preview()` calls on
-  // the same element interleave their DOM mutations and silently drop content
-  // (paragraphs vanish under rapid live edits). Each paginated render queues
-  // behind the previous one; superseded renders skip via the previewReqId guard.
-  let paginateLock: Promise<unknown> = Promise.resolve();
-
   // Render `source` into the preview pane, paginated (paged.js A4 pages) or
   // continuous, per `previewPaginated`. Called when entering preview, on a
   // settings change, and — debounced — live while typing.
@@ -911,24 +905,42 @@ async function bootstrap(): Promise<void> {
       r.effectiveSettings.coverBackground ?? '',
     );
     if (previewPaginated) {
-      // Queue behind any in-flight paginate so paged.js never runs twice over
-      // the same element at once. If a newer build superseded us while we
-      // waited (previewReqId advanced), skip — only the latest paginates.
-      const turn = paginateLock.then(async () => {
-        if (r.myReq !== previewReqId) return;
-        previewEl.classList.remove('continuous');
-        const stopProgress = beginPaginationProgress(previewEl);
-        try {
-          await paginate(r.built, r.effectiveSettings, previewEl);
-        } finally {
-          stopProgress();
-        }
-        if (r.myReq !== previewReqId) return;
-        dirty = false;
-        fitPreviewWidth();
-      });
-      paginateLock = turn.catch(() => {});
-      await turn;
+      // Double-buffer: render the new pages into a HIDDEN off-screen buffer so
+      // the PREVIOUS render stays on screen the whole time, then swap atomically
+      // when this render finishes — but only if it's still the latest (a newer
+      // edit advanced previewReqId, so its own buffer supersedes this one). No
+      // serialization: each render is independent, so a new edit "interrupts"
+      // the visible state instantly (the stale render just gets discarded).
+      // The buffer lives INSIDE #preview-pane so the scoped pagedCss + fit-zoom
+      // still apply to it while it renders.
+      const buffer = document.createElement('div');
+      buffer.style.cssText =
+        'position: absolute; top: 0; left: 0; width: 100%; ' +
+        'visibility: hidden; pointer-events: none;';
+      previewEl.appendChild(buffer);
+      const stopProgress = beginPaginationProgress(buffer);
+      try {
+        await paginate(r.built, r.effectiveSettings, buffer);
+      } finally {
+        stopProgress();
+      }
+      if (r.myReq !== previewReqId) {
+        buffer.remove(); // superseded — drop it, keep the visible render
+        return;
+      }
+      // Swap: drop the old pages, move the freshly rendered pages into the pane
+      // (unwrapping the buffer so the pane's structure is unchanged), preserving
+      // the scroll position.
+      const scrollTop = previewEl.scrollTop;
+      previewEl.classList.remove('continuous');
+      for (const child of [...previewEl.children]) {
+        if (child !== buffer) child.remove();
+      }
+      previewEl.append(...buffer.childNodes);
+      buffer.remove();
+      previewEl.scrollTop = scrollTop;
+      dirty = false;
+      fitPreviewWidth();
     } else {
       // Continuous mode draws per-element styles from the injected stylesheet
       // (not pagedCss), so refresh it from the per-doc effective settings —
