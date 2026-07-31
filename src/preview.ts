@@ -107,6 +107,14 @@ export function applyPreviewMetadata(
   const lines = metadataLines(settings, frontmatter);
   if (lines.length === 0) return;
 
+  // The metadata is a TITLE BLOCK — it belongs under the document title. Without
+  // a title (an empty or untitled document) there is nothing to caption, so show
+  // nothing rather than stamping a lone author/date onto a blank page.
+  const firstH1 = [...target.querySelectorAll<HTMLElement>('h1')].find(
+    (h) => !h.closest('.mp-bg'),
+  );
+  if (!firstH1) return;
+
   const block = document.createElement('div');
   block.className = 'preview-metadata';
   for (const line of lines) {
@@ -115,15 +123,7 @@ export function applyPreviewMetadata(
     if (line.bold) div.classList.add('bold');
     block.appendChild(div);
   }
-
-  const firstH1 = [...target.querySelectorAll<HTMLElement>('h1')].find(
-    (h) => !h.closest('.mp-bg'),
-  );
-  if (firstH1) {
-    firstH1.after(block);
-  } else {
-    target.prepend(block);
-  }
+  firstH1.after(block);
 }
 
 /**
