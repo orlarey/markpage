@@ -57,7 +57,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter, embedProfileInFrontmatter, parseStackDoc, extractStyle, type StackDoc } from '@orlarey/markpage-render';
+import { parseFrontmatter, parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
@@ -193,14 +193,13 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applyFrontmatterToSettings, applyStyleVocabulary, serializeProfile, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applyFrontmatterToSettings, applyStyleVocabulary, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   flattenForRender,
   applyProfilePatch,
   deriveSettingsForDoc,
   essentialFrontmatterKeys,
   essentialStyleFromSource,
-  extractStyleFromSettings,
   getExtendsFromSource,
   planProfileMigration,
   resetStyleRecipeInLeaf,
@@ -1419,29 +1418,11 @@ async function bootstrap(): Promise<void> {
     void checkSync();
   };
 
-  // Default style for new documents (STACK-SPEC §3.4, Acte 5): a library doc the
-  // user designates; "Nouveau document" then seeds `extends: <its name>`. Stored
-  // by uuid (stable across renames); resolved to the current name at create time.
-  const DEFAULT_STYLE_KEY = 'markpage:default-style-uuid';
-  const getDefaultStyleUuid = (): string | null => localStorage.getItem(DEFAULT_STYLE_KEY);
-  const isDefaultStyle = (): boolean => getDefaultStyleUuid() === currentDoc.uuid;
-  const toggleDefaultStyle = (): void => {
-    if (isDefaultStyle()) localStorage.removeItem(DEFAULT_STYLE_KEY);
-    else localStorage.setItem(DEFAULT_STYLE_KEY, currentDoc.uuid);
-  };
-
-  // The starter content for a brand-new doc: empty, or `extends: <default style>`
-  // when one is set and still exists.
-  const newDocStarter = async (): Promise<string> => {
-    const uuid = getDefaultStyleUuid();
-    if (uuid === null) return '';
-    const def = (await listDocs()).find((d) => d.uuid === uuid);
-    return def ? `---\nextends: ${def.name}\n---\n\n` : '';
-  };
-
   const createNewDoc = async (): Promise<void> => {
     await flushSave();
-    const content = await newDocStarter();
+    // A brand-new doc starts empty — styling is chosen from the Style menu
+    // (document-style), not seeded as a stack `extends:` layer.
+    const content = '';
     const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
@@ -1474,60 +1455,6 @@ async function bootstrap(): Promise<void> {
     state.settings = await deriveDocSettings(editor.getValue(), state.settings);
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     refreshSettingsForm?.(); // reflect the new parent in the open form
-  };
-
-  // "Nouveau à partir de…" (STACK-SPEC §3.4): pick a library doc, create a new
-  // one that `extends` it — inheriting its frame + styles via the stack.
-  const createNewDocFrom = async (): Promise<void> => {
-    const docs = (await listDocs())
-      .filter((d) => d.uuid !== currentDoc.uuid)
-      .map((d) => ({ uuid: d.uuid, name: d.name }));
-    const parent = await openNewFromModal(docs);
-    if (parent === null) return;
-    await flushSave();
-    const content = `---\nextends: ${parent}\n---\n\n`;
-    const entry = await createDoc('Sans titre', content);
-    currentDoc = entry;
-    await setCurrentDocId(entry.uuid);
-    state.settings = await deriveDocSettings(content, state.settings);
-    editor.setValue(content);
-    dirty = true;
-    if (viewMode === 'preview') void updatePreview(editor.getValue());
-    toolbarCtrl.setModified(false);
-    toolbarCtrl.setOrigin(null);
-    toolbarCtrl.setDocName(entry.name);
-    refreshSettingsForm?.();
-  };
-
-  // "Extraire un style" (STACK-SPEC §3.4, the B→C bridge): pull the document's
-  // style front-matter into a new reusable layer and re-parent the document to
-  // it via `extends`. The current doc stays open as the (now thinner) leaf.
-  const extractCurrentStyle = async (): Promise<void> => {
-    const proposed = t('extract-style.name', { name: currentDoc.name });
-    const source = editor.getValue();
-    // First the document's own style front-matter; if it has none (it was styled
-    // through the Réglages panel), fall back to the active profile's delta.
-    const result =
-      extractStyle(source, proposed) ??
-      extractStyleFromSettings(
-        source,
-        proposed,
-        serializeProfile(state.settings),
-        serializeProfile(DEFAULT_SETTINGS),
-      );
-    if (result === null) {
-      globalThis.alert(t('extract-style.empty'));
-      return;
-    }
-    const entry = await createDoc(proposed, result.styleMd); // the new style layer
-    const leafMd =
-      entry.name === proposed
-        ? result.leafMd
-        : result.leafMd.replace(`extends: ${proposed}`, `extends: ${entry.name}`);
-    editor.setValue(leafMd);
-    dirty = true;
-    if (viewMode === 'preview') void updatePreview(leafMd);
-    toolbarCtrl.setModified(true);
   };
 
   const renameCurrentDoc = async (newName: string): Promise<void> => {
@@ -2790,16 +2717,6 @@ async function bootstrap(): Promise<void> {
           onNew: () => {
             void createNewDoc();
           },
-          onNewFrom: () => {
-            void createNewDocFrom();
-          },
-          onExtractStyle: () => {
-            void extractCurrentStyle();
-          },
-          isDefaultStyle: isDefaultStyle(),
-          onToggleDefaultStyle: () => {
-            toggleDefaultStyle();
-          },
           onOpen: () => {
             void triggerOpen();
           },
@@ -2818,17 +2735,6 @@ async function bootstrap(): Promise<void> {
           onMarkdown: triggerSave,
           onPdf: triggerDownload,
           onLatex: triggerLatexExport,
-          onEmbedProfile: () => {
-            // Stamp the active style profile into the doc's frontmatter so an
-            // external renderer (the VS Code preview) reproduces the typography.
-            const view = editor.view;
-            const next = embedProfileInFrontmatter(
-              view.state.doc.toString(),
-              serializeProfile(state.settings),
-            );
-            view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
-            globalThis.alert(t('export-menu.embed-profile-done'));
-          },
           onShareLink: triggerShareLink,
           onShareEmail: triggerShareEmail,
         });

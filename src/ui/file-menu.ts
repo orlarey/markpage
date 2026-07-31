@@ -23,11 +23,6 @@ export interface FileMenuOptions {
   onReload(): void;
   onUnlink(): void;
   onNew(): void;
-  onNewFrom(): void;
-  onExtractStyle(): void;
-  // Whether the current doc is the designated default style for new documents.
-  isDefaultStyle: boolean;
-  onToggleDefaultStyle(): void;
   onOpen(): void;
   onSave(): void;
   onSaveAs(): void;
@@ -36,7 +31,6 @@ export interface FileMenuOptions {
   onMarkdown(): void;
   onPdf(): void;
   onLatex(): void;
-  onEmbedProfile(): void;
   onShareLink(): void;
   onShareEmail(): void;
 }
@@ -97,13 +91,6 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
 
   menu.append(
     item(t('file-menu.new'), '', opts.onNew),
-    item(t('file-menu.new-from'), '', opts.onNewFrom),
-    item(t('file-menu.extract-style'), '', opts.onExtractStyle),
-    item(
-      opts.isDefaultStyle ? t('file-menu.unset-default-style') : t('file-menu.set-default-style'),
-      '',
-      opts.onToggleDefaultStyle,
-    ),
     item(t('file-menu.open'), 'Cmd/Ctrl + O', opts.onOpen),
   );
   // Operations on the doc's origin volume (the link is created via Save As).
@@ -128,7 +115,6 @@ export function openFileMenu(anchor: HTMLElement, opts: FileMenuOptions): void {
     item(t('export-menu.markdown'), '', opts.onMarkdown),
     item(t('export-menu.pdf'), 'Cmd/Ctrl + P', opts.onPdf),
     item(t('export-menu.latex'), '', opts.onLatex),
-    item(t('export-menu.embed-profile'), t('export-menu.embed-profile-hint'), opts.onEmbedProfile),
     sep(),
     item(t('export-menu.share-link'), '', opts.onShareLink),
     item(t('export-menu.share-email'), '', opts.onShareEmail),
