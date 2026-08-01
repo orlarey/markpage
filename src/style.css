@@ -248,18 +248,57 @@ body,
 /* `editor` view = editor only (preview hidden). `preview` view is now a
    SPLIT: editor + live preview side by side — the editor stays visible
    and editable. */
-#panes[data-view='editor'] #preview-pane {
+#panes[data-view='editor'] #preview-pane,
+#panes[data-view='editor'] #pane-resizer {
   display: none;
 }
+/* Split view: editor | draggable gutter | preview. The editor column width is
+   driven by `--mp-split` (a fraction unit, default 1fr = 50/50); the gutter is
+   a fixed 6px; the preview takes the rest and can shrink (minmax 0). */
 #panes[data-view='preview'] {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: var(--mp-split, 1fr) 6px minmax(0, 1fr);
 }
-#panes[data-view='preview'] #preview-pane {
-  border-left: 1px solid #d0d0d6;
+
+/* The drag handle between the two panes. A hairline with a wider invisible
+   hit-area via the ::before overlay so it's easy to grab. */
+#pane-resizer {
+  display: none; /* only shown in split view (rule above overrides) */
+}
+#panes[data-view='preview'] #pane-resizer {
+  display: block;
+  position: relative;
+  background: #d0d0d6;
+  cursor: col-resize;
+  z-index: 40;
+}
+#pane-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px; /* 14px-wide hit target centred on the 6px gutter */
+}
+#pane-resizer:hover,
+#pane-resizer.dragging,
+#pane-resizer:focus-visible {
+  background: #2f6fdb;
+  outline: none;
+}
+/* While dragging, kill text selection and pointer events inside the panes so
+   the drag stays smooth and doesn't select editor text. */
+#panes.resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+#panes.resizing #editor-pane,
+#panes.resizing #preview-pane {
+  pointer-events: none;
 }
 
 #editor-pane {
   overflow: auto;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -277,6 +316,7 @@ body,
    tinted backdrop. */
 #preview-pane {
   overflow: auto;
+  min-width: 0;
   min-height: 0;
   background: #e9eaee;
   padding: 24px 0;
@@ -301,6 +341,14 @@ body,
   /* Containing block for any absolutely-positioned content (e.g. a
      letterhead-window recipient) so it stays within the sheet. */
   position: relative;
+}
+/* Continuous mode has no paged.js sizing pass, so cap any media at the text
+   column width — otherwise an image wider than the live area overflows the
+   sheet (and the pane). `height: auto` keeps the aspect ratio; the rule caps
+   explicitly-sized images too, without forcing small ones to grow. */
+#preview-pane.continuous .mp-continuous-sheet :is(img, svg, canvas, video) {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Floating preview toggles — top-left of the panes area, always visible (so

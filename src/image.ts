@@ -367,7 +367,10 @@ export function collectImageRefs(text: string): Set<string> {
  * How: Look each id up in `blobUrlCache`, fetching + caching on miss;
  *   then `replaceAll` URL refs with their cached blob URL.
  */
-export async function expandRefsToBlobUrls(text: string): Promise<string> {
+export async function expandRefsToBlobUrls(
+  text: string,
+  folderResolver?: (relPath: string) => Promise<string | null>,
+): Promise<string> {
   // 1. Internal refs: img://<sha> → blob URL (existing behaviour).
   const ids = collectRefIds(text);
   // 2. External refs: relative paths resolved via the resource mapping —
@@ -381,12 +384,31 @@ export async function expandRefsToBlobUrls(text: string): Promise<string> {
     const sha = mapping[p]?.sha;
     if (sha) neededShas.add(sha);
   }
-  if (neededShas.size === 0) return text;
+  if (neededShas.size === 0 && externalPaths.length === 0) return text;
   await Promise.all(
     [...neededShas].map(async (sha) => {
       if (blobUrlCache.has(sha)) return;
       const blob = await getImage(sha);
       if (blob) blobUrlCache.set(sha, URL.createObjectURL(blob));
+    }),
+  );
+  // Resolve external (relative) paths to blob URLs: the stashed resource mapping
+  // first, then — for paths that were never imported — the optional folder
+  // resolver, which auto-loads the file from the document's mounted folder.
+  // Resolved up front (async) so the sync rewrite below can look each one up.
+  const externalUrls = new Map<string, string>();
+  await Promise.all(
+    externalPaths.map(async (p) => {
+      const sha = mapping[p]?.sha;
+      const mapped = sha ? blobUrlCache.get(sha) : undefined;
+      if (mapped) {
+        externalUrls.set(p, mapped);
+        return;
+      }
+      if (folderResolver) {
+        const url = await folderResolver(p);
+        if (url) externalUrls.set(p, url);
+      }
     }),
   );
   // Step A: img://<sha> and assets/<sha>.<ext> substitution.
@@ -397,13 +419,9 @@ export async function expandRefsToBlobUrls(text: string): Promise<string> {
       return (id ? blobUrlCache.get(id) : undefined) ?? full;
     },
   );
-  // Step B: external path substitution via the mapping.
+  // Step B: external path substitution (mapping ∪ folder resolver).
   if (externalPaths.length > 0) {
-    out = rewriteExternalRefs(out, (path) => {
-      const sha = mapping[path]?.sha;
-      if (!sha) return null;
-      return blobUrlCache.get(sha) ?? null;
-    });
+    out = rewriteExternalRefs(out, (path) => externalUrls.get(path) ?? null);
   }
   return out;
 }
@@ -447,7 +465,10 @@ export async function expandRefsToDataUrls(text: string): Promise<string> {
  *   Used by `expandRefsToInlineDataUrls` so the PDF / print pipeline gets a
  *   fully-self-contained markdown; the save path does not call it.
  */
-async function inlineExternalRefs(text: string): Promise<string> {
+async function inlineExternalRefs(
+  text: string,
+  folderResolver?: (relPath: string) => Promise<string | null>,
+): Promise<string> {
   const externalPaths = extractExternalRefs(text);
   if (externalPaths.length === 0) return text;
   const mapping = loadMapping();
@@ -460,9 +481,22 @@ async function inlineExternalRefs(text: string): Promise<string> {
       if (blob) shaToDataUrl.set(sha, await blobToDataUrl(blob));
     }),
   );
+  // Paths the mapping doesn't know: fall back to the folder resolver, which
+  // reads the file live from the doc's mounted folder and returns a data URL.
+  const folderUrls = new Map<string, string>();
+  if (folderResolver) {
+    await Promise.all(
+      externalPaths.map(async (path) => {
+        if (mapping[path]?.sha) return; // already covered by the mapping above
+        const url = await folderResolver(path);
+        if (url) folderUrls.set(path, url);
+      }),
+    );
+  }
   return rewriteExternalRefs(text, (path) => {
     const sha = mapping[path]?.sha;
-    return sha ? shaToDataUrl.get(sha) ?? null : null;
+    if (sha) return shaToDataUrl.get(sha) ?? null;
+    return folderUrls.get(path) ?? null;
   });
 }
 
@@ -474,16 +508,20 @@ async function inlineExternalRefs(text: string): Promise<string> {
  *   (`![alt][label]`) to inline form using the doc's link definitions;
  *   warn on any unresolved `img://` left.
  */
-export async function expandRefsToInlineDataUrls(text: string): Promise<string> {
+export async function expandRefsToInlineDataUrls(
+  text: string,
+  folderResolver?: (relPath: string) => Promise<string | null>,
+): Promise<string> {
   // 1. Replace every `img://id` URL — inline OR inside a definition — with
   // the matching data URL. Handles both new-style ref docs *and* old-style
   // inline-image docs that came in via extractDataUrlsToStore.
   let out = await expandRefsToDataUrls(text);
   // 1b. Inline externally-mapped resources too — the PDF / print pipeline
-  // needs a self-contained markdown (SPEC §6.5). Unmapped externals pass
-  // through and would render as broken images in the PDF; that's the same
-  // signal a reader would get on the screen preview.
-  out = await inlineExternalRefs(out);
+  // needs a self-contained markdown (SPEC §6.5). Paths absent from the mapping
+  // fall back to the folder resolver (auto-loaded from the doc's mounted
+  // folder); anything still unresolved passes through as a broken image —
+  // the same signal a reader gets on the screen preview.
+  out = await inlineExternalRefs(out, folderResolver);
 
   // 2. Inline reference-style uses so the PDF token walker sees `![alt](url)`
   // directly. We don't strip the definitions afterwards: marked treats

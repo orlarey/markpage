@@ -193,8 +193,10 @@ export function isExternalRef(url: string): boolean {
 
 // Match an inline image `![alt](url[ "title"])`. We accept any url that
 // doesn't itself contain whitespace or `)` — the standard CommonMark inline
-// shape. Reference-style and definition forms are handled separately below.
-const INLINE_IMAGE_RE = /!\[([^\]\n]*)\]\(\s*([^)\s]+)(?:\s+"[^"\n]*")?\s*\)/g;
+// shape. The alt text may wrap across lines (CommonMark folds soft breaks), so
+// the capture allows newlines — it still stops at the first `]`, keeping the
+// match bounded. Reference-style and definition forms are handled below.
+const INLINE_IMAGE_RE = /!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"\n]*")?\s*\)/g;
 
 // Match a reference definition line `[label]: url[ "title"]`. We deliberately
 // scan with the `m` flag so each line is considered independently; URLs that

@@ -58,6 +58,7 @@ import {
   renderMathInlines,
 } from '@orlarey/markpage-render';
 import { parseFrontmatter, parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
+import { fitWideTables } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
@@ -72,6 +73,7 @@ import {
   promptForMissingResources,
 } from './ui/missing-resources-modal';
 import {
+  addResource,
   extractExternalRefs,
   loadMapping,
   mappedShas,
@@ -105,6 +107,7 @@ import {
   type NamedStyle,
 } from './style-library';
 import { openDocumentStyleMenu } from './ui/document-style-menu';
+import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
@@ -163,6 +166,7 @@ import {
   DiskVolume,
   OneDriveVolume,
   RepoVolume,
+  resolveWithinRoot,
   type Volume,
   type VolumeEntry,
 } from './volumes';
@@ -413,6 +417,8 @@ async function bootstrap(): Promise<void> {
   const panesEl = document.getElementById('panes') as HTMLElement;
   const editorEl = document.getElementById('editor-pane') as HTMLElement;
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
+  const resizerEl = document.getElementById('pane-resizer') as HTMLElement;
+  initPaneSplitter(panesEl, resizerEl);
 
   // Bring any legacy single-settings install into the multi-profile
   // schema, then guarantee at least one profile exists so the rest of
@@ -713,6 +719,84 @@ async function bootstrap(): Promise<void> {
   // not just the app-wide profile it was seeded from above.
   state.settings = await deriveDocSettings(initialDoc, state.settings);
 
+  // Auto-load relative images from the document's mounted folder. When a doc is
+  // opened from a disk volume (`link.volume`/`link.dir`), a `![](rel/path.png)`
+  // that was never imported is read live from that folder — resolved against the
+  // doc's own directory, staying inside the mounted root. Blob URLs are cached
+  // per (volume, path). Returns undefined for docs not linked to a disk volume.
+  const folderImageCache = new Map<string, string>();
+  // Read a relative resource path from a mounted disk volume, resolved against
+  // `baseDir` (the referencing doc's own folder within the volume). Returns the
+  // on-disk `File`, or null when the path escapes the root, the volume is gone,
+  // or the file is missing. `vol` is passed directly so this works before a doc
+  // link exists (import time) as well as after (render time).
+  const readDiskFile = (
+    vol: DiskVolume,
+    baseDir: string,
+  ): ((relPath: string) => Promise<File | null>) => {
+    return async (relPath: string): Promise<File | null> => {
+      const full = resolveWithinRoot(baseDir, relPath);
+      if (full === null) return null;
+      try {
+        return await (await vol.fileHandle(full)).getFile();
+      } catch {
+        return null; // missing file / permission revoked → leave the ref as-is
+      }
+    };
+  };
+  // Same, but keyed off a linked document's `link.volume`/`link.dir` — used by
+  // the render-time resolvers. Returns undefined for docs with no disk origin.
+  const readFolderFile = (
+    doc: DocEntry,
+  ): ((relPath: string) => Promise<File | null>) | undefined => {
+    const link = doc.link;
+    if (!link?.volume) return undefined;
+    const { volume, dir = '' } = link;
+    return async (relPath: string): Promise<File | null> => {
+      const vol = (await listVolumes()).find(
+        (v) => v.kind === 'disk' && v.label === volume,
+      );
+      if (!(vol instanceof DiskVolume)) return null;
+      return readDiskFile(vol, dir)(relPath);
+    };
+  };
+  // Preview resolver: relative path -> blob URL, cached per (volume, path).
+  const makeFolderImageResolver = (
+    doc: DocEntry,
+  ): ((relPath: string) => Promise<string | null>) | undefined => {
+    const read = readFolderFile(doc);
+    if (!read) return undefined;
+    const volume = doc.link?.volume ?? '';
+    return async (relPath: string): Promise<string | null> => {
+      const key = `${volume}\u0000${relPath}`;
+      const hit = folderImageCache.get(key);
+      if (hit) return hit;
+      const file = await read(relPath);
+      if (!file) return null;
+      const url = URL.createObjectURL(file);
+      folderImageCache.set(key, url);
+      return url;
+    };
+  };
+  // PDF/print resolver: relative path -> base64 data URL, so the exported
+  // markdown is self-contained (the print pipeline can't read blob: URLs).
+  const makeFolderImageDataResolver = (
+    doc: DocEntry,
+  ): ((relPath: string) => Promise<string | null>) | undefined => {
+    const read = readFolderFile(doc);
+    if (!read) return undefined;
+    return async (relPath: string): Promise<string | null> => {
+      const file = await read(relPath);
+      if (!file) return null;
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      });
+    };
+  };
+
   // Builds the rendered DOM subtree (Markdown + post-processing) shared by
   // both render modes. Returns null if a newer request superseded this one
   // (stale-guard via previewReqId), so callers can bail.
@@ -742,7 +826,10 @@ async function bootstrap(): Promise<void> {
     } catch (err) {
       console.warn('[markpage] stack flatten failed', err);
     }
-    const resolved = await expandRefsToBlobUrls(toRender);
+    const resolved = await expandRefsToBlobUrls(
+      toRender,
+      makeFolderImageResolver(currentDoc),
+    );
     const { meta } = parseFrontmatter(resolved);
     // Frontmatter can override page-format-level settings (e.g.
     // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
@@ -818,6 +905,15 @@ async function bootstrap(): Promise<void> {
     while (built.firstChild) sheet.appendChild(built.firstChild);
     previewEl.classList.add('continuous');
     previewEl.replaceChildren(sheet);
+    // Zoom over-dense tables down to the sheet's text column, same as the
+    // paginated path — measured now that the sheet is in the document (its
+    // content box = sheet width minus the mm margins above).
+    const cs = getComputedStyle(sheet);
+    const contentW =
+      sheet.clientWidth -
+      Number.parseFloat(cs.paddingLeft) -
+      Number.parseFloat(cs.paddingRight);
+    fitWideTables(sheet, contentW);
   };
 
   // Render `source` into the preview pane, paginated (paged.js A4 pages) or
@@ -1982,8 +2078,16 @@ async function bootstrap(): Promise<void> {
     fh: FileSystemFileHandle,
     volume?: string,
     path?: string,
+    vol?: DiskVolume,
   ): Promise<void> => {
-    const entry = await handleImport(await fh.getFile());
+    // When we know the mounted volume, resolve same-folder resources silently
+    // (siblings of the `.md`, resolved against its own directory) so the import
+    // prompt only appears for files that genuinely aren't in the folder.
+    const folderResolver =
+      vol && path !== undefined
+        ? readDiskFile(vol, dirOfPath(path))
+        : undefined;
+    const entry = await handleImport(await fh.getFile(), folderResolver);
     if (!entry) return;
     if (!(await ensureRwPermission(fh))) return; // imported, just not linked
     await saveHandle(entry.uuid, fh);
@@ -2019,7 +2123,8 @@ async function bootstrap(): Promise<void> {
       }
       if (vol instanceof DiskVolume) {
         const fh = await vol.fileHandle(entry.path);
-        if (entry.isMarkdown) await linkDiskFileHandle(fh, vol.label, entry.path);
+        if (entry.isMarkdown)
+          await linkDiskFileHandle(fh, vol.label, entry.path, vol);
         else await handleImport(await fh.getFile());
         return;
       }
@@ -2346,7 +2451,13 @@ async function bootstrap(): Promise<void> {
   // base name collides with an existing doc, createDoc uniques it.
   // Import a file as a new library doc; returns the created entry (or null on
   // cancel/failure) so callers like Open-from-disk can link it afterwards.
-  const handleImport = async (file: File): Promise<DocEntry | null> => {
+  const handleImport = async (
+    file: File,
+    // When the `.md` is opened from a mounted disk folder, this reads a sibling
+    // resource live from that folder so same-folder images resolve silently —
+    // no "missing resources" prompt for files that are right there next to it.
+    folderResolver?: (relPath: string) => Promise<File | null>,
+  ): Promise<DocEntry | null> => {
     try {
       const { content, baseName } = await importFile(file);
       // Persist the outgoing doc before we switch focus — debounce
@@ -2364,7 +2475,19 @@ async function bootstrap(): Promise<void> {
       // path) skip the prompt entirely.
       const externalPaths = extractExternalRefs(cleaned);
       const mapping = loadMapping();
-      const missing = externalPaths.filter((p) => !mapping[p]);
+      let missing = externalPaths.filter((p) => !mapping[p]);
+      // First, silently resolve anything sitting in the doc's own mounted
+      // folder — persisting it into the mapping (+ IDB) exactly as the prompt
+      // would. Only paths that aren't found on disk fall through to the prompt.
+      if (missing.length > 0 && folderResolver) {
+        const stillMissing: string[] = [];
+        for (const p of missing) {
+          const found = await folderResolver(p);
+          if (found) await addResource(p, found);
+          else stillMissing.push(p);
+        }
+        missing = stillMissing;
+      }
       if (missing.length > 0) {
         try {
           await promptForMissingResources(missing);
@@ -2549,7 +2672,10 @@ async function bootstrap(): Promise<void> {
     const source = editor.getValue();
     void (async () => {
       try {
-        const expanded = await expandRefsToInlineDataUrls(source);
+        const expanded = await expandRefsToInlineDataUrls(
+          source,
+          makeFolderImageDataResolver(currentDoc),
+        );
         // SPEC §13.6: every export goes through the browser print pipeline.
         // The result is identical to what the paginated preview shows,
         // selectable text included.

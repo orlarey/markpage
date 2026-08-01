@@ -101,6 +101,16 @@ describe('extractExternalRefs', () => {
     expect(extractExternalRefs(md)).toEqual(['images/foo.png']);
   });
 
+  it('finds an image whose alt text wraps across lines', () => {
+    // CommonMark folds soft breaks: a long caption written on two source
+    // lines is one alt text — the scanner must still see the ref.
+    const md = [
+      '![Le même DAG de 20 opérations émis sur la machine dans les trois',
+      'stratégies](sched-strategies.png)',
+    ].join('\n');
+    expect(extractExternalRefs(md)).toEqual(['sched-strategies.png']);
+  });
+
   it('ignores refs inside a fenced code block', () => {
     const md = [
       'Real ![](images/real.png).',

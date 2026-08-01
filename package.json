@@ -1,7 +1,7 @@
 {
   "name": "markpage",
   "private": true,
-  "version": "0.41.0",
+  "version": "0.42.0",
   "type": "module",
   "description": "Client-side Markdown to PDF converter",
   "license": "AGPL-3.0-or-later",

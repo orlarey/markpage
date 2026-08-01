@@ -87,6 +87,37 @@ export function sortEntries(entries: VolumeEntry[]): VolumeEntry[] {
   });
 }
 
+/**
+ * Purpose: Resolve a relative resource path (as written in a Markdown image,
+ *   e.g. `images/foo.png` or `../shared/logo.png`) against the directory of the
+ *   document that references it, yielding a path relative to the mounted volume
+ *   root — or `null` when it can't or shouldn't be resolved on a disk volume.
+ * How: Normalise `.`/empty segments away and pop on `..`; return `null` if a
+ *   `..` would climb above the root (a path-traversal escape) or if `relPath`
+ *   carries a scheme (`http:`, `data:`, …) or is absolute (`/…`) — those aren't
+ *   volume-relative and must be left untouched. `baseDir` is the doc's own
+ *   folder within the volume (`link.dir`, possibly empty for a root doc).
+ */
+export function resolveWithinRoot(
+  baseDir: string,
+  relPath: string,
+): string | null {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(relPath) || relPath.startsWith('/')) {
+    return null;
+  }
+  const out: string[] = [];
+  for (const seg of [...baseDir.split('/'), ...relPath.split('/')]) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') {
+      if (out.length === 0) return null; // would escape the mounted root
+      out.pop();
+      continue;
+    }
+    out.push(seg);
+  }
+  return out.join('/');
+}
+
 // ---- Library volume (OPFS / docs.ts) -----------------------------------
 
 export const TRASH_DIR = 'Corbeille';

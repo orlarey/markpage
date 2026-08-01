@@ -26,6 +26,7 @@ import {
   resetPageRunningCounter,
   paginationCss,
   fitAtomicBlocks,
+  fitWideTables,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
 import type { PageGeometry } from './typography';
@@ -762,6 +763,16 @@ async function fitOversizedAtomicBlocks(
         console.warn(
           `[markpage] Atomic ${element.tagName.toLowerCase()} reduced to ` +
             `${Math.round(scale * 100)}% (${mode === 'page' ? 'margin-borrowing page' : 'text area'}).`,
+        );
+      },
+    });
+    // Over-dense tables: zoom each down to the text column instead of letting
+    // its prose columns wrap into an unreadable mess (measured at the same
+    // text width, after fonts settled).
+    fitWideTables(source, geometry.textWidth, {
+      onWarning: ({ element: _el, scale }) => {
+        console.warn(
+          `[markpage] Wide table zoomed to ${Math.round(scale * 100)}% to fit the text column.`,
         );
       },
     });

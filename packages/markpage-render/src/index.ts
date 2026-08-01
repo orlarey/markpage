@@ -112,6 +112,13 @@ export {
   type AtomicFitOptions,
   type AtomicFitResult,
 } from './atomic-fit';
+export {
+  DEFAULT_MIN_TABLE_SCALE,
+  fitWideTables,
+  tableFitScale,
+  type TableFitOptions,
+  type TableFitResult,
+} from './table-fit';
 // Pre-split oversized <pre> code blocks so paged.js never drops a >1-page
 // block. Shared by the host app and the VS Code extension's paginate pass.
 export {

@@ -68,6 +68,17 @@
   margin: 0.8em auto;
 }
 
+/* Pipe-tables stay borderless (deliberate minimal look), but their cells still
+   need a gutter — with no padding, adjacent columns' text runs together and the
+   table reads as a wall. Horizontal padding on both sides gives ~1.5em between
+   columns; a touch of vertical padding separates rows. `.data-table` (csv/tsv)
+   has its own padding below, so exclude it. */
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)
+  table:not(.data-table) :is(th, td) {
+  padding: 0.2em 0.75em;
+  vertical-align: top;
+}
+
 /* Data tables (```csv / ```tsv) get the extra styling: borders,
    alternating rows, header background. Pipe-tables keep marked's
    plain rendering — only the centering rule above touches them. */

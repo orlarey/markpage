@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   RepoVolume,
   childrenFromTree,
+  resolveWithinRoot,
   sortEntries,
   type VolumeEntry,
 } from '../src/volumes';
@@ -54,6 +55,37 @@ describe('sortEntries', () => {
       'alpha.md',
       'zeta.md',
     ]);
+  });
+});
+
+describe('resolveWithinRoot', () => {
+  it('resolves a sibling image against the doc folder', () => {
+    expect(resolveWithinRoot('lettres', 'logo.png')).toBe('lettres/logo.png');
+  });
+  it('resolves a subfolder path', () => {
+    expect(resolveWithinRoot('lettres', 'images/logo.png')).toBe(
+      'lettres/images/logo.png',
+    );
+  });
+  it('resolves a doc at the volume root (empty baseDir)', () => {
+    expect(resolveWithinRoot('', 'a/b.png')).toBe('a/b.png');
+  });
+  it('climbs into a sibling folder with ..', () => {
+    expect(resolveWithinRoot('lettres/2026', '../shared/logo.png')).toBe(
+      'lettres/shared/logo.png',
+    );
+  });
+  it('normalises redundant ./ and empty segments', () => {
+    expect(resolveWithinRoot('lettres', './a//b.png')).toBe('lettres/a/b.png');
+  });
+  it('refuses a .. that would escape the mounted root', () => {
+    expect(resolveWithinRoot('lettres', '../../etc/passwd')).toBeNull();
+    expect(resolveWithinRoot('', '../secret.png')).toBeNull();
+  });
+  it('refuses absolute paths and URL schemes (left untouched)', () => {
+    expect(resolveWithinRoot('lettres', '/etc/passwd')).toBeNull();
+    expect(resolveWithinRoot('lettres', 'https://x/y.png')).toBeNull();
+    expect(resolveWithinRoot('lettres', 'data:image/png;base64,AAAA')).toBeNull();
   });
 });
 
