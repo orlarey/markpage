@@ -366,6 +366,7 @@ export interface HeadingNumbering {
   on: boolean;
   depth: number; // levels numbered, 1 = h1 only (inline compact 1, 1.1, 1.1.1…)
   chapterFormat?: 'numeric' | 'chapter'; // chapter-opening numeral (rendered apart)
+  chapterNumeralPt?: number; // big chapter-opening numeral size (pt); default 2.4em of h1
 }
 
 /**

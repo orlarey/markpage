@@ -137,6 +137,7 @@ export async function paginateWithVivliostyle(
   // fonts BEFORE pagedCss() measures (the paged.js pipeline did this too).
   await ensureSettingsFontsLoaded(settings);
   linkTocPlus(source);
+  markChapterNumerals(source, settings);
   markConsecutiveParagraphs(source);
   groupLetterheads(source);
   // Oversized atomic blocks (a mermaid/math/figure taller than the page's
@@ -794,6 +795,38 @@ function leadingSectionNumber(text: string): string {
   return m ? (m[1] ?? '') : '';
 }
 
+/**
+ * Purpose: Turn each chapter's inline h1 number into the big opening numeral
+ *   (4c-2). Only when chapters get their own page (`chapterBreak`) AND numbering
+ *   is on — every such h1 IS a chapter opening.
+ * How: Move the leading number out of the h1's first text node into a
+ *   `.chapter-num` span (preserving any inline markup in the title), optionally
+ *   as "Chapitre N". It's the SAME number, restyled big — no double numbering.
+ *   `pagedCss` sizes `.chapter-num`; its colour inherits the h1.
+ */
+export function markChapterNumerals(
+  root: HTMLElement,
+  settings: PdfSettings,
+): void {
+  const n = settings.numbering;
+  if (!n || !n.on || settings.chapterBreak === 'none') return;
+  root
+    .querySelectorAll<HTMLElement>('h1:not(.doc-title)')
+    .forEach((h) => {
+      if (h.querySelector('.chapter-num')) return; // idempotent
+      const first = h.firstChild;
+      if (first == null || first.nodeType !== 3 /* text */) return;
+      const m = /^\s*(\d+(?:\.\d+)*)\.?\s+/.exec(first.textContent ?? '');
+      if (m == null) return;
+      first.textContent = (first.textContent ?? '').slice(m[0].length);
+      const span = h.ownerDocument.createElement('span');
+      span.className = 'chapter-num';
+      span.textContent =
+        n.chapterFormat === 'chapter' ? `Chapitre ${m[1]}` : (m[1] ?? '');
+      h.insertBefore(span, h.firstChild);
+    });
+}
+
 export function linkTocPlus(root: HTMLElement): void {
   const navs = root.querySelectorAll<HTMLElement>('nav.toc-plus');
   if (navs.length === 0) return;
@@ -1076,6 +1109,13 @@ export function pagedCss(s: PdfSettings): string {
     s.chapterBreak !== 'none' && s.chapter && s.chapter.drop > 0
       ? `${SCOPE} h1:not(.doc-title) { padding-top: ${s.chapter.drop}mm; }`
       : '';
+  // Big chapter-opening numeral (4c-2): the h1's leading number, moved into a
+  // `.chapter-num` span by markChapterNumerals, shown large above the title.
+  // Colour inherits the h1; size from the resolved directive (default 2.4em).
+  const chapterNumeralRule =
+    s.numbering && s.numbering.on && s.chapterBreak !== 'none'
+      ? `${SCOPE} h1:not(.doc-title) .chapter-num { display: block; line-height: 1; margin-bottom: 0.15em; font-size: ${s.numbering.chapterNumeralPt ? `${s.numbering.chapterNumeralPt}pt` : '2.4em'}; }`
+      : '';
   // Cover page (a title/metadata block on a tinted `coverBackground`): keep the
   // title + metadata legible against the fill, and isolate the cover so body
   // content starts on the next page — the next RECTO in duplex, inserting a
@@ -1102,6 +1142,7 @@ export function pagedCss(s: PdfSettings): string {
     ${sidenoteRule}
     ${chapterBreakRule}
     ${chapterDropRule}
+    ${chapterNumeralRule}
     ${coverBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */
