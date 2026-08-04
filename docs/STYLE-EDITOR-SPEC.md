@@ -1,7 +1,7 @@
 ---
-title: Spécification — l'atelier de style (couleur × format × polices)
+title: Spécification — l'atelier de style (couleur × format × polices × appareil)
 author: Yann Orlarey
-version: 0.2 (brouillon)
+version: 0.3 (brouillon)
 date: 2026-08-04
 ---
 
@@ -17,6 +17,11 @@ date: 2026-08-04
 > **règles génératrices** — et consigne les évolutions issues de **trois nouvelles
 > maquettes interactives** (couleur / polices / pages), voir *Évolutions depuis
 > les maquettes*.
+>
+> **v0.3** introduit un **quatrième axe — l'appareil courant** (composition des
+> *running materials* en en-tête / pied) et son instrument, et consigne
+> l'unification des quatre facettes dans une **maquette unique et versionnée**
+> (`prototypes/editeur-style.html`), voir *Axe appareil* et *Vers un seul outil*.
 
 **Objet :** remplacer le système de réglages actuel — jugé **trop complexe**, sa
 double vue *Essentiel / Avancé* ne fonctionnant pas en termes d'UX — par un
@@ -33,6 +38,7 @@ génératrices**. Le résultat tient en une phrase :
 - **Axe couleur — la carte** — teinte, crans saturation × valeur, neutres, fonds.
 - **Axe format — la galerie de documents** — gabarits, fixé vs ajustable.
 - **Axe polices — la galerie de paires** — paires curées, taille de base.
+- **Axe appareil — l'appareil courant** — running materials, zones, pile → séquence, miroir.
 - **L'atelier** — sélection partagée, aperçu unifié, nommage du style.
 - **Évolutions depuis les maquettes** — le principe unifiant et ce qui a bougé depuis la v0.1.
 - **Sérialisation** — branchement sur la pile de documents.
@@ -344,6 +350,78 @@ sur un **sous-ensemble** disponible, quitte à compléter quand v4 se stabilise.
 
 ---
 
+## Axe appareil — l'appareil courant
+
+Le **mobilier de page répété** — titre courant, folio, chapitre, section… posé
+dans les bandes en-tête / pied — est un axe **de composition** à part entière.
+Trois axes le touchent, chacun répondant à une question distincte :
+
+| Axe | Question | Ce qu'il fixe |
+| :-- | :-- | :-- |
+| **Pages** *(format)* | **où ?** | la **géométrie** : bandes (`headerTop` / `footerBottom`), aire courante (`runInner` / `runOuter`) |
+| **Polices** | **à quoi ça ressemble ?** | le **style** du rôle `running-content` (fonte, cran, filet, PC) |
+| **Appareil** | **quoi ?** | la **composition** — quels matériaux, dans quelle zone, sur quelle page |
+
+::: definition [Appareil courant]
+La table `{ bande × parité × zone → pile de matériaux }` qui décide **ce qui
+apparaît** dans chaque emplacement de marge. Douze emplacements : **2 bandes**
+(en-tête / pied) × **2 parités** (verso / recto) × **3 zones structurelles**
+(inner / center / outer). Ce n'est pas un gadget : il se compile **1:1** sur les
+*margin boxes* CSS Paged Media (`@top-left/center/right`, `@bottom-*`), chaque
+matériau devenant une valeur `content` (`counter(page)`, `string(...)`, littéral).
+:::
+
+### Règle génératrice (gauche) + composition directe (droite)
+
+Fidèle au principe unifiant :
+
+- **à gauche**, la **règle génératrice** : des **presets d'appareil** (styles
+  prédéfinis — *Vierge*, *Savant*, *Folio en pied*, *Titres en tête*, *Bords*)
+  qui composent l'ensemble d'un clic, plus le champ de **texte libre** (le contenu
+  du jeton `texte`) ;
+- **à droite**, l'**instrument** = la double-page schématique où vivent les
+  décisions locales. Les **12 zones** sont des cibles de *drop* ; à côté, une
+  **réserve** de jetons glissables. On **glisse** réserve → zone (placer),
+  zone → zone (déplacer), zone → dehors (retirer), avec **insertion positionnelle**
+  dans la pile (le niveau de lâcher choisit le rang).
+
+Matériaux de la réserve (V1) — le **folio arabe** et le **folio romain** sont
+**deux jetons distincts** (plus de menu de numérotation) :
+
+```adt
+Matériau ::= folio | folioRomain | titreDoc | chapitre
+           | section | auteur | date | texte
+Zone     ::= [ Matériau ]          (* une PILE, ordonnée *)
+Appareil ::= { bande × parité × zone → Zone }
+```
+
+### Paire verso / recto explicite
+
+Verso et recto se composent **indépendamment** (listes séparées) — c'est ce qui
+permet le classique *titre du livre en verso, titre de chapitre en recto*. La
+**position** couture / bord, elle, est en **miroir automatique** : `inner` colle
+toujours à la couture, `outer` au bord extérieur ; sur un verso, les zones
+physiques gauche / droite s'échangent.
+
+### Pile (édition) → séquence (page), inversée en verso
+
+::: important [Le miroir de l'appareil]
+Une zone est une **pile verticale** dans l'éditeur — facile à réordonner, **haut =
+côté couture, bas = côté bord**. Sur la **page**, cette pile se rend **en ligne**
+(séquence horizontale, séparateur `·`). Le miroir d'une double-page étant une
+réflexion **gauche ↔ droite** autour de la couture, la séquence est **inversée en
+verso** : `[chapitre, folio]` donne « chapitre · folio » en recto (zone droite) et
+« folio · chapitre » en verso (zone gauche) — sur les deux pages, le chapitre reste
+près de la couture, le folio près du bord. Empiler *verticalement* la pile en verso
+**romprait** le miroir ; le rendre *en ligne inversée* le **maintient**.
+:::
+
+Les bandes sont **ancrées sur la géométrie de page** (`headerTop` / `footerBottom`,
+aire `runInner` / `runOuter`), **pas** dans le bloc de texte : une bande s'affiche
+dès qu'une de ses zones est non vide (aucune case en-tête / pied à cocher).
+
+---
+
 ## L'atelier
 
 L'atelier réunit les trois sélecteurs sur le **même document figé**, reliés par
@@ -426,6 +504,14 @@ Alignement ≠ justification
     droite (miroir en verso). Il garde couleur, taille (cran d'apparat), filet et
     petites capitales.
 
+Appareil courant — nouvelle facette (4ᵉ axe)
+:   La **composition** des *running materials* devient un axe propre
+    (§*Axe appareil*), à côté de couleur / polices / pages. Il **complète** le rôle
+    `running-content` : Polices en règle le *style*, **Appareil** en règle le
+    *contenu* (quels matériaux, quelle zone, quelle page). Zones = **piles** ;
+    pile (éditeur) → **séquence en ligne inversée en verso** (miroir) ; folio arabe
+    et romain en **deux jetons**.
+
 `cover` = style seul dans l'éditeur
 :   La **présence** d'une couverture et son **contenu** relèvent de la **mise en
     page**, pas de l'éditeur de style : les cases « document avec couverture » /
@@ -454,12 +540,22 @@ petites capitales) :
 
 ### Vers un seul outil
 
-But : réunir les trois familles en **un seul outil**, sur une **coquille commune**
-— un sélecteur de facette (Couleur / Polices / Pages) ; à gauche les **règles
-génératrices** de la facette active, à droite un **panneau hybride** : un
-**artefact** live (une page / double-page réaliste reflétant les trois familles,
-toujours visible) **+** l'**instrument** de la facette (carte, échelle, double-page
-à poignées). Un seul **modèle de style** partagé ; changer de facette ne perd rien.
+But : réunir les familles en **un seul outil**, sur une **coquille commune** — un
+sélecteur de facette (**Couleur / Polices / Pages / Appareil**, les quatre au-dessus
+des deux panneaux d'édition) ; à gauche les **règles génératrices** de la facette
+active, à droite un **panneau hybride** : un **artefact** live (une vraie page **à
+l'échelle** — vues Couverture / Recto / Chapitre / Recto-verso — reflétant toutes
+les facettes, toujours visible) **+** l'**instrument** de la facette (carte,
+échelle, double-page à poignées, ou double-page à zones-piles pour l'appareil). Un
+seul **modèle de style** partagé ; changer de facette ne perd rien. La séparation
+artefact ↔ instrument est **glissable**.
+
+::: note [Clusters d'éléments sur une même case (carte couleur)]
+Quand plusieurs éléments partagent un même cran, leurs pastilles se **regroupent en
+pile compacte** (superposition en éventail) dans la case, et se **déploient au
+survol** sur un fond translucide élevé — lisibles et attrapables individuellement
+sans rouvrir la grille.
+:::
 
 ::: important [Invariant I2 affiné]
 « Deux archétypes seulement » (carte / galerie) est **remplacé** par un principe
@@ -589,6 +685,9 @@ I7 — **Côté rédaction, un seul degré de liberté**
   la stabilité `mathjax-full@4`) et lesquels associer à chaque paire.
 - **Catalogue de polices** : quoi bundler vs charger (feuille de route
   *catalogue de polices*).
+- **Sérialisation de l'appareil** : la composition `{ bande × parité × zone → pile }`
+  (§*Axe appareil*) devra suivre la même discipline **chaîne scalaire compacte** que
+  `color-crans` dans le front-matter plat — forme exacte à arrêter.
 - **Échappatoire fine** : la fiche d'élément de l'atelier est le lieu naturel
   pour saisir une valeur exacte sur un cas récalcitrant, **sans** polluer les
   cartes — à spécifier si le besoin se confirme.
@@ -598,6 +697,12 @@ I7 — **Côté rédaction, un seul degré de liberté**
 ---
 
 ## Maquettes de référence
+
+**v0.3 — maquette unifiée** (`prototypes/editeur-style.html`, versionnée, servie
+via `python3 -m http.server`) : la coquille commune à **quatre facettes**
+(Couleur / Polices / Pages / **Appareil**), artefact à l'échelle + instrument par
+facette. C'est la référence vivante ; les trois maquettes v0.2 ci-dessous restent
+comme sources de chaque famille.
 
 **v0.2 — maquettes interactives locales** (`prototypes/`, servies via
 `python3 -m http.server`), une par famille, déjà coulées dans la coquille
