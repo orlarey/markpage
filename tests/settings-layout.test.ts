@@ -1,12 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseFrontmatter, embedProfileInFrontmatter } from '@orlarey/markpage-render';
 
 import {
-  applyFrontmatterToSettings,
   DEFAULT_SETTINGS,
   DEFAULT_GEOMETRY_AUTHORING,
   mergeWithDefaults,
-  serializeProfile,
   validateLayoutSettings,
 } from '../src/settings';
 
@@ -18,11 +15,6 @@ function withAuthoring(over: Partial<typeof DEFAULT_GEOMETRY_AUTHORING>) {
   };
 }
 
-/** Parse a YAML frontmatter block and fold it onto DEFAULT_SETTINGS. */
-function applyYaml(yaml: string) {
-  const { meta } = parseFrontmatter(`---\n${yaml}\n---\n\nBody.\n`);
-  return { meta, settings: applyFrontmatterToSettings(DEFAULT_SETTINGS, meta) };
-}
 
 describe('DEFAULT_SETTINGS — layout fields (§9.5 / §9.6 / §9.7)', () => {
   it('seeds duplex / chapterBreak / marginMode to the backward-compatible defaults', () => {
@@ -49,97 +41,6 @@ describe('DEFAULT_SETTINGS — layout fields (§9.5 / §9.6 / §9.7)', () => {
   });
 });
 
-describe('applyFrontmatterToSettings — per-doc layout/typography overrides', () => {
-  it('leaves settings untouched when no override keys are present', () => {
-    const { settings } = applyYaml('title: Hi\nauthor: Me');
-    expect(settings).toBe(DEFAULT_SETTINGS); // identity — no clone
-  });
-
-  it('maps page-size (case-insensitive), excluding SLIDES_16_9', () => {
-    expect(applyYaml('page-size: a5').settings.pageSize).toBe('A5');
-    expect(applyYaml('page-size: LETTER').settings.pageSize).toBe('LETTER');
-    // unknown / slides value ignored → keep the profile default
-    expect(applyYaml('page-size: SLIDES_16_9').settings.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
-    expect(applyYaml('page-size: nope').settings.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
-  });
-
-  it('expands margins shorthand (1 / 2 / 4 values) and forces manual mode', () => {
-    expect(applyYaml('margins: 20').settings.authoring?.margins).toEqual({
-      top: 20, right: 20, bottom: 20, left: 20,
-    });
-    expect(applyYaml('margins: 25 35').settings.authoring?.margins).toEqual({
-      top: 25, right: 35, bottom: 25, left: 35,
-    });
-    const four = applyYaml('margins: 10 20 30 40').settings;
-    expect(four.authoring?.margins).toEqual({ top: 10, right: 20, bottom: 30, left: 40 });
-    expect(four.authoring?.marginMode).toBe('manual');
-  });
-
-  it('toggles the footer page number via page-numbers', () => {
-    expect(applyYaml('page-numbers: false').settings.footer).toBe('');
-    expect(applyYaml('page-numbers: true').settings.footer).toContain('{page}');
-  });
-
-  it('overrides the three font slots', () => {
-    const s = applyYaml('font-body: Lora\nfont-heading: Inter\nfont-mono: Fira Code').settings;
-    expect(s.fonts.body).toBe('Lora');
-    expect(s.fonts.headings).toBe('Inter');
-    expect(s.fonts.code).toBe('Fira Code');
-  });
-
-  it('still honours slides, which wins over page-size and clamps margins', () => {
-    const s = applyYaml('page-size: A3\nmargins: 40\nslides: true').settings;
-    expect(s.pageSize).toBe('SLIDES_16_9');
-    expect(s.authoring!.margins.top).toBeLessThanOrEqual(10); // slide vertical-margin cap
-  });
-
-  it('parser stores margins already expanded to a box', () => {
-    const { meta } = applyYaml('margins: 25 35');
-    expect(meta.margins).toEqual({ top: 25, right: 35, bottom: 25, left: 35 });
-  });
-});
-
-describe('serializeProfile + embedProfileInFrontmatter — portable style profile', () => {
-  it('serializes the style-relevant settings as parseable JSON', () => {
-    const json = serializeProfile(DEFAULT_SETTINGS);
-    const obj = JSON.parse(json);
-    expect(obj.fonts).toEqual(DEFAULT_SETTINGS.fonts);
-    expect(obj.styles).toEqual(DEFAULT_SETTINGS.styles);
-    expect(obj.pageSize).toBe(DEFAULT_SETTINGS.pageSize);
-    expect(obj.footer).toBe(DEFAULT_SETTINGS.footer);
-    expect(obj.marginMode).toBe(DEFAULT_SETTINGS.authoring?.marginMode);
-    expect(obj.notesPosition).toBe(DEFAULT_SETTINGS.notes.position);
-  });
-
-  it('embeds the profile into a doc with no frontmatter, preserving the body', () => {
-    const out = embedProfileInFrontmatter('# Hello\n\nBody.\n', '{"a":1}');
-    const { meta, body } = parseFrontmatter(out);
-    expect(meta['markpage-profile']).toBe('{"a":1}');
-    expect(body).toBe('# Hello\n\nBody.\n');
-  });
-
-  it('keeps existing frontmatter keys when embedding', () => {
-    const src = '---\ntitle: Doc\nauthor: Me\n---\n\nBody.\n';
-    const { meta } = parseFrontmatter(embedProfileInFrontmatter(src, '{"a":1}'));
-    expect(meta.title).toBe('Doc');
-    expect(meta.author).toBe('Me');
-    expect(meta['markpage-profile']).toBe('{"a":1}');
-  });
-
-  it('replaces (does not duplicate) a prior profile on re-embed', () => {
-    const once = embedProfileInFrontmatter('Body.\n', '{"v":1}');
-    const twice = embedProfileInFrontmatter(once, '{"v":2}');
-    expect((twice.match(/markpage-profile:/g) ?? []).length).toBe(1);
-    expect(parseFrontmatter(twice).meta['markpage-profile']).toBe('{"v":2}');
-  });
-
-  it('round-trips a real profile through embed → parse → JSON', () => {
-    const json = serializeProfile(DEFAULT_SETTINGS);
-    const out = embedProfileInFrontmatter('# T\n', json);
-    const back = JSON.parse(parseFrontmatter(out).meta['markpage-profile'] as string);
-    expect(back.styles.body).toEqual(DEFAULT_SETTINGS.styles.body);
-  });
-});
 
 describe('mergeWithDefaults — backward compat with legacy profiles', () => {
   it('fills the new layout fields with their defaults on a legacy profile', () => {

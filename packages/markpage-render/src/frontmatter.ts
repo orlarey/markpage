@@ -66,24 +66,6 @@ export interface Frontmatter {
   extra: Record<string, string>;
 }
 
-/**
- * Purpose: Expand a CSS-shorthand margin list (1/2/3/4 values, mm) into the
- *   four explicit sides, so the app (→ PdfSettings.margins) and the VS Code
- *   preview (→ @page / padding) both read `margins:` identically.
- * How: CSS box model — [a]=all, [a,b]=(v,h), [a,b,c]=(t,h,b), [a,b,c,d]=(t,r,b,l).
- *   Returns null when there's no usable number.
- */
-function marginBox(
-  nums: number[],
-): { top: number; right: number; bottom: number; left: number } | null {
-  if (nums.length === 0) return null;
-  const [a, b = a, c = a, d = b] = nums;
-  if (nums.length === 2) return { top: a, right: b, bottom: a, left: b };
-  if (nums.length === 3) return { top: a, right: b, bottom: c, left: b };
-  if (nums.length >= 4) return { top: a, right: b, bottom: c, left: d };
-  return { top: a, right: a, bottom: a, left: a };
-}
-
 export interface ParseResult {
   meta: Frontmatter;
   body: string;
@@ -271,70 +253,22 @@ function unquote(s: string): string {
  *   routing known keys to their dedicated field and unknowns into `extra`.
  */
 function assign(meta: Frontmatter, key: string, value: string): void {
+  // Radical front-matter minimum (docs/STYLE-ALIGNMENT.md step 7): a document
+  // carries only its identity + a style NAME. It overrides NOTHING — no
+  // page-size / margins / slides / font-* / color-* / markpage-profile. Anything
+  // else lands in `extra` (ignored) with no graceful fallback ("suppression
+  // franche"): the style owns all appearance; tweak = fork a style.
   switch (key) {
     case 'title':
     case 'author':
     case 'organization':
     case 'date':
     case 'mathjax-preamble':
-    case 'page-size':
-    case 'font-body':
-    case 'font-heading':
-    case 'font-mono':
-    case 'markpage-profile':
-    case 'color-crans':
-    case 'font-pair':
     case 'document-style':
       meta[key] = value;
       break;
-    case 'color-hue': {
-      const h = Number(value);
-      if (Number.isFinite(h)) meta['color-hue'] = h;
-      break;
-    }
-    case 'font-base': {
-      const n = Number(value);
-      if (Number.isFinite(n)) meta['font-base'] = n;
-      break;
-    }
-    case 'math-scale': {
-      const n = Number(value);
-      if (Number.isFinite(n)) meta['math-scale'] = n;
-      break;
-    }
-    case 'slides':
-      meta.slides = parseBool(value);
-      break;
-    case 'page-numbers':
-      meta['page-numbers'] = parseBool(value);
-      break;
-    case 'margins': {
-      const box = marginBox(parseNumbers(value));
-      if (box) meta.margins = box;
-      break;
-    }
     default:
       meta.extra[key] = value;
   }
 }
 
-/**
- * Purpose: Parse a whitespace/comma-separated list of numbers (e.g. margins).
- * How: split, coerce, drop non-finite tokens (so `25 35` → [25, 35]).
- */
-function parseNumbers(value: string): number[] {
-  return value
-    .split(/[\s,]+/)
-    .filter((t) => t !== '')
-    .map((t) => Number(t))
-    .filter((n) => Number.isFinite(n));
-}
-
-/**
- * Purpose: YAML-lite boolean coercion — accepts `true`/`yes`/`on`/`1`
- *   (any case) as truthy, anything else as falsy.
- */
-function parseBool(value: string): boolean {
-  const v = value.trim().toLowerCase();
-  return v === 'true' || v === 'yes' || v === 'on' || v === '1';
-}
