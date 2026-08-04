@@ -8,7 +8,11 @@
  *
  *******************************************************************************/
 
-import type { Frontmatter, MathFontSet } from '@orlarey/markpage-render';
+import type {
+  Frontmatter,
+  MathFontSet,
+  RunningApparatus,
+} from '@orlarey/markpage-render';
 import {
   parseColorCrans,
   deriveElementColors,
@@ -475,6 +479,11 @@ export interface PdfSettings {
   // Heading auto-numbering (docs/STYLE-ALIGNMENT.md step 4). Optional: absent =
   // legacy no-op; present drives a render-time strip+renumber of a source copy.
   numbering?: HeadingNumbering;
+  // Running apparatus (step 6): resolved header/footer composition compiled by
+  // the style editor (band × parity × zone → stack of materials). Optional:
+  // absent = the legacy header/footer fence model. Compiled by
+  // runningApparatusCss; live @page wiring is a follow-up.
+  runningApparatus?: RunningApparatus;
 }
 
 /**
@@ -1096,8 +1105,8 @@ export const FUNDAMENTAL_STYLE_KEYS = [
   'pageSize', 'pageGeometry', 'duplex', 'chapterBreak', 'chapter', 'notes',
   // heading auto-numbering directive (resolved by the style editor)
   'numbering',
-  // running content
-  'header', 'footer',
+  // running content — legacy fence strings + the resolved apparatus model
+  'header', 'footer', 'runningApparatus',
   // typography
   'fonts', 'styles', 'mathScale', 'mathFontSet',
   // surfaces + language

@@ -102,6 +102,16 @@ export { anchorId } from './refs';
 export { applyBackgrounds } from './background';
 export { paginationCss, keepLabelsWithNext } from './pagination';
 export {
+  runningApparatusCss,
+  apparatusStringSets,
+  materialToCss,
+  zoneToCss,
+  type RunningApparatus,
+  type ApparatusBand,
+  type ApparatusZones,
+  type ApparatusMaterial,
+} from './running-apparatus';
+export {
   ATOMIC_MARGIN_BORROW_THRESHOLD,
   atomicFitDecision,
   markAtomicBlocks,
