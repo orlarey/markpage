@@ -788,24 +788,40 @@ async function fitOversizedAtomicBlocks(
   }
 }
 
-function linkTocPlus(root: HTMLElement): void {
+/** The leading section number of a heading's text ("1.2.3 Foo" → "1.2.3"), or ''. */
+function leadingSectionNumber(text: string): string {
+  const m = /^\s*(\d+(?:\.\d+)*)\.?\s+/.exec(text);
+  return m ? (m[1] ?? '') : '';
+}
+
+export function linkTocPlus(root: HTMLElement): void {
   const navs = root.querySelectorAll<HTMLElement>('nav.toc-plus');
   if (navs.length === 0) return;
-  const byTitle = new Map<string, string>();
+  const byTitle = new Map<string, { id: string; num: string }>();
   root
     .querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')
     .forEach((h) => {
-      const slug = sectionSlug(h.textContent ?? '');
+      const text = h.textContent ?? '';
+      const slug = sectionSlug(text);
       if (slug === '') return;
       if (h.id === '') h.id = `sec-${slug}`;
-      if (!byTitle.has(slug)) byTitle.set(slug, h.id);
+      if (!byTitle.has(slug))
+        byTitle.set(slug, { id: h.id, num: leadingSectionNumber(text) });
     });
   navs.forEach((nav) => {
     nav.querySelectorAll<HTMLAnchorElement>('a[data-toc-title]').forEach((a) => {
-      const id = byTitle.get(sectionSlug(a.dataset['tocTitle'] ?? ''));
-      if (id !== undefined) {
-        a.setAttribute('href', `#${id}`);
+      const hit = byTitle.get(sectionSlug(a.dataset['tocTitle'] ?? ''));
+      if (hit) {
+        a.setAttribute('href', `#${hit.id}`);
         a.classList.remove('toc-missing');
+        // Mirror the body numbering: prefix the entry with the matched
+        // heading's number (empty when headings aren't numbered).
+        if (hit.num && !a.querySelector('.toc-num')) {
+          const span = a.ownerDocument.createElement('span');
+          span.className = 'toc-num';
+          span.textContent = `${hit.num} `;
+          a.insertBefore(span, a.firstChild);
+        }
       } else {
         a.removeAttribute('href');
         a.classList.add('toc-missing');

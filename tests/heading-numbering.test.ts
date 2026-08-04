@@ -5,6 +5,7 @@ import {
   renderNumberingDocStyle,
 } from '../src/numbering';
 import { renderPreview } from '../src/preview';
+import { linkTocPlus } from '../src/preview-paginated';
 
 const DOC = ['# Intro', '## Background', '## Method', '# Results', '## Data'].join(
   '\n',
@@ -87,5 +88,30 @@ describe('renderPreview — numbering wiring', () => {
     expect(h1s[0]?.classList.contains('doc-title')).toBe(true);
     expect(h1s[0]?.textContent).toBe('My Doc');
     expect(h1s.some((h) => h.textContent === '1 Intro')).toBe(true);
+  });
+});
+
+describe('linkTocPlus — TOC number display (4c-1)', () => {
+  it('prefixes a matched TOC entry with the heading number', () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<nav class="toc-plus"><a data-toc-title="Contexte">Contexte</a></nav>' +
+      '<h2>1.1 Contexte</h2>';
+    linkTocPlus(root);
+    const a = root.querySelector('a[data-toc-title]')!;
+    expect(a.getAttribute('href')).toBe('#sec-contexte');
+    expect(a.querySelector('.toc-num')?.textContent).toBe('1.1 ');
+    expect(a.textContent).toBe('1.1 Contexte');
+  });
+
+  it('adds no number when the heading is not numbered', () => {
+    const root = document.createElement('div');
+    root.innerHTML =
+      '<nav class="toc-plus"><a data-toc-title="Contexte">Contexte</a></nav>' +
+      '<h2>Contexte</h2>';
+    linkTocPlus(root);
+    const a = root.querySelector('a[data-toc-title]')!;
+    expect(a.querySelector('.toc-num')).toBeNull();
+    expect(a.textContent).toBe('Contexte');
   });
 });
