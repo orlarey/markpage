@@ -124,6 +124,7 @@
 <body>
 <header>
   <h1>Éditeur de style</h1>
+  <button id="exportStyle" class="chip" style="margin-left:auto">Exporter le style (.mpstyle.json)</button>
 </header>
 
 <div class="shell">
@@ -936,6 +937,65 @@ let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(ren
     const up=()=>{pvr.classList.remove('drag'); window.removeEventListener('pointermove',move); window.removeEventListener('pointerup',up);};
     window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);});
 })();
+// ===================== COMPILER: editor S → markpage flat style ============
+// The core of the "source → compiler → artefact" architecture: resolve every
+// generative rule (crans→hex, base×ratio→pt, coverScale, numbering, apparatus)
+// into a flat FUNDAMENTAL_STYLE that markpage loads verbatim (docs/STYLE-
+// ALIGNMENT). Values only — markpage never re-interprets.
+const MP_ELEM={ title:'title', metadata:'metadata', h1:'h1', h2:'h2', h3:'h3', h4:'h4',
+  body:'body', code:'code-block', math:'math-block', caption:'caption', note:'footnote',
+  'running-content':'running-content' };
+function mpStyleForElement(key){
+  const r=ROSTER.find(e=>e.key===key)||{};
+  const st={ color:colOf(key), fontSize:ptOf(key) };
+  if(r.role==='head') st.weight=S.wHead; else if(key==='body') st.weight=S.wBody;
+  const c=r.ctrls||[];
+  if(c.includes('align')&&S.align[key]) st.align=S.align[key];
+  if(c.includes('rule')&&S.rule[key]&&S.rule[key]!=='none') st.rule={position:S.rule[key],color:colOf(key),width:1};
+  if(c.includes('caps')&&S.smallcaps[key]&&S.smallcaps[key]!=='none'){ st.smallCaps=S.smallcaps[key]; if(S.tracking) st.letterSpacing=S.tracking; }
+  return st;
+}
+function compileStyle(){
+  const styles={};
+  for(const r of ROSTER){
+    if(r.surface||r.key==='chapter-number'||r.key==='subtitle') continue;
+    const mp=MP_ELEM[r.key]; if(mp) styles[mp]=mpStyleForElement(r.key);
+  }
+  if(styles['code-block']) styles['code-inline']={ color:styles['code-block'].color, fontSize:styles['code-block'].fontSize };
+  // cover-only zoom: bake coverScale into title + metadata sizes + align
+  for(const k of ['title','metadata']) if(styles[k]) styles[k]={...styles[k], fontSize:round2(styles[k].fontSize*S.coverScale), align:S.coverAlign};
+  // block box styling (Blocs facet) → styles.<block>
+  for(const k of BLOC_KEYS){ const b=S.blocks[k];
+    styles[k]={ ...(styles[k]||{}), padding:b.pad, borderRadius:b.radius,
+      ...(b.bgOn?{background:b.bg}:{}),
+      ...(b.bd.on?{borderTop:true,borderRight:true,borderBottom:true,borderLeft:true,borderColor:b.bd.color,borderWidth:b.bd.width}:{}) }; }
+  // running apparatus: S.running → RunningApparatus (materials; 'text' → {text})
+  const zone=(a)=>a.map(m=>m==='text'?{text:S.customText}:m);
+  const band=(b)=>({verso:{inner:zone(b.verso.inner),center:zone(b.verso.center),outer:zone(b.verso.outer)},
+                    recto:{inner:zone(b.recto.inner),center:zone(b.recto.center),outer:zone(b.recto.outer)}});
+  const PSIZE={A4:'A4',A5:'A5',B5:'B5',Letter:'LETTER','16:9':'SLIDES_16_9'};
+  return {
+    fonts:{headings:S.fam.head, body:S.fam.body, code:S.fam.code},
+    mathFontSet:S.mset, mathScale:S.mscale,
+    pageSize:PSIZE[S.pageFormat]||'A4', duplex:false,
+    chapterBreak:'none', notes:{position:'foot'}, language:'fr', customFonts:[],
+    mermaidMaxScale:2, mermaidMaxWidthPct:1, mermaidMaxHeightPct:0.7,
+    pageBackground:colOf('page'), coverBackground:colOf('cover'),
+    styles,
+    numbering:{on:S.numbering.on, depth:S.numbering.depth, chapterFormat:S.numbering.chapter.format, chapterNumeralPt:sizePt(S.steps['chapter-number'])},
+    runningApparatus:{header:band(S.running.header), footer:band(S.running.footer)},
+    // pageGeometry omitted → markpage bakes its default canon from pageSize.
+  };
+}
+function exportStyle(){
+  const style=compileStyle();
+  const file={ 'markpage-style-file':1, name:'Style éditeur', key:'editor-style', style };
+  const blob=new Blob([JSON.stringify(file,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='editor-style.mpstyle.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+document.getElementById('exportStyle').onclick=exportStyle;
+
 renderPanel(); renderInstrument(); renderArtefact();
 </script>
 </body>
