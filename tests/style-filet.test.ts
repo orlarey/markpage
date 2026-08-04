@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filetCss } from '../src/style-emit';
+import { capsCss, filetCss, inlineCss } from '../src/style-emit';
 import type { Style } from '../src/settings';
 
 describe('filetCss — heading filet (rule) emission', () => {
@@ -34,6 +34,34 @@ describe('filetCss — heading filet (rule) emission', () => {
     const s: Style = { underline: true, rule: { position: 'below', color: '#000000' } };
     expect(filetCss(s)).toBe(
       'border-bottom: 1px solid #000000; padding-bottom: 0.2em;',
+    );
+  });
+});
+
+describe('capsCss — capitals + tracking emission', () => {
+  it('emits nothing when unset or none', () => {
+    expect(capsCss({})).toBe('');
+    expect(capsCss({ smallCaps: 'none' })).toBe('');
+  });
+
+  it('maps small → small-caps and all → uppercase', () => {
+    expect(capsCss({ smallCaps: 'small' })).toBe('font-variant: small-caps;');
+    expect(capsCss({ smallCaps: 'all' })).toBe('text-transform: uppercase;');
+  });
+
+  it('emits letter-spacing in em', () => {
+    expect(capsCss({ letterSpacing: 0.08 })).toBe('letter-spacing: 0.08em;');
+  });
+
+  it('combines caps and tracking', () => {
+    expect(capsCss({ smallCaps: 'small', letterSpacing: 0.06 })).toBe(
+      'font-variant: small-caps; letter-spacing: 0.06em;',
+    );
+  });
+
+  it('is folded into inlineCss so body/blocks pick it up', () => {
+    expect(inlineCss({ smallCaps: 'small' })).toContain(
+      'font-variant: small-caps;',
     );
   });
 });

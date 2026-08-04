@@ -35,6 +35,23 @@ export function inlineCss(s: Style): string {
   if (s.marginBelow !== undefined)
     parts.push(`margin-bottom: ${s.marginBelow}em;`);
   if (s.lineHeight !== undefined) parts.push(`line-height: ${s.lineHeight};`);
+  const caps = capsCss(s);
+  if (caps) parts.push(caps);
+  return parts.join(' ');
+}
+
+/**
+ * Purpose: Emit the capitals / tracking declarations of `s`.
+ * How: `smallCaps` → `font-variant: small-caps` (small) or `text-transform:
+ *   uppercase` (all); `letterSpacing` → `letter-spacing` in em. Both resolved,
+ *   both opt-in (empty when unset). Shared by inline, heading and running paths.
+ */
+export function capsCss(s: Style): string {
+  const parts: string[] = [];
+  if (s.smallCaps === 'small') parts.push('font-variant: small-caps;');
+  else if (s.smallCaps === 'all') parts.push('text-transform: uppercase;');
+  if (s.letterSpacing !== undefined)
+    parts.push(`letter-spacing: ${s.letterSpacing}em;`);
   return parts.join(' ');
 }
 

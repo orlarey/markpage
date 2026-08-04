@@ -75,6 +75,9 @@ export interface HeadingRule {
   style?: 'solid' | 'dashed' | 'dotted'; // default solid
 }
 
+/** Capitals mode for an element: none, small-caps, or all-caps (uppercase). */
+export type CapsMode = 'none' | 'small' | 'all';
+
 /**
  * Purpose: Unified style for any document element — every field optional.
  * How: Inline elements ignore block-only fields (padding/background/border*).
@@ -88,6 +91,8 @@ export interface Style {
   italic?: boolean;
   underline?: boolean; // heading filet (legacy, = rule below) / link text-decoration
   rule?: HeadingRule; // heading/running-content filet: resolved position + styling
+  smallCaps?: CapsMode; // 'small' → small-caps, 'all' → uppercase
+  letterSpacing?: number; // em; typically paired with caps
   align?: Align;
   marginAbove?: number; // em
   marginBelow?: number; // em

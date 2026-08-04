@@ -10,7 +10,7 @@
  *******************************************************************************/
 
 import type { PdfSettings, Style } from './settings';
-import { blockBoxCss, filetCss, inlineCss } from './style-emit';
+import { blockBoxCss, capsCss, filetCss, inlineCss } from './style-emit';
 import {
   quoteFontFamily,
   fontFamilyStack,
@@ -53,7 +53,7 @@ function pagedHeadingExtras(s: Style): string {
     s.family !== undefined && s.family.trim() !== ''
       ? `font-family: ${quoteFontFamily(s.family)}; `
       : '';
-  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
+  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'}; ${capsCss(s)}`;
 }
 
 /**
@@ -1795,6 +1795,8 @@ function runningContentCss(style: Style): string {
   if (style.italic) {
     decls.push('font-style: italic;');
   }
+  const caps = capsCss(style);
+  if (caps) decls.push(caps);
   if (decls.length === 0) return '';
   // All eight @margin-box positions (4 sides × top/center/bottom or
   // left/center/right) plus the 4 corners. Listing them explicitly

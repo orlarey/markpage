@@ -10,7 +10,7 @@
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
 import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
-import { blockBoxCss, filetCss, inlineCss } from './style-emit';
+import { blockBoxCss, capsCss, filetCss, inlineCss } from './style-emit';
 import { quoteFontFamily, fontFamilyStack } from './font-loader';
 
 /**
@@ -38,7 +38,7 @@ function headingExtras(s: Style): string {
     s.family !== undefined && s.family.trim() !== ''
       ? `font-family: ${quoteFontFamily(s.family)}; `
       : '';
-  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'};`;
+  return `${fam}font-style: ${s.italic ? 'italic' : 'normal'}; font-weight: ${s.weight ?? 500}; text-align: ${s.align ?? 'left'}; ${capsCss(s)}`;
 }
 
 /**
