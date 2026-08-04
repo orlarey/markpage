@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>markpage — éditeur de polices (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@400;600;700&family=Poppins:wght@400;500;600;700&family=PT+Serif:wght@400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;600;700&family=Libre+Baskerville:wght@400;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Roboto+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink:#1a1f2b; --sub:#5c6473; --line:#d0d5df; --bg:#eef0f4; --accent:#3b6fb0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
+         background:var(--bg); display:flex; height:100vh; }
+  #panel { width:320px; flex:none; background:#fff; border-right:1px solid var(--line);
+           padding:1rem 1.1rem 2rem; overflow-y:auto; }
+  #stage { flex:1; overflow-y:auto; padding:1.4rem 1.8rem; }
+  h1 { font-size:1rem; margin:0 0 .1rem; }
+  .sub { font-size:.78rem; color:var(--sub); margin:0 0 1rem; line-height:1.4; }
+  h2 { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); margin:1.2rem 0 .5rem; }
+  .row { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.4rem; }
+  button.chip { font:inherit; font-size:.78rem; border:1px solid var(--line); background:#fff; color:var(--sub);
+    padding:.3rem .55rem; border-radius:7px; cursor:pointer; }
+  button.chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  label.f { display:flex; align-items:center; justify-content:space-between; font-size:.8rem; color:var(--sub);
+    margin:.4rem 0; gap:.5rem; }
+  label.f input[type=range] { flex:1; }
+  label.f .v { font-variant-numeric:tabular-nums; color:var(--ink); min-width:3.6em; text-align:right; }
+  select { font:inherit; font-size:.8rem; padding:.28rem .3rem; border:1px solid var(--line); border-radius:6px;
+    background:#fff; color:var(--ink); max-width:60%; }
+  .role { display:flex; align-items:center; justify-content:space-between; margin:.35rem 0; font-size:.8rem; color:var(--sub); }
+  .toggle { display:flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--sub); margin:.4rem 0; cursor:pointer; }
+  .ratioName { font-size:.72rem; color:var(--accent); min-height:1em; margin:-.1rem 0 .3rem; }
+  .actions button { width:100%; font:inherit; font-size:.8rem; padding:.5rem; border-radius:8px;
+    border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer; margin-top:.8rem; }
+  /* ---- ladder ---- */
+  .rung { display:flex; align-items:baseline; gap:1rem; padding:.35rem .5rem; border-radius:8px;
+    cursor:ns-resize; border:1px solid transparent; }
+  .rung:hover { background:#fff; border-color:var(--line); }
+  .rung.dragging { background:#fff; border-color:var(--accent); }
+  .rung .tag { flex:none; width:66px; font-size:.72rem; color:var(--sub); text-transform:uppercase; letter-spacing:.04em;
+    user-select:none; }
+  .rung .spec { flex:1; color:var(--ink); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .rung .spec.multi { white-space:normal; }
+  .rung .ctl { flex:none; display:flex; gap:.25rem; }
+  .rung .ctl .mini { font:inherit; font-size:.66rem; font-weight:600; width:20px; height:20px; padding:0;
+    border:1px solid var(--line); background:#fff; color:var(--sub); border-radius:5px; cursor:pointer; }
+  .rung .ctl .mini.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .rung .meta { flex:none; width:104px; text-align:right; font-size:.72rem; color:var(--sub);
+    font-variant-numeric:tabular-nums; user-select:none; }
+  .rung .meta b { color:var(--ink); }
+  /* ---- cover ---- */
+  #cover .cover-card { background:#fff; border:1px solid var(--line); border-radius:10px;
+    padding:2.4rem 2.2rem; margin-bottom:1.6rem; box-shadow:0 1px 8px rgba(0,0,0,.07); }
+  #cover .cover-card .lbl { font-size:.62rem; text-transform:uppercase; letter-spacing:.09em;
+    color:#b0b6c0; margin-bottom:1.4rem; text-align:left; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Éditeur de polices</h1>
+  <p class="sub">Un pairing donne le point de départ ; surcharge chaque rôle librement. La taille de
+    chaque élément dérive de <b>corps · ratio<sup>cran</sup></b> — glisse une ligne pour changer son cran.</p>
+
+  <h2>Pairing</h2>
+  <div class="row" id="pairs"></div>
+
+  <h2>Familles (surcharge)</h2>
+  <div class="role">Titres <select id="fHead"></select></div>
+  <div class="role">Corps <select id="fBody"></select></div>
+  <div class="role">Code <select id="fCode"></select></div>
+  <div class="role">Maths <select id="mset"></select></div>
+
+  <h2>Échelle</h2>
+  <label class="f">Corps <input type="range" id="base" min="8" max="16" step="0.5" value="11" />
+    <span class="v" id="baseV">11 pt</span></label>
+  <label class="f">Ratio <input type="range" id="ratio" min="1.05" max="1.7" step="0.005" value="1.25" />
+    <span class="v" id="ratioV">1.250</span></label>
+  <div class="ratioName" id="ratioName"></div>
+  <div class="row" id="magnets"></div>
+
+  <h2>Interligne & graisses</h2>
+  <label class="f">Interligne <input type="range" id="lh" min="1" max="1.8" step="0.05" value="1.25" />
+    <span class="v" id="lhV">1.25</span></label>
+  <div class="role">Graisse titres <select id="wHead"></select></div>
+  <div class="role">Graisse corps <select id="wBody"></select></div>
+
+  <h2>Corps — justification</h2>
+  <label class="toggle"><input type="checkbox" id="justify" checked /> Justifier le corps (remplir les deux bords)</label>
+  <p class="sub" style="margin:.3rem 0 0">La justification est une propriété des paragraphes, distincte de l'<b>alignement</b> des titres (G/C/D).</p>
+
+  <h2>Titres — détails</h2>
+  <label class="f">Interlettrage <input type="range" id="tracking" min="0" max="0.12" step="0.005" value="0" />
+    <span class="v" id="trackingV">0.00 em</span></label>
+  <p class="sub" style="margin:.3rem 0 0">Petites capitales : bouton <b>Aᴀ</b> par cran (titres, méta, en-tête).</p>
+
+  <h2>Code &amp; maths</h2>
+  <label class="f">Code <input type="range" id="cscale" min="0.75" max="1.1" step="0.01" value="0.9" />
+    <span class="v" id="cscaleV">×0.90</span></label>
+  <label class="f">Maths <input type="range" id="mscale" min="0.8" max="1.2" step="0.01" value="1" />
+    <span class="v" id="mscaleV">×1.00</span></label>
+
+  <h2>Couverture</h2>
+  <p class="sub" style="margin:0 0 .5rem">Style de la couverture — sa présence et son contenu se règlent dans la mise en page.</p>
+  <div class="role">Alignement <select id="coverAlign"></select></div>
+  <label class="f">Zoom <input type="range" id="coverScale" min="1" max="2.2" step="0.05" value="1.4" />
+    <span class="v" id="coverScaleV">×1.40</span></label>
+
+  <div class="actions"><button id="reset">Rétablir l'échelle</button></div>
+</div>
+
+<div id="stage">
+  <div id="cover"></div>
+  <div id="ladder"></div>
+</div>
+
+<script>
+// ---- catalogues (mirror src FONT_PAIRINGS / FONT_STEPS) --------------------
+const PAIRINGS = [
+  { id:'moderne', name:'Moderne', headings:'Inter', body:'Inter', code:'JetBrains Mono', math:'fira', ratio:1.22 },
+  { id:'classique', name:'Classique', headings:'Source Serif 4', body:'Source Serif 4', code:'IBM Plex Mono', math:'stix2', ratio:1.25 },
+  { id:'editorial', name:'Éditorial', headings:'Inter', body:'Lora', code:'JetBrains Mono', math:'stix2', ratio:1.28 },
+  { id:'elegant', name:'Élégant', headings:'EB Garamond', body:'EB Garamond', code:'IBM Plex Mono', math:'newcm', ratio:1.30 },
+  { id:'technique', name:'Technique', headings:'Roboto Condensed', body:'Roboto', code:'Roboto Mono', math:'fira', ratio:1.20 },
+  { id:'contraste', name:'Contraste', headings:'Poppins', body:'PT Serif', code:'Source Code Pro', math:'stix2', ratio:1.34 },
+];
+const TEXT_FAMILIES = ['Inter','Work Sans','Poppins','Roboto','Roboto Condensed','Source Serif 4','Lora','PT Serif',
+  'Merriweather','EB Garamond','Playfair Display','Libre Baskerville'];
+const CODE_FAMILIES = ['JetBrains Mono','IBM Plex Mono','Roboto Mono','Source Code Pro'];
+const WEIGHTS = [[300,'Light'],[400,'Regular'],[500,'Medium'],[600,'Semibold'],[700,'Bold']];
+const MATH_SETS = ['stix2','fira','newcm','asana','tex'];
+const NAMED_RATIOS = [[1.125,'seconde M'],[1.2,'tierce m'],[1.25,'tierce M'],[1.333,'quarte'],
+  [1.414,'quarte aug.'],[1.5,'quinte'],[1.618,'nombre d’or']];
+
+// element rungs. `ctrls` = per-element detail chips: 'align' (G/C/D), 'rule'
+// (filet horizontal), 'caps' (petites capitales). running-content has NO free
+// align — its alignment is structural (inner/center/outer). code & maths are
+// NOT rungs: they are scales × corps, jugés en ligne dans l'échantillon corps.
+const RUNGS = [
+  { key:'title',    tag:'titre',      role:'head', step:5,   ctrls:['align','rule','caps'], sample:'Titre du document' },
+  { key:'subtitle', tag:'sous-titre', role:'head', step:3,   ctrls:['align','rule','caps'], sample:'Un sous-titre en complément' },
+  { key:'metadata', tag:'méta',       role:'body', step:0,   ctrls:['align','rule','caps'], sample:'Prénom Nom · Mon organisation · 2026' },
+  { key:'h1',       tag:'H1',         role:'head', step:4,   ctrls:['align','rule','caps'], sample:'Chapitre premier' },
+  { key:'h2',       tag:'H2',         role:'head', step:3,   ctrls:['align','rule','caps'], sample:'Une section importante' },
+  { key:'h3',       tag:'H3',         role:'head', step:2,   ctrls:['align','rule','caps'], sample:'Une sous-section' },
+  { key:'h4',       tag:'H4',         role:'head', step:1,   ctrls:['align','rule','caps'], sample:'Un paragraphe titré' },
+  { key:'body',     tag:'corps',      role:'body', step:0,   multi:true, ctrls:[],
+    sample:'Le corps de texte porte la lecture continue ; sa taille est l’<b>ancre</b> de toute l’échelle. On appelle <code>deriveFontSizes(base, ratio)</code> pour engendrer les tailles, on note l’<i>italique</i> pour les nuances, et l’on pose la moyenne <span class="mi">µ = <sup>1</sup>⁄<sub>n</sub> ∑<sub>i</sub> x<sub>i</sub></span> au fil de phrases qui s’enchaînent sur plusieurs lignes — de quoi juger d’un coup l’<i>interligne</i>, le gris typographique, l’accord du <code>code</code> et des maths avec le corps, et la justification du paragraphe.' },
+  { key:'caption',  tag:'légende',    role:'body', step:-1,  ctrls:[], sample:'Figure 1 — légende de la figure' },
+  { key:'note',     tag:'note',       role:'body', step:-1,  ctrls:[], sample:'1. Une note de bas de page, plus discrète.' },
+  { key:'running-content', tag:'en-tête', role:'body', step:-1, ctrls:['rule','caps'], sample:'Note technique · titre courant · 3' },
+];
+const ALIGNS = ['left','center','right'];               // alignement (pas de « justifié »)
+const ALIGN_LBL = { left:'G', center:'C', right:'D' };
+const RULES = ['none','below','above'];                 // horizontal rule position
+const RULE_LBL = { none:'·', below:'▁', above:'▔' };
+
+// ---- state -----------------------------------------------------------------
+const S = {
+  pairing:'classique',
+  fam:{ head:'Source Serif 4', body:'Source Serif 4', code:'IBM Plex Mono' },
+  base:11, ratio:1.25, lh:1.25,
+  wHead:600, wBody:400,
+  tracking:0, justify:true,   // justify = propriété du CORPS (paragraphes), pas des titres
+  codeScale:0.9, mscale:1, mset:'stix2',   // code & maths: × relative to body, judged in context
+  steps:{},           // per-key cran overrides; default = RUNGS[i].step
+  align:{}, rule:{}, smallcaps:{},  // per heading/meta element (rule = filet, smallcaps = PC)
+  coverAlign:'center', coverScale:1.4,   // cover STYLE only (presence/content = page layout)
+};
+RUNGS.forEach((r) => {
+  S.steps[r.key] = r.step;
+  const c = r.ctrls || [];
+  if (c.includes('align')) S.align[r.key] = (r.key === 'title' || r.key === 'subtitle' || r.key === 'metadata') ? 'center' : 'left';
+  if (c.includes('rule')) S.rule[r.key] = 'none';
+  if (c.includes('caps')) S.smallcaps[r.key] = false;
+});
+
+const round2 = (x) => Math.round(x * 2) / 2;
+const sizePt = (step) => round2(S.base * Math.pow(S.ratio, step));
+const famCss = (role) => {
+  // single quotes: this value is also interpolated into style="…" HTML attributes
+  // (cover / math preview), where double quotes would close the attribute.
+  const n = S.fam[role];
+  return role === 'code' ? `'${n}', ui-monospace, monospace` : `'${n}', system-ui, serif`;
+};
+
+// ---- ladder ----------------------------------------------------------------
+const ladder = document.getElementById('ladder');
+function renderLadder() {
+  ladder.replaceChildren();
+  for (const r of RUNGS) {
+    const step = S.steps[r.key];
+    const pt = sizePt(step);
+    const head = r.role === 'head';
+    const row = document.createElement('div');
+    row.className = 'rung'; row.dataset.key = r.key;
+    const tag = document.createElement('div'); tag.className = 'tag'; tag.textContent = r.tag;
+    const spec = document.createElement('div'); spec.className = 'spec' + (r.multi ? ' multi' : '');
+    spec.innerHTML = r.sample;                        // samples may carry <b>/<i>/<code>/.mi
+    spec.style.fontFamily = famCss(r.role);
+    spec.style.fontSize = pt + 'pt';
+    spec.style.lineHeight = r.role === 'body' ? S.lh : 1.15;
+    spec.style.fontWeight = head ? S.wHead : (r.role === 'body' ? S.wBody : 400);
+    // inline code & maths live INSIDE the body flow — sized × body (em), judged
+    // in the corps example itself (no separate context block).
+    spec.querySelectorAll('code').forEach((c) => { c.style.fontFamily = famCss('code'); c.style.fontSize = S.codeScale + 'em'; });
+    spec.querySelectorAll('.mi').forEach((m) => { m.style.fontSize = S.mscale + 'em'; });
+    const c = r.ctrls || [];
+    if (c.includes('align')) spec.style.textAlign = S.align[r.key];      // alignement G/C/D
+    if (c.includes('rule')) {
+      const rule = S.rule[r.key];                                        // filet horizontal
+      if (rule === 'below') { spec.style.borderBottom = '1.5px solid currentColor'; spec.style.paddingBottom = '.14em'; }
+      else if (rule === 'above') { spec.style.borderTop = '1.5px solid currentColor'; spec.style.paddingTop = '.14em'; }
+    }
+    if (c.includes('caps')) {
+      if (S.smallcaps[r.key]) spec.style.fontVariant = 'small-caps';
+      if (S.tracking) spec.style.letterSpacing = S.tracking + 'em';       // interlettrage (titres/méta/en-tête)
+    }
+    // Justification = propriété du CORPS (remplir les deux bords), distincte de
+    // l'alignement des titres. Appliquée à l'échantillon corps.
+    if (r.key === 'body') spec.style.textAlign = S.justify ? 'justify' : 'left';
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const over = step !== r.step;
+    meta.innerHTML = `<b>${pt.toFixed(1)} pt</b> · cran ${over ? '<b>' : ''}${step}${over ? '</b>' : ''}`;
+    // per-element detail chips, per r.ctrls (running-content: rule+caps, no align)
+    if (c.length) {
+      const ctl = document.createElement('div'); ctl.className = 'ctl';
+      if (c.includes('align')) {
+        const aBtn = document.createElement('button'); aBtn.className = 'mini';
+        aBtn.textContent = ALIGN_LBL[S.align[r.key]]; aBtn.title = 'alignement (gauche / centre / droite)';
+        aBtn.onclick = () => { const i = ALIGNS.indexOf(S.align[r.key]); S.align[r.key] = ALIGNS[(i + 1) % ALIGNS.length]; renderLadder(); };
+        ctl.append(aBtn);
+      }
+      if (c.includes('rule')) {
+        const rBtn = document.createElement('button'); rBtn.className = 'mini' + (S.rule[r.key] !== 'none' ? ' on' : '');
+        rBtn.textContent = RULE_LBL[S.rule[r.key]]; rBtn.title = 'filet horizontal (aucun / dessous / dessus)';
+        rBtn.onclick = () => { const i = RULES.indexOf(S.rule[r.key]); S.rule[r.key] = RULES[(i + 1) % 3]; renderLadder(); };
+        ctl.append(rBtn);
+      }
+      if (c.includes('caps')) {
+        const scBtn = document.createElement('button'); scBtn.className = 'mini' + (S.smallcaps[r.key] ? ' on' : '');
+        scBtn.textContent = 'Aᴀ'; scBtn.title = 'petites capitales';
+        scBtn.onclick = () => { S.smallcaps[r.key] = !S.smallcaps[r.key]; renderLadder(); };
+        ctl.append(scBtn);
+      }
+      ctl.addEventListener('pointerdown', (e) => e.stopPropagation()); // don't start a cran drag
+      row.append(tag, spec, ctl, meta);
+    } else {
+      row.append(tag, spec, meta);
+    }
+    attachRungDrag(row, r);
+    ladder.appendChild(row);
+  }
+  renderCover();
+}
+
+const PX_PER_STEP = 46;
+function attachRungDrag(row, r) {
+  row.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); row.setPointerCapture?.(e.pointerId); row.classList.add('dragging');
+    const y0 = e.clientY, s0 = S.steps[r.key];
+    const move = (ev) => {
+      const d = (y0 - ev.clientY) / PX_PER_STEP;         // up = larger
+      S.steps[r.key] = Math.max(-2, Math.min(7, Math.round((s0 + d) * 2) / 2));
+      renderLadder();
+    };
+    const up = () => { row.classList.remove('dragging');
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  });
+}
+
+
+// A cover has its OWN rules (SPEC): the title block is centred and enlarged
+// relative to the in-body title, with an optional metadata block. Shown only
+// when the document declares a cover.
+function renderCover() {
+  const c = document.getElementById('cover');
+  const headF = famCss('head'), bodyF = famCss('body');
+  // the cover zoom scales the WHOLE block uniformly (title + subtitle + metadata),
+  // each from its own cran in the échelle.
+  const titlePt = round2(sizePt(S.steps.title) * S.coverScale);
+  const subPt = round2(sizePt(S.steps.subtitle) * S.coverScale);
+  const metaPt = round2(sizePt(S.steps.metadata) * S.coverScale);
+  const cap = (k) => S.smallcaps[k] ? 'font-variant:small-caps;' : '';   // per-element PC
+  const track = S.tracking ? `letter-spacing:${S.tracking}em;` : '';
+  c.innerHTML =
+    `<div class="cover-card" style="text-align:${S.coverAlign}">` +
+    `<div class="lbl">couverture</div>` +
+    `<div style="font-family:${headF};font-size:${titlePt}pt;font-weight:${S.wHead};line-height:1.1;${cap('title')}${track}">Titre du document</div>` +
+    `<div style="font-family:${headF};font-size:${subPt}pt;font-style:italic;color:#5c6473;line-height:1.2;margin-top:.35em;${cap('subtitle')}">Un sous-titre en complément</div>` +
+    `<div style="font-family:${bodyF};font-size:${metaPt}pt;color:#5c6473;margin-top:2em;${cap('metadata')}">Prénom Nom · Mon organisation · 2026</div>` +
+    `</div>`;
+}
+
+// ---- controls --------------------------------------------------------------
+function fillSelect(sel, items, value, label = (x)=>x) {
+  sel.replaceChildren();
+  for (const it of items) { const o = document.createElement('option');
+    const val = Array.isArray(it) ? it[0] : it; o.value = val; o.textContent = label(it);
+    if (String(val) === String(value)) o.selected = true; sel.appendChild(o); }
+}
+function syncFamilySelects() {
+  fillSelect(document.getElementById('fHead'), TEXT_FAMILIES, S.fam.head);
+  fillSelect(document.getElementById('fBody'), TEXT_FAMILIES, S.fam.body);
+  fillSelect(document.getElementById('fCode'), CODE_FAMILIES, S.fam.code);
+}
+function applyPairing(p) {
+  S.pairing = p.id; S.fam = { head:p.headings, body:p.body, code:p.code };
+  S.ratio = p.ratio; S.mset = p.math;
+  document.getElementById('ratio').value = p.ratio;
+  document.getElementById('ratioV').textContent = p.ratio.toFixed(3);
+  fillSelect(document.getElementById('mset'), MATH_SETS, S.mset);
+  updateRatioName(); syncFamilySelects(); renderLadder();
+}
+
+// pairing chips
+const pairsRow = document.getElementById('pairs');
+PAIRINGS.forEach(p => {
+  const b = document.createElement('button'); b.className = 'chip' + (p.id===S.pairing?' on':'');
+  b.textContent = p.name; b.onclick = () => {
+    [...pairsRow.children].forEach(c => c.classList.toggle('on', c.textContent===p.name));
+    applyPairing(p);
+  };
+  pairsRow.appendChild(b);
+});
+
+// magnets
+const magRow = document.getElementById('magnets');
+NAMED_RATIOS.forEach(([r,name]) => {
+  const b = document.createElement('button'); b.className='chip'; b.textContent = r.toFixed(3);
+  b.title = name;
+  b.onclick = () => { S.ratio = r; document.getElementById('ratio').value = r;
+    document.getElementById('ratioV').textContent = r.toFixed(3); updateRatioName(); renderLadder(); };
+  magRow.appendChild(b);
+});
+function updateRatioName() {
+  const near = NAMED_RATIOS.find(([r]) => Math.abs(r - S.ratio) < 0.008);
+  document.getElementById('ratioName').textContent = near ? `≈ ${near[1]} (${near[0].toFixed(3)})` : '';
+}
+
+// families
+document.getElementById('fHead').addEventListener('change', e => { S.fam.head = e.target.value; renderLadder(); });
+document.getElementById('fBody').addEventListener('change', e => { S.fam.body = e.target.value; renderLadder(); });
+document.getElementById('fCode').addEventListener('change', e => { S.fam.code = e.target.value; renderLadder(); });
+
+// base + ratio (with magnet snapping)
+const baseI = document.getElementById('base');
+baseI.addEventListener('input', () => { S.base = +baseI.value;
+  document.getElementById('baseV').textContent = `${baseI.value} pt`; renderLadder(); });
+const ratioI = document.getElementById('ratio');
+ratioI.addEventListener('input', () => {
+  let v = +ratioI.value;
+  const near = NAMED_RATIOS.find(([r]) => Math.abs(r - v) < 0.01);   // magnetise onto a named ratio
+  if (near) { v = near[0]; ratioI.value = v; }
+  S.ratio = v; document.getElementById('ratioV').textContent = v.toFixed(3);
+  updateRatioName(); renderLadder();
+});
+
+// line-height, weights
+const lhI = document.getElementById('lh');
+lhI.addEventListener('input', () => { S.lh = +lhI.value;
+  document.getElementById('lhV').textContent = lhI.value; renderLadder(); });
+fillSelect(document.getElementById('wHead'), WEIGHTS, S.wHead, ([v,l]) => `${l} (${v})`);
+fillSelect(document.getElementById('wBody'), WEIGHTS, S.wBody, ([v,l]) => `${l} (${v})`);
+document.getElementById('wHead').addEventListener('change', e => { S.wHead = +e.target.value; renderLadder(); });
+document.getElementById('wBody').addEventListener('change', e => { S.wBody = +e.target.value; renderLadder(); });
+
+// body justification (a paragraph property, not a title alignment)
+document.getElementById('justify').addEventListener('change', (e) => { S.justify = e.target.checked; renderLadder(); });
+// titles details (interlettrage stays global; small-caps is per-cran)
+const trI = document.getElementById('tracking');
+trI.addEventListener('input', () => { S.tracking = +trI.value;
+  document.getElementById('trackingV').textContent = `${(+trI.value).toFixed(2)} em`; renderLadder(); });
+
+// code & maths (scales relative to body, judged in the context paragraph)
+const csI = document.getElementById('cscale');
+csI.addEventListener('input', () => { S.codeScale = +csI.value;
+  document.getElementById('cscaleV').textContent = `×${(+csI.value).toFixed(2)}`; renderLadder(); });
+const msI = document.getElementById('mscale');
+msI.addEventListener('input', () => { S.mscale = +msI.value;
+  document.getElementById('mscaleV').textContent = `×${(+msI.value).toFixed(2)}`; renderLadder(); });
+fillSelect(document.getElementById('mset'), MATH_SETS, S.mset);
+document.getElementById('mset').addEventListener('change', e => { S.mset = e.target.value; renderLadder(); });
+
+// cover
+fillSelect(document.getElementById('coverAlign'),
+  [['center','centré'],['left','gauche'],['right','droite']], S.coverAlign, ([,l]) => l);
+document.getElementById('coverAlign').addEventListener('change', e => { S.coverAlign = e.target.value; renderCover(); });
+const coverScaleI = document.getElementById('coverScale');
+coverScaleI.addEventListener('input', () => { S.coverScale = +coverScaleI.value;
+  document.getElementById('coverScaleV').textContent = `×${(+coverScaleI.value).toFixed(2)}`; renderCover(); });
+
+// reset scale (steps only)
+document.getElementById('reset').onclick = () => { RUNGS.forEach(r => S.steps[r.key] = r.step); renderLadder(); };
+
+// ---- boot ------------------------------------------------------------------
+syncFamilySelects(); updateRatioName(); renderLadder();
+</script>
+</body>
+</html>

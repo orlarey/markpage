@@ -1,8 +1,8 @@
 ---
 title: Spécification — l'atelier de style (couleur × format × polices)
 author: Yann Orlarey
-version: 0.1 (brouillon)
-date: 2026-07-28
+version: 0.2 (brouillon)
+date: 2026-08-04
 ---
 
 > **Statut :** **design exploratoire V1, non figé** — méthodo **pilotée par
@@ -10,14 +10,18 @@ date: 2026-07-28
 > [VOLUMES-SPEC](VOLUMES-SPEC.md). **Compagnon** de
 > [SETTINGS-SPEC](SETTINGS-SPEC.md) (qu'il remplace à terme côté UI),
 > [STACK-SPEC](STACK-SPEC.md) (sérialisation) et [STYLE-SPEC](STYLE-SPEC.md).
-> Rien n'est implémenté ; on **spécifie**. Cinq maquettes interactives
-> accompagnent ce document (§ liens en fin). Implémentation partagée appli ↔
+> Rien n'est implémenté ; on **spécifie**. Implémentation partagée appli ↔
 > extension VS Code via [`@orlarey/markpage-render`](../packages/markpage-render/).
+>
+> **v0.2** affine le principe directeur — « règles algorithmiques » devient
+> **règles génératrices** — et consigne les évolutions issues de **trois nouvelles
+> maquettes interactives** (couleur / polices / pages), voir *Évolutions depuis
+> les maquettes*.
 
 **Objet :** remplacer le système de réglages actuel — jugé **trop complexe**, sa
 double vue *Essentiel / Avancé* ne fonctionnant pas en termes d'UX — par un
 **atelier de style** reposant sur **peu de primitives** et des **règles
-algorithmiques**. Le résultat tient en une phrase :
+génératrices**. Le résultat tient en une phrase :
 
 > un **style** = une **carte de couleurs** × un choix de **galerie-formats** × un
 > choix de **galerie-polices**.
@@ -30,6 +34,7 @@ algorithmiques**. Le résultat tient en une phrase :
 - **Axe format — la galerie de documents** — gabarits, fixé vs ajustable.
 - **Axe polices — la galerie de paires** — paires curées, taille de base.
 - **L'atelier** — sélection partagée, aperçu unifié, nommage du style.
+- **Évolutions depuis les maquettes** — le principe unifiant et ce qui a bougé depuis la v0.1.
 - **Sérialisation** — branchement sur la pile de documents.
 - **Invariants** — I1–I7, le contrat.
 - **À trancher / hors V1** — paramètres ouverts.
@@ -107,6 +112,37 @@ simple. Chaque axe réduit les degrés de liberté à sa manière : la couleur p
 **regroupement**, les polices et le format par **choix dans un catalogue**, les
 tailles (quand elles restent réglables) par **règle générative**.
 :::
+
+### Le principe unifiant : la règle génératrice et ses exceptions
+
+Les maquettes (v0.2) ont fait émerger, **sous** les deux archétypes, un principe
+plus profond et **commun aux trois familles** — c'est lui qu'on retient.
+
+::: important [Règle génératrice + spécificités locales]
+Chaque famille se **scinde en deux**, disposées sur **deux panneaux** :
+
+- **à gauche, une règle *génératrice*** (globale, abstraite) qui **engendre toute
+  une famille de valeurs coordonnées** à partir de très peu de paramètres, avec un
+  **invariant de coordination** ;
+- **à droite, l'objet concret**, rendu vivant : les **spécificités locales** (les
+  exceptions posées élément par élément) **et l'aperçu**.
+:::
+
+C'est ce qui **dompte** les ~150 degrés de liberté : on ne règle pas 150 boutons,
+on règle **une règle** et quelques **exceptions relatives** à cette règle.
+
+| Famille | Règle génératrice (gauche) | Spécificités locales (droite) |
+| :-- | :-- | :-- |
+| **Couleur** | une **teinte** maîtresse → toute la famille se dérive ; une **famille B** en découle par un **angle d'harmonie** | le **cran** de chaque élément (sat × val, ou neutre) et sa **famille** A/B |
+| **Typographie** | une **base** + un **ratio** aimanté → l'échelle modulaire ($\text{taille} = \text{base} \cdot \text{ratio}^{\text{cran}}$) | le **cran** surchargé d'un élément, son **alignement**, filet, petites capitales |
+| **Pages** | le **canon de Van de Graaf** → les marges (ses **diagonales** en repère) | chaque **trait** tiré librement hors canon, le bloc de texte déplacé |
+
+« Carte » et « galerie » de la v0.1 ne sont plus deux archétypes concurrents mais
+**deux mises en œuvre** du même schéma : la carte couleur *est* une règle
+génératrice (la teinte) avec ses crans (les exceptions) ; les galeries étaient une
+règle génératrice **figée dans un preset**. La v0.2 **ré-ouvre** la règle à
+l'édition directe (échelle typo, marges) tout en gardant le preset comme point de
+départ. Cette relecture **affine l'invariant I2** (voir *Évolutions*).
 
 ---
 
@@ -331,6 +367,110 @@ aperçu **persistant** à droite.
 
 ---
 
+## Évolutions depuis les maquettes
+
+Trois maquettes interactives autonomes ont été construites — **couleur**,
+**polices**, **pages** (`prototypes/editeur-{couleurs,polices,pages}.html`,
+servies en local). Elles ont validé le principe unifiant (§*Principe directeur*)
+et fait bouger plusieurs décisions de la v0.1.
+
+::: note [Terminologie]
+« Règles **algorithmiques** » devient « règles **génératrices** » : le mot dit
+mieux qu'une règle-maîtresse *engendre* une famille entière avec un invariant de
+coordination, et que les réglages fins en sont des *exceptions relatives*.
+:::
+
+Ce qui a bougé (⟳ = revient sur une décision v0.1) :
+
+⟳ Échelle typographique ré-ouverte
+:   §*Polices* avait **écarté** la « carte taille × graisse » au profit d'une
+    galerie de paires. La maquette la **ré-introduit, interactive** : on part
+    d'une paire (familles + ratio + maths), puis on **surcharge** chaque rôle et
+    on **règle l'échelle** — ratio **aimanté** sur les ratios nommés (tierce,
+    quarte, quinte, nombre d'or…), **crans réglables** par élément. La paire reste
+    le **point de départ**, plus l'unique choix.
+
+⟳ Marges directement éditables
+:   §*Format* posait « marges **jamais** réglées à la main ». L'éditeur de pages
+    les rend **glissables** : double-page permanente, **diagonales du canon en
+    repère** (le canon *guide*, ne *verrouille* pas), poignées **hors page** pour
+    ne pas masquer les intersections, bloc de texte déplaçable. Les gabarits
+    restent des **presets** de départ.
+
+⟳ Deuxième famille de teinte
+:   §*Tranché* disait « un seul bac ». La maquette ajoute une **famille B
+    relative** : $H_2 = H_1 + \text{angle}$ (analogue +30°, triadique +120°,
+    split-complémentaire +150°, complémentaire +180°, + réglage fin). $H_1$ reste
+    **maître** — le tourner pivote les deux familles, l'angle re-choisit leur
+    rapport. Chaque élément choisit sa famille (A/B) ; les **neutres** restent
+    partagés, hors teinte.
+
+Roster unifié (noms anglais)
+:   Les trois familles partagent **la même liste d'éléments**. Tous ne portent pas
+    tous les axes (table ci-dessous).
+
+`math` reçoit une couleur
+:   Comme `code`, `math` devient un élément **à double axe** : une **couleur** *et*
+    une **échelle × corps** (jugée en ligne dans un paragraphe de corps). Les
+    surfaces `page` / `cover` restent **couleur seule**.
+
+Alignement ≠ justification
+:   L'ancienne puce « justification » (G/C/D/**J**) des titres devient
+    **alignement** (G/C/D) — « justifié » n'a pas de sens sur un titre. La
+    **justification** (remplir les deux bords) est une propriété des
+    **paragraphes / corps**, distincte.
+
+`running-content` : alignement structurel
+:   L'en-tête / pied n'a **pas** d'alignement libre — ses **trois zones** (inner /
+    center / outer) sont *spine-aware* : inner = gauche, center = centre, outer =
+    droite (miroir en verso). Il garde couleur, taille (cran d'apparat), filet et
+    petites capitales.
+
+`cover` = style seul dans l'éditeur
+:   La **présence** d'une couverture et son **contenu** relèvent de la **mise en
+    page**, pas de l'éditeur de style : les cases « document avec couverture » /
+    « bloc métadonnées » en ont été **retirées**. Ne restent, côté style, que le
+    **zoom** et l'**alignement** du bloc de couverture. *(Discipline de tri :
+    règle ? spécificité ? — sinon, hors de l'outil.)*
+
+### Le roster unifié et ses axes
+
+Chaque élément ne porte pas forcément les trois axes — `couleur` (cran + famille),
+`taille` (cran modulaire **ou** échelle × corps), `détails` (alignement · filet ·
+petites capitales) :
+
+| élément | couleur | taille | détails |
+| :-- | :-: | :-: | :-- |
+| `page` *(surface)* | ✓ | — | — |
+| `cover` *(surface)* | ✓ | — | — |
+| `running-content` | ✓ | cran | filet · PC · **alignement structurel** |
+| `title` · `subtitle` | ✓ | cran | alignement · filet · PC |
+| `h1` · `h2` · `h3` · `h4` | ✓ | cran | alignement · filet · PC |
+| `body` | ✓ | cran *(ancre)* | **justification** (du paragraphe) |
+| `code` | ✓ | échelle × corps | — |
+| `math` | ✓ | échelle × corps | — |
+| `caption` · `note` | ✓ | cran | — |
+| `metadata` | ✓ | cran | alignement · filet · PC |
+
+### Vers un seul outil
+
+But : réunir les trois familles en **un seul outil**, sur une **coquille commune**
+— un sélecteur de facette (Couleur / Polices / Pages) ; à gauche les **règles
+génératrices** de la facette active, à droite un **panneau hybride** : un
+**artefact** live (une page / double-page réaliste reflétant les trois familles,
+toujours visible) **+** l'**instrument** de la facette (carte, échelle, double-page
+à poignées). Un seul **modèle de style** partagé ; changer de facette ne perd rien.
+
+::: important [Invariant I2 affiné]
+« Deux archétypes seulement » (carte / galerie) est **remplacé** par un principe
+unique — **règle génératrice + spécificités locales** — dont carte, échelle et
+double-page sont trois instances. Les autres invariants (aimantation des crans,
+sérialisation du cran, un seul degré de liberté côté rédaction, fonds qui
+contrastent) **tiennent**.
+:::
+
+---
+
 ## Sérialisation
 
 Un style se **sérialise** sur le modèle de la pile
@@ -403,9 +543,11 @@ I1 — **Style = (couleur, format, polices)**
 :   Trois choix composables et indépendants ; leur combinaison, plus rien
     d'autre, définit le style.
 
-I2 — **Deux archétypes seulement**
+I2 — **Deux archétypes seulement** *(affiné en v0.2)*
 :   La *carte* pour la couleur ; la *galerie* pour le format et les polices. Pas
-    de troisième métaphore, pas d'uniformisation forcée.
+    de troisième métaphore, pas d'uniformisation forcée. **v0.2** relit ces
+    archétypes comme deux instances d'un principe unique — *règle génératrice +
+    spécificités locales* (§*Principe directeur*).
 
 I3 — **Aimantation, jamais de valeur libre par élément**
 :   Sur la carte, une icône saute de cran en cran. Aucune saisie de valeur
@@ -433,8 +575,9 @@ I7 — **Côté rédaction, un seul degré de liberté**
 
 - **Nombre de crans** de la carte couleur : **6 × 6 + colonne de gris**, figé
   (§4, I3).
-- **Un seul bac couleur** : une teinte + les neutres. Pas de second bac en V1 —
-  la colonne de gris couvre déjà les besoins d'accent neutre.
+- **Couleur — deux familles de teinte** *(révisé en v0.2)* : une teinte
+  **maîtresse** + une **famille B relative** (angle d'harmonie), plus les neutres
+  partagés hors teinte. Révise le « un seul bac » de la v0.1 — voir *Évolutions*.
 - **Police mathématique** : quatrième rôle **baké dans la paire**, harmonisé au
   texte ; seule poignée propre = `math-scale` (§6).
 - **Sérialisation de la couleur** : **une chaîne scalaire compacte** unique
@@ -456,9 +599,22 @@ I7 — **Côté rédaction, un seul degré de liberté**
 
 ## Maquettes de référence
 
-Cinq prototypes interactifs matérialisent cette spec :
+**v0.2 — maquettes interactives locales** (`prototypes/`, servies via
+`python3 -m http.server`), une par famille, déjà coulées dans la coquille
+gauche-règles / droite-objet :
 
-- **Carte couleur** (teinte, crans, neutres, `page` + `cover`) —
+- **Éditeur de couleurs** — `prototypes/editeur-couleurs.html` : teinte maîtresse
+  et famille B (angle d'harmonie), carte à deux familles avec neutres, aperçu.
+- **Éditeur de polices** — `prototypes/editeur-polices.html` : échelle modulaire
+  interactive (base + ratio aimanté, crans réglables), alignement / filet /
+  petites capitales par élément, `code` & `math` × corps jugés en ligne.
+- **Éditeur de pages** — `prototypes/editeur-pages.html` : double-page, diagonales
+  du canon en repère, marges libres à **poignées externes**, bloc de texte
+  déplaçable, poignées d'angle, ligne de titre.
+
+**v0.1 — maquettes d'origine** (Claude artifacts) :
+
+- **Carte couleur** —
   <https://claude.ai/code/artifact/f5cfa593-c49a-4218-89d9-92a5404433ca>
 - **Galerie de formats** —
   <https://claude.ai/code/artifact/130ee92b-59ae-41b2-bae9-d060d4f64583>

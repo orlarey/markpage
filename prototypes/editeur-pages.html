@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>markpage — éditeur de pages (prototype)</title>
+<style>
+  :root {
+    --ink: #1a1f2b; --sub: #5c6473; --line: #d0d5df; --bg: #eef0f4;
+    --accent: #3b6fb0; --diag: #b3a0d6; --text-rect: #2b3a55;
+    --band: #d08a3b; --note: #3f9d78; --title: #c0507a; --paper: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         color: var(--ink); background: var(--bg); display: flex; height: 100vh; }
+  #panel { width: 290px; flex: none; background: #fff; border-right: 1px solid var(--line);
+           padding: 1rem 1.1rem 2rem; overflow-y: auto; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  h1 { font-size: 1rem; margin: 0 0 .1rem; }
+  .sub { font-size: .78rem; color: var(--sub); margin: 0 0 1.1rem; line-height: 1.4; }
+  h2 { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--sub);
+       margin: 1.3rem 0 .5rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; }
+  button.chip { font: inherit; font-size: .8rem; border: 1px solid var(--line); background: #fff;
+    color: var(--sub); padding: .32rem .6rem; border-radius: 7px; cursor: pointer; }
+  button.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.chip:disabled { opacity: .4; cursor: default; }
+  label.field { display: flex; align-items: center; justify-content: space-between;
+    font-size: .8rem; color: var(--sub); margin: .45rem 0; gap: .6rem; }
+  label.field input[type=range] { flex: 1; }
+  label.field .val { font-variant-numeric: tabular-nums; color: var(--ink); min-width: 3.4em; text-align: right; }
+  .toggle { display: flex; align-items: center; gap: .45rem; font-size: .8rem; color: var(--sub);
+    margin: .4rem 0; cursor: pointer; }
+  .actions { display: flex; gap: .5rem; margin-top: 1rem; }
+  .actions button { flex: 1; font: inherit; font-size: .8rem; padding: .5rem; border-radius: 8px;
+    border: 1px solid var(--accent); background: #fff; color: var(--accent); cursor: pointer; }
+  #readout { margin-top: 1rem; font-size: .78rem; color: var(--sub); line-height: 1.6;
+    border-top: 1px solid var(--line); padding-top: .8rem; }
+  #readout b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .legend { display: grid; grid-template-columns: auto 1fr; gap: .2rem .5rem; font-size: .72rem;
+    color: var(--sub); margin-top: .9rem; align-items: center; }
+  .legend i { width: 22px; height: 0; display: inline-block; }
+  svg { user-select: none; touch-action: none; }
+  .hit { cursor: grab; }
+  .hit:active { cursor: grabbing; }
+  .block { cursor: move; }
+  .block:hover { fill: rgba(43,58,85,.12); }
+  #tip { position: fixed; display: none; z-index: 10; pointer-events: none;
+    background: #1a1f2b; color: #fff; font-size: .72rem; padding: 2px 7px; border-radius: 5px;
+    font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Éditeur de pages</h1>
+  <p class="sub">Double-page. Les <b>diagonales de Van de Graaf</b> sont tracées en pointillés
+    comme repère — tous les traits sont libres, à toi de suivre le canon ou non.</p>
+
+  <h2>Format</h2>
+  <div class="row" id="formats"></div>
+  <div class="row">
+    <button class="chip" id="orient">Portrait</button>
+  </div>
+
+  <h2>Corps du texte</h2>
+  <label class="field">Taille <input type="range" id="pt" min="8" max="16" step="0.5" value="11" />
+    <span class="val" id="ptV">11 pt</span></label>
+
+  <h2>Calques</h2>
+  <label class="toggle"><input type="checkbox" id="showDiag" checked /> Diagonales du canon</label>
+  <label class="toggle"><input type="checkbox" id="showBands" checked /> Bandes en-tête / pied</label>
+  <label class="toggle"><input type="checkbox" id="showNotes" checked /> Colonne de notes</label>
+  <label class="toggle"><input type="checkbox" id="showTitle" checked /> Ligne de titre</label>
+
+  <div class="actions">
+    <button id="reset">Réinitialiser (canon 1/9)</button>
+  </div>
+
+  <div id="readout"></div>
+
+  <div class="legend">
+    <i style="border-top:2px solid var(--text-rect)"></i> rectangle de texte
+    <i style="border-top:2px solid var(--band)"></i> bandes en-tête / pied
+    <i style="border-top:2px solid var(--note)"></i> colonne de notes
+    <i style="border-top:2px solid var(--title)"></i> ligne de titre
+    <i style="border-top:2px dashed var(--diag)"></i> diagonales du canon
+  </div>
+</div>
+
+<div id="stage"><svg id="svg"></svg></div>
+<div id="tip"></div>
+
+<script>
+const PT_TO_MM = 0.3528, PX_TO_MM = 25.4 / 96, SVGNS = "http://www.w3.org/2000/svg";
+
+// ---- formats (mm, portrait) ------------------------------------------------
+const FORMATS = {
+  A4:     { w: 210, h: 297 },
+  A5:     { w: 148, h: 210 },
+  B5:     { w: 176, h: 250 },
+  Letter: { w: 215.9, h: 279.4 },
+  "16:9": { w: 297, h: 167.06, fixedLandscape: true },
+};
+
+// ---- state -----------------------------------------------------------------
+// Always a recto/verso spread. `g` is ONE spine-aware geometry (mm): inner is
+// the spine-side margin, outer the trim side; the verso mirrors the recto.
+const S = {
+  format: "A4", landscape: false, pt: 11,
+  showDiag: true, showBands: true, showNotes: true, showTitle: true,
+  g: null,
+};
+
+function pageMm() {
+  const f = FORMATS[S.format];
+  if (f.fixedLandscape) return { w: f.w, h: f.h };
+  return S.landscape ? { w: f.h, h: f.w } : { w: f.w, h: f.h };
+}
+function charWidthMm(pt) {
+  const c = document.createElement("canvas").getContext("2d");
+  if (!c) return 0.5 * pt * PT_TO_MM;
+  c.font = `${pt * 96 / 72}px Georgia, "Times New Roman", serif`;
+  const s = "abcdefghijklmnopqrstuvwxyz";
+  return (c.measureText(s).width / s.length) * PX_TO_MM;
+}
+
+// The pure Van de Graaf canon (page divided into ninths): text block 2/3 of the
+// page, corners on the diagonals → inner = w/9, outer = 2w/9, top = h/9,
+// bottom = 2h/9. Bands + note column get sensible starting values the user
+// then drags freely.
+function canon1_9() {
+  const { w, h } = pageMm();
+  return {
+    textTop: h / 9, textBottom: 2 * h / 9, textInner: w / 9, textOuter: 2 * w / 9,
+    runInner: w / 18, runOuter: w / 9,           // bands reach a little into the gutters
+    headerTop: h / 18, footerBottom: h / 9,      // bands sit within the top/bottom margins
+    noteGap: 3, noteWidth: Math.max(5, w / 9 - 3), // note column fills the outer margin
+    titleY: h / 9 + (2 * h / 3) * 0.22,          // chapter-title / cover-title baseline (drop)
+  };
+}
+function reset() { S.g = canon1_9(); }
+
+// ---- layout ----------------------------------------------------------------
+const svg = document.getElementById("svg");
+let PXMM = 1, VERSO_X = 0, RECTO_X = 0, PAGE_W = 0, PAGE_H = 0, PAD = 72;
+
+function layout() {
+  const pg = pageMm();
+  const stage = document.getElementById("stage").getBoundingClientRect();
+  PXMM = Math.min((stage.width - PAD * 2) / (pg.w * 2), (stage.height - PAD * 2) / pg.h);
+  PAGE_W = pg.w * PXMM; PAGE_H = pg.h * PXMM;
+  const totalW = PAGE_W * 2; // facing pages share the spine — no gutter
+  VERSO_X = (stage.width - totalW) / 2;
+  RECTO_X = VERSO_X + PAGE_W;
+  const yTop = (stage.height - PAGE_H) / 2;
+  svg.setAttribute("width", stage.width);
+  svg.setAttribute("height", stage.height);
+  svg.setAttribute("viewBox", `0 0 ${stage.width} ${stage.height}`);
+  svg.dataset.yTop = yTop;
+  return yTop;
+}
+
+const el = (tag, a) => { const e = document.createElementNS(SVGNS, tag); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const mx = (pageX, mm) => pageX + mm * PXMM;
+const my = (yTop, mm) => yTop + mm * PXMM;
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+// ---- drawing ---------------------------------------------------------------
+function drawPaper(pageX, yTop, label) {
+  svg.appendChild(el("rect", { x: pageX, y: yTop, width: PAGE_W, height: PAGE_H,
+    fill: "var(--paper)", stroke: "#c3c9d4", "stroke-width": 1 }));
+  const t = el("text", { x: pageX + PAGE_W / 2, y: yTop + PAGE_H + 22, "text-anchor": "middle",
+    "font-size": 11, fill: "var(--sub)", "font-family": "system-ui" });
+  t.textContent = label; svg.appendChild(t);
+}
+
+function drawDiagonals(yTop) {
+  const L = VERSO_X, R = VERSO_X + 2 * PAGE_W, M = VERSO_X + PAGE_W, T = yTop, B = yTop + PAGE_H;
+  const d = (x1, y1, x2, y2) => svg.appendChild(el("line", { x1, y1, x2, y2,
+    stroke: "var(--diag)", "stroke-width": 1, "stroke-dasharray": "5 4", opacity: .75 }));
+  d(L, T, R, B); d(R, T, L, B);   // spread diagonals
+  d(L, T, M, B); d(M, T, L, B);   // verso page diagonals
+  d(M, T, R, B); d(R, T, M, B);   // recto page diagonals
+  // spine
+  svg.appendChild(el("line", { x1: M, y1: T, x2: M, y2: B, stroke: "#c3c9d4", "stroke-width": 1 }));
+}
+
+// Full-page guide lines make every draggable trait easy to follow from edge to
+// edge (and to line up against the diagonals). Horizontals span the whole
+// spread; verticals span a single page's height.
+const TXT = "var(--text-rect)", BND = "var(--band)", NOTE = "var(--note)", TTL = "var(--title)";
+function hGuide(y_mm, color, op = .85) {
+  const y = my(+svg.dataset.yTop, y_mm);
+  svg.appendChild(el("line", { x1: VERSO_X, y1: y, x2: VERSO_X + 2 * PAGE_W, y2: y,
+    stroke: color, "stroke-width": 1, opacity: op }));
+}
+function vGuide(pageX, x_mm, color) {
+  const yTop = +svg.dataset.yTop, x = mx(pageX, x_mm);
+  svg.appendChild(el("line", { x1: x, y1: yTop, x2: x, y2: yTop + PAGE_H,
+    stroke: color, "stroke-width": 1, opacity: .85 }));
+}
+
+// Drag the whole text block: translate it, preserving its width/height, and let
+// the four margins update automatically. Recto only; the verso mirrors it.
+function makeBlockDraggable(rect) {
+  rect.classList.add("block");
+  rect.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    try { rect.setPointerCapture(e.pointerId); } catch {}
+    const r = svg.getBoundingClientRect(), yTop = +svg.dataset.yTop, pg = pageMm();
+    const sx = (e.clientX - r.left - RECTO_X) / PXMM, sy = (e.clientY - r.top - yTop) / PXMM;
+    const g0 = { ...S.g };
+    const W = pg.w - g0.textInner - g0.textOuter, H = pg.h - g0.textTop - g0.textBottom;
+    const move = (ev) => {
+      const dx = (ev.clientX - r.left - RECTO_X) / PXMM - sx;
+      const dy = (ev.clientY - r.top - yTop) / PXMM - sy;
+      const inner = clamp(g0.textInner + dx, 0, pg.w - W);
+      const top = clamp(g0.textTop + dy, 0, pg.h - H);
+      S.g.textInner = inner; S.g.textOuter = pg.w - inner - W;
+      S.g.textTop = top; S.g.textBottom = pg.h - top - H;
+      render();
+      showTip(ev.clientX, ev.clientY, `int ${mmTxt(inner)} · haut ${mmTxt(top)}`);
+    };
+    const up = () => { hideTip(); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  });
+}
+
+// Per-page overlay: block fill (draggable on recto), note column, then the
+// vertical full-height guides on top. `verso` mirrors inner/outer.
+function drawOverlay(pageX, yTop, g, verso) {
+  const pg = pageMm();
+  const textL = verso ? g.textOuter : g.textInner;
+  const textR = verso ? g.textInner : g.textOuter;
+  const runL = verso ? g.runOuter : g.runInner;
+  const runR = verso ? g.runInner : g.runOuter;
+  const ty = my(yTop, g.textTop), th = (pg.h - g.textTop - g.textBottom) * PXMM;
+
+  // text block fill (grab to move)
+  const rect = el("rect", { x: mx(pageX, textL), y: ty,
+    width: (pg.w - textL - textR) * PXMM, height: th, fill: "rgba(43,58,85,.06)", stroke: "none" });
+  svg.appendChild(rect);
+  if (!verso) makeBlockDraggable(rect);
+
+  // note column — a materialised zone: filled + bordered + faintly ruled.
+  if (S.showNotes && g.noteWidth > 0) {
+    const outerEdge = pg.w - textR;
+    const nA = verso ? textL - g.noteGap - g.noteWidth : outerEdge + g.noteGap;
+    const nx = mx(pageX, nA), nw = g.noteWidth * PXMM;
+    svg.appendChild(el("rect", { x: nx, y: ty, width: nw, height: th,
+      fill: "rgba(63,157,120,.15)", stroke: NOTE, "stroke-width": 1.3 }));
+    const n = 6, step = th / (n + 1);
+    for (let i = 1; i <= n; i++)
+      svg.appendChild(el("line", { x1: nx + 4, x2: nx + nw - 4, y1: ty + i * step, y2: ty + i * step,
+        stroke: NOTE, "stroke-width": .8, opacity: .3 }));
+  }
+
+  // vertical full-height guides (on top of the fills)
+  vGuide(pageX, textL, TXT); vGuide(pageX, pg.w - textR, TXT);
+  if (S.showBands) {
+    vGuide(pageX, runL, BND); vGuide(pageX, pg.w - runR, BND);
+    // materialise the header / footer bands: a thick segment at the live-area
+    // width (runL … pw-runR), where the running content actually sits.
+    const bx = mx(pageX, runL), bw = (pg.w - runL - runR) * PXMM;
+    const band = (y_mm) => svg.appendChild(el("line", { x1: bx, x2: bx + bw,
+      y1: my(yTop, y_mm), y2: my(yTop, y_mm), stroke: BND, "stroke-width": 4, "stroke-linecap": "round" }));
+    if (g.headerTop < g.textTop) band(g.headerTop);
+    if (g.footerBottom < g.textBottom) band(pg.h - g.footerBottom);
+  }
+}
+
+// Draggable grips live OUTSIDE the pages (in the surrounding margins) so the
+// interior stays clear and the intersections of every line with the canon
+// diagonals remain visible. A faint connector ties each grip to its line.
+//   • horizontal lines (top/bottom/header/footer): grips in the LEFT gutter,
+//     dragged vertically.
+//   • vertical lines (inner/outer/run/note): grips ABOVE the recto page,
+//     dragged horizontally. The verso mirrors them live.
+// `dist` staggers grips outward by layer so they never pile up.
+// A value label that follows the pointer during any drag.
+const tipEl = document.getElementById("tip");
+const mmTxt = (v) => `${Math.round(v)} mm`;
+function showTip(clientX, clientY, text) {
+  tipEl.textContent = text; tipEl.style.display = "block";
+  tipEl.style.left = `${clientX + 14}px`; tipEl.style.top = `${clientY + 14}px`;
+}
+const hideTip = () => { tipEl.style.display = "none"; };
+
+function grip(cx, cy, color, orient, set, tip) {
+  const g = el("g", { class: "hit" });
+  g.appendChild(el("circle", { cx, cy, r: 11, fill: "transparent" }));           // fat hit
+  g.appendChild(el("circle", { cx, cy, r: 5, fill: color, stroke: "#fff", "stroke-width": 1.5 }));
+  g.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); try { g.setPointerCapture(e.pointerId); } catch {}
+    const r = svg.getBoundingClientRect(), yTop = +svg.dataset.yTop, pg = pageMm();
+    const move = (ev) => {
+      const mm = orient === "h"
+        ? (ev.clientY - r.top - yTop) / PXMM       // horizontal line → vertical drag
+        : (ev.clientX - r.left - RECTO_X) / PXMM;  // vertical line → horizontal drag
+      set(clamp(mm, 0, orient === "h" ? pg.h : pg.w));
+      render();
+      showTip(ev.clientX, ev.clientY, tip());
+    };
+    const up = () => { hideTip(); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  });
+  svg.appendChild(g);
+}
+function connector(x1, y1, x2, y2, color) {
+  svg.appendChild(el("line", { x1, y1, x2, y2, stroke: color, "stroke-width": 1, opacity: .45, "stroke-dasharray": "2 2" }));
+}
+function gripH(get, set, color, dist, tip) {    // horizontal line → grip on the left
+  const yTop = +svg.dataset.yTop, y = my(yTop, get()), x = VERSO_X - dist;
+  connector(x, y, VERSO_X, y, color);
+  grip(x, y, color, "h", set, tip);
+}
+function gripV(get, set, color, dist, tip) {    // vertical line → grip above the recto
+  const yTop = +svg.dataset.yTop, x = mx(RECTO_X, get()), y = yTop - dist;
+  connector(x, y, x, yTop, color);
+  grip(x, y, color, "v", set, tip);
+}
+
+// Corner grip on the recto text block — resize by moving the two adjacent
+// margins at once. xEdge: "inner"|"outer", yEdge: "top"|"bottom".
+function cornerGrip(g, xEdge, yEdge) {
+  const yTop = +svg.dataset.yTop, pg = pageMm(), MIN = 10;
+  const xmm = xEdge === "inner" ? g.textInner : pg.w - g.textOuter;
+  const ymm = yEdge === "top" ? g.textTop : pg.h - g.textBottom;
+  const cx = mx(RECTO_X, xmm), cy = my(yTop, ymm);
+  const h = el("rect", { x: cx - 5.5, y: cy - 5.5, width: 11, height: 11, rx: 2,
+    fill: TXT, stroke: "#fff", "stroke-width": 1.5, class: "hit" });
+  h.style.cursor = (xEdge === "inner") === (yEdge === "top") ? "nwse-resize" : "nesw-resize";
+  h.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); try { h.setPointerCapture(e.pointerId); } catch {}
+    const r = svg.getBoundingClientRect();
+    const move = (ev) => {
+      const px = clamp((ev.clientX - r.left - RECTO_X) / PXMM, 0, pg.w);
+      const py = clamp((ev.clientY - r.top - yTop) / PXMM, 0, pg.h);
+      if (xEdge === "inner") g.textInner = clamp(px, 0, pg.w - g.textOuter - MIN);
+      else g.textOuter = clamp(pg.w - px, 0, pg.w - g.textInner - MIN);
+      if (yEdge === "top") g.textTop = clamp(py, 0, pg.h - g.textBottom - MIN);
+      else g.textBottom = clamp(pg.h - py, 0, pg.h - g.textTop - MIN);
+      render();
+      showTip(ev.clientX, ev.clientY,
+        `${xEdge === "inner" ? "int" : "ext"} ${mmTxt(xEdge === "inner" ? g.textInner : g.textOuter)} · ` +
+        `${yEdge === "top" ? "haut" : "bas"} ${mmTxt(yEdge === "top" ? g.textTop : g.textBottom)}`);
+    };
+    const up = () => { hideTip(); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  });
+  svg.appendChild(h);
+}
+
+function render() {
+  const yTop = layout(), g = S.g, pg = pageMm();
+  svg.replaceChildren();
+  drawPaper(VERSO_X, yTop, "verso");
+  drawPaper(RECTO_X, yTop, "recto");
+  if (S.showDiag) drawDiagonals(yTop);
+  drawOverlay(VERSO_X, yTop, g, true);
+  drawOverlay(RECTO_X, yTop, g, false);
+
+  // horizontal full-spread guides (drawn on top of the block fills). The header
+  // / footer guides stay faint — their band is materialised (thick) per page.
+  hGuide(g.textTop, TXT); hGuide(pg.h - g.textBottom, TXT);
+  if (S.showBands) { hGuide(g.headerTop, BND, .35); hGuide(pg.h - g.footerBottom, BND, .35); }
+  if (S.showTitle) {
+    hGuide(g.titleY, TTL);              // chapter-title / cover-title baseline
+    const yt = my(yTop, g.titleY);
+    svg.appendChild(el("text", { x: VERSO_X + 6, y: yt - 4, "font-size": 10, fill: TTL,
+      "font-family": "system-ui" })).textContent = "titre";
+  }
+
+  // grips outside the pages — every vertical & horizontal line, freely movable.
+  gripH(() => g.textTop, v => g.textTop = v, TXT, 16, () => `haut ${mmTxt(g.textTop)}`);
+  gripH(() => pg.h - g.textBottom, v => g.textBottom = pg.h - v, TXT, 16, () => `bas ${mmTxt(g.textBottom)}`);
+  gripV(() => g.textInner, v => g.textInner = v, TXT, 16, () => `intérieur ${mmTxt(g.textInner)}`);
+  gripV(() => pg.w - g.textOuter, v => g.textOuter = pg.w - v, TXT, 16, () => `extérieur ${mmTxt(g.textOuter)}`);
+  if (S.showBands) {
+    gripH(() => g.headerTop, v => g.headerTop = v, BND, 34, () => `en-tête ${mmTxt(g.headerTop)}`);
+    gripH(() => pg.h - g.footerBottom, v => g.footerBottom = pg.h - v, BND, 34, () => `pied ${mmTxt(g.footerBottom)}`);
+    gripV(() => g.runInner, v => g.runInner = v, BND, 34, () => `aire int. ${mmTxt(g.runInner)}`);
+    gripV(() => pg.w - g.runOuter, v => g.runOuter = pg.w - v, BND, 34, () => `aire ext. ${mmTxt(g.runOuter)}`);
+  }
+  if (S.showNotes) {
+    const outerEdge = pg.w - g.textOuter;                 // text block's outer boundary (mm)
+    gripV(() => outerEdge + g.noteGap, v => g.noteGap = clamp(v - outerEdge, 0, g.textOuter), NOTE, 52, () => `écart ${mmTxt(g.noteGap)}`);
+    gripV(() => outerEdge + g.noteGap + g.noteWidth,
+          v => g.noteWidth = clamp(v - outerEdge - g.noteGap, 0, g.textOuter), NOTE, 52, () => `largeur ${mmTxt(g.noteWidth)}`);
+  }
+  if (S.showTitle)
+    gripH(() => g.titleY, v => g.titleY = clamp(v, g.textTop, pg.h - g.textBottom), TTL, 16,
+          () => `titre +${mmTxt(g.titleY - g.textTop)} sous le haut`);
+  // corner grips — resize the text block by its four corners (recto).
+  cornerGrip(g, "inner", "top"); cornerGrip(g, "outer", "top");
+  cornerGrip(g, "inner", "bottom"); cornerGrip(g, "outer", "bottom");
+  updateReadout();
+}
+
+function updateReadout() {
+  const g = S.g, pg = pageMm(), cw = charWidthMm(S.pt);
+  const textW = pg.w - g.textInner - g.textOuter;
+  const r = (x) => x.toFixed(0);
+  document.getElementById("readout").innerHTML =
+    `largeur de texte <b>${r(textW)} mm</b> · <b>${Math.round(textW / cw)} car/ligne</b><br>` +
+    `haut <b>${r(g.textTop)}</b> · bas <b>${r(g.textBottom)}</b> mm<br>` +
+    `intérieur <b>${r(g.textInner)}</b> · extérieur <b>${r(g.textOuter)}</b> mm` +
+    (S.showBands ? `<br>en-tête <b>${r(g.headerTop)}</b> · pied <b>${r(g.footerBottom)}</b> mm` : "") +
+    (S.showNotes ? `<br>notes : écart <b>${r(g.noteGap)}</b> · largeur <b>${r(g.noteWidth)}</b> mm` : "") +
+    (S.showTitle ? `<br>titre : drop <b>${r(g.titleY - g.textTop)}</b> mm` : "");
+}
+
+// ---- controls --------------------------------------------------------------
+const fmtRow = document.getElementById("formats");
+Object.keys(FORMATS).forEach((k) => {
+  const b = document.createElement("button");
+  b.className = "chip" + (k === S.format ? " on" : "");
+  b.textContent = k; b.onclick = () => {
+    S.format = k; [...fmtRow.children].forEach(c => c.classList.toggle("on", c.textContent === k));
+    document.getElementById("orient").disabled = !!FORMATS[k].fixedLandscape;
+    reset(); render();
+  };
+  fmtRow.appendChild(b);
+});
+document.getElementById("orient").onclick = (e) => {
+  S.landscape = !S.landscape; e.target.textContent = S.landscape ? "Paysage" : "Portrait";
+  reset(); render();
+};
+const pt = document.getElementById("pt");
+pt.addEventListener("input", () => { S.pt = +pt.value; document.getElementById("ptV").textContent = `${pt.value} pt`; render(); });
+["showDiag", "showBands", "showNotes", "showTitle"].forEach(id =>
+  document.getElementById(id).addEventListener("change", (e) => { S[id] = e.target.checked; render(); }));
+document.getElementById("reset").onclick = () => { reset(); render(); };
+window.addEventListener("resize", render);
+
+// ---- boot ------------------------------------------------------------------
+reset();
+render();
+</script>
+</body>
+</html>

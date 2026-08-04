@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>markpage — éditeur de couleurs (prototype)</title>
+<style>
+  :root { --ink:#1a1f2b; --sub:#5c6473; --line:#d0d5df; --bg:#eef0f4; --accent:#3b6fb0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
+         background:var(--bg); display:flex; height:100vh; }
+  #panel { width:300px; flex:none; background:#fff; border-right:1px solid var(--line);
+           padding:1rem 1.1rem 2rem; overflow-y:auto; }
+  #stage { flex:1; overflow-y:auto; padding:1.4rem 1.8rem; display:flex; gap:2rem; flex-wrap:wrap; align-items:flex-start; }
+  h1 { font-size:1rem; margin:0 0 .1rem; }
+  .sub { font-size:.78rem; color:var(--sub); margin:0 0 1rem; line-height:1.4; }
+  h2 { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); margin:1.3rem 0 .5rem; }
+  .huewrap { display:flex; align-items:center; gap:.6rem; }
+  .hue { -webkit-appearance:none; appearance:none; flex:1; height:12px; border-radius:6px;
+    background:linear-gradient(to right,hsl(0,70%,50%),hsl(60,70%,50%),hsl(120,70%,50%),hsl(180,70%,50%),hsl(240,70%,50%),hsl(300,70%,50%),hsl(360,70%,50%)); }
+  .hue::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:3px solid #1a1f2b; cursor:grab; }
+  .val { font-variant-numeric:tabular-nums; min-width:3em; text-align:right; font-size:.82rem; }
+  select { font:inherit; font-size:.8rem; padding:.3rem; border:1px solid var(--line); border-radius:6px; background:#fff; width:100%; }
+  .fam { display:flex; align-items:center; gap:.5rem; font-size:.78rem; color:var(--sub); margin:.35rem 0; }
+  .fam .sw { width:22px; height:22px; border-radius:5px; border:1px solid rgba(0,0,0,.15); }
+  .fam b { color:var(--ink); }
+  .field { display:flex; align-items:center; justify-content:space-between; gap:.5rem; font-size:.8rem; color:var(--sub); margin:.5rem 0; }
+  .field input[type=range] { flex:1; accent-color:var(--accent); }
+  .actions button { width:100%; font:inherit; font-size:.8rem; padding:.5rem; border-radius:8px;
+    border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer; margin-top:1rem; }
+  .note { font-size:.72rem; color:#868d9b; margin-top:.6rem; line-height:1.4; }
+  /* carte */
+  .block h3 { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); margin:0 0 .6rem; }
+  .carte { display:flex; gap:12px; align-items:flex-start; }
+  .neutral { display:flex; flex-direction:column; gap:5px; }
+  .grids { display:flex; flex-direction:column; gap:14px; }
+  .glabel { font-size:.66rem; color:var(--sub); margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .glabel .dot { width:11px; height:11px; border-radius:50%; border:1px solid rgba(0,0,0,.15); }
+  .grid { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+  .cell { position:relative; width:44px; height:40px; border-radius:6px; border:1px solid rgba(0,0,0,.08);
+    display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:2px; padding:2px; }
+  .mp-chip { font-size:.6rem; font-weight:700; line-height:1; padding:2px 5px; border-radius:10px; cursor:grab;
+    user-select:none; white-space:nowrap; border:1.5px solid rgba(0,0,0,.18); touch-action:none; }
+  .mp-chip.ghost { position:fixed; z-index:300; pointer-events:none; transform:translate(-50%,-50%) scale(1.12); }
+  .carte-cap { font-size:.72rem; color:#868d9b; margin-top:.6rem; line-height:1.4; max-width:360px; }
+  /* specimen (artefact) */
+  .sheet { width:300px; background:#fff; border:1px solid var(--line); border-radius:8px; overflow:hidden; box-shadow:0 1px 8px rgba(0,0,0,.07); }
+  .sheet .cover { padding:.9rem 1.1rem; font-size:.62rem; text-transform:uppercase; letter-spacing:.09em; }
+  .sheet .body { padding:1.1rem 1.2rem 1.4rem; }
+  .sheet .hdr { font-size:.62rem; letter-spacing:.03em; margin-bottom:1rem; }
+  .sheet .ttl { font-size:1.35rem; font-weight:700; margin:0 0 .1rem; line-height:1.1; font-family:Georgia,serif; }
+  .sheet .h { font-size:1.02rem; font-weight:650; margin:.9rem 0 .3rem; font-family:Georgia,serif; }
+  .sheet p { font-size:.82rem; line-height:1.45; margin:.3rem 0; font-family:Georgia,serif; }
+  .sheet code { font-family:ui-monospace,monospace; font-size:.78rem; }
+  .sheet .cap { font-size:.72rem; font-style:italic; }
+  .sheet .note { font-size:.72rem; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <h1>Éditeur de couleurs</h1>
+  <p class="sub">Une teinte <b>maîtresse</b> pivote la famille ; une <b>famille B</b> en découle par un
+    angle d'harmonie. Chaque élément occupe un <b>cran</b> — les couleurs sont dérivées, jamais saisies.</p>
+
+  <h2>Teinte maîtresse (famille A)</h2>
+  <div class="huewrap">
+    <input type="range" class="hue" id="hue" min="0" max="359" step="1" value="213" />
+    <span class="val" id="hueVal">213°</span>
+  </div>
+
+  <h2>Famille B — harmonie</h2>
+  <select id="harmony"></select>
+  <div class="field">Angle <input type="range" class="hue" id="angle" min="0" max="359" step="1" value="150" />
+    <span class="val" id="angleVal">+150°</span></div>
+  <div class="fam"><span class="sw" id="swA"></span> Famille A · <b id="hA">213°</b></div>
+  <div class="fam"><span class="sw" id="swB"></span> Famille B · <b id="hB">3°</b> <span style="color:#868d9b">(accent)</span></div>
+  <p class="note">H1 reste maître : tourner la teinte pivote les deux familles ensemble. Neutres = gris, sans teinte.
+    La famille B est un accent — à petite dose.</p>
+
+  <div class="actions"><button id="reset">Rétablir la famille</button></div>
+</div>
+
+<div id="stage">
+  <div class="block">
+    <h3>Carte — instrument</h3>
+    <div class="carte" id="carte"></div>
+    <p class="carte-cap">Colonne = <b>neutres</b> (blanc → noir, partagés). Deux grilles <b>saturation × valeur</b>,
+      une par famille. Glisse la pastille d'un élément sur un cran (n'importe quelle famille) pour le réaffecter.</p>
+  </div>
+  <div class="block">
+    <h3>Aperçu — artefact</h3>
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+
+<script>
+// ---- colour model (mirror packages/markpage-render/src/style-vocabulary.ts) --
+const SAT  = [0.06, 0.18, 0.32, 0.48, 0.65, 0.82];
+const VAL  = [0.98, 0.85, 0.70, 0.54, 0.38, 0.20];
+const GRAY = [1.00, 0.82, 0.62, 0.42, 0.22, 0.00];   // white → black
+const clampIdx = (n) => Math.max(0, Math.min(5, Math.round(n)));
+function hsvToHex(h, s, v) {
+  h = ((h % 360) + 360) % 360;
+  const c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r,g,b]=[c,x,0]; else if (h<120)[r,g,b]=[x,c,0]; else if (h<180)[r,g,b]=[0,c,x];
+  else if (h<240)[r,g,b]=[0,x,c]; else if (h<300)[r,g,b]=[x,0,c]; else [r,g,b]=[c,0,x];
+  const hx = (u) => Math.round((u + m) * 255).toString(16).padStart(2, '0');
+  return `#${hx(r)}${hx(g)}${hx(b)}`;
+}
+const isLight = (hex) => {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.2126*((n>>16)&255) + 0.7152*((n>>8)&255) + 0.0722*(n&255) > 140;
+};
+
+// H2 relative to the master hue (harmony angle). Two families A/B; neutrals share.
+const hueA = () => S.hue1;
+const hueB = () => (S.hue1 + S.angle) % 360;
+const hueFor = (fam) => (fam === 'B' ? hueB() : hueA());
+const cranToHex = (cran) => cran.kind === 'neutral'
+  ? hsvToHex(0, 0, GRAY[clampIdx(cran.g)])
+  : hsvToHex(hueFor(cran.family), SAT[clampIdx(cran.s)], VAL[clampIdx(cran.v)]);
+const cranKey = (c) => c.kind === 'neutral' ? `n${c.g}` : `${c.family}${c.s},${c.v}`;
+
+// ---- roster + default family (SPEC §4 ; h2 seeded to accent family B) --------
+// Unified roster (English keys). Surfaces page/cover are colour-only; every
+// text element (incl. code & math) is colourable here.
+const ELEMENTS = [
+  { key:'page', label:'page' }, { key:'cover', label:'couv.' }, { key:'running-content', label:'en-tête' },
+  { key:'title', label:'titre' }, { key:'subtitle', label:'s-titre' },
+  { key:'h1', label:'H1' }, { key:'h2', label:'H2' }, { key:'h3', label:'H3' }, { key:'h4', label:'H4' },
+  { key:'body', label:'corps' }, { key:'code', label:'code' }, { key:'math', label:'math' },
+  { key:'caption', label:'légende' }, { key:'note', label:'note' }, { key:'metadata', label:'méta' },
+];
+const DEFAULTS = () => ({
+  page:{kind:'neutral',g:0}, cover:{kind:'tint',family:'A',s:4,v:4}, 'running-content':{kind:'neutral',g:2},
+  title:{kind:'tint',family:'A',s:4,v:4}, subtitle:{kind:'tint',family:'A',s:3,v:3},
+  h1:{kind:'tint',family:'A',s:4,v:3}, h2:{kind:'tint',family:'B',s:3,v:2},
+  h3:{kind:'tint',family:'A',s:3,v:2}, h4:{kind:'tint',family:'A',s:2,v:1},
+  body:{kind:'neutral',g:5}, code:{kind:'neutral',g:4}, math:{kind:'neutral',g:5},
+  caption:{kind:'neutral',g:3}, note:{kind:'neutral',g:3}, metadata:{kind:'neutral',g:3},
+});
+const HARMONIES = [['Analogue', 30], ['Triadique', 120], ['Split-complémentaire', 150], ['Complémentaire', 180]];
+
+const S = { hue1: 213, angle: 150, crans: DEFAULTS() };
+const col = (k) => cranToHex(S.crans[k]);
+
+// ---- carte (instrument) ----------------------------------------------------
+const carteEl = document.getElementById('carte');
+function renderCarte() {
+  carteEl.replaceChildren();
+  const cellByKey = new Map();
+  const mkCell = (cran) => {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    cell.style.background = cranToHex(cran); cell._cran = cran; cell.dataset.cran = cranKey(cran);
+    cellByKey.set(cranKey(cran), cell); return cell;
+  };
+  // shared neutral column
+  const neutral = document.createElement('div'); neutral.className = 'neutral';
+  for (let g = 0; g < 6; g++) neutral.appendChild(mkCell({ kind:'neutral', g }));
+  // two tint grids
+  const grids = document.createElement('div'); grids.className = 'grids';
+  for (const fam of ['A', 'B']) {
+    const blk = document.createElement('div');
+    const lab = document.createElement('div'); lab.className = 'glabel';
+    const dot = document.createElement('span'); dot.className = 'dot';
+    dot.style.background = hsvToHex(hueFor(fam), SAT[4], VAL[3]);
+    lab.append(dot, document.createTextNode(`famille ${fam} · ${Math.round(hueFor(fam))}°`));
+    const grid = document.createElement('div'); grid.className = 'grid';
+    for (let v = 0; v < 6; v++) for (let s = 0; s < 6; s++) grid.appendChild(mkCell({ kind:'tint', family:fam, s, v }));
+    blk.append(lab, grid); grids.appendChild(blk);
+  }
+  carteEl.append(neutral, grids);
+  // place one chip per element on its cran cell
+  for (const { key, label } of ELEMENTS) {
+    const cell = cellByKey.get(cranKey(S.crans[key]));
+    if (!cell) continue;
+    const chip = document.createElement('div'); chip.className = 'mp-chip'; chip.textContent = label;
+    const hex = col(key);
+    chip.style.background = hex;
+    chip.style.color = isLight(hex) ? '#1a1f2b' : '#fff';
+    chip.style.borderColor = isLight(hex) ? 'rgba(0,0,0,.22)' : 'rgba(255,255,255,.35)';
+    attachDrag(chip, key); cell.appendChild(chip);
+  }
+}
+function attachDrag(chip, key) {
+  chip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const ghost = chip.cloneNode(true); ghost.classList.add('ghost'); document.body.appendChild(ghost);
+    const move = (ev) => { ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px'; };
+    move(e);
+    const up = (ev) => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      ghost.remove();
+      const cell = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cell');
+      if (cell && cell._cran) { S.crans[key] = cell._cran; renderAll(); }
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  });
+}
+
+// ---- specimen (artefact) ---------------------------------------------------
+function renderSpecimen() {
+  const sheet = document.getElementById('sheet');
+  const coverHex = col('cover');
+  sheet.style.background = col('page');
+  sheet.innerHTML =
+    `<div class="cover" style="background:${coverHex};color:${isLight(coverHex) ? '#1a1f2b' : '#fff'}">couverture</div>` +
+    `<div class="body">` +
+    `<div class="hdr" style="color:${col('running-content')}">Note technique · 3</div>` +
+    `<div class="ttl" style="color:${col('title')}">Un aperçu de TLIB</div>` +
+    `<div style="color:${col('subtitle')};font-size:.95rem;font-style:italic;font-family:Georgia,serif;margin:0 0 .3rem">un sous-titre en complément</div>` +
+    `<div class="h" style="color:${col('h1')}">Signatures et algèbres</div>` +
+    `<p style="color:${col('body')}">Une seule traversée de l’arbre — <code style="color:${col('code')}">fold(tree, algebra)</code> — et la somme <span style="color:${col('math')}">∑<sub>i</sub> x<sub>i</sub></span> se dérive.</p>` +
+    `<div class="h" style="color:${col('h2')}">Le pli comme unité</div>` +
+    `<p class="note" style="color:${col('note')}">Chaque terme clos se convertit à l’identique.</p>` +
+    `<p class="cap" style="color:${col('caption')}">Figure 1 — le DAG et son pli.</p>` +
+    `<div class="hdr" style="color:${col('metadata')};margin:1.1rem 0 0">Prénom Nom · Mon organisation · 2026</div>` +
+    `</div>`;
+}
+
+// ---- family readout (left) -------------------------------------------------
+function renderFamilies() {
+  document.getElementById('swA').style.background = hsvToHex(hueA(), SAT[4], VAL[3]);
+  document.getElementById('swB').style.background = hsvToHex(hueB(), SAT[4], VAL[3]);
+  document.getElementById('hA').textContent = `${Math.round(hueA())}°`;
+  document.getElementById('hB').textContent = `${Math.round(hueB())}°`;
+  // Colour the angle track like the master hue, but OFFSET by A: each position
+  // (= the angle) shows the resulting family-B hue. Rotating A rotates the track.
+  const a = hueA();
+  const stops = [0,45,90,135,180,225,270,315,360]
+    .map((d) => `hsl(${Math.round((a + d) % 360)},70%,50%) ${Math.round(d / 360 * 100)}%`).join(',');
+  document.getElementById('angle').style.background = `linear-gradient(to right, ${stops})`;
+}
+
+function renderAll() { renderCarte(); renderSpecimen(); renderFamilies(); }
+
+// ---- controls --------------------------------------------------------------
+const hueI = document.getElementById('hue');
+hueI.addEventListener('input', () => { S.hue1 = +hueI.value;
+  document.getElementById('hueVal').textContent = `${hueI.value}°`; renderAll(); });
+
+const harmonyEl = document.getElementById('harmony');
+harmonyEl.innerHTML = `<option value="">— sur mesure —</option>` +
+  HARMONIES.map(([n, a]) => `<option value="${a}">${n} (+${a}°)</option>`).join('');
+harmonyEl.value = '150';
+const angleI = document.getElementById('angle');
+const setAngle = (a) => { S.angle = ((a % 360) + 360) % 360; angleI.value = S.angle;
+  document.getElementById('angleVal').textContent = `+${S.angle}°`;
+  harmonyEl.value = HARMONIES.some(([, v]) => v === S.angle) ? String(S.angle) : ''; renderAll(); };
+harmonyEl.addEventListener('change', () => { if (harmonyEl.value) setAngle(+harmonyEl.value); });
+angleI.addEventListener('input', () => setAngle(+angleI.value));
+
+document.getElementById('reset').onclick = () => {
+  S.hue1 = 213; hueI.value = 213; document.getElementById('hueVal').textContent = '213°';
+  S.crans = DEFAULTS(); setAngle(150);
+};
+
+renderAll();
+</script>
+</body>
+</html>
