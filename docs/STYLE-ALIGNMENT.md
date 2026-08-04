@@ -218,7 +218,11 @@ Du moins cher au plus lourd (✅ = fait) :
 3. ✅ **`coverScale` / `coverAlign`** — **paquet A, 0 changement markpage** :
    `title`/`metadata` étant cover-only, le zoom se bake dans leurs `fontSize` et
    l'align va sur `.align`. Travail **côté éditeur** (compilateur).
-4. **Numérotation** (compteurs + strip + ricochets TOC/`\ref`).
+4. ✅ **Numérotation** — champ plat `numbering`, passe `numberForRender` sur une
+   copie dans `renderPreview` (strip-toujours, H1≠titre) ; `\ref` hérite du numéro
+   dans le texte ; **TOC** préfixé (`linkTocPlus`) ; **grand numéral de chapitre**
+   (`markChapterNumerals` + `.chapter-num`). Reste : câbler le compilateur éditeur
+   qui *pose* `numbering` (dormant tant qu'aucun style ne le porte).
 5. **Deux familles de teinte** — note : compile en **hex**, donc **0 changement
    markpage** ; l'effort est **côté éditeur** (source + compilateur).
 6. **Appareil** — nouveau modèle résolu en-tête/pied.
