@@ -147,6 +147,7 @@ Deux paquets, selon que l'axe se résout dans un **slot plat existant** ou exige
 | format/taille de page · canon/marges libres | `pageSize` / `pageGeometry` (terminal baké) |
 | recto-verso · sauts de chapitre · notes | `duplex` / `chapterBreak` / `notes.position` |
 | styling de blocs (fonds, bordures, padding, italique, souligné, marges, retrait 1ʳᵉ ligne) | `styles.<bloc>.{background,border*,padding,italic,underline,margin*,firstLineIndent}` |
+| **`coverScale` / `coverAlign`** | `title`/`metadata` sont **cover-only** → zoom **baké** dans `styles.title.fontSize` / `styles.metadata.fontSize` ; align → `styles.{title,metadata}.align`. **0 champ markpage.** |
 
 **Paquet B — exige un champ plat neuf + rendu :** voir section suivante.
 
@@ -163,7 +164,6 @@ d'implémentation côté markpage.
 | `styles.*.rule` : `{ position: none\|below\|above, color, width }` | titres · running-content | filet horizontal (remplace/élargit l'`underline` figé `#d0d7de` 1px) |
 | `styles.*.letterSpacing` : em | éléments à capitales | `letter-spacing` |
 | **numérotation** : directive résolue `{ on, depth, chapterFormat, … }` + couleurs/tailles **déjà résolues** par élément | global + `n° chap` | `counter()` sur h1–hN + **strip** des numéros tapés + ricochets **TOC / `\ref`** |
-| `coverScale` / `coverAlign` | couverture | zoom uniforme du bloc de couverture |
 | **appareil** : modèle résolu en-tête/pied **verso/recto explicite** + piles | remplace les chaînes à 3 slots | rendu des margin-boxes depuis le modèle (tokens `section`/`chapter`/`author`/**folio romain**/`text`) |
 | `layoutMode` : `paged \| slides` (+ params slide) | global | bascule le moteur slides (déjà présent) depuis le **style** au lieu de `slides:` |
 
@@ -176,10 +176,19 @@ d'implémentation côté markpage.
   plat plus riche à concevoir.
 :::
 
-**À libérer (figé en dur, indépendamment) :** filet de titre `#d0d7de`/1px/solid
-(`preview-paginated.ts:41`), encre de couverture auto (`:853`), mots de légende +
+**À libérer (figé en dur, indépendamment) :** ~~filet de titre `#d0d7de`/1px/solid~~
+**fait** (`Style.rule`), encre de couverture auto (`:853`), mots de légende +
 `{date}` verrouillés FR (`captions.ts:25`, `page-running.ts:591` → piloter par
 `language`).
+
+::: note [Manque réel côté couverture : le sous-titre]
+`coverScale`/`coverAlign` ne demandent rien à markpage (paquet A). Mais l'éditeur
+affiche un **sous-titre de couverture** que markpage **ne rend pas** (pas d'élément
+`subtitle` sur la couverture ; le `subtitle:` front-matter n'est pas parsé). C'est un
+manque **document/front-matter** (le *texte* du sous-titre n'a pas de foyer dans les
+6 clés) **et** style (l'élément `subtitle`). À trancher avec l'étape *front-matter
+minimal* — distinct de `coverScale`.
+:::
 
 ---
 
@@ -200,13 +209,15 @@ Puisque **tout** le style migre dans l'éditeur (décision B) :
 
 ## Séquence
 
-Du moins cher au plus lourd :
+Du moins cher au plus lourd (✅ = fait) :
 
-1. **Libérer le filet** (couleur/épaisseur/style) — petit, débloque le rendu du
-   filet éditeur.
-2. Ajouter à `Style` : `smallCaps`, `rule`, `letterSpacing` (+ rendu + clés
-   pointées).
-3. `coverScale` / `coverAlign`.
+1. ✅ **Libérer le filet** — `Style.rule` (position/couleur/épaisseur/style),
+   émetteur partagé `filetCss`, repli legacy `underline`.
+2. ✅ **`smallCaps` + `letterSpacing`** — `Style.smallCaps`/`.letterSpacing`,
+   émetteur partagé `capsCss` (inline + heading + running-content).
+3. ✅ **`coverScale` / `coverAlign`** — **paquet A, 0 changement markpage** :
+   `title`/`metadata` étant cover-only, le zoom se bake dans leurs `fontSize` et
+   l'align va sur `.align`. Travail **côté éditeur** (compilateur).
 4. **Numérotation** (compteurs + strip + ricochets TOC/`\ref`).
 5. **Deux familles de teinte** — note : compile en **hex**, donc **0 changement
    markpage** ; l'effort est **côté éditeur** (source + compilateur).
