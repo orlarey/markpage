@@ -357,6 +357,18 @@ export interface FontTrio {
 }
 
 /**
+ * Purpose: Heading auto-numbering directive — a resolved, flat value the style
+ *   editor compiles. The render strips typed numbers and applies this on a COPY
+ *   of the source (never mutates it). When `on` is false the strip still runs
+ *   (the style fully owns numbering). Absent = legacy no-op (source untouched).
+ */
+export interface HeadingNumbering {
+  on: boolean;
+  depth: number; // levels numbered, 1 = h1 only (inline compact 1, 1.1, 1.1.1…)
+  chapterFormat?: 'numeric' | 'chapter'; // chapter-opening numeral (rendered apart)
+}
+
+/**
  * Purpose: The full settings record persisted to localStorage and used
  *   by every renderer (preview, PDF, LaTeX).
  */
@@ -459,6 +471,9 @@ export interface PdfSettings {
   // meaningful when `chapterBreak` forces each h1 onto a fresh page. Optional:
   // absent / 0 keeps chapter titles at the top of the page.
   chapter?: { drop: number };
+  // Heading auto-numbering (docs/STYLE-ALIGNMENT.md step 4). Optional: absent =
+  // legacy no-op; present drives a render-time strip+renumber of a source copy.
+  numbering?: HeadingNumbering;
 }
 
 /**
@@ -1078,6 +1093,8 @@ export const FUNDAMENTAL_STYLE_KEYS = [
   // page frame + RESOLVED geometry (the canon inputs are authoring, not
   // fundamental — they never appear here; pageGeometry is the terminal result).
   'pageSize', 'pageGeometry', 'duplex', 'chapterBreak', 'chapter', 'notes',
+  // heading auto-numbering directive (resolved by the style editor)
+  'numbering',
   // running content
   'header', 'footer',
   // typography

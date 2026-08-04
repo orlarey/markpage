@@ -308,10 +308,17 @@ export function detectStyles(source: string): DocStyle {
 // replaced with the freshly computed one. Headings inside fenced code
 // blocks are left alone, and so is the document title (the unique
 // top-level `#` that opens the doc — see isFirstH1ATitle).
-export function renumber(source: string, doc: DocStyle): string {
+export function renumber(
+  source: string,
+  doc: DocStyle,
+  shiftOverride?: number,
+): string {
   const lines = source.split('\n');
   const counters = [0, 0, 0, 0, 0, 0];
-  const shift = isFirstH1ATitle(source) ? 1 : 0;
+  // `shiftOverride` lets the render path force shift 0 (H1 is never the document
+  // title — that role belongs to the front-matter `title:`). The editor's
+  // "renumber by example" keeps the auto title-detection default.
+  const shift = shiftOverride ?? (isFirstH1ATitle(source) ? 1 : 0);
   let inFence = false;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] ?? '';
@@ -346,4 +353,32 @@ export function renumber(source: string, doc: DocStyle): string {
 // usual entry point from the editor command.
 export function renumberByExample(source: string): string {
   return renumber(source, detectStyles(source));
+}
+
+/**
+ * Purpose: Build the DocStyle for RENDER-TIME numbering from a style directive.
+ * How: Hierarchical decimal (1, 1.1, 1.1.1…) down to `depth`; every deeper level
+ *   `none`. When `on` is false EVERY level is `none` — which strips any typed
+ *   numbers: numbering is fully owned by the style, so "no numbering" means
+ *   "remove existing numbers", not "leave them".
+ */
+export function renderNumberingDocStyle(on: boolean, depth: number): DocStyle {
+  const levels: LevelStyle[] = Array.from({ length: 6 }, (_, i) =>
+    on && i < depth ? { kind: 'hierarchical', trailingDot: false } : NONE,
+  );
+  return { levels };
+}
+
+/**
+ * Purpose: Render-time heading numbering — strip any typed numbers and apply the
+ *   style's resolved directive, on a COPY of the source (never mutates it).
+ * How: Uses `renderNumberingDocStyle` and forces shift 0 (H1 is never the
+ *   document title). Returns the source unchanged shape, numbered.
+ */
+export function numberForRender(
+  source: string,
+  on: boolean,
+  depth: number,
+): string {
+  return renumber(source, renderNumberingDocStyle(on, depth), 0);
 }
