@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>markpage — éditeur de style unifié (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@400;600;700&family=Poppins:wght@400;500;600;700&family=PT+Serif:wght@400;700&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Roboto+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink:#1a1f2b; --sub:#5c6473; --line:#d0d5df; --bg:#eef0f4; --accent:#3b6fb0; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
+         background:var(--bg); display:flex; flex-direction:column; height:100vh; }
+  /* header + facet tabs */
+  header { flex:none; display:flex; align-items:center; gap:1rem; padding:.6rem 1.1rem; background:#fff; border-bottom:1px solid var(--line); }
+  header h1 { font-size:.95rem; margin:0; }
+  .tabs { display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  .tabs button { font:inherit; font-size:.82rem; font-weight:600; border:0; background:#fff; color:var(--sub);
+    padding:.4rem 1.1rem; cursor:pointer; border-right:1px solid var(--line); }
+  .tabs button:last-child { border-right:0; }
+  .tabs button.on { background:var(--accent); color:#fff; }
+  /* shell body */
+  .shell { flex:1; display:flex; min-height:0; }
+  #editside { flex:1; min-width:0; display:flex; flex-direction:column; }
+  #facetbar { flex:none; display:flex; align-items:center; padding:.55rem .8rem; background:#eef0f4; border-bottom:1px solid var(--line); }
+  #editrow { flex:1; display:flex; min-height:0; }
+  #panel { width:300px; flex:none; background:#fff; border-right:1px solid var(--line); padding:1rem 1.1rem 2rem; overflow-y:auto; }
+  #workbench { flex:1; min-width:0; overflow:auto; padding:1.3rem 1.5rem; background:#fff; }
+  #pvr { width:6px; flex:none; background:#d7dae0; cursor:col-resize; }
+  #pvr:hover, #pvr.drag { background:var(--accent); }
+  #preview { width:440px; flex:none; display:flex; flex-direction:column; background:#e9eaee; min-width:0; }
+  .pbar { flex:none; display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.55rem .8rem; border-bottom:1px solid #d7dae0; background:#eef0f4; }
+  .plabel { font-size:.72rem; color:var(--sub); }
+  .vtabs { display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; background:#fff; }
+  .vtabs button { font:inherit; font-size:.7rem; border:0; background:#fff; color:var(--sub); padding:.26rem .55rem; cursor:pointer; border-right:1px solid var(--line); }
+  .vtabs button:last-child { border-right:0; }
+  .vtabs button.on { background:var(--accent); color:#fff; }
+  .parea { flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; gap:8px; padding:1.2rem; }
+  .apage { box-shadow:0 3px 16px rgba(0,0,0,.20); overflow:hidden; flex:none; }
+  #tip { position:fixed; display:none; z-index:20; pointer-events:none; background:#1a1f2b; color:#fff; font-size:.72rem; padding:2px 7px; border-radius:5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #instrument svg { user-select:none; touch-action:none; }
+  #instrument svg .hit { cursor:grab; }
+  #instrument svg .block { cursor:move; }
+  h2 { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); margin:1.2rem 0 .5rem; }
+  h2:first-child { margin-top:0; }
+  .block h3 { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); margin:0 0 .6rem; }
+  .sub { font-size:.78rem; color:var(--sub); margin:0 0 1rem; line-height:1.4; }
+  .placeholder { font-size:.8rem; color:#868d9b; line-height:1.5; border:1px dashed var(--line); border-radius:8px; padding:.9rem; }
+  /* colour controls */
+  .huewrap { display:flex; align-items:center; gap:.6rem; }
+  .hue { -webkit-appearance:none; appearance:none; flex:1; height:12px; border-radius:6px;
+    background:linear-gradient(to right,hsl(0,70%,50%),hsl(60,70%,50%),hsl(120,70%,50%),hsl(180,70%,50%),hsl(240,70%,50%),hsl(300,70%,50%),hsl(360,70%,50%)); }
+  .hue::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:3px solid #1a1f2b; cursor:grab; }
+  .val { font-variant-numeric:tabular-nums; min-width:3em; text-align:right; font-size:.82rem; }
+  select { font:inherit; font-size:.8rem; padding:.3rem; border:1px solid var(--line); border-radius:6px; background:#fff; width:100%; }
+  .field { display:flex; align-items:center; justify-content:space-between; gap:.5rem; font-size:.8rem; color:var(--sub); margin:.5rem 0; }
+  .field input[type=range] { flex:1; accent-color:var(--accent); }
+  .fam { display:flex; align-items:center; gap:.5rem; font-size:.78rem; color:var(--sub); margin:.35rem 0; }
+  .fam .sw { width:22px; height:22px; border-radius:5px; border:1px solid rgba(0,0,0,.15); }
+  .fam b { color:var(--ink); }
+  .actions button { width:100%; font:inherit; font-size:.8rem; padding:.5rem; border-radius:8px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer; margin-top:1rem; }
+  /* carte instrument */
+  .carte { display:flex; gap:12px; align-items:flex-start; }
+  .neutral { display:flex; flex-direction:column; gap:5px; }
+  .grids { display:flex; flex-direction:column; gap:14px; }
+  .glabel { font-size:.66rem; color:var(--sub); margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .glabel .dot { width:11px; height:11px; border-radius:50%; border:1px solid rgba(0,0,0,.15); }
+  .grid { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+  .cell { position:relative; width:40px; height:36px; border-radius:6px; border:1px solid rgba(0,0,0,.08); }
+  .cell .stack { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    display:flex; flex-direction:column; align-items:center; gap:1px; z-index:1; padding:2px; border-radius:8px; }
+  .cell:hover .stack { z-index:30; }
+  /* compact by default: overlapping chips; on hover the whole stack fans open over a legible backdrop */
+  .cell.multi .stack .mp-chip:not(:first-child) { margin-top:-7px; }
+  .cell.multi .stack .mp-chip { box-shadow:0 1px 2px rgba(20,30,60,.28); }
+  .cell.multi:hover .stack { gap:3px; background:rgba(255,255,255,.92); box-shadow:0 6px 18px rgba(20,30,60,.28); }
+  .cell.multi:hover .stack .mp-chip:not(:first-child) { margin-top:0; }
+  .mp-chip { font-size:.56rem; font-weight:700; line-height:1; padding:2px 5px; border-radius:9px; cursor:grab;
+    user-select:none; white-space:nowrap; border:1.5px solid rgba(0,0,0,.18); touch-action:none; }
+  .mp-chip.ghost { position:fixed; z-index:300; pointer-events:none; transform:translate(-50%,-50%) scale(1.12); }
+  .carte-cap { font-size:.72rem; color:#868d9b; margin-top:.6rem; line-height:1.4; max-width:340px; }
+  .row { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.5rem; }
+  .chip { font:inherit; font-size:.76rem; border:1px solid var(--line); background:#fff; color:var(--sub); padding:.28rem .5rem; border-radius:7px; cursor:pointer; }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .ratioName { font-size:.72rem; color:var(--accent); min-height:1em; margin:-.2rem 0 .3rem; }
+  /* échelle (ladder) instrument */
+  #ladder .rung { display:flex; align-items:baseline; gap:.8rem; padding:.3rem .4rem; border-radius:7px; cursor:ns-resize; border:1px solid transparent; }
+  #ladder .rung:hover { background:#fafbfc; border-color:var(--line); }
+  #ladder .rung.drag { background:#fff; border-color:var(--accent); }
+  #ladder .ltag { flex:none; width:60px; font-size:.68rem; color:var(--sub); text-transform:uppercase; letter-spacing:.03em; user-select:none; }
+  #ladder .lspec { flex:1; color:var(--ink); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  #ladder .lspec.multi { white-space:normal; }
+  #ladder .lctl { flex:none; display:flex; gap:.22rem; }
+  #ladder .lmini { font:inherit; font-size:.62rem; font-weight:600; width:19px; height:19px; padding:0; border:1px solid var(--line); background:#fff; color:var(--sub); border-radius:5px; cursor:pointer; }
+  #ladder .lmini.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #ladder .lmeta { flex:none; width:78px; text-align:right; font-size:.66rem; color:var(--sub); font-variant-numeric:tabular-nums; user-select:none; }
+  #ladder .lmeta b { color:var(--ink); }
+  /* -- Appareil facet -- */
+  #instrument.apparatus { display:flex; flex-direction:column; align-items:center; gap:.8rem; padding:.5rem .3rem; width:100%; box-sizing:border-box; }
+  .apspread { display:flex; gap:2px; width:100%; max-width:326px; justify-content:center; }
+  .appage { flex:1 1 0; min-width:0; max-width:158px; background:#fff; border:1px solid var(--line); box-shadow:0 1px 4px rgba(20,30,60,.07); display:flex; flex-direction:column; }
+  .appage:first-child { border-radius:8px 2px 2px 8px; }
+  .appage:last-child { border-radius:2px 8px 8px 2px; }
+  .aplbl { font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; color:var(--sub); text-align:center; padding:.3rem 0 .1rem; }
+  .apbody { flex:1; min-height:64px; }
+  .apband { display:flex; gap:2px; padding:.2rem; }
+  .apband.header { border-bottom:1px dashed var(--line); }
+  .apband.footer { border-top:1px dashed var(--line); }
+  .apslot { flex:1; min-width:0; min-height:40px; border:1px solid transparent; border-radius:5px; padding:.16rem .1rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.12rem; }
+  .apslot.empty { background:repeating-linear-gradient(45deg,#fafbfd,#fafbfd 4px,#f0f2f6 4px,#f0f2f6 8px); }
+  .apslot.drop { border-color:var(--accent); background:#e6ecff; box-shadow:inset 0 0 0 1px var(--accent); }
+  .apslot .apz { font-size:.5rem; letter-spacing:.04em; text-transform:uppercase; color:var(--sub); }
+  .aptoken { font:inherit; font-size:.68rem; color:var(--ink); background:#eef2ff; border:1px solid #c9d4f5; border-radius:6px; padding:.2rem .4rem; cursor:grab; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; touch-action:none; user-select:none; }
+  .aptoken:hover { border-color:var(--accent); }
+  .aptoken.src { background:#fff; border-color:var(--line); color:var(--sub); }
+  .apghost { position:fixed; z-index:60; pointer-events:none; transform:translate(-50%,-140%); opacity:.92; box-shadow:0 4px 14px rgba(20,30,60,.28); }
+  .apreserve { width:100%; max-width:340px; box-sizing:border-box; border:1px solid var(--line); border-radius:9px; background:#fbfcfe; padding:.4rem .5rem .5rem; }
+  .aprlbl { font-size:.58rem; letter-spacing:.07em; text-transform:uppercase; color:var(--sub); margin-bottom:.35rem; }
+  .aprtokens { display:flex; flex-wrap:wrap; gap:.3rem; }
+  .apcap { font-size:.72rem; color:var(--sub); text-align:center; max-width:342px; line-height:1.4; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Éditeur de style</h1>
+</header>
+
+<div class="shell">
+  <div id="editside">
+    <div id="facetbar">
+      <div class="tabs" id="tabs">
+        <button data-facet="couleur" class="on">Couleur</button>
+        <button data-facet="polices">Polices</button>
+        <button data-facet="pages">Pages</button>
+        <button data-facet="appareil">Appareil</button>
+      </div>
+    </div>
+    <div id="editrow">
+      <div id="panel"></div>
+      <div id="workbench">
+        <h3 id="instr-title">Carte — instrument</h3>
+        <div id="instrument"></div>
+      </div>
+    </div>
+  </div>
+  <div id="pvr" role="separator" aria-orientation="vertical" title="Redimensionner l’aperçu"></div>
+  <div id="preview">
+    <div class="pbar">
+      <span class="plabel">Aperçu — page à l’échelle</span>
+      <div class="vtabs" id="vtabs">
+        <button data-v="cover">Couverture</button>
+        <button data-v="recto" class="on">Recto</button>
+        <button data-v="chapter">Chapitre</button>
+        <button data-v="spread">Recto-verso</button>
+      </div>
+    </div>
+    <div class="parea" id="parea"></div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+// ===================== SHARED STYLE MODEL ==================================
+// One model, three facets. Increment 1 wires COLOUR fully; typo & geometry feed
+// the artefact from sensible defaults (their editing comes in inc. 2 & 3).
+
+// ---- colour primitives (mirror style-vocabulary.ts) ----
+const SAT=[0.06,0.18,0.32,0.48,0.65,0.82], VAL=[0.98,0.85,0.70,0.54,0.38,0.20], GRAY=[1,0.82,0.62,0.42,0.22,0];
+const clampIdx=(n)=>Math.max(0,Math.min(5,Math.round(n)));
+function hsvToHex(h,s,v){h=((h%360)+360)%360;const c=v*s,x=c*(1-Math.abs(((h/60)%2)-1)),m=v-c;let r=0,g=0,b=0;
+  if(h<60)[r,g,b]=[c,x,0];else if(h<120)[r,g,b]=[x,c,0];else if(h<180)[r,g,b]=[0,c,x];
+  else if(h<240)[r,g,b]=[0,x,c];else if(h<300)[r,g,b]=[x,0,c];else[r,g,b]=[c,0,x];
+  const hx=(u)=>Math.round((u+m)*255).toString(16).padStart(2,'0');return`#${hx(r)}${hx(g)}${hx(b)}`;}
+const isLight=(hex)=>{const n=parseInt(hex.slice(1),16);return 0.2126*((n>>16)&255)+0.7152*((n>>8)&255)+0.0722*(n&255)>140;};
+const cranKey=(c)=>c.kind==='neutral'?`n${c.g}`:`${c.family}${c.s},${c.v}`;
+
+// ---- unified roster: colour cran + typo step + role ----
+const ROSTER=[
+  {key:'page',  role:null, surface:true},
+  {key:'cover', role:null, surface:true},
+  {key:'running-content', role:'body', step:-1, ctrls:['rule','caps'], sample:'Note technique · titre courant · 3'},
+  {key:'title', role:'head', step:5, ctrls:['align','rule','caps'], sample:'Titre du document'},
+  {key:'subtitle', role:'head', step:3, ctrls:['align','rule','caps'], sample:'Un sous-titre en complément'},
+  {key:'h1', role:'head', step:4, ctrls:['align','rule','caps'], sample:'Chapitre premier'},
+  {key:'h2', role:'head', step:3, ctrls:['align','rule','caps'], sample:'Une section importante'},
+  {key:'h3', role:'head', step:2, ctrls:['align','rule','caps'], sample:'Une sous-section'},
+  {key:'h4', role:'head', step:1, ctrls:['align','rule','caps'], sample:'Un paragraphe titré'},
+  {key:'body', role:'body', step:0, multi:true, sample:'Le corps de texte porte la lecture continue ; sa taille est l’<b>ancre</b> de toute l’échelle. On appelle <code>deriveFontSizes(base, ratio)</code>, on note l’<i>italique</i>, et la moyenne <span class="mi">µ = ∑<sub>i</sub> x<sub>i</sub></span> se dérive — de quoi juger l’interligne, le gris et la justification.'},
+  {key:'code', role:'code', scale:true}, {key:'math', role:'body', scale:true},
+  {key:'caption', role:'body', step:-1, sample:'Figure 1 — légende de la figure'},
+  {key:'note', role:'body', step:-1, sample:'1. Une note de bas de page, plus discrète.'},
+  {key:'metadata', role:'body', step:0, ctrls:['align','rule','caps'], sample:'Prénom Nom · Mon organisation · 2026'},
+];
+const LADDER=['title','subtitle','metadata','h1','h2','h3','h4','body','caption','note','running-content'];
+const LABEL={page:'page',cover:'couv.','running-content':'en-tête',title:'titre',subtitle:'s-titre',h1:'H1',h2:'H2',h3:'H3',h4:'H4',
+  body:'corps',code:'code',math:'math',caption:'légende',note:'note',metadata:'méta'};
+
+const S = {
+  facet:'couleur',
+  // COLOUR
+  hue1:213, angle:150,
+  crans:{
+    page:{kind:'neutral',g:0}, cover:{kind:'tint',family:'A',s:4,v:4}, 'running-content':{kind:'neutral',g:2},
+    title:{kind:'tint',family:'A',s:4,v:4}, subtitle:{kind:'tint',family:'A',s:3,v:3},
+    h1:{kind:'tint',family:'A',s:4,v:3}, h2:{kind:'tint',family:'B',s:3,v:2},
+    h3:{kind:'tint',family:'A',s:3,v:2}, h4:{kind:'tint',family:'A',s:2,v:1},
+    body:{kind:'neutral',g:5}, code:{kind:'neutral',g:4}, math:{kind:'neutral',g:5},
+    caption:{kind:'neutral',g:3}, note:{kind:'neutral',g:3}, metadata:{kind:'neutral',g:3},
+  },
+  // TYPO
+  fam:{head:'Source Serif 4', body:'Source Serif 4', code:'IBM Plex Mono'},
+  base:11, ratio:1.25, lh:1.4, wHead:600, wBody:400, codeScale:0.9, mscale:1, mset:'stix2', pairing:'classique',
+  steps:{}, align:{}, rule:{}, smallcaps:{}, tracking:0, justify:true,
+  coverScale:1.4, coverAlign:'center',   // cover STYLE only (uniform zoom + alignment)
+  // PAGES
+  pageFormat:'A4', landscape:false, duplex:false, geo:null,
+  pgLayers:{diag:true,bands:true,notes:true,title:true},
+  // APPAREIL — running-material composition, per band × parity × logical zone.
+  // Position mirrors automatically (inner=spine, outer=edge); only content may differ verso/recto.
+  running:{   // each zone is a STACK (list) of materials, rendered top→bottom
+    header:{ verso:{inner:[],center:['doctitle'],outer:['folio']},
+             recto:{inner:[],center:['chapter'], outer:['folio']} },
+    footer:{ verso:{inner:[],center:[],outer:[]},
+             recto:{inner:[],center:[],outer:[]} },
+  },
+  customText:'Notes de travail',
+  // ARTEFACT view
+  view:'recto',
+};
+ROSTER.forEach(r=>{ if(r.step!==undefined) S.steps[r.key]=r.step; });
+LADDER.forEach(k=>{ const c=(ROSTER.find(e=>e.key===k)||{}).ctrls||[];
+  if(c.includes('align')) S.align[k]=(k==='title'||k==='subtitle'||k==='metadata')?'center':'left';
+  if(c.includes('rule')) S.rule[k]='none';
+  if(c.includes('caps')) S.smallcaps[k]=false; });
+// pages geometry (mm), Van de Graaf canon default
+const FORMATS={A4:{w:210,h:297},A5:{w:148,h:210},B5:{w:176,h:250},Letter:{w:215.9,h:279.4},'16:9':{w:297,h:167.06,land:true}};
+function pageMm(){const f=FORMATS[S.pageFormat]; if(f.land)return{w:f.w,h:f.h}; return S.landscape?{w:f.h,h:f.w}:{w:f.w,h:f.h};}
+function canon1_9(){const p=pageMm(), w=p.w, h=p.h; return {
+  textTop:h/9, textBottom:2*h/9, textInner:w/9, textOuter:2*w/9,
+  runInner:w/18, runOuter:w/9, headerTop:h/18, footerBottom:h/9,
+  noteGap:3, noteWidth:Math.max(5,w/9-3), titleY:h/9+(2*h/3)*0.22 };}
+S.geo=canon1_9();
+// typo catalogues (mirror the polices prototype)
+const PAIRINGS=[
+  {id:'moderne',name:'Moderne',head:'Inter',body:'Inter',code:'JetBrains Mono',math:'fira',ratio:1.22},
+  {id:'classique',name:'Classique',head:'Source Serif 4',body:'Source Serif 4',code:'IBM Plex Mono',math:'stix2',ratio:1.25},
+  {id:'editorial',name:'Éditorial',head:'Inter',body:'Lora',code:'JetBrains Mono',math:'stix2',ratio:1.28},
+  {id:'elegant',name:'Élégant',head:'EB Garamond',body:'EB Garamond',code:'IBM Plex Mono',math:'newcm',ratio:1.30},
+  {id:'technique',name:'Technique',head:'Roboto Condensed',body:'Roboto',code:'Roboto Mono',math:'fira',ratio:1.20},
+  {id:'contraste',name:'Contraste',head:'Poppins',body:'PT Serif',code:'Source Code Pro',math:'stix2',ratio:1.34},
+];
+const TEXT_FAMILIES=['Inter','Poppins','Roboto','Roboto Condensed','Source Serif 4','Lora','PT Serif','EB Garamond'];
+const CODE_FAMILIES=['JetBrains Mono','IBM Plex Mono','Roboto Mono','Source Code Pro'];
+const WEIGHTS=[[300,'Light'],[400,'Regular'],[500,'Medium'],[600,'Semibold'],[700,'Bold']];
+const MATH_SETS=['stix2','fira','newcm','asana','tex'];
+const NAMED_RATIOS=[[1.125,'seconde M'],[1.2,'tierce m'],[1.25,'tierce M'],[1.333,'quarte'],[1.414,'quarte aug.'],[1.5,'quinte'],[1.618,'nombre d’or']];
+const ALIGNS=['left','center','right'], ALIGN_LBL={left:'G',center:'C',right:'D'};
+const RULES=['none','below','above'], RULE_LBL={none:'·',below:'▁',above:'▔'};
+
+// derived helpers
+const hueA=()=>S.hue1, hueB=()=>(S.hue1+S.angle)%360, hueFor=(f)=>f==='B'?hueB():hueA();
+const cranToHex=(c)=>c.kind==='neutral'?hsvToHex(0,0,GRAY[clampIdx(c.g)]):hsvToHex(hueFor(c.family),SAT[clampIdx(c.s)],VAL[clampIdx(c.v)]);
+const colOf=(k)=>cranToHex(S.crans[k]);
+const round2=(x)=>Math.round(x*2)/2;
+const sizePt=(step)=>round2(S.base*Math.pow(S.ratio,step));
+const famCss=(role)=>role==='code'?`'${S.fam.code}', ui-monospace, monospace`:`'${role==='head'?S.fam.head:S.fam.body}', system-ui, serif`;
+
+// ===================== THE SHARED ARTEFACT =================================
+// A live page: geometry (margins) + typography (families/sizes) + colour (per
+// element). Every facet edits the same object and this repaints.
+// per-element detail CSS (alignement / filet / petites capitales) for the artefact
+function dstyle(k){ let s=''; const c=(ROSTER.find(e=>e.key===k)||{}).ctrls||[];
+  if(c.includes('align')&&S.align[k]) s+=`text-align:${S.align[k]};`;
+  if(c.includes('rule')){ if(S.rule[k]==='below')s+='border-bottom:1.5px solid currentColor;padding-bottom:.1em;'; else if(S.rule[k]==='above')s+='border-top:1.5px solid currentColor;padding-top:.1em;'; }
+  if(c.includes('caps')&&S.smallcaps[k]) s+='font-variant:small-caps;';
+  if(c.includes('caps')&&S.tracking) s+=`letter-spacing:${S.tracking}em;`;
+  return s; }
+const PT_TO_MM=0.3528;
+const ptOf=(k)=>{const r=ROSTER.find(e=>e.key===k); return r.scale?round2(S.base*(k==='code'?S.codeScale:S.mscale)):sizePt(S.steps[k]);};
+const ff=(k)=>famCss(ROSTER.find(e=>e.key===k).role);
+// -- APPAREIL : running materials --------------------------------------------
+// Palette of draggable materials. Each maps to a paged-media content value
+// (counter(page), string(...), literal) in the real engine.
+const MATERIALS={ folio:'folio', folioRoman:'folio rom.', doctitle:'titre doc', chapter:'chapitre',
+                  section:'section', author:'auteur', date:'date', text:'texte' };
+const AP_PALETTE=['folio','folioRoman','doctitle','chapter','section','author','date','text'];
+// Display label for a token; the free-text material shows its actual (truncated) string.
+const matLabel=(m)=>m==='text'?(S.customText.trim()?('« '+(S.customText.length>14?S.customText.slice(0,13)+'…':S.customText)+' »'):'texte'):MATERIALS[m];
+const ROMAN=[[1000,'m'],[900,'cm'],[500,'d'],[400,'cd'],[100,'c'],[90,'xc'],[50,'l'],[40,'xl'],[10,'x'],[9,'ix'],[5,'v'],[4,'iv'],[1,'i']];
+const toRoman=(n)=>{let s='';for(const[v,g]of ROMAN){while(n>=v){s+=g;n-=v;}}return s;};
+function matText(id,folio){
+  switch(id){
+    case 'folio': return String(folio);
+    case 'folioRoman': return toRoman(folio);
+    case 'doctitle': return 'Signatures et algèbres';
+    case 'chapter': return 'Le pli comme unité';
+    case 'section': return '§ 2';
+    case 'author': return 'Y. Orlarey';
+    case 'date': return '2026';
+    case 'text': return S.customText||'';
+    default: return '';
+  }
+}
+// Generative presets — one click composes the whole apparatus.
+// Each zone is a stack (array); 'none' ⇒ empty stack, a material id ⇒ singleton.
+const apZ=(i,c,o)=>({inner:i==='none'?[]:[i], center:c==='none'?[]:[c], outer:o==='none'?[]:[o]});
+const apPair=(v,r)=>({verso:v,recto:r});
+const APPAREIL_PRESETS=[
+  {name:'Vierge',       running:{header:apPair(apZ('none','none','none'),apZ('none','none','none')), footer:apPair(apZ('none','none','none'),apZ('none','none','none'))}},
+  {name:'Savant',       running:{header:apPair(apZ('none','doctitle','folio'),apZ('none','chapter','folio')), footer:apPair(apZ('none','none','none'),apZ('none','none','none'))}},
+  {name:'Folio en pied',running:{header:apPair(apZ('none','none','none'),apZ('none','none','none')), footer:apPair(apZ('none','folio','none'),apZ('none','folio','none'))}},
+  {name:'Titres en tête',running:{header:apPair(apZ('none','doctitle','none'),apZ('none','chapter','none')), footer:apPair(apZ('none','folio','none'),apZ('none','folio','none'))}},
+  {name:'Bords',        running:{header:apPair(apZ('none','none','doctitle'),apZ('none','none','chapter')), footer:apPair(apZ('none','none','folio'),apZ('none','none','folio'))}},
+];
+// A real page, rendered TO SCALE. `pxmm` px per mm; font sizes = pt·0.3528·pxmm.
+function contentPage(pg,g,pxmm,verso){
+  const page=document.createElement('div'); page.className='apage';
+  page.style.width=(pg.w*pxmm)+'px'; page.style.height=(pg.h*pxmm)+'px'; page.style.background=colOf('page');
+  page.style.position='relative'; page.style.overflow='hidden';
+  const tl=verso?g.textOuter:g.textInner, tr=verso?g.textInner:g.textOuter;   // text block insets (mirrored)
+  const runL=verso?g.runOuter:g.runInner, runR=verso?g.runInner:g.runOuter;   // running-zone insets (mirrored)
+  const fs=(k)=>(ptOf(k)*PT_TO_MM*pxmm).toFixed(2)+'px';
+  const CS=(k,extra='')=>`font-family:${ff(k)};font-size:${fs(k)};color:${colOf(k)};${extra}`;
+  const codeBg='rgba(128,128,128,.10)';
+  const inlineCode=(t)=>`<code style="${CS('code')}">${t}</code>`;
+  const bodyP=(html)=>`<p style="${CS('body',`text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:.3em 0`)}">${html}</p>`;
+  const folio=verso?12:13, parity=verso?'verso':'recto';
+  // Running band = three structural zones, placed in the MARGIN by page geometry
+  // (headerTop / footerBottom · runInner / runOuter). Position mirrors (inner=spine,
+  // outer=edge); content is composed per parity in S.running (Appareil facet).
+  const runBand=(band)=>{
+    const z=S.running[band][parity];
+    if(!z.inner.length&&!z.center.length&&!z.outer.length) return '';   // empty band ⇒ nothing renders
+    const lz=verso?'outer':'inner', rz=verso?'inner':'outer';   // logical zone at physical left / right
+    // A zone's stack renders as an inline sequence (spine→edge). On verso the whole
+    // spread mirrors left↔right, so the sequence is reversed.
+    const seq=(list,align)=>{const items=verso?[...list].reverse():list;
+      return `<span style="flex:1;text-align:${align}">${items.map(m=>matText(m,folio)).join(' · ')}</span>`;};
+    const vpos=band==='header'?`top:${g.headerTop*pxmm}px`:`bottom:${g.footerBottom*pxmm}px`;
+    return `<div style="${CS('running-content',`position:absolute;left:${runL*pxmm}px;right:${runR*pxmm}px;${vpos};display:flex;justify-content:space-between;align-items:baseline;letter-spacing:.03em;${dstyle('running-content')}`)}">`+
+      seq(z[lz],'left')+seq(z.center,'center')+seq(z[rz],'right')+`</div>`;
+  };
+  const body =
+    `<div style="${CS('title',`font-weight:${S.wHead};line-height:1.1;${dstyle('title')}`)}">Un aperçu de TLIB</div>`+
+    `<div style="${CS('subtitle',`font-style:italic;margin:.15em 0;${dstyle('subtitle')}`)}">réductions, algèbres et évaluation paresseuse</div>`+
+    `<div style="${CS('metadata',`margin:.15em 0 1.1em;${dstyle('metadata')}`)}">Yann Orlarey · Inria · 2026</div>`+
+    `<div style="${CS('h1',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h1')}`)}">Le pli comme unité</div>`+
+    bodyP(`Une seule traversée de l’arbre — ${inlineCode('fold(tree, algebra)')} — évalue toutes les interprétations closes ; on en tire la moyenne <span style="${CS('math')}">µ</span> et la variance <span style="${CS('math')}">σ²</span>.`)+
+    `<div style="${CS('math',`text-align:center;font-style:italic;margin:.5em 0`)}">µ = ¹⁄ₙ ∑ᵢ xᵢ &nbsp;&nbsp;,&nbsp;&nbsp; σ² = ¹⁄ₙ ∑ᵢ (xᵢ − µ)²</div>`+
+    `<div style="${CS('h2',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h2')}`)}">Évaluation par génération</div>`+
+    bodyP(`L’échelle des tailles dérive de ${inlineCode('base · ratio^cran')} ; le canon de Van de Graaf place le bloc, et le corps porte la lecture continue le long de l’arbre.`)+
+    `<pre style="${CS('code',`background:${codeBg};padding:.5em .7em;border-radius:4px;margin:.4em 0;white-space:pre;overflow:hidden`)}">fold f z (Leaf x)   = f x z\nfold f z (Node l r) = fold f (fold f z r) l</pre>`+
+    `<p style="${CS('caption',`font-style:italic;margin:.5em 0 0`)}">Figure 1 — le DAG de 20 opérations et son pli.</p>`+
+    `<p style="${CS('note',`margin:.3em 0 0`)}">1. On suppose l’algèbre monoïdale et le pli bien fondé.</p>`;
+  page.innerHTML =
+    runBand('header')+
+    `<div style="position:absolute;left:${tl*pxmm}px;right:${tr*pxmm}px;top:${g.textTop*pxmm}px;bottom:${g.textBottom*pxmm}px;overflow:hidden">${body}</div>`+
+    runBand('footer');
+  return page;
+}
+function coverPage(pg,pxmm){
+  const page=document.createElement('div'); page.className='apage';
+  page.style.cssText=`width:${pg.w*pxmm}px;height:${pg.h*pxmm}px;background:${colOf('cover')};display:flex;flex-direction:column;justify-content:center;text-align:${S.coverAlign};padding:0 ${S.geo.textOuter*pxmm}px`;
+  const ink=isLight(colOf('cover'))?'#1a1f2b':'#ffffff';
+  // Cover zoom scales the WHOLE block uniformly; the modular ratio still sets the
+  // internal title/subtitle/metadata proportions.
+  const fs=(k)=>(sizePt(S.steps[k])*S.coverScale*PT_TO_MM*pxmm).toFixed(2)+'px';
+  page.innerHTML =
+    `<div style="font-family:${famCss('head')};font-size:${fs('title')};font-weight:${S.wHead};color:${ink};line-height:1.1;${S.smallcaps.title?'font-variant:small-caps;':''}">Un aperçu de TLIB</div>`+
+    `<div style="font-family:${famCss('head')};font-size:${fs('subtitle')};font-style:italic;color:${ink};opacity:.85;margin-top:.5em">signatures et algèbres commutatives</div>`+
+    `<div style="font-family:${famCss('body')};font-size:${fs('metadata')};color:${ink};opacity:.8;margin-top:2.6em">Yann Orlarey · 2026</div>`;
+  return page;
+}
+function chapterPage(pg,g,pxmm){
+  const page=document.createElement('div'); page.className='apage';
+  page.style.width=(pg.w*pxmm)+'px'; page.style.height=(pg.h*pxmm)+'px'; page.style.background=colOf('page');
+  page.style.padding=`${g.textTop*pxmm}px ${g.textOuter*pxmm}px ${g.textBottom*pxmm}px ${g.textInner*pxmm}px`;
+  const fs=(k)=>(ptOf(k)*PT_TO_MM*pxmm).toFixed(2)+'px';
+  const drop=Math.max(0,(g.titleY||g.textTop)-g.textTop)*pxmm;   // push the chapter title to the title line
+  page.innerHTML =
+    `<div style="height:${drop}px"></div>`+
+    `<div style="font-family:${ff('h1')};font-size:${fs('h1')};font-weight:${S.wHead};color:${colOf('h1')};line-height:1.1;${dstyle('h1')}">Chapitre premier</div>`+
+    `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:1em 0 .3em">Le chapitre s’ouvre sur un recto, son titre posé à la <b>ligne de titre</b> (drop) ; le corps suit et porte la lecture continue le long de l’arbre via <code style="font-family:${ff('code')};font-size:${fs('code')};color:${colOf('code')}">fold(tree, algebra)</code>, dont la somme <span style="font-size:${fs('math')};color:${colOf('math')}">∑ᵢ xᵢ</span> se dérive à l’identique.</p>`+
+    `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:.3em 0">Chaque terme se convertit à l’identique ; la géométrie du canon place le bloc, et le drop met le titre en réserve, sans en-tête courant sur l’ouverture.</p>`;
+  return page;
+}
+function renderArtefact(){
+  const area=document.getElementById('parea'); if(!area) return;
+  const pg=pageMm(), g=S.geo, n=S.view==='spread'?2:1;
+  const gap=n>1?8:0;   // .parea flex gap between the two pages
+  const availW=area.clientWidth-40, availH=area.clientHeight-40;
+  let pxmm=Math.min((availW-gap)/(n*pg.w), availH/pg.h); if(!(pxmm>0)) pxmm=1.6;
+  const pages=[];
+  if(S.view==='cover') pages.push(coverPage(pg,pxmm));
+  else if(S.view==='chapter') pages.push(chapterPage(pg,g,pxmm));
+  else if(S.view==='spread'){ pages.push(contentPage(pg,g,pxmm,true), contentPage(pg,g,pxmm,false)); }
+  else pages.push(contentPage(pg,g,pxmm,false));
+  area.replaceChildren(...pages);
+}
+
+// ===================== INSTRUMENTS (per facet) ============================
+// -- Couleur : the two-family carte (fully wired) --
+function renderCarte(){
+  const el=document.getElementById('instrument'); el.className=''; el.innerHTML='';
+  const carte=document.createElement('div'); carte.className='carte';
+  const byKey=new Map();
+  const mk=(cran)=>{const d=document.createElement('div');d.className='cell';d.style.background=cranToHex(cran);d._cran=cran;byKey.set(cranKey(cran),d);return d;};
+  const neutral=document.createElement('div'); neutral.className='neutral';
+  for(let g=0;g<6;g++) neutral.appendChild(mk({kind:'neutral',g}));
+  const grids=document.createElement('div'); grids.className='grids';
+  for(const fam of ['A','B']){
+    const blk=document.createElement('div');
+    const lab=document.createElement('div'); lab.className='glabel';
+    const dot=document.createElement('span'); dot.className='dot'; dot.style.background=hsvToHex(hueFor(fam),SAT[4],VAL[3]);
+    lab.append(dot, document.createTextNode(`famille ${fam} · ${Math.round(hueFor(fam))}°`));
+    const grid=document.createElement('div'); grid.className='grid';
+    for(let v=0;v<6;v++) for(let s=0;s<6;s++) grid.appendChild(mk({kind:'tint',family:fam,s,v}));
+    blk.append(lab,grid); grids.appendChild(blk);
+  }
+  carte.append(neutral,grids); el.appendChild(carte);
+  const cap=document.createElement('p'); cap.className='carte-cap';
+  cap.innerHTML='Neutres partagés · deux grilles saturation × valeur (une par famille). Glisse une pastille sur un cran.';
+  el.appendChild(cap);
+  for(const {key} of ROSTER){
+    const cell=byKey.get(cranKey(S.crans[key])); if(!cell) continue;
+    let stack=cell.querySelector('.stack');
+    if(!stack){ stack=document.createElement('div'); stack.className='stack'; cell.appendChild(stack); }
+    const chip=document.createElement('div'); chip.className='mp-chip'; chip.textContent=LABEL[key];
+    const hex=colOf(key); chip.style.background=hex; chip.style.color=isLight(hex)?'#1a1f2b':'#fff';
+    chip.style.borderColor=isLight(hex)?'rgba(0,0,0,.22)':'rgba(255,255,255,.35)';
+    attachDrag(chip,key); stack.appendChild(chip);
+    cell.classList.toggle('multi', stack.children.length>1);
+  }
+}
+function attachDrag(chip,key){
+  chip.addEventListener('pointerdown',(e)=>{e.preventDefault();
+    const ghost=chip.cloneNode(true); ghost.classList.add('ghost'); document.body.appendChild(ghost);
+    const move=(ev)=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';}; move(e);
+    const up=(ev)=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);ghost.remove();
+      const cell=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('.cell');
+      if(cell&&cell._cran){S.crans[key]=cell._cran; renderInstrument(); renderArtefact();}};
+    window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);});
+}
+
+// -- Polices : the interactive échelle (fully wired) --
+function repaintTypo(){ renderLadder(); renderArtefact(); }
+function mini(txt,title,onclick,on){const b=document.createElement('button');b.className='lmini'+(on?' on':'');b.textContent=txt;b.title=title;b.onclick=onclick;return b;}
+function renderLadder(){
+  const el=document.getElementById('instrument'); el.className='';
+  const lad=document.createElement('div'); lad.id='ladder'; lad.style.maxWidth='560px'; el.replaceChildren(lad);
+  for(const key of LADDER){
+    const r=ROSTER.find(e=>e.key===key); const step=S.steps[key]; const pt=sizePt(step); const head=r.role==='head'; const c=r.ctrls||[];
+    const row=document.createElement('div'); row.className='rung'; row.dataset.key=key;
+    const tag=document.createElement('div'); tag.className='ltag'; tag.textContent=LABEL[key];
+    const spec=document.createElement('div'); spec.className='lspec'+(r.multi?' multi':''); spec.innerHTML=r.sample;
+    spec.style.fontFamily=famCss(r.role); spec.style.fontSize=pt+'pt';
+    spec.style.lineHeight=r.role==='body'?S.lh:1.15; spec.style.fontWeight=head?S.wHead:(r.role==='body'?S.wBody:400);
+    spec.querySelectorAll('code').forEach(x=>{x.style.fontFamily=famCss('code');x.style.fontSize=S.codeScale+'em';});
+    spec.querySelectorAll('.mi').forEach(x=>{x.style.fontSize=S.mscale+'em';});
+    if(c.includes('align')) spec.style.textAlign=S.align[key];
+    if(c.includes('rule')){const rl=S.rule[key]; if(rl==='below'){spec.style.borderBottom='1.5px solid currentColor';spec.style.paddingBottom='.12em';} else if(rl==='above'){spec.style.borderTop='1.5px solid currentColor';spec.style.paddingTop='.12em';}}
+    if(c.includes('caps')){ if(S.smallcaps[key]) spec.style.fontVariant='small-caps'; if(S.tracking) spec.style.letterSpacing=S.tracking+'em'; }
+    if(key==='body') spec.style.textAlign=S.justify?'justify':'left';
+    const meta=document.createElement('div'); meta.className='lmeta'; const over=step!==r.step;
+    meta.innerHTML=`<b>${pt.toFixed(1)}pt</b> · ${over?'<b>':''}${step}${over?'</b>':''}`;
+    if(c.length){ const ctl=document.createElement('div'); ctl.className='lctl';
+      if(c.includes('align')) ctl.appendChild(mini(ALIGN_LBL[S.align[key]],'alignement',()=>{const i=ALIGNS.indexOf(S.align[key]);S.align[key]=ALIGNS[(i+1)%ALIGNS.length];repaintTypo();}));
+      if(c.includes('rule')) ctl.appendChild(mini(RULE_LBL[S.rule[key]],'filet',()=>{const i=RULES.indexOf(S.rule[key]);S.rule[key]=RULES[(i+1)%3];repaintTypo();}, S.rule[key]!=='none'));
+      if(c.includes('caps')) ctl.appendChild(mini('Aᴀ','petites capitales',()=>{S.smallcaps[key]=!S.smallcaps[key];repaintTypo();}, S.smallcaps[key]));
+      ctl.addEventListener('pointerdown',(e)=>e.stopPropagation()); row.append(tag,spec,ctl,meta);
+    } else row.append(tag,spec,meta);
+    attachRungDrag(row,key); lad.appendChild(row);
+  }
+}
+function attachRungDrag(row,key){
+  row.addEventListener('pointerdown',(e)=>{e.preventDefault();row.classList.add('drag');const y0=e.clientY,s0=S.steps[key];
+    const move=(ev)=>{const d=(y0-ev.clientY)/46;S.steps[key]=Math.max(-2,Math.min(7,Math.round((s0+d)*2)/2));repaintTypo();};
+    const up=()=>{row.classList.remove('drag');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});
+}
+
+// -- Pages : the geometry instrument (full parity with the dedicated editor) --
+const PX_TO_MM=25.4/96;
+const pgTXT='#2b3a55', pgBND='#d08a3b', pgNOTE='#3f9d78', pgTTL='#c0507a', pgDIAG='#b3a0d6';
+let PXMM=1, VERSO_X=0, RECTO_X=0, PAGE_W=0, PAGE_H=0, pgSvg=null;
+const svgel=(t,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const clamp=(v,lo,hi)=>Math.min(Math.max(v,lo),hi);
+const mx=(x,mm)=>x+mm*PXMM, my=(yTop,mm)=>yTop+mm*PXMM;
+const mmTxt=(v)=>`${Math.round(v)} mm`;
+function showTip(x,y,t){const e=document.getElementById('tip');e.textContent=t;e.style.display='block';e.style.left=(x+14)+'px';e.style.top=(y+14)+'px';}
+const hideTip=()=>{document.getElementById('tip').style.display='none';};
+function charWidthMm(pt){const c=document.createElement('canvas').getContext('2d'); if(!c) return 0.5*pt*PT_TO_MM; c.font=`${pt*96/72}px ${S.fam.body}, Georgia, serif`; const s='abcdefghijklmnopqrstuvwxyz'; return (c.measureText(s).width/s.length)*PX_TO_MM;}
+function repaintPages(){ renderPagesInstrument(); renderArtefact(); }
+function pgLayout(){
+  const pg=pageMm(), PAD=58;
+  const availW=Math.max(380,(document.getElementById('workbench').clientWidth||620)-56), availH=470;
+  PXMM=Math.min((availW-PAD*2)/(pg.w*2),(availH-PAD*2)/pg.h);
+  PAGE_W=pg.w*PXMM; PAGE_H=pg.h*PXMM;
+  const totalW=PAGE_W*2, svgW=availW, svgH=PAGE_H+PAD*2;
+  VERSO_X=(svgW-totalW)/2; RECTO_X=VERSO_X+PAGE_W;
+  pgSvg.setAttribute('width',svgW); pgSvg.setAttribute('height',svgH); pgSvg.setAttribute('viewBox',`0 0 ${svgW} ${svgH}`);
+  pgSvg.dataset.yTop=PAD; return PAD;
+}
+function drawPaper(pageX,yTop,label){
+  pgSvg.appendChild(svgel('rect',{x:pageX,y:yTop,width:PAGE_W,height:PAGE_H,fill:'#fff',stroke:'#c3c9d4','stroke-width':1}));
+  const t=svgel('text',{x:pageX+PAGE_W/2,y:yTop+PAGE_H+22,'text-anchor':'middle','font-size':11,fill:'#5c6473','font-family':'system-ui'}); t.textContent=label; pgSvg.appendChild(t);
+}
+function drawDiagonals(yTop){
+  const L=VERSO_X,R=VERSO_X+2*PAGE_W,M=VERSO_X+PAGE_W,T=yTop,B=yTop+PAGE_H;
+  const d=(x1,y1,x2,y2)=>pgSvg.appendChild(svgel('line',{x1,y1,x2,y2,stroke:pgDIAG,'stroke-width':1,'stroke-dasharray':'5 4',opacity:.75}));
+  d(L,T,R,B);d(R,T,L,B); d(L,T,M,B);d(M,T,L,B); d(M,T,R,B);d(R,T,M,B);
+  pgSvg.appendChild(svgel('line',{x1:M,y1:T,x2:M,y2:B,stroke:'#c3c9d4','stroke-width':1}));
+}
+function hGuide(y_mm,color,op){ if(op===undefined)op=.85; const y=my(+pgSvg.dataset.yTop,y_mm); pgSvg.appendChild(svgel('line',{x1:VERSO_X,y1:y,x2:VERSO_X+2*PAGE_W,y2:y,stroke:color,'stroke-width':1,opacity:op})); }
+function vGuide(pageX,x_mm,color){ const yTop=+pgSvg.dataset.yTop, x=mx(pageX,x_mm); pgSvg.appendChild(svgel('line',{x1:x,y1:yTop,x2:x,y2:yTop+PAGE_H,stroke:color,'stroke-width':1,opacity:.85})); }
+function makeBlockDraggable(rect){
+  rect.classList.add('block');
+  rect.addEventListener('pointerdown',(e)=>{e.preventDefault(); try{rect.setPointerCapture(e.pointerId);}catch{}
+    const r=pgSvg.getBoundingClientRect(), yTop=+pgSvg.dataset.yTop, pg=pageMm(), g0={...S.geo};
+    const sx=(e.clientX-r.left-RECTO_X)/PXMM, sy=(e.clientY-r.top-yTop)/PXMM;
+    const W=pg.w-g0.textInner-g0.textOuter, H=pg.h-g0.textTop-g0.textBottom;
+    const move=(ev)=>{const dx=(ev.clientX-r.left-RECTO_X)/PXMM-sx, dy=(ev.clientY-r.top-yTop)/PXMM-sy;
+      const inner=clamp(g0.textInner+dx,0,pg.w-W), top=clamp(g0.textTop+dy,0,pg.h-H);
+      S.geo.textInner=inner; S.geo.textOuter=pg.w-inner-W; S.geo.textTop=top; S.geo.textBottom=pg.h-top-H;
+      repaintPages(); showTip(ev.clientX,ev.clientY,`int ${mmTxt(inner)} · haut ${mmTxt(top)}`);};
+    const up=()=>{hideTip();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});
+}
+function drawOverlay(pageX,yTop,g,verso){
+  const pg=pageMm();
+  const textL=verso?g.textOuter:g.textInner, textR=verso?g.textInner:g.textOuter;
+  const runL=verso?g.runOuter:g.runInner, runR=verso?g.runInner:g.runOuter;
+  const ty=my(yTop,g.textTop), th=(pg.h-g.textTop-g.textBottom)*PXMM;
+  const rect=svgel('rect',{x:mx(pageX,textL),y:ty,width:(pg.w-textL-textR)*PXMM,height:th,fill:'rgba(43,58,85,.06)',stroke:'none'});
+  pgSvg.appendChild(rect); if(!verso) makeBlockDraggable(rect);
+  if(S.pgLayers.notes && g.noteWidth>0){
+    const outerEdge=pg.w-textR, nA=verso?textL-g.noteGap-g.noteWidth:outerEdge+g.noteGap, nx=mx(pageX,nA), nw=g.noteWidth*PXMM;
+    pgSvg.appendChild(svgel('rect',{x:nx,y:ty,width:nw,height:th,fill:'rgba(63,157,120,.15)',stroke:pgNOTE,'stroke-width':1.3}));
+    const n=6, step=th/(n+1); for(let i=1;i<=n;i++) pgSvg.appendChild(svgel('line',{x1:nx+4,x2:nx+nw-4,y1:ty+i*step,y2:ty+i*step,stroke:pgNOTE,'stroke-width':.8,opacity:.3}));
+  }
+  vGuide(pageX,textL,pgTXT); vGuide(pageX,pg.w-textR,pgTXT);
+  if(S.pgLayers.bands){ vGuide(pageX,runL,pgBND); vGuide(pageX,pg.w-runR,pgBND);
+    const bx=mx(pageX,runL), bw=(pg.w-runL-runR)*PXMM;
+    const band=(y_mm)=>pgSvg.appendChild(svgel('line',{x1:bx,x2:bx+bw,y1:my(yTop,y_mm),y2:my(yTop,y_mm),stroke:pgBND,'stroke-width':4,'stroke-linecap':'round'}));
+    if(g.headerTop<g.textTop) band(g.headerTop); if(g.footerBottom<g.textBottom) band(pg.h-g.footerBottom);
+  }
+}
+function grip(cx,cy,color,orient,set,tip){
+  const gg=svgel('g',{class:'hit'});
+  gg.appendChild(svgel('circle',{cx,cy,r:11,fill:'transparent'})); gg.appendChild(svgel('circle',{cx,cy,r:5,fill:color,stroke:'#fff','stroke-width':1.5}));
+  gg.addEventListener('pointerdown',(e)=>{e.preventDefault(); try{gg.setPointerCapture(e.pointerId);}catch{}
+    const r=pgSvg.getBoundingClientRect(), yTop=+pgSvg.dataset.yTop, pg=pageMm();
+    const move=(ev)=>{const mm=orient==='h'?(ev.clientY-r.top-yTop)/PXMM:(ev.clientX-r.left-RECTO_X)/PXMM; set(clamp(mm,0,orient==='h'?pg.h:pg.w)); repaintPages(); showTip(ev.clientX,ev.clientY,tip());};
+    const up=()=>{hideTip();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});
+  pgSvg.appendChild(gg);
+}
+function connector(x1,y1,x2,y2,color){ pgSvg.appendChild(svgel('line',{x1,y1,x2,y2,stroke:color,'stroke-width':1,opacity:.45,'stroke-dasharray':'2 2'})); }
+function gripH(get,set,color,dist,tip){ const yTop=+pgSvg.dataset.yTop, y=my(yTop,get()), x=VERSO_X-dist; connector(x,y,VERSO_X,y,color); grip(x,y,color,'h',set,tip); }
+function gripV(get,set,color,dist,tip){ const yTop=+pgSvg.dataset.yTop, x=mx(RECTO_X,get()), y=yTop-dist; connector(x,y,x,yTop,color); grip(x,y,color,'v',set,tip); }
+function cornerGrip(g,xEdge,yEdge){
+  const yTop=+pgSvg.dataset.yTop, pg=pageMm(), MIN=10;
+  const xmm=xEdge==='inner'?g.textInner:pg.w-g.textOuter, ymm=yEdge==='top'?g.textTop:pg.h-g.textBottom;
+  const cx=mx(RECTO_X,xmm), cy=my(yTop,ymm);
+  const h=svgel('rect',{x:cx-5.5,y:cy-5.5,width:11,height:11,rx:2,fill:pgTXT,stroke:'#fff','stroke-width':1.5,class:'hit'});
+  h.style.cursor=(xEdge==='inner')===(yEdge==='top')?'nwse-resize':'nesw-resize';
+  h.addEventListener('pointerdown',(e)=>{e.preventDefault(); try{h.setPointerCapture(e.pointerId);}catch{}
+    const r=pgSvg.getBoundingClientRect();
+    const move=(ev)=>{const px=clamp((ev.clientX-r.left-RECTO_X)/PXMM,0,pg.w), py=clamp((ev.clientY-r.top-yTop)/PXMM,0,pg.h);
+      if(xEdge==='inner') g.textInner=clamp(px,0,pg.w-g.textOuter-MIN); else g.textOuter=clamp(pg.w-px,0,pg.w-g.textInner-MIN);
+      if(yEdge==='top') g.textTop=clamp(py,0,pg.h-g.textBottom-MIN); else g.textBottom=clamp(pg.h-py,0,pg.h-g.textTop-MIN);
+      repaintPages(); showTip(ev.clientX,ev.clientY,`${xEdge==='inner'?'int':'ext'} ${mmTxt(xEdge==='inner'?g.textInner:g.textOuter)} · ${yEdge==='top'?'haut':'bas'} ${mmTxt(yEdge==='top'?g.textTop:g.textBottom)}`);};
+    const up=()=>{hideTip();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});
+  pgSvg.appendChild(h);
+}
+function renderPagesInstrument(){
+  const host=document.getElementById('instrument'); host.className='';
+  pgSvg=svgel('svg',{}); const yTop=pgLayout(), g=S.geo, pg=pageMm();
+  drawPaper(VERSO_X,yTop,'verso'); drawPaper(RECTO_X,yTop,'recto');
+  if(S.pgLayers.diag) drawDiagonals(yTop);
+  drawOverlay(VERSO_X,yTop,g,true); drawOverlay(RECTO_X,yTop,g,false);
+  hGuide(g.textTop,pgTXT); hGuide(pg.h-g.textBottom,pgTXT);
+  if(S.pgLayers.bands){ hGuide(g.headerTop,pgBND,.35); hGuide(pg.h-g.footerBottom,pgBND,.35); }
+  if(S.pgLayers.title){ hGuide(g.titleY,pgTTL); const yt=my(yTop,g.titleY); const tl=svgel('text',{x:VERSO_X+6,y:yt-4,'font-size':10,fill:pgTTL,'font-family':'system-ui'}); tl.textContent='titre'; pgSvg.appendChild(tl); }
+  gripH(()=>g.textTop,v=>g.textTop=v,pgTXT,16,()=>`haut ${mmTxt(g.textTop)}`);
+  gripH(()=>pg.h-g.textBottom,v=>g.textBottom=pg.h-v,pgTXT,16,()=>`bas ${mmTxt(g.textBottom)}`);
+  gripV(()=>g.textInner,v=>g.textInner=v,pgTXT,16,()=>`intérieur ${mmTxt(g.textInner)}`);
+  gripV(()=>pg.w-g.textOuter,v=>g.textOuter=pg.w-v,pgTXT,16,()=>`extérieur ${mmTxt(g.textOuter)}`);
+  if(S.pgLayers.bands){
+    gripH(()=>g.headerTop,v=>g.headerTop=v,pgBND,34,()=>`en-tête ${mmTxt(g.headerTop)}`);
+    gripH(()=>pg.h-g.footerBottom,v=>g.footerBottom=pg.h-v,pgBND,34,()=>`pied ${mmTxt(g.footerBottom)}`);
+    gripV(()=>g.runInner,v=>g.runInner=v,pgBND,34,()=>`aire int. ${mmTxt(g.runInner)}`);
+    gripV(()=>pg.w-g.runOuter,v=>g.runOuter=pg.w-v,pgBND,34,()=>`aire ext. ${mmTxt(g.runOuter)}`);
+  }
+  if(S.pgLayers.notes){
+    const oe=pg.w-g.textOuter;
+    gripV(()=>oe+g.noteGap,v=>g.noteGap=clamp(v-oe,0,g.textOuter),pgNOTE,52,()=>`écart ${mmTxt(g.noteGap)}`);
+    gripV(()=>oe+g.noteGap+g.noteWidth,v=>g.noteWidth=clamp(v-oe-g.noteGap,0,g.textOuter),pgNOTE,52,()=>`largeur ${mmTxt(g.noteWidth)}`);
+  }
+  if(S.pgLayers.title) gripH(()=>g.titleY,v=>g.titleY=clamp(v,g.textTop,pg.h-g.textBottom),pgTTL,16,()=>`titre +${mmTxt(g.titleY-g.textTop)}`);
+  cornerGrip(g,'inner','top'); cornerGrip(g,'outer','top'); cornerGrip(g,'inner','bottom'); cornerGrip(g,'outer','bottom');
+  host.replaceChildren(pgSvg);
+  const cap=document.createElement('p'); cap.className='carte-cap';
+  const cw=charWidthMm(S.base), textW=pg.w-g.textInner-g.textOuter;
+  cap.innerHTML=`Bloc de texte <b>${textW.toFixed(0)} × ${(pg.h-g.textTop-g.textBottom).toFixed(0)} mm</b> · <b>${Math.round(textW/cw)} car/ligne</b> · glisse les traits (hors page), le bloc, les coins.`;
+  host.appendChild(cap);
+}
+function pagesPanel(){ return `
+  <h2>Format</h2><div class="row" id="formats"></div>
+  <div class="row"><button class="chip" id="orient">${S.landscape?'Paysage':'Portrait'}</button></div>
+  <h2>Calques</h2>
+  <label class="fam"><input type="checkbox" id="lgDiag" ${S.pgLayers.diag?'checked':''}> Diagonales du canon</label>
+  <label class="fam"><input type="checkbox" id="lgBands" ${S.pgLayers.bands?'checked':''}> Bandes en-tête / pied</label>
+  <label class="fam"><input type="checkbox" id="lgNotes" ${S.pgLayers.notes?'checked':''}> Colonne de notes</label>
+  <label class="fam"><input type="checkbox" id="lgTitle" ${S.pgLayers.title?'checked':''}> Ligne de titre</label>
+  <p class="sub" style="margin-top:.8rem">Poignées hors page : marges, bandes, aire vive, notes, ligne de titre. Le bloc se déplace, les coins le redimensionnent ; le canon (diagonales) reste le repère.</p>
+  <div class="actions"><button id="resetCanon">Rétablir le canon</button></div>`;
+}
+function wirePages(){
+  const fr=document.getElementById('formats');
+  fr.innerHTML=Object.keys(FORMATS).map(k=>`<button class="chip ${k===S.pageFormat?'on':''}" data-f="${k}">${k}</button>`).join('');
+  fr.onclick=(e)=>{const b=e.target.closest('[data-f]');if(!b)return;S.pageFormat=b.dataset.f;S.geo=canon1_9();renderPanel();repaintPages();};
+  document.getElementById('orient').onclick=()=>{S.landscape=!S.landscape;S.geo=canon1_9();renderPanel();repaintPages();};
+  const map={lgDiag:'diag',lgBands:'bands',lgNotes:'notes',lgTitle:'title'};
+  Object.keys(map).forEach(id=>{document.getElementById(id).onchange=(e)=>{S.pgLayers[map[id]]=e.target.checked;renderPagesInstrument();};});
+  document.getElementById('resetCanon').onclick=()=>{S.geo=canon1_9();repaintPages();};
+}
+
+// -- Appareil : presets (règles) à gauche + double-page à zones de drop + réserve --
+function appareilPanel(){
+  return `
+  <h2>Styles d'appareil</h2>
+  <p class="sub" style="margin:.2rem 0 .7rem">Règles génératrices : un clic compose tout l'en-tête / pied. Ajustez ensuite zone par zone à droite en glissant les éléments.</p>
+  <div class="row" id="apPresets">${APPAREIL_PRESETS.map((p,i)=>`<button class="chip" data-i="${i}">${p.name}</button>`).join('')}</div>
+  <h2>Texte libre</h2>
+  <div class="field"><input type="text" id="apCustom" value="${S.customText.replace(/"/g,'&quot;')}" placeholder="ex. Brouillon, Confidentiel…" style="flex:1;min-width:0"></div>
+  <p class="sub" style="margin:.2rem 0 0">Définit le contenu du jeton <b>texte</b> de la réserve ; glissez-le dans une zone.</p>`;
+}
+function wireAppareil(){
+  document.getElementById('apPresets').onclick=(e)=>{const b=e.target.closest('[data-i]'); if(!b) return;
+    S.running=JSON.parse(JSON.stringify(APPAREIL_PRESETS[+b.dataset.i].running));
+    renderAppareilInstrument(); renderArtefact();};
+  document.getElementById('apCustom').oninput=(e)=>{S.customText=e.target.value; renderAppareilInstrument(); renderArtefact();};
+}
+const ZLBL={inner:'couture',outer:'bord',center:'centre'};
+function apSlot(band,parity,phys){
+  const zone = phys==='C' ? 'center' : (parity==='verso' ? (phys==='L'?'outer':'inner') : (phys==='L'?'inner':'outer'));
+  const list=S.running[band][parity][zone];
+  const tokens=list.map((m,i)=>`<button class="aptoken" data-m="${m}" data-idx="${i}">${matLabel(m)}</button>`).join('');
+  return `<div class="apslot${list.length?'':' empty'}" data-band="${band}" data-parity="${parity}" data-zone="${zone}">`+
+    `<span class="apz">${ZLBL[zone]}</span>${tokens}</div>`;
+}
+function apPage(parity){
+  const band=(b)=>`<div class="apband ${b}">${['L','C','R'].map(s=>apSlot(b,parity,s)).join('')}</div>`;
+  return `<div class="appage"><div class="aplbl">${parity==='verso'?'verso · pair':'recto · impair'}</div>`+
+    band('header')+`<div class="apbody"></div>`+band('footer')+`</div>`;
+}
+function renderAppareilInstrument(){
+  const el=document.getElementById('instrument'); el.className='apparatus';
+  el.innerHTML=`<div class="apspread">${apPage('verso')}${apPage('recto')}</div>`+
+    `<div class="apreserve" id="apreserve"><div class="aprlbl">Réserve</div><div class="aprtokens">`+
+      AP_PALETTE.map(m=>`<button class="aptoken src" data-m="${m}">${matLabel(m)}</button>`).join('')+
+    `</div></div>`+
+    `<div class="apcap">Glissez un élément de la réserve vers une zone ; d'une zone à une autre pour le déplacer (au bon niveau dans la pile) ; hors des zones pour le retirer. Une pile (haut = côté couture) se rend <b>en ligne</b> sur la page, séquence inversée en verso pour tenir le miroir. Couture au centre, bords à l'extérieur ; verso et recto se composent indépendamment.</div>`;
+  el.querySelectorAll('.aprtokens .aptoken').forEach(t=>attachApDrag(t,{m:t.dataset.m,src:'reserve'}));
+  el.querySelectorAll('.apslot .aptoken').forEach(t=>{const sl=t.closest('.apslot');
+    attachApDrag(t,{m:t.dataset.m,src:'zone',band:sl.dataset.band,parity:sl.dataset.parity,zone:sl.dataset.zone,idx:+t.dataset.idx});});
+}
+function attachApDrag(chip,payload){
+  chip.addEventListener('pointerdown',(e)=>{e.preventDefault();
+    const ghost=chip.cloneNode(true); ghost.className='aptoken apghost'; document.body.appendChild(ghost);
+    let hot=null; const setHot=(el)=>{if(hot===el)return; if(hot)hot.classList.remove('drop'); hot=el; if(hot)hot.classList.add('drop');};
+    const move=(ev)=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';
+      const t=document.elementFromPoint(ev.clientX,ev.clientY); setHot(t&&t.closest('.apslot'));}; move(e);
+    const up=(ev)=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);ghost.remove();setHot(null);
+      const tgt=document.elementFromPoint(ev.clientX,ev.clientY);
+      const slot=tgt&&tgt.closest('.apslot');
+      if(slot){
+        const {band,parity,zone}=slot.dataset, target=S.running[band][parity][zone];
+        // insertion index from the drop Y, relative to the tokens currently in the target
+        const toks=[...slot.querySelectorAll('.aptoken')];
+        let idx=toks.length;
+        for(let i=0;i<toks.length;i++){const r=toks[i].getBoundingClientRect(); if(ev.clientY<(r.top+r.bottom)/2){idx=i;break;}}
+        if(payload.src==='zone'){                                   // moving: lift from source, adjust idx if same stack shrank above
+          const same=payload.band===band&&payload.parity===parity&&payload.zone===zone;
+          S.running[payload.band][payload.parity][payload.zone].splice(payload.idx,1);
+          if(same&&payload.idx<idx) idx--;
+        }
+        target.splice(idx,0,payload.m);                             // insert at the chosen position
+        renderAppareilInstrument(); renderArtefact();
+      } else if(payload.src==='zone'){                              // dropped outside any zone → remove
+        S.running[payload.band][payload.parity][payload.zone].splice(payload.idx,1);
+        renderAppareilInstrument(); renderArtefact();
+      }};
+    window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);});
+}
+
+function renderInstrument(){
+  const t=document.getElementById('instr-title');
+  if(S.facet==='couleur'){ t.textContent='Carte — instrument'; renderCarte(); }
+  else if(S.facet==='polices'){ t.textContent='Échelle — instrument'; renderLadder(); }
+  else if(S.facet==='appareil'){ t.textContent='Appareil courant — instrument'; renderAppareilInstrument(); }
+  else { t.textContent='Double-page — instrument'; renderPagesInstrument(); }
+}
+
+// ===================== PANELS (rules, per facet) ==========================
+function renderPanel(){
+  const p=document.getElementById('panel');
+  if(S.facet==='couleur'){ p.innerHTML=colourPanel(); wireColour(); }
+  else if(S.facet==='polices'){ p.innerHTML=typoPanel(); wireTypo(); }
+  else if(S.facet==='appareil'){ p.innerHTML=appareilPanel(); wireAppareil(); }
+  else { p.innerHTML=pagesPanel(); wirePages(); }
+}
+function colourPanel(){
+  return `<h2>Teinte maîtresse (famille A)</h2>
+    <div class="huewrap"><input type="range" class="hue" id="hue" min="0" max="359" step="1" value="${S.hue1}"/><span class="val" id="hueVal">${S.hue1}°</span></div>
+    <h2>Famille B — harmonie</h2>
+    <select id="harmony"></select>
+    <div class="field">Angle <input type="range" class="hue" id="angle" min="0" max="359" step="1" value="${S.angle}"/><span class="val" id="angleVal">+${S.angle}°</span></div>
+    <div class="fam"><span class="sw" id="swA"></span> Famille A · <b id="hA"></b></div>
+    <div class="fam"><span class="sw" id="swB"></span> Famille B · <b id="hB"></b> <span style="color:#868d9b">(accent)</span></div>
+    <p class="sub" style="margin-top:.6rem">H1 reste maître : tourner la teinte pivote les deux familles ; les neutres restent gris.</p>
+    <div class="actions"><button id="reset">Rétablir la famille</button></div>`;
+}
+const HARMONIES=[['Analogue',30],['Triadique',120],['Split-complémentaire',150],['Complémentaire',180]];
+function wireColour(){
+  const hueI=document.getElementById('hue');
+  hueI.addEventListener('input',()=>{S.hue1=+hueI.value;document.getElementById('hueVal').textContent=`${hueI.value}°`;renderFamilies();renderInstrument();renderArtefact();});
+  const h=document.getElementById('harmony');
+  h.innerHTML=`<option value="">— sur mesure —</option>`+HARMONIES.map(([n,a])=>`<option value="${a}">${n} (+${a}°)</option>`).join('');
+  h.value=HARMONIES.some(([,v])=>v===S.angle)?String(S.angle):'';
+  const angleI=document.getElementById('angle');
+  const setAngle=(a)=>{S.angle=((a%360)+360)%360;angleI.value=S.angle;document.getElementById('angleVal').textContent=`+${S.angle}°`;
+    h.value=HARMONIES.some(([,v])=>v===S.angle)?String(S.angle):'';renderFamilies();renderInstrument();renderArtefact();};
+  h.addEventListener('change',()=>{if(h.value)setAngle(+h.value);});
+  angleI.addEventListener('input',()=>setAngle(+angleI.value));
+  document.getElementById('reset').onclick=()=>{location.reload();};
+  renderFamilies();
+}
+function renderFamilies(){
+  const a=hueA(); const swA=document.getElementById('swA'); if(!swA) return;
+  swA.style.background=hsvToHex(a,SAT[4],VAL[3]);
+  document.getElementById('swB').style.background=hsvToHex(hueB(),SAT[4],VAL[3]);
+  document.getElementById('hA').textContent=`${Math.round(a)}°`;
+  document.getElementById('hB').textContent=`${Math.round(hueB())}°`;
+  const stops=[0,45,90,135,180,225,270,315,360].map(d=>`hsl(${Math.round((a+d)%360)},70%,50%) ${Math.round(d/360*100)}%`).join(',');
+  document.getElementById('angle').style.background=`linear-gradient(to right, ${stops})`;
+}
+
+// -- Polices panel (rules) --
+function fillSel(sel,items,value,label){ sel.innerHTML=items.map(it=>{const v=Array.isArray(it)?it[0]:it; const l=label?label(it):v; return `<option value="${v}" ${String(v)===String(value)?'selected':''}>${l}</option>`;}).join(''); }
+function typoPanel(){ return `
+  <h2>Pairing</h2><div class="row" id="pairs"></div>
+  <h2>Familles</h2>
+  <div class="field">Titres <select id="fHead"></select></div>
+  <div class="field">Corps <select id="fBody"></select></div>
+  <div class="field">Code <select id="fCode"></select></div>
+  <div class="field">Maths <select id="mset"></select></div>
+  <h2>Échelle</h2>
+  <div class="field">Corps <input type="range" id="base" min="8" max="16" step="0.5" value="${S.base}"><span class="val" id="baseV">${S.base} pt</span></div>
+  <div class="field">Ratio <input type="range" id="ratio" min="1.05" max="1.7" step="0.005" value="${S.ratio}"><span class="val" id="ratioV">${S.ratio.toFixed(3)}</span></div>
+  <div class="ratioName" id="ratioName"></div>
+  <div class="row" id="magnets"></div>
+  <h2>Interligne · graisses · justif.</h2>
+  <div class="field">Interligne <input type="range" id="lh" min="1" max="1.8" step="0.05" value="${S.lh}"><span class="val" id="lhV">${S.lh}</span></div>
+  <div class="field">Graisse titres <select id="wHead"></select></div>
+  <div class="field">Graisse corps <select id="wBody"></select></div>
+  <label class="fam"><input type="checkbox" id="justify" ${S.justify?'checked':''}> Justifier le corps</label>
+  <div class="field">Interlettrage <input type="range" id="tracking" min="0" max="0.12" step="0.005" value="${S.tracking}"><span class="val" id="trackingV">${S.tracking.toFixed(2)} em</span></div>
+  <h2>Code &amp; maths</h2>
+  <div class="field">Code <input type="range" id="cscale" min="0.75" max="1.1" step="0.01" value="${S.codeScale}"><span class="val" id="cscaleV">×${S.codeScale.toFixed(2)}</span></div>
+  <div class="field">Maths <input type="range" id="mscale" min="0.8" max="1.2" step="0.01" value="${S.mscale}"><span class="val" id="mscaleV">×${S.mscale.toFixed(2)}</span></div>
+  <h2>Couverture</h2>
+  <div class="field">Zoom <input type="range" id="coverScale" min="1" max="2.2" step="0.05" value="${S.coverScale}"><span class="val" id="coverScaleV">×${S.coverScale.toFixed(2)}</span></div>
+  <div class="field">Alignement <select id="coverAlign"></select></div>
+  <div class="actions"><button id="resetScale">Rétablir l'échelle</button></div>`;
+}
+function wireTypo(){
+  const pairs=document.getElementById('pairs');
+  pairs.innerHTML=PAIRINGS.map(p=>`<button class="chip ${p.id===S.pairing?'on':''}" data-p="${p.id}">${p.name}</button>`).join('');
+  pairs.onclick=(e)=>{const b=e.target.closest('[data-p]'); if(!b)return; const p=PAIRINGS.find(x=>x.id===b.dataset.p);
+    S.pairing=p.id; S.fam={head:p.head,body:p.body,code:p.code}; S.ratio=p.ratio; S.mset=p.math; renderPanel(); repaintTypo();};
+  fillSel(document.getElementById('fHead'),TEXT_FAMILIES,S.fam.head);
+  fillSel(document.getElementById('fBody'),TEXT_FAMILIES,S.fam.body);
+  fillSel(document.getElementById('fCode'),CODE_FAMILIES,S.fam.code);
+  fillSel(document.getElementById('mset'),MATH_SETS,S.mset);
+  document.getElementById('fHead').onchange=e=>{S.fam.head=e.target.value;repaintTypo();};
+  document.getElementById('fBody').onchange=e=>{S.fam.body=e.target.value;repaintTypo();};
+  document.getElementById('fCode').onchange=e=>{S.fam.code=e.target.value;repaintTypo();};
+  document.getElementById('mset').onchange=e=>{S.mset=e.target.value;repaintTypo();};
+  const baseI=document.getElementById('base'); baseI.oninput=()=>{S.base=+baseI.value;document.getElementById('baseV').textContent=`${baseI.value} pt`;repaintTypo();};
+  const ratioI=document.getElementById('ratio');
+  const updName=()=>{const near=NAMED_RATIOS.find(([r])=>Math.abs(r-S.ratio)<0.008);document.getElementById('ratioName').textContent=near?`≈ ${near[1]} (${near[0].toFixed(3)})`:'';};
+  ratioI.oninput=()=>{let v=+ratioI.value;const near=NAMED_RATIOS.find(([r])=>Math.abs(r-v)<0.01);if(near){v=near[0];ratioI.value=v;}S.ratio=v;document.getElementById('ratioV').textContent=v.toFixed(3);updName();repaintTypo();};
+  const mags=document.getElementById('magnets');
+  mags.innerHTML=NAMED_RATIOS.map(([r,n])=>`<button class="chip" data-r="${r}" title="${n}">${r.toFixed(3)}</button>`).join('');
+  mags.onclick=(e)=>{const b=e.target.closest('[data-r]');if(!b)return;S.ratio=+b.dataset.r;ratioI.value=S.ratio;document.getElementById('ratioV').textContent=S.ratio.toFixed(3);updName();repaintTypo();};
+  updName();
+  const lhI=document.getElementById('lh'); lhI.oninput=()=>{S.lh=+lhI.value;document.getElementById('lhV').textContent=lhI.value;repaintTypo();};
+  fillSel(document.getElementById('wHead'),WEIGHTS,S.wHead,([v,l])=>`${l} (${v})`);
+  fillSel(document.getElementById('wBody'),WEIGHTS,S.wBody,([v,l])=>`${l} (${v})`);
+  document.getElementById('wHead').onchange=e=>{S.wHead=+e.target.value;repaintTypo();};
+  document.getElementById('wBody').onchange=e=>{S.wBody=+e.target.value;repaintTypo();};
+  document.getElementById('justify').onchange=e=>{S.justify=e.target.checked;repaintTypo();};
+  const trI=document.getElementById('tracking'); trI.oninput=()=>{S.tracking=+trI.value;document.getElementById('trackingV').textContent=`${(+trI.value).toFixed(2)} em`;repaintTypo();};
+  const csI=document.getElementById('cscale'); csI.oninput=()=>{S.codeScale=+csI.value;document.getElementById('cscaleV').textContent=`×${(+csI.value).toFixed(2)}`;repaintTypo();};
+  const msI=document.getElementById('mscale'); msI.oninput=()=>{S.mscale=+msI.value;document.getElementById('mscaleV').textContent=`×${(+msI.value).toFixed(2)}`;repaintTypo();};
+  const covI=document.getElementById('coverScale'); covI.oninput=()=>{S.coverScale=+covI.value;document.getElementById('coverScaleV').textContent=`×${(+covI.value).toFixed(2)}`;renderArtefact();};
+  fillSel(document.getElementById('coverAlign'),[['center','centré'],['left','gauche'],['right','droite']],S.coverAlign,([,l])=>l);
+  document.getElementById('coverAlign').onchange=e=>{S.coverAlign=e.target.value;renderArtefact();};
+  document.getElementById('resetScale').onclick=()=>{ROSTER.forEach(r=>{if(r.step!==undefined)S.steps[r.key]=r.step;});repaintTypo();};
+}
+
+// ===================== FACET SWITCHING + BOOT =============================
+document.getElementById('tabs').addEventListener('click',(e)=>{
+  const b=e.target.closest('button[data-facet]'); if(!b) return;
+  S.facet=b.dataset.facet;
+  [...document.querySelectorAll('#tabs button')].forEach(x=>x.classList.toggle('on',x===b));
+  // Appareil is about the verso/recto pair — show the spread so both parities are visible.
+  if(S.facet==='appareil'){ S.view='spread';
+    [...document.querySelectorAll('#vtabs button')].forEach(x=>x.classList.toggle('on',x.dataset.v==='spread'));
+    renderArtefact(); }
+  renderPanel(); renderInstrument();
+});
+document.getElementById('vtabs').addEventListener('click',(e)=>{
+  const b=e.target.closest('button[data-v]'); if(!b) return;
+  S.view=b.dataset.v;
+  [...document.querySelectorAll('#vtabs button')].forEach(x=>x.classList.toggle('on',x===b));
+  renderArtefact();
+});
+let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(renderArtefact,120);});
+// draggable divider between the workbench and the preview (artefact) zone
+(function(){ const pvr=document.getElementById('pvr'), pv=document.getElementById('preview'), shell=document.querySelector('.shell');
+  pvr.addEventListener('pointerdown',(e)=>{e.preventDefault(); try{pvr.setPointerCapture(e.pointerId);}catch{} pvr.classList.add('drag');
+    const move=(ev)=>{const w=shell.getBoundingClientRect().right-ev.clientX; pv.style.width=Math.max(300,Math.min(860,w))+'px'; renderArtefact();};
+    const up=()=>{pvr.classList.remove('drag'); window.removeEventListener('pointermove',move); window.removeEventListener('pointerup',up);};
+    window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);});
+})();
+renderPanel(); renderInstrument(); renderArtefact();
+</script>
+</body>
+</html>
