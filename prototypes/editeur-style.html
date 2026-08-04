@@ -186,15 +186,18 @@ const ROSTER=[
   {key:'h2', role:'head', step:3, ctrls:['align','rule','caps'], sample:'Une section importante'},
   {key:'h3', role:'head', step:2, ctrls:['align','rule','caps'], sample:'Une sous-section'},
   {key:'h4', role:'head', step:1, ctrls:['align','rule','caps'], sample:'Un paragraphe titré'},
+  {key:'chapter-number', role:'head', step:8, noColor:true, sample:'Chapitre 1'},   // size only (colour inherits h1)
   {key:'body', role:'body', step:0, multi:true, sample:'Le corps de texte porte la lecture continue ; sa taille est l’<b>ancre</b> de toute l’échelle. On appelle <code>deriveFontSizes(base, ratio)</code>, on note l’<i>italique</i>, et la moyenne <span class="mi">µ = ∑<sub>i</sub> x<sub>i</sub></span> se dérive — de quoi juger l’interligne, le gris et la justification.'},
   {key:'code', role:'code', scale:true}, {key:'math', role:'body', scale:true},
   {key:'caption', role:'body', step:-1, sample:'Figure 1 — légende de la figure'},
   {key:'note', role:'body', step:-1, sample:'1. Une note de bas de page, plus discrète.'},
   {key:'metadata', role:'body', step:0, ctrls:['align','rule','caps'], sample:'Prénom Nom · Mon organisation · 2026'},
 ];
-const LADDER=['title','subtitle','metadata','h1','h2','h3','h4','body','caption','note','running-content'];
+// Ladder order = top-to-bottom reading order on the page (header → title block →
+// chapter opening → headings → body → figure caption → footnote).
+const LADDER=['running-content','title','subtitle','metadata','chapter-number','h1','h2','h3','h4','body','caption','note'];
 const LABEL={page:'page',cover:'couv.','running-content':'en-tête',title:'titre',subtitle:'s-titre',h1:'H1',h2:'H2',h3:'H3',h4:'H4',
-  body:'corps',code:'code',math:'math',caption:'légende',note:'note',metadata:'méta'};
+  'chapter-number':'n° chap',body:'corps',code:'code',math:'math',caption:'légende',note:'note',metadata:'méta'};
 
 const S = {
   facet:'couleur',
@@ -213,6 +216,9 @@ const S = {
   base:11, ratio:1.25, lh:1.4, wHead:600, wBody:400, codeScale:0.9, mscale:1, mset:'stix2', pairing:'classique',
   steps:{}, align:{}, rule:{}, smallcaps:{}, tracking:0, justify:true,
   coverScale:1.4, coverAlign:'center',   // cover STYLE only (uniform zoom + alignment)
+  // Headings numbered by the STYLE. General rule: numbers inherit their Hx style.
+  // Local exception: the chapter-opening numeral has its own format (chapter facet lives in Polices).
+  numbering:{on:true, depth:2, chapter:{format:'numeric'}},
   // PAGES
   pageFormat:'A4', landscape:false, duplex:false, geo:null,
   pgLayers:{diag:true,bands:true,notes:true,title:true},
@@ -232,7 +238,7 @@ ROSTER.forEach(r=>{ if(r.step!==undefined) S.steps[r.key]=r.step; });
 LADDER.forEach(k=>{ const c=(ROSTER.find(e=>e.key===k)||{}).ctrls||[];
   if(c.includes('align')) S.align[k]=(k==='title'||k==='subtitle'||k==='metadata')?'center':'left';
   if(c.includes('rule')) S.rule[k]='none';
-  if(c.includes('caps')) S.smallcaps[k]=false; });
+  if(c.includes('caps')) S.smallcaps[k]='none'; });   // caps mode: 'none' | 'small' | 'all'
 // pages geometry (mm), Van de Graaf canon default
 const FORMATS={A4:{w:210,h:297},A5:{w:148,h:210},B5:{w:176,h:250},Letter:{w:215.9,h:279.4},'16:9':{w:297,h:167.06,land:true}};
 function pageMm(){const f=FORMATS[S.pageFormat]; if(f.land)return{w:f.w,h:f.h}; return S.landscape?{w:f.h,h:f.w}:{w:f.w,h:f.h};}
@@ -257,6 +263,8 @@ const MATH_SETS=['stix2','fira','newcm','asana','tex'];
 const NAMED_RATIOS=[[1.125,'seconde M'],[1.2,'tierce m'],[1.25,'tierce M'],[1.333,'quarte'],[1.414,'quarte aug.'],[1.5,'quinte'],[1.618,'nombre d’or']];
 const ALIGNS=['left','center','right'], ALIGN_LBL={left:'G',center:'C',right:'D'};
 const RULES=['none','below','above'], RULE_LBL={none:'·',below:'▁',above:'▔'};
+const CAPS=['none','small','all'], CAPS_LBL={none:'Aᴀ',small:'Aᴀ',all:'AA'}, CAPS_TITLE={none:'capitales : aucune',small:'petites capitales',all:'grandes capitales'};
+const capsCss=(m)=>m==='small'?'font-variant:small-caps;':m==='all'?'text-transform:uppercase;':'';
 
 // derived helpers
 const hueA=()=>S.hue1, hueB=()=>(S.hue1+S.angle)%360, hueFor=(f)=>f==='B'?hueB():hueA();
@@ -273,8 +281,8 @@ const famCss=(role)=>role==='code'?`'${S.fam.code}', ui-monospace, monospace`:`'
 function dstyle(k){ let s=''; const c=(ROSTER.find(e=>e.key===k)||{}).ctrls||[];
   if(c.includes('align')&&S.align[k]) s+=`text-align:${S.align[k]};`;
   if(c.includes('rule')){ if(S.rule[k]==='below')s+='border-bottom:1.5px solid currentColor;padding-bottom:.1em;'; else if(S.rule[k]==='above')s+='border-top:1.5px solid currentColor;padding-top:.1em;'; }
-  if(c.includes('caps')&&S.smallcaps[k]) s+='font-variant:small-caps;';
-  if(c.includes('caps')&&S.tracking) s+=`letter-spacing:${S.tracking}em;`;
+  if(c.includes('caps')) s+=capsCss(S.smallcaps[k]);
+  if(c.includes('caps')&&S.tracking&&S.smallcaps[k]!=='none') s+=`letter-spacing:${S.tracking}em;`;
   return s; }
 const PT_TO_MM=0.3528;
 const ptOf=(k)=>{const r=ROSTER.find(e=>e.key===k); return r.scale?round2(S.base*(k==='code'?S.codeScale:S.mscale)):sizePt(S.steps[k]);};
@@ -302,6 +310,17 @@ function matText(id,folio){
     default: return '';
   }
 }
+// -- Heading numbering (derived by the style; illustrative counters in the mock) --
+// General rule: a compact numeral, rendered in the heading's own style.
+function headingNumber(level){
+  const N=S.numbering; if(!N.on||level>N.depth) return '';
+  return Array(level).fill('1').join('.');   // 1, 1.1, 1.1.1, …
+}
+// Local exception: the chapter-opening numeral, its format set in the Polices facet.
+function chapterNumber(){
+  if(!S.numbering.on) return '';
+  return S.numbering.chapter.format==='chapter' ? 'Chapitre 1' : '1';
+}
 // Generative presets — one click composes the whole apparatus.
 // Each zone is a stack (array); 'none' ⇒ empty stack, a material id ⇒ singleton.
 const apZ=(i,c,o)=>({inner:i==='none'?[]:[i], center:c==='none'?[]:[c], outer:o==='none'?[]:[o]});
@@ -325,6 +344,7 @@ function contentPage(pg,g,pxmm,verso){
   const codeBg='rgba(128,128,128,.10)';
   const inlineCode=(t)=>`<code style="${CS('code')}">${t}</code>`;
   const bodyP=(html)=>`<p style="${CS('body',`text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:.3em 0`)}">${html}</p>`;
+  const hnum=(lvl)=>{const t=headingNumber(lvl); return t?`${t}&nbsp;`:'';};   // inherits the Hx style
   const folio=verso?12:13, parity=verso?'verso':'recto';
   // Running band = three structural zones, placed in the MARGIN by page geometry
   // (headerTop / footerBottom · runInner / runOuter). Position mirrors (inner=spine,
@@ -345,10 +365,10 @@ function contentPage(pg,g,pxmm,verso){
     `<div style="${CS('title',`font-weight:${S.wHead};line-height:1.1;${dstyle('title')}`)}">Un aperçu de TLIB</div>`+
     `<div style="${CS('subtitle',`font-style:italic;margin:.15em 0;${dstyle('subtitle')}`)}">réductions, algèbres et évaluation paresseuse</div>`+
     `<div style="${CS('metadata',`margin:.15em 0 1.1em;${dstyle('metadata')}`)}">Yann Orlarey · Inria · 2026</div>`+
-    `<div style="${CS('h1',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h1')}`)}">Le pli comme unité</div>`+
+    `<div style="${CS('h1',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h1')}`)}">${hnum(1)}Le pli comme unité</div>`+
     bodyP(`Une seule traversée de l’arbre — ${inlineCode('fold(tree, algebra)')} — évalue toutes les interprétations closes ; on en tire la moyenne <span style="${CS('math')}">µ</span> et la variance <span style="${CS('math')}">σ²</span>.`)+
     `<div style="${CS('math',`text-align:center;font-style:italic;margin:.5em 0`)}">µ = ¹⁄ₙ ∑ᵢ xᵢ &nbsp;&nbsp;,&nbsp;&nbsp; σ² = ¹⁄ₙ ∑ᵢ (xᵢ − µ)²</div>`+
-    `<div style="${CS('h2',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h2')}`)}">Évaluation par génération</div>`+
+    `<div style="${CS('h2',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h2')}`)}">${hnum(2)}Évaluation par génération</div>`+
     bodyP(`L’échelle des tailles dérive de ${inlineCode('base · ratio^cran')} ; le canon de Van de Graaf place le bloc, et le corps porte la lecture continue le long de l’arbre.`)+
     `<pre style="${CS('code',`background:${codeBg};padding:.5em .7em;border-radius:4px;margin:.4em 0;white-space:pre;overflow:hidden`)}">fold f z (Leaf x)   = f x z\nfold f z (Node l r) = fold f (fold f z r) l</pre>`+
     `<p style="${CS('caption',`font-style:italic;margin:.5em 0 0`)}">Figure 1 — le DAG de 20 opérations et son pli.</p>`+
@@ -367,7 +387,7 @@ function coverPage(pg,pxmm){
   // internal title/subtitle/metadata proportions.
   const fs=(k)=>(sizePt(S.steps[k])*S.coverScale*PT_TO_MM*pxmm).toFixed(2)+'px';
   page.innerHTML =
-    `<div style="font-family:${famCss('head')};font-size:${fs('title')};font-weight:${S.wHead};color:${ink};line-height:1.1;${S.smallcaps.title?'font-variant:small-caps;':''}">Un aperçu de TLIB</div>`+
+    `<div style="font-family:${famCss('head')};font-size:${fs('title')};font-weight:${S.wHead};color:${ink};line-height:1.1;${capsCss(S.smallcaps.title)}">Un aperçu de TLIB</div>`+
     `<div style="font-family:${famCss('head')};font-size:${fs('subtitle')};font-style:italic;color:${ink};opacity:.85;margin-top:.5em">signatures et algèbres commutatives</div>`+
     `<div style="font-family:${famCss('body')};font-size:${fs('metadata')};color:${ink};opacity:.8;margin-top:2.6em">Yann Orlarey · 2026</div>`;
   return page;
@@ -378,8 +398,12 @@ function chapterPage(pg,g,pxmm){
   page.style.padding=`${g.textTop*pxmm}px ${g.textOuter*pxmm}px ${g.textBottom*pxmm}px ${g.textInner*pxmm}px`;
   const fs=(k)=>(ptOf(k)*PT_TO_MM*pxmm).toFixed(2)+'px';
   const drop=Math.max(0,(g.titleY||g.textTop)-g.textTop)*pxmm;   // push the chapter title to the title line
+  const hn=chapterNumber();
+  const bigNumber = hn ?   // chapter numeral: size = its own échelle cran, colour inherits h1
+    `<div style="font-family:${ff('h1')};font-weight:${S.wHead};font-size:${(sizePt(S.steps['chapter-number'])*PT_TO_MM*pxmm).toFixed(2)}px;line-height:1;color:${colOf('h1')};margin-bottom:.15em">${hn}</div>` : '';
   page.innerHTML =
     `<div style="height:${drop}px"></div>`+
+    bigNumber+
     `<div style="font-family:${ff('h1')};font-size:${fs('h1')};font-weight:${S.wHead};color:${colOf('h1')};line-height:1.1;${dstyle('h1')}">Chapitre premier</div>`+
     `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:1em 0 .3em">Le chapitre s’ouvre sur un recto, son titre posé à la <b>ligne de titre</b> (drop) ; le corps suit et porte la lecture continue le long de l’arbre via <code style="font-family:${ff('code')};font-size:${fs('code')};color:${colOf('code')}">fold(tree, algebra)</code>, dont la somme <span style="font-size:${fs('math')};color:${colOf('math')}">∑ᵢ xᵢ</span> se dérive à l’identique.</p>`+
     `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:.3em 0">Chaque terme se convertit à l’identique ; la géométrie du canon place le bloc, et le drop met le titre en réserve, sans en-tête courant sur l’ouverture.</p>`;
@@ -422,7 +446,9 @@ function renderCarte(){
   const cap=document.createElement('p'); cap.className='carte-cap';
   cap.innerHTML='Neutres partagés · deux grilles saturation × valeur (une par famille). Glisse une pastille sur un cran.';
   el.appendChild(cap);
-  for(const {key} of ROSTER){
+  for(const r of ROSTER){
+    if(r.noColor) continue;                        // size-only element (e.g. chapter numeral), no colour chip
+    const key=r.key;
     const cell=byKey.get(cranKey(S.crans[key])); if(!cell) continue;
     let stack=cell.querySelector('.stack');
     if(!stack){ stack=document.createElement('div'); stack.className='stack'; cell.appendChild(stack); }
@@ -453,21 +479,24 @@ function renderLadder(){
     const r=ROSTER.find(e=>e.key===key); const step=S.steps[key]; const pt=sizePt(step); const head=r.role==='head'; const c=r.ctrls||[];
     const row=document.createElement('div'); row.className='rung'; row.dataset.key=key;
     const tag=document.createElement('div'); tag.className='ltag'; tag.textContent=LABEL[key];
-    const spec=document.createElement('div'); spec.className='lspec'+(r.multi?' multi':''); spec.innerHTML=r.sample;
+    const sample=key==='chapter-number'?(S.numbering.chapter.format==='chapter'?'Chapitre 1':'1'):r.sample;
+    const spec=document.createElement('div'); spec.className='lspec'+(r.multi?' multi':''); spec.innerHTML=sample;
     spec.style.fontFamily=famCss(r.role); spec.style.fontSize=pt+'pt';
     spec.style.lineHeight=r.role==='body'?S.lh:1.15; spec.style.fontWeight=head?S.wHead:(r.role==='body'?S.wBody:400);
     spec.querySelectorAll('code').forEach(x=>{x.style.fontFamily=famCss('code');x.style.fontSize=S.codeScale+'em';});
     spec.querySelectorAll('.mi').forEach(x=>{x.style.fontSize=S.mscale+'em';});
     if(c.includes('align')) spec.style.textAlign=S.align[key];
     if(c.includes('rule')){const rl=S.rule[key]; if(rl==='below'){spec.style.borderBottom='1.5px solid currentColor';spec.style.paddingBottom='.12em';} else if(rl==='above'){spec.style.borderTop='1.5px solid currentColor';spec.style.paddingTop='.12em';}}
-    if(c.includes('caps')){ if(S.smallcaps[key]) spec.style.fontVariant='small-caps'; if(S.tracking) spec.style.letterSpacing=S.tracking+'em'; }
+    if(c.includes('caps')){ const m=S.smallcaps[key];
+      if(m==='small') spec.style.fontVariant='small-caps'; else if(m==='all') spec.style.textTransform='uppercase';
+      if(S.tracking&&m!=='none') spec.style.letterSpacing=S.tracking+'em'; }
     if(key==='body') spec.style.textAlign=S.justify?'justify':'left';
     const meta=document.createElement('div'); meta.className='lmeta'; const over=step!==r.step;
     meta.innerHTML=`<b>${pt.toFixed(1)}pt</b> · ${over?'<b>':''}${step}${over?'</b>':''}`;
     if(c.length){ const ctl=document.createElement('div'); ctl.className='lctl';
       if(c.includes('align')) ctl.appendChild(mini(ALIGN_LBL[S.align[key]],'alignement',()=>{const i=ALIGNS.indexOf(S.align[key]);S.align[key]=ALIGNS[(i+1)%ALIGNS.length];repaintTypo();}));
       if(c.includes('rule')) ctl.appendChild(mini(RULE_LBL[S.rule[key]],'filet',()=>{const i=RULES.indexOf(S.rule[key]);S.rule[key]=RULES[(i+1)%3];repaintTypo();}, S.rule[key]!=='none'));
-      if(c.includes('caps')) ctl.appendChild(mini('Aᴀ','petites capitales',()=>{S.smallcaps[key]=!S.smallcaps[key];repaintTypo();}, S.smallcaps[key]));
+      if(c.includes('caps')){const m=S.smallcaps[key]; ctl.appendChild(mini(CAPS_LBL[m],CAPS_TITLE[m],()=>{const i=CAPS.indexOf(S.smallcaps[key]);S.smallcaps[key]=CAPS[(i+1)%3];repaintTypo();}, m!=='none'));}
       ctl.addEventListener('pointerdown',(e)=>e.stopPropagation()); row.append(tag,spec,ctl,meta);
     } else row.append(tag,spec,meta);
     attachRungDrag(row,key); lad.appendChild(row);
@@ -475,7 +504,7 @@ function renderLadder(){
 }
 function attachRungDrag(row,key){
   row.addEventListener('pointerdown',(e)=>{e.preventDefault();row.classList.add('drag');const y0=e.clientY,s0=S.steps[key];
-    const move=(ev)=>{const d=(y0-ev.clientY)/46;S.steps[key]=Math.max(-2,Math.min(7,Math.round((s0+d)*2)/2));repaintTypo();};
+    const move=(ev)=>{const d=(y0-ev.clientY)/46;S.steps[key]=Math.max(-2,Math.min(9,Math.round((s0+d)*2)/2));repaintTypo();};
     const up=()=>{row.classList.remove('drag');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});
 }
@@ -763,6 +792,18 @@ function typoPanel(){ return `
   <div class="field">Ratio <input type="range" id="ratio" min="1.05" max="1.7" step="0.005" value="${S.ratio}"><span class="val" id="ratioV">${S.ratio.toFixed(3)}</span></div>
   <div class="ratioName" id="ratioName"></div>
   <div class="row" id="magnets"></div>
+  <h2>Numérotation des titres</h2>
+  <label class="fam"><input type="checkbox" id="numOn" ${S.numbering.on?'checked':''}> Numéroter (dérivé du style)</label>
+  <div class="field">Profondeur <select id="numDepth">
+    <option value="1" ${S.numbering.depth===1?'selected':''}>Chapitre (h1)</option>
+    <option value="2" ${S.numbering.depth===2?'selected':''}>jusqu'à h2</option>
+    <option value="3" ${S.numbering.depth===3?'selected':''}>jusqu'à h3</option>
+    <option value="4" ${S.numbering.depth===4?'selected':''}>jusqu'à h4</option></select></div>
+  <p class="sub" style="margin:.2rem 0 .5rem">Les numéros reprennent le style de leur Hx.</p>
+  <div class="field">Numéro de chapitre <select id="numChap">
+    <option value="numeric" ${S.numbering.chapter.format==='numeric'?'selected':''}>1</option>
+    <option value="chapter" ${S.numbering.chapter.format==='chapter'?'selected':''}>Chapitre 1</option></select></div>
+  <p class="sub" style="margin:.2rem 0 .6rem"><b>Exception</b> : format du grand numéral (page-chapitre) ; sa <b>taille</b> se règle dans l'échelle, ligne <b>n° chap</b>.</p>
   <h2>Interligne · graisses · justif.</h2>
   <div class="field">Interligne <input type="range" id="lh" min="1" max="1.8" step="0.05" value="${S.lh}"><span class="val" id="lhV">${S.lh}</span></div>
   <div class="field">Graisse titres <select id="wHead"></select></div>
@@ -810,6 +851,9 @@ function wireTypo(){
   const covI=document.getElementById('coverScale'); covI.oninput=()=>{S.coverScale=+covI.value;document.getElementById('coverScaleV').textContent=`×${(+covI.value).toFixed(2)}`;renderArtefact();};
   fillSel(document.getElementById('coverAlign'),[['center','centré'],['left','gauche'],['right','droite']],S.coverAlign,([,l])=>l);
   document.getElementById('coverAlign').onchange=e=>{S.coverAlign=e.target.value;renderArtefact();};
+  document.getElementById('numOn').onchange=e=>{S.numbering.on=e.target.checked;renderArtefact();};
+  document.getElementById('numDepth').onchange=e=>{S.numbering.depth=+e.target.value;renderArtefact();};
+  document.getElementById('numChap').onchange=e=>{S.numbering.chapter.format=e.target.value;repaintTypo();};   // ladder specimen + artefact
   document.getElementById('resetScale').onclick=()=>{ROSTER.forEach(r=>{if(r.step!==undefined)S.steps[r.key]=r.step;});repaintTypo();};
 }
 
