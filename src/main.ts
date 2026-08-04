@@ -860,7 +860,7 @@ async function bootstrap(): Promise<void> {
       pageSizeMm(effectiveSettings),
     );
     const built = document.createElement('div');
-    renderPreview(built, resolved);
+    renderPreview(built, resolved, effectiveSettings.numbering);
     applyPreviewMetadata(built, effectiveSettings, meta);
     annotateSourceLines(built, source);
     const preamble = meta['mathjax-preamble'] ?? '';

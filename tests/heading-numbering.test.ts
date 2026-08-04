@@ -4,6 +4,7 @@ import {
   numberForRender,
   renderNumberingDocStyle,
 } from '../src/numbering';
+import { renderPreview } from '../src/preview';
 
 const DOC = ['# Intro', '## Background', '## Method', '# Results', '## Data'].join(
   '\n',
@@ -58,5 +59,33 @@ describe('render-time heading numbering', () => {
     expect(ds.levels[0]).toEqual({ kind: 'hierarchical', trailingDot: false });
     expect(ds.levels[1]).toEqual({ kind: 'hierarchical', trailingDot: false });
     expect(ds.levels[2]).toEqual({ kind: 'none' });
+  });
+});
+
+describe('renderPreview — numbering wiring', () => {
+  it('numbers headings in the DOM and skips the doc-title fallback (H1 ≠ title)', () => {
+    const div = document.createElement('div');
+    renderPreview(div, '# Intro\n\n## Background\n', { on: true, depth: 2 });
+    expect(div.querySelector('h1')?.textContent).toBe('1 Intro');
+    expect(div.querySelector('h2')?.textContent).toBe('1.1 Background');
+    expect(div.querySelector('h1')?.classList.contains('doc-title')).toBe(false);
+  });
+
+  it('legacy (no directive) still promotes the first h1 to doc-title', () => {
+    const div = document.createElement('div');
+    renderPreview(div, '# Intro\n');
+    expect(div.querySelector('h1')?.classList.contains('doc-title')).toBe(true);
+  });
+
+  it('front-matter title stays the doc-title; body headings are numbered', () => {
+    const div = document.createElement('div');
+    renderPreview(div, '---\ntitle: My Doc\n---\n# Intro\n', {
+      on: true,
+      depth: 1,
+    });
+    const h1s = [...div.querySelectorAll('h1')];
+    expect(h1s[0]?.classList.contains('doc-title')).toBe(true);
+    expect(h1s[0]?.textContent).toBe('My Doc');
+    expect(h1s.some((h) => h.textContent === '1 Intro')).toBe(true);
   });
 });

@@ -120,7 +120,7 @@ async function buildPrintContent(
   const withFm = applyFrontmatterToSettings(settings, meta);
   const withStyle = applyNamedStyle(meta['document-style'], withFm).settings;
   const effectiveSettings = withBakedGeometry(withStyle, pageSizeMm(withStyle));
-  renderPreview(el, source);
+  renderPreview(el, source, effectiveSettings.numbering);
   applyPreviewMetadata(el, effectiveSettings, meta);
   const preamble = meta['mathjax-preamble'] ?? '';
   await Promise.all([

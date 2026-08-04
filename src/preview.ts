@@ -8,8 +8,14 @@
  *******************************************************************************/
 
 import { marked } from 'marked';
-import { metadataLines, type PdfSettings, type Style } from './settings';
+import {
+  metadataLines,
+  type HeadingNumbering,
+  type PdfSettings,
+  type Style,
+} from './settings';
 import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
+import { numberForRender } from './numbering';
 import { blockBoxCss, capsCss, filetCss, inlineCss } from './style-emit';
 import { quoteFontFamily, fontFamilyStack } from './font-loader';
 
@@ -59,17 +65,28 @@ function headingMargin(s: Style): string {
  *   `title`, prepend a fresh `<h1.doc-title>`; otherwise promote the
  *   first body h1 to `.doc-title`.
  */
-export function renderPreview(target: HTMLElement, source: string): void {
+export function renderPreview(
+  target: HTMLElement,
+  source: string,
+  numbering?: HeadingNumbering,
+): void {
   const { meta, body } = parseFrontmatter(source);
-  target.innerHTML = marked.parse(body, { async: false });
+  // Heading numbering (style-driven): strip typed numbers + apply the resolved
+  // directive on a COPY of the body, before parsing. Absent = legacy no-op.
+  const prepared = numbering
+    ? numberForRender(body, numbering.on, numbering.depth)
+    : body;
+  target.innerHTML = marked.parse(prepared, { async: false });
   if (meta.title) {
     const h1 = document.createElement('h1');
     h1.classList.add('doc-title');
     h1.textContent = meta.title;
     target.prepend(h1);
-  } else {
-    // Skip h1s inside a `::: background` minipage — those are backdrop content,
-    // not the document title.
+  } else if (!numbering) {
+    // Legacy fallback: promote the first body h1 to the document title. Skipped
+    // under the new model (numbering present), where H1 is NEVER the document
+    // title — that role belongs to the front-matter `title:` alone.
+    // Skip h1s inside a `::: background` minipage — those are backdrop content.
     const first = [...target.querySelectorAll<HTMLElement>('h1')].find(
       (h) => !h.closest('.mp-bg'),
     );
