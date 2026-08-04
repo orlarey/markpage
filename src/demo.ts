@@ -56,7 +56,7 @@ import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
 import { applyNamedStyle } from './style-library';
-import { applyFrontmatterToSettings, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applySlideLayout, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   findShowcaseEntry,
   HERO_DEMO_ENTRY,
@@ -121,7 +121,7 @@ async function run(): Promise<void> {
   // hand it to paged.js.
   const built = document.createElement('div');
   const { meta } = parseFrontmatter(entry.source);
-  const withFm = applyFrontmatterToSettings(settings, meta);
+  const withFm = applySlideLayout(settings);
   const withStyle = applyNamedStyle(meta['document-style'], withFm).settings;
   const effectiveSettings = withBakedGeometry(withStyle, pageSizeMm(withStyle));
   renderPreview(built, entry.source);

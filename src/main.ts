@@ -94,7 +94,6 @@ import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openSettingsWindow } from './ui/settings-window';
-import { openAtelier, atelierStateFromFrontmatter } from './ui/atelier';
 import {
   allStyles,
   applyNamedStyle,
@@ -197,7 +196,7 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applyFrontmatterToSettings, applyStyleVocabulary, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applySlideLayout, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   flattenForRender,
   applyProfilePatch,
@@ -831,17 +830,11 @@ async function bootstrap(): Promise<void> {
       makeFolderImageResolver(currentDoc),
     );
     const { meta } = parseFrontmatter(resolved);
-    // Frontmatter can override page-format-level settings (e.g.
-    // `slides: true` forces `pageSize: SLIDES_16_9`); compute the
-    // effective settings once and use them for pagination.
-    let effectiveSettings = applyFrontmatterToSettings(state.settings, meta);
+    // Apply the slide layout when the style's page format is 16:9 (a document
+    // overrides nothing — STYLE-ALIGNMENT step 7), then the stack profile patch.
+    let effectiveSettings = applySlideLayout(state.settings);
     if (stylePatch) {
       effectiveSettings = applyProfilePatch(effectiveSettings, stylePatch.patch);
-      // The stack profile patch rewrites every per-element colour and font, so
-      // it clobbers the atelier's colour/font vocabulary that a `document-type`
-      // recipe pulled through the flatten. Re-assert the vocabulary LAST so the
-      // atelier's choices win over the inherited recipe (idempotent otherwise).
-      effectiveSettings = applyStyleVocabulary(effectiveSettings, meta);
     }
     // The document's NAMED style (`document-style:` front-matter) is the
     // authoritative style: resolve it from the library and apply it LAST, over
@@ -1118,17 +1111,6 @@ async function bootstrap(): Promise<void> {
 
   attachStyleContextMenu(editor.view.dom, editor.view);
 
-  // Continuous mode paints from the stylesheet applyPreviewStyles injects.
-  // deriveSettingsForDoc yields the recipe/stack settings ONLY — it doesn't
-  // fold in the atelier's colour/font vocabulary. buildPreviewDom re-asserts
-  // that vocabulary for the render, but the settings-from-frontmatter and
-  // undo/redo paths call applyPreviewStyles(derived) directly, so without this
-  // the continuous preview reverts to the recipe (a colour change dropping the
-  // fonts, and vice-versa). Fold the vocabulary on top here too, from the leaf
-  // front-matter, so every applyPreviewStyles/loadSettingsFonts sees it.
-  const styleForPreview = (settings: PdfSettings, source: string): PdfSettings =>
-    applyStyleVocabulary(settings, parseFrontmatter(source).meta);
-
   scheduleSettingsFromFrontmatter = debounce((source: string) => {
     void (async () => {
       const preserveHistoricalFrontmatter =
@@ -1185,7 +1167,7 @@ async function bootstrap(): Promise<void> {
         suppressEditorPreview = false;
         lastAppliedSettingsFrontmatter = frontmatterSnapshot(canonical);
       }
-      const styled = styleForPreview(derived, source);
+      const styled = derived;
       registerCustomFonts(styled.customFonts);
       applyPreviewStyles(styled);
       void loadSettingsFonts(styled).catch((err: unknown) => {
@@ -1201,7 +1183,7 @@ async function bootstrap(): Promise<void> {
       if (source !== editor.getValue()) return;
       state.settings = derived;
       lastAppliedSettingsFrontmatter = frontmatterSnapshot(source);
-      const styled = styleForPreview(derived, source);
+      const styled = derived;
       registerCustomFonts(styled.customFonts);
       applyPreviewStyles(styled);
       void loadSettingsFonts(styled).catch((err: unknown) => {
@@ -2938,8 +2920,6 @@ async function bootstrap(): Promise<void> {
         void enterPresentation();
       },
       onToggleGuides: triggerGuides,
-      // Lazy: triggerAtelier is declared just below this options object.
-      onOpenAtelier: () => triggerAtelier(),
       onResolveConflict: (anchor) => {
         openConflictMenu(anchor, {
           onKeepMine: () => {
@@ -2956,25 +2936,6 @@ async function bootstrap(): Promise<void> {
   // only fire when the editor has focus. The shortcuts here are global and
   // independent of focus, so Cmd+S works even when the user is in the
   // filename input or the settings panel.
-  // The style atelier (STYLE-EDITOR-SPEC): compose a style; every change writes
-  // the vocabulary keys into the current document's front-matter, which the
-  // render pipeline already reads. Opens on Cmd/Ctrl+Shift+A.
-  const triggerAtelier = (): void => {
-    // Open on the style already in the document (not the defaults) so the panel
-    // edits the existing style instead of overwriting it from scratch.
-    const fm = parseStackDoc(editor.getValue(), '__leaf__').frontmatter;
-    const { state, crans } = atelierStateFromFrontmatter(fm);
-    openAtelier(
-      state,
-      (keys) => {
-        // setValue dispatches a doc change → the editor's own updateListener
-        // already schedules the live preview; a second call here double-renders.
-        editor.setValue(setFrontmatterKeys(editor.getValue(), keys));
-      },
-      crans,
-    );
-  };
-
   const onAppKeydown = (e: KeyboardEvent): void => {
     if (e.defaultPrevented) return;
     const mod = e.ctrlKey || e.metaKey;

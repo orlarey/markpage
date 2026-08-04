@@ -36,8 +36,6 @@ export interface ToolbarHandlers {
   // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
   onPresent(): void;
   onToggleGuides(): void;
-  // Open the style atelier (also on Cmd/Ctrl+Shift+A).
-  onOpenAtelier(): void;
   // Click the conflict badge (⛓️‍💥) → open the keep-mine / take-disk menu,
   // anchored on the badge (Phase 4 two-way sync).
   onResolveConflict(anchor: HTMLElement): void;
@@ -114,14 +112,14 @@ export function mountToolbar(
       onTogglePreview: handlers.onTogglePreview,
       onPresent: handlers.onPresent,
       onToggleGuides: handlers.onToggleGuides,
-      onOpenAtelier: handlers.onOpenAtelier,
     });
   viewBtn.addEventListener('click', () => openView(viewBtn));
 
   // [Réglages] and the style atelier are retired: the document-style menu is the
-  // sole styling surface (docs/FUNDAMENTAL-SETTINGS.md). `onSettings` /
-  // `onOpenAtelier` remain in the handler contract but are no longer reachable
-  // from the UI (removed in a later phase along with the panel code itself).
+  // sole styling surface (docs/FUNDAMENTAL-SETTINGS.md). `onSettings` remains in
+  // the handler contract but is no longer reachable from the UI; the atelier
+  // panel + its front-matter style-vocabulary have been removed (STYLE-ALIGNMENT
+  // step 7: the external style editor owns styling, markpage only renders).
 
   // [?] — Help, a compact icon at the end of the bar.
   const helpBtn = document.createElement('button');

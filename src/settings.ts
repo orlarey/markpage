@@ -8,19 +8,7 @@
  *
  *******************************************************************************/
 
-import type {
-  Frontmatter,
-  MathFontSet,
-  RunningApparatus,
-} from '@orlarey/markpage-render';
-import {
-  parseColorCrans,
-  deriveElementColors,
-  backgroundColor,
-  resolveFontPairing,
-  deriveFontSizes,
-  DEFAULT_FONT_RATIO,
-} from '@orlarey/markpage-render';
+import type { MathFontSet, RunningApparatus } from '@orlarey/markpage-render';
 import type { PageGeometry } from './typography';
 export type { MathFontSet };
 export type { PageGeometry };
@@ -1045,26 +1033,12 @@ export interface MetadataLine {
  *   provided.
  */
 /**
- * Purpose: Return a settings copy with the frontmatter's per-doc overrides
- *   folded in, so a document is self-describing — it renders the same in the
- *   app and in any host that reads its frontmatter (e.g. the VS Code preview).
- *   Handles `page-size`, `margins`, `page-numbers`, `font-*`, and `slides`.
- * How: Layer the layout overrides on a shallow clone, then apply the slides
- *   rule last (it forces SLIDES_16_9 + clamps vertical margins). Returns the
- *   original when nothing is in effect, so call sites stay cheap.
+ * Purpose: Apply the slide layout when the (style-supplied) page format is 16:9
+ *   — the last vestige of the old front-matter override path. A document
+ *   overrides nothing now; the style owns the format (STYLE-ALIGNMENT step 7).
  */
-export function applyFrontmatterToSettings(
-  settings: PdfSettings,
-  frontmatter?: Frontmatter,
-): PdfSettings {
-  const s = frontmatter ? applyLayoutOverrides(settings, frontmatter) : settings;
-  if (frontmatter?.slides) {
-    return slidesSettings({ ...s, pageSize: 'SLIDES_16_9' });
-  }
-  if (s.pageSize === 'SLIDES_16_9') {
-    return slidesSettings(s);
-  }
-  return s;
+export function applySlideLayout(settings: PdfSettings): PdfSettings {
+  return settings.pageSize === 'SLIDES_16_9' ? slidesSettings(settings) : settings;
 }
 
 /**
@@ -1153,127 +1127,6 @@ export function applyFundamentalStyle(
   return out as unknown as PdfSettings;
 }
 
-// Page formats a `page-size:` key may select. SLIDES_16_9 is intentionally
-// excluded — slides are opted into via the dedicated `slides:` key.
-const FRONTMATTER_PAGE_SIZES: PageSize[] = ['A3', 'A4', 'A5', 'B5', 'LETTER', 'LEGAL'];
-
-/**
- * Purpose: Fold the frontmatter layout/typography overrides into the settings.
- * How: Each present key replaces the corresponding profile field. `margins`
- *   forces `marginMode: 'manual'` (derived mode would recompute and ignore
- *   them); `page-numbers` rewrites the footer running content to carry — or
- *   drop — the `{page}` token.
- */
-function applyLayoutOverrides(settings: PdfSettings, fm: Frontmatter): PdfSettings {
-  let s = settings;
-
-  const sizeRaw = fm['page-size']?.trim().toUpperCase();
-  if (sizeRaw && (FRONTMATTER_PAGE_SIZES as string[]).includes(sizeRaw)) {
-    s = { ...s, pageSize: sizeRaw as PageSize };
-  }
-
-  if (fm.margins) {
-    const { top, right, bottom, left } = fm.margins;
-    const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
-    s = {
-      ...s,
-      authoring: { ...a, marginMode: 'manual', margins: { top, right, bottom, left } },
-    };
-  }
-
-  if (fm['page-numbers'] !== undefined) {
-    s = { ...s, footer: fm['page-numbers'] ? ' | {page} | ' : '' };
-  }
-
-  const fonts = { ...s.fonts };
-  let fontsChanged = false;
-  if (fm['font-body']) {
-    fonts.body = fm['font-body'];
-    fontsChanged = true;
-  }
-  if (fm['font-heading']) {
-    fonts.headings = fm['font-heading'];
-    fontsChanged = true;
-  }
-  if (fm['font-mono']) {
-    fonts.code = fm['font-mono'];
-    fontsChanged = true;
-  }
-  if (fontsChanged) s = { ...s, fonts };
-
-  return applyStyleVocabulary(s, fm);
-}
-
-/**
- * Purpose: Apply the style-editor vocabulary axes (colour × fonts) — the axes
- *   the atelier writes — on top of whatever settings it's handed.
- * How: colour-crans → per-element text colours + page/cover fills (STYLE-EDITOR
- *   -SPEC §8); font-pair → the three families + maths set, and font-pair/base →
- *   the derived type scale (§6); math-scale → the maths zoom.
- *
- * Kept SEPARATE from the rest of applyLayoutOverrides and EXPORTED because the
- * render composes settings as `base → stack profile patch → vocabulary`: a
- * document carrying a `document-type` recipe flattens through the stack, whose
- * profile patch (applyProfilePatch) rewrites every per-element colour and font
- * and would otherwise clobber the vocabulary. buildPreviewDom re-asserts the
- * vocabulary LAST by calling this after the patch, so the atelier's choices win
- * over the inherited recipe. Idempotent — re-applying with the same front-matter
- * yields the same settings.
- */
-export function applyStyleVocabulary(
-  settings: PdfSettings,
-  fm: Frontmatter,
-): PdfSettings {
-  let s = settings;
-
-  // Style-editor colour axis (STYLE-EDITOR-SPEC §8): derive per-element text
-  // colours AND the page / cover background fills from (hue, crans).
-  if (fm['color-crans'] !== undefined) {
-    const hue = fm['color-hue'] ?? 0;
-    const crans = parseColorCrans(fm['color-crans']);
-    const colors = deriveElementColors(hue, crans);
-    if (colors.size > 0) {
-      const styles = { ...s.styles };
-      for (const [key, hex] of colors) {
-        const k = key as ElementKey;
-        if (styles[k]) styles[k] = { ...styles[k], color: hex };
-      }
-      s = { ...s, styles };
-    }
-    const pageBg = backgroundColor(hue, crans, 'page');
-    const coverBg = backgroundColor(hue, crans, 'cover');
-    if (pageBg) s = { ...s, pageBackground: pageBg };
-    if (coverBg) s = { ...s, coverBackground: coverBg };
-  }
-
-  // Style-editor fonts axis (STYLE-EDITOR-SPEC §6): a pairing sets the three
-  // families + the maths font set, the anchor + ratio derive every text size.
-  const pairing =
-    fm['font-pair'] !== undefined ? resolveFontPairing(fm['font-pair']) : undefined;
-  if (pairing) {
-    s = {
-      ...s,
-      fonts: { headings: pairing.headings, body: pairing.body, code: pairing.code },
-      mathFontSet: pairing.math,
-    };
-  }
-  if (pairing || fm['font-base'] !== undefined) {
-    const ratio = pairing ? pairing.ratio : DEFAULT_FONT_RATIO;
-    const base = fm['font-base'] ?? (s.styles.body.fontSize ?? 11);
-    const sizes = deriveFontSizes(base, ratio);
-    const styles = { ...s.styles };
-    for (const [key, pt] of sizes) {
-      const k = key as ElementKey;
-      if (styles[k]) styles[k] = { ...styles[k], fontSize: pt };
-    }
-    s = { ...s, styles };
-  }
-  if (fm['math-scale'] !== undefined) {
-    s = { ...s, mathScale: fm['math-scale'] };
-  }
-
-  return s;
-}
 
 /**
  * Purpose: Apply the slide-specific defaults that only make sense for

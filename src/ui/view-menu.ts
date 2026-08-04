@@ -18,7 +18,6 @@ export interface ViewMenuOptions {
   onTogglePreview(): void;
   onPresent(): void;
   onToggleGuides(): void;
-  onOpenAtelier(): void;
 }
 
 /** Mount the View dropdown anchored under `anchor`. */
