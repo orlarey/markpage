@@ -39,6 +39,29 @@ export function inlineCss(s: Style): string {
 }
 
 /**
+ * Purpose: Emit the heading / running-content "filet" (horizontal rule)
+ *   declaration — the caller's choice for what `underline` means on headings.
+ * How: Prefer the resolved `rule` (position + colour/width/style) the style
+ *   editor compiles; fall back to the legacy `underline` boolean (a 1px grey
+ *   rule below). Empty string when neither is set.
+ */
+export function filetCss(s: Style): string {
+  const r = s.rule;
+  if (r) {
+    const w = r.width ?? 1;
+    const st = r.style ?? 'solid';
+    const c = r.color ?? '#d0d7de';
+    const decl = `${w}px ${st} ${c}`;
+    return r.position === 'above'
+      ? `border-top: ${decl}; padding-top: 0.2em;`
+      : `border-bottom: ${decl}; padding-bottom: 0.2em;`;
+  }
+  return s.underline
+    ? `border-bottom: 1px solid #d0d7de; padding-bottom: 0.2em;`
+    : '';
+}
+
+/**
  * Purpose: Emit the block-box declarations of `s`: padding, background,
  *   border (per side), border-radius.
  * How: Each of `borderTop/Right/Bottom/Left` is independent; only the sides

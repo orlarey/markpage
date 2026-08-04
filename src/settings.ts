@@ -61,6 +61,21 @@ export type Align = 'left' | 'center' | 'right' | 'justify';
 export const ALIGNS: Align[] = ['left', 'center', 'right', 'justify'];
 
 /**
+ * Purpose: A heading / running-content "filet" (horizontal rule) — a resolved,
+ *   flat value produced by the style editor's compiler (never a live rule).
+ * How: `position` picks the side; `color`/`width`/`style` are fully resolved,
+ *   each with a sensible default. Supersedes the legacy boolean `underline`
+ *   (which stays for back-compat and for links' text-decoration meaning).
+ */
+export type RulePosition = 'below' | 'above';
+export interface HeadingRule {
+  position: RulePosition;
+  color?: string; // #rrggbb; default #d0d7de
+  width?: number; // px; default 1
+  style?: 'solid' | 'dashed' | 'dotted'; // default solid
+}
+
+/**
  * Purpose: Unified style for any document element — every field optional.
  * How: Inline elements ignore block-only fields (padding/background/border*).
  *   The form's per-element descriptor decides which subset to surface.
@@ -71,7 +86,8 @@ export interface Style {
   color?: string; // #rrggbb
   weight?: number; // one of WEIGHT_OPTIONS below
   italic?: boolean;
-  underline?: boolean;
+  underline?: boolean; // heading filet (legacy, = rule below) / link text-decoration
+  rule?: HeadingRule; // heading/running-content filet: resolved position + styling
   align?: Align;
   marginAbove?: number; // em
   marginBelow?: number; // em

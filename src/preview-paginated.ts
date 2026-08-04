@@ -10,7 +10,7 @@
  *******************************************************************************/
 
 import type { PdfSettings, Style } from './settings';
-import { blockBoxCss, inlineCss } from './style-emit';
+import { blockBoxCss, filetCss, inlineCss } from './style-emit';
 import {
   quoteFontFamily,
   fontFamilyStack,
@@ -33,13 +33,13 @@ import type { PageGeometry } from './typography';
 import { bakePageGeometry } from './geometry-producer';
 
 /**
- * Purpose: Heading underline CSS fragment for paged.js / print output.
- * How: Uses a neutral grey border-bottom to match the historical printed look.
+ * Purpose: Heading "filet" (rule) CSS fragment for paged.js / print output.
+ * How: Prefers the resolved `rule` (position + colour/width/style) produced by
+ *   the style editor; falls back to the legacy `underline` boolean (a 1px grey
+ *   rule below) for back-compat.
  */
 function pagedUnderline(s: Style): string {
-  return s.underline
-    ? `border-bottom: 1px solid #d0d7de; padding-bottom: 0.2em;`
-    : '';
+  return filetCss(s); // resolved `rule` (editor) or legacy `underline` fallback
 }
 
 /**

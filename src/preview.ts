@@ -10,14 +10,17 @@
 import { marked } from 'marked';
 import { metadataLines, type PdfSettings, type Style } from './settings';
 import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
-import { blockBoxCss, inlineCss } from './style-emit';
+import { blockBoxCss, filetCss, inlineCss } from './style-emit';
 import { quoteFontFamily, fontFamilyStack } from './font-loader';
 
 /**
- * Purpose: Heading underline CSS fragment using the editor's neutral border colour.
- * How: Emits a `border-bottom` declaration or `none` so the dynamic rule wins.
+ * Purpose: Heading "filet" (rule) CSS fragment for the fluid editor preview.
+ * How: A resolved `rule` (editor compiler) wins and uses its own colour; else
+ *   the legacy `underline` boolean draws a themed `var(--border)` rule below,
+ *   and the off case emits `border-bottom: none` so the dynamic rule wins.
  */
 function underlineRule(s: Style): string {
+  if (s.rule) return filetCss(s);
   return s.underline
     ? `border-bottom: 1px solid var(--border); padding-bottom: 0.2em;`
     : `border-bottom: none;`;
