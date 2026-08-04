@@ -134,6 +134,7 @@
         <button data-facet="polices">Polices</button>
         <button data-facet="pages">Pages</button>
         <button data-facet="appareil">Appareil</button>
+        <button data-facet="blocs">Blocs</button>
       </div>
     </div>
     <div id="editrow">
@@ -231,9 +232,18 @@ const S = {
              recto:{inner:[],center:[],outer:[]} },
   },
   customText:'Notes de travail',
+  // BLOCS — per block-element box styling (fond / bordure / padding / rayon)
+  blocSel:'callout',
+  blocks:{
+    'code-block':{bgOn:true, bg:'#f4f6f9', bd:{on:false,color:'#d0d7de',width:1}, pad:0.55, radius:6},
+    'quote':{bgOn:false, bg:'#f4f6f9', bd:{on:true,color:'#3f9d78',width:3}, pad:0.5, radius:3},
+    'callout':{bgOn:true, bg:'#eef4ff', bd:{on:true,color:'#4a8cf0',width:1}, pad:0.7, radius:8},
+  },
   // ARTEFACT view
   view:'recto',
 };
+const BLOC_KEYS=['callout','code-block','quote'], BLOC_LBL={callout:'callout','code-block':'code',quote:'citation'};
+const blocCss=(b)=>`${b.bgOn?`background:${b.bg};`:''}padding:${b.pad}em;border-radius:${b.radius}px;${b.bd.on?`border:${b.bd.width}px solid ${b.bd.color};`:''}`;
 ROSTER.forEach(r=>{ if(r.step!==undefined) S.steps[r.key]=r.step; });
 LADDER.forEach(k=>{ const c=(ROSTER.find(e=>e.key===k)||{}).ctrls||[];
   if(c.includes('align')) S.align[k]=(k==='title'||k==='subtitle'||k==='metadata')?'center':'left';
@@ -370,7 +380,7 @@ function contentPage(pg,g,pxmm,verso){
     `<div style="${CS('math',`text-align:center;font-style:italic;margin:.5em 0`)}">µ = ¹⁄ₙ ∑ᵢ xᵢ &nbsp;&nbsp;,&nbsp;&nbsp; σ² = ¹⁄ₙ ∑ᵢ (xᵢ − µ)²</div>`+
     `<div style="${CS('h2',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h2')}`)}">${hnum(2)}Évaluation par génération</div>`+
     bodyP(`L’échelle des tailles dérive de ${inlineCode('base · ratio^cran')} ; le canon de Van de Graaf place le bloc, et le corps porte la lecture continue le long de l’arbre.`)+
-    `<pre style="${CS('code',`background:${codeBg};padding:.5em .7em;border-radius:4px;margin:.4em 0;white-space:pre;overflow:hidden`)}">fold f z (Leaf x)   = f x z\nfold f z (Node l r) = fold f (fold f z r) l</pre>`+
+    `<pre style="${CS('code',`${blocCss(S.blocks['code-block'])};margin:.4em 0;white-space:pre;overflow:hidden`)}">fold f z (Leaf x)   = f x z\nfold f z (Node l r) = fold f (fold f z r) l</pre>`+
     `<p style="${CS('caption',`font-style:italic;margin:.5em 0 0`)}">Figure 1 — le DAG de 20 opérations et son pli.</p>`+
     `<p style="${CS('note',`margin:.3em 0 0`)}">1. On suppose l’algèbre monoïdale et le pli bien fondé.</p>`;
   page.innerHTML =
@@ -731,6 +741,7 @@ function renderInstrument(){
   if(S.facet==='couleur'){ t.textContent='Carte — instrument'; renderCarte(); }
   else if(S.facet==='polices'){ t.textContent='Échelle — instrument'; renderLadder(); }
   else if(S.facet==='appareil'){ t.textContent='Appareil courant — instrument'; renderAppareilInstrument(); }
+  else if(S.facet==='blocs'){ t.textContent='Blocs — instrument'; renderBlocsInstrument(); }
   else { t.textContent='Double-page — instrument'; renderPagesInstrument(); }
 }
 
@@ -740,7 +751,50 @@ function renderPanel(){
   if(S.facet==='couleur'){ p.innerHTML=colourPanel(); wireColour(); }
   else if(S.facet==='polices'){ p.innerHTML=typoPanel(); wireTypo(); }
   else if(S.facet==='appareil'){ p.innerHTML=appareilPanel(); wireAppareil(); }
+  else if(S.facet==='blocs'){ p.innerHTML=blocsPanel(); wireBlocs(); }
   else { p.innerHTML=pagesPanel(); wirePages(); }
+}
+function blocsPanel(){
+  const B=S.blocks[S.blocSel];
+  return `
+  <h2>Élément de bloc</h2>
+  <div class="row" id="blocSel">${BLOC_KEYS.map(k=>`<button class="chip ${k===S.blocSel?'on':''}" data-k="${k}">${BLOC_LBL[k]}</button>`).join('')}</div>
+  <h2>Fond</h2>
+  <label class="fam"><input type="checkbox" id="bBgOn" ${B.bgOn?'checked':''}> Fond visible</label>
+  <div class="field">Couleur <input type="color" id="bBg" value="${B.bg}"></div>
+  <h2>Cadre</h2>
+  <label class="fam"><input type="checkbox" id="bBdOn" ${B.bd.on?'checked':''}> Bordure</label>
+  <div class="field">Couleur <input type="color" id="bBdColor" value="${B.bd.color}"></div>
+  <div class="field">Épaisseur <input type="range" id="bBdW" min="0" max="6" step="0.5" value="${B.bd.width}"><span class="val" id="bBdWV">${B.bd.width} px</span></div>
+  <h2>Espacement</h2>
+  <div class="field">Padding <input type="range" id="bPad" min="0" max="1.5" step="0.05" value="${B.pad}"><span class="val" id="bPadV">${B.pad.toFixed(2)} em</span></div>
+  <div class="field">Rayon <input type="range" id="bRad" min="0" max="16" step="1" value="${B.radius}"><span class="val" id="bRadV">${B.radius} px</span></div>
+  <p class="sub" style="margin-top:.6rem">Styling de bloc par élément (fond, cadre, padding, rayon) — comme la matrice \`styles.&lt;bloc&gt;\` de markpage.</p>`;
+}
+function wireBlocs(){
+  document.getElementById('blocSel').onclick=(e)=>{const b=e.target.closest('[data-k]'); if(!b) return; S.blocSel=b.dataset.k; renderPanel(); renderBlocsInstrument();};
+  const B=()=>S.blocks[S.blocSel], up=()=>{renderBlocsInstrument(); renderArtefact();};
+  document.getElementById('bBgOn').onchange=e=>{B().bgOn=e.target.checked; up();};
+  document.getElementById('bBg').oninput=e=>{B().bg=e.target.value; B().bgOn=true; document.getElementById('bBgOn').checked=true; up();};
+  document.getElementById('bBdOn').onchange=e=>{B().bd.on=e.target.checked; up();};
+  document.getElementById('bBdColor').oninput=e=>{B().bd.color=e.target.value; B().bd.on=true; document.getElementById('bBdOn').checked=true; up();};
+  document.getElementById('bBdW').oninput=e=>{B().bd.width=+e.target.value; document.getElementById('bBdWV').textContent=`${(+e.target.value)} px`; up();};
+  document.getElementById('bPad').oninput=e=>{B().pad=+e.target.value; document.getElementById('bPadV').textContent=`${(+e.target.value).toFixed(2)} em`; up();};
+  document.getElementById('bRad').oninput=e=>{B().radius=+e.target.value; document.getElementById('bRadV').textContent=`${(+e.target.value)} px`; up();};
+}
+function renderBlocsInstrument(){
+  const el=document.getElementById('instrument'); el.className='';
+  const wrap=document.createElement('div');
+  wrap.style.cssText=`display:flex;flex-direction:column;gap:16px;max-width:440px;font-family:${famCss('body')};font-size:12pt;line-height:1.4;color:#2b3a55`;
+  const lbl=(t,k)=>`<div style="font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:${k===S.blocSel?'var(--accent)':'#868d9b'};font-weight:${k===S.blocSel?700:400}">${t}</div>`;
+  wrap.innerHTML=
+    lbl('callout','callout')+`<div style="${blocCss(S.blocks.callout)}"><b>Note</b> — un encadré d'information ; fond et cadre réglables par élément.</div>`+
+    lbl('code','code-block')+`<pre style="${blocCss(S.blocks['code-block'])};font-family:${famCss('code')};font-size:10pt;margin:0;white-space:pre;overflow:hidden">fold f z (Leaf x)   = f x z\nfold f z (Node l r) = fold f (fold f z r) l</pre>`+
+    lbl('citation','quote')+`<div style="${blocCss(S.blocks.quote)};font-style:italic">« La géométrie du canon place le bloc, et le corps porte la lecture. »</div>`;
+  el.replaceChildren(wrap);
+  const cap=document.createElement('p'); cap.className='carte-cap';
+  cap.textContent='Clique un élément à gauche pour le régler ; l’aperçu (droite) reflète le style de bloc sur la page.';
+  el.appendChild(cap);
 }
 function colourPanel(){
   return `<h2>Teinte maîtresse (famille A)</h2>
