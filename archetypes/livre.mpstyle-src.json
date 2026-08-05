@@ -93,19 +93,19 @@
       }
     },
     "fam": {
-      "head": "EB Garamond",
-      "body": "EB Garamond",
+      "head": "ET Book",
+      "body": "ET Book",
       "code": "IBM Plex Mono"
     },
     "base": 11,
-    "ratio": 1.3,
+    "ratio": 1.28,
     "lh": 1.4,
     "wHead": 600,
     "wBody": 400,
     "codeScale": 0.9,
     "mscale": 1,
     "mset": "newcm",
-    "pairing": "elegant",
+    "pairing": "livre",
     "steps": {
       "running-content": -1,
       "title": 5,

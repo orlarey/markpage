@@ -47,8 +47,8 @@ const ARCHETYPES = [
   },
   {
     base: 'Livre', pageFormat: 'A4', formats: ['A4', 'Letter'],
-    pairing: 'elegant', hue: 20, hasCover: true, duplex: true,
-    chapterBreak: 'next-recto', notesPos: 'foot', numberingOn: true, apparatus: 1, // Savant
+    pairing: 'livre', hue: 20, hasCover: true, duplex: true,
+    chapterBreak: 'next-recto', notesPos: 'foot', numberingOn: true, apparatus: 1, // Savant, ET Book
   },
   {
     base: 'Présentation', pageFormat: '16:9', formats: ['16:9'],

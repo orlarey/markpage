@@ -66,7 +66,7 @@ describe('applyNamedStyle', () => {
     expect(r.settings.pageSize).toBe('A4');
     expect(r.settings.duplex).toBe(true);
     expect(r.settings.chapterBreak).toBe('next-recto');
-    expect(r.settings.fonts.body).toBe('EB Garamond');
+    expect(r.settings.fonts.body).toBe('ET Book');
   });
 
   it('leaves the base unchanged for unknown / empty names', () => {

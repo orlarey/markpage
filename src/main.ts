@@ -27,6 +27,9 @@ import '@fontsource/roboto-mono/400-italic.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
 
+// ET Book (Edward Tufte's book face, MIT) — vendored @font-face, not on Google.
+import './assets/fonts/et-book/et-book.css';
+
 import 'highlight.js/styles/atom-one-light.css';
 import '@orlarey/blocks/styles.css';
 import '@orlarey/markpage-render/constructs.css';

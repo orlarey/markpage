@@ -1,0 +1,23 @@
+/* ET Book — Edward Tufte's book face (MIT). Vendored .woff files; Vite bundles
+   the url() assets and registers these @font-face rules app-wide. See LICENSE. */
+@font-face {
+  font-family: 'ET Book';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./et-book-roman-line-figures.woff') format('woff');
+}
+@font-face {
+  font-family: 'ET Book';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./et-book-display-italic-old-style-figures.woff') format('woff');
+}
+@font-face {
+  font-family: 'ET Book';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./et-book-bold-line-figures.woff') format('woff');
+}

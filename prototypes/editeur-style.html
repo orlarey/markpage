@@ -8,6 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@400;600;700&family=Poppins:wght@400;500;600;700&family=PT+Serif:wght@400;700&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Roboto+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
 <style>
+  /* ET Book (MIT) — CDN faces for the editor PREVIEW only; markpage bundles them. */
+  @font-face { font-family:'ET Book'; font-weight:400; font-style:normal; font-display:swap;
+    src:url('https://edwardtufte.github.io/et-book/et-book/et-book-roman-line-figures/et-book-roman-line-figures.woff') format('woff'); }
+  @font-face { font-family:'ET Book'; font-weight:400; font-style:italic; font-display:swap;
+    src:url('https://edwardtufte.github.io/et-book/et-book/et-book-display-italic-old-style-figures/et-book-display-italic-old-style-figures.woff') format('woff'); }
+  @font-face { font-family:'ET Book'; font-weight:700; font-style:normal; font-display:swap;
+    src:url('https://edwardtufte.github.io/et-book/et-book/et-book-bold-line-figures/et-book-bold-line-figures.woff') format('woff'); }
   :root { --ink:#1a1f2b; --sub:#5c6473; --line:#d0d5df; --bg:#eef0f4; --accent:#3b6fb0; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink);
@@ -279,10 +286,11 @@ const PAIRINGS=[
   {id:'classique',name:'Classique',head:'Source Serif 4',body:'Source Serif 4',code:'IBM Plex Mono',math:'stix2',ratio:1.25},
   {id:'editorial',name:'Éditorial',head:'Inter',body:'Lora',code:'JetBrains Mono',math:'stix2',ratio:1.28},
   {id:'elegant',name:'Élégant',head:'EB Garamond',body:'EB Garamond',code:'IBM Plex Mono',math:'newcm',ratio:1.30},
+  {id:'livre',name:'Livre (ET Book)',head:'ET Book',body:'ET Book',code:'IBM Plex Mono',math:'newcm',ratio:1.28},
   {id:'technique',name:'Technique',head:'Roboto Condensed',body:'Roboto',code:'Roboto Mono',math:'fira',ratio:1.20},
   {id:'contraste',name:'Contraste',head:'Poppins',body:'PT Serif',code:'Source Code Pro',math:'stix2',ratio:1.34},
 ];
-const TEXT_FAMILIES=['Inter','Poppins','Roboto','Roboto Condensed','Source Serif 4','Lora','PT Serif','EB Garamond'];
+const TEXT_FAMILIES=['Inter','Poppins','Roboto','Roboto Condensed','Source Serif 4','Lora','PT Serif','EB Garamond','ET Book'];
 const CODE_FAMILIES=['JetBrains Mono','IBM Plex Mono','Roboto Mono','Source Code Pro'];
 const WEIGHTS=[[300,'Light'],[400,'Regular'],[500,'Medium'],[600,'Semibold'],[700,'Bold']];
 const MATH_SETS=['stix2','fira','newcm','asana','tex'];

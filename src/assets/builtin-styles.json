@@ -1149,7 +1149,7 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 89.5
+        "chapterNumeralPt": 79.5
       },
       "runningApparatus": {
         "header": {
@@ -1186,8 +1186,8 @@
         }
       },
       "fonts": {
-        "headings": "EB Garamond",
-        "body": "EB Garamond",
+        "headings": "ET Book",
+        "body": "ET Book",
         "code": "IBM Plex Mono"
       },
       "styles": {
@@ -1198,31 +1198,31 @@
         },
         "title": {
           "color": "#613722",
-          "fontSize": 57.5,
+          "fontSize": 53,
           "weight": 600,
           "align": "center"
         },
         "h1": {
           "color": "#8a4e30",
-          "fontSize": 31.5,
+          "fontSize": 29.5,
           "weight": 600,
           "align": "left"
         },
         "h2": {
           "color": "#5db3a4",
-          "fontSize": 24,
+          "fontSize": 23,
           "weight": 600,
           "align": "left"
         },
         "h3": {
           "color": "#b3795d",
-          "fontSize": 18.5,
+          "fontSize": 18,
           "weight": 600,
           "align": "left"
         },
         "h4": {
           "color": "#d9ab93",
-          "fontSize": 14.5,
+          "fontSize": 14,
           "weight": 600,
           "align": "left"
         },
@@ -1339,7 +1339,7 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 89.5
+        "chapterNumeralPt": 79.5
       },
       "runningApparatus": {
         "header": {
@@ -1376,8 +1376,8 @@
         }
       },
       "fonts": {
-        "headings": "EB Garamond",
-        "body": "EB Garamond",
+        "headings": "ET Book",
+        "body": "ET Book",
         "code": "IBM Plex Mono"
       },
       "styles": {
@@ -1388,31 +1388,31 @@
         },
         "title": {
           "color": "#613722",
-          "fontSize": 57.5,
+          "fontSize": 53,
           "weight": 600,
           "align": "center"
         },
         "h1": {
           "color": "#8a4e30",
-          "fontSize": 31.5,
+          "fontSize": 29.5,
           "weight": 600,
           "align": "left"
         },
         "h2": {
           "color": "#5db3a4",
-          "fontSize": 24,
+          "fontSize": 23,
           "weight": 600,
           "align": "left"
         },
         "h3": {
           "color": "#b3795d",
-          "fontSize": 18.5,
+          "fontSize": 18,
           "weight": 600,
           "align": "left"
         },
         "h4": {
           "color": "#d9ab93",
-          "fontSize": 14.5,
+          "fontSize": 14,
           "weight": 600,
           "align": "left"
         },
