@@ -1,8 +1,8 @@
 ---
 title: Spécification — l'atelier de style (couleur × format × polices × appareil)
 author: Yann Orlarey
-version: 0.3 (brouillon)
-date: 2026-08-04
+version: 0.4 (brouillon)
+date: 2026-08-05
 ---
 
 > **Statut :** **design exploratoire V1, non figé** — méthodo **pilotée par
@@ -22,6 +22,14 @@ date: 2026-08-04
 > *running materials* en en-tête / pied) et son instrument, et consigne
 > l'unification des quatre facettes dans une **maquette unique et versionnée**
 > (`prototypes/editeur-style.html`), voir *Axe appareil* et *Vers un seul outil*.
+>
+> **v0.4** consigne l'**identité de style** (nom / auteur / version / date) et les
+> **deux formats de fichier** — *source* ré-éditable vs *compilé* distribuable — qui
+> font de l'éditeur un outil **déployable** pour designers. L'architecture de
+> compilation faisant foi est dans [STYLE-ALIGNMENT](STYLE-ALIGNMENT.md) ; voir
+> *Identité & distribution*. La section *Sérialisation* (modèle front-matter
+> `document-type`/`color-crans`/`extends`) est **caduque** — supplantée par ce
+> modèle « source → compilateur → artefact plat ».
 
 **Objet :** remplacer le système de réglages actuel — jugé **trop complexe**, sa
 double vue *Essentiel / Avancé* ne fonctionnant pas en termes d'UX — par un
@@ -39,7 +47,7 @@ génératrices**. Le résultat tient en une phrase :
 - **Axe format — la galerie de documents** — gabarits, fixé vs ajustable.
 - **Axe polices — la galerie de paires** — paires curées, taille de base.
 - **Axe appareil — l'appareil courant** — running materials, zones, pile → séquence, miroir.
-- **L'atelier** — sélection partagée, aperçu unifié, nommage du style.
+- **L'atelier** — sélection partagée, aperçu unifié, nommage du style, identité & distribution.
 - **Évolutions depuis les maquettes** — le principe unifiant et ce qui a bougé depuis la v0.1.
 - **Sérialisation** — branchement sur la pile de documents.
 - **Invariants** — I1–I7, le contrat.
@@ -443,6 +451,31 @@ Aperçu unifié
 Présentation retenue : **trois onglets** (Format / Polices / Couleur) et un
 aperçu **persistant** à droite.
 
+### Identité & distribution
+
+Dès lors que des designers **produisent et diffusent** des styles, un style porte
+une **identité** éditable dans l'en-tête de l'atelier : **nom**, **auteur**,
+**version**, **date**. Ces champs décrivent le style, pas son rendu (voir
+[STYLE-ALIGNMENT](STYLE-ALIGNMENT.md) — *Identité du style et distribution*).
+
+L'atelier expose **deux formats de fichier**, reflet direct de la compilation à
+sens unique :
+
+Source — *ré-éditable*
+:   `<slug>.mpstyle-src.json`. Sérialise l'**état génératif entier** de l'éditeur.
+    Le designer le **garde** et le **rouvre** (*Ouvrir…*) pour continuer à éditer.
+    C'est le **master**.
+
+Compilé — *distribuable*
+:   `<slug>.mpstyle.json`. Le `FUNDAMENTAL_STYLE` **plat** de markpage, tout
+    résolu. C'est ce qu'on **importe dans markpage** ; il ne se **rouvre pas**
+    comme éditable (compilation lossy à l'envers).
+
+Le nom de fichier **dérive du nom** du style (slug, accents dépliés) — fini le code
+opaque. L'**attribution** (`author`/`version`/`date`) voyage dans le conteneur du
+compilé, relue et conservée par markpage ; la préservation **intégrale** passe par
+le format source. Principe : **diffuser l'artefact, garder la source.**
+
 ---
 
 ## Évolutions depuis les maquettes
@@ -568,6 +601,17 @@ contrastent) **tiennent**.
 ---
 
 ## Sérialisation
+
+::: warning [Section caduque — conservée comme trace de conception]
+Ce modèle (sérialiser le style en **clés de front-matter** `document-type` /
+`color-crans` / `extends`, aplati par le moteur de pile) a été **abandonné**. La
+sérialisation effective est désormais **deux fichiers** — *source* génératif et
+*compilé* plat — décrits en *§ Identité & distribution* et, pour l'architecture,
+dans [STYLE-ALIGNMENT](STYLE-ALIGNMENT.md). markpage **ne dérive plus** de style
+depuis le front-matter (6 clés minimales, qui n'overrident rien). On garde le texte
+ci-dessous pour mémoire du raisonnement « stocker le cran, pas la couleur », qui
+reste vrai — mais côté **source de l'éditeur**, pas côté front-matter markpage.
+:::
 
 Un style se **sérialise** sur le modèle de la pile
 ([STACK-SPEC](STACK-SPEC.md)) : un document-style porte, en clés de front-matter

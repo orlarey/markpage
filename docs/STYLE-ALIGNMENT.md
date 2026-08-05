@@ -113,19 +113,46 @@ décrit dans le `.md` — juste **référencé par son nom**.
 
 ```adt
 FormatSource ::= le format PROPRE de l'éditeur     (* génératif, ré-éditable *)
+               | fichier : <slug>.mpstyle-src.json
+               | marqueur "markpage-style-src":1, meta, state (l'état S entier)
                | porte : teinte+angle, crans A/B, base+ratio+steps,
                |         align·rule·caps·tracking, coverScale, numérotation,
                |         canon+marges libres, appareil (règles), layoutMode
 
 FormatCible  ::= le .mpstyle.json PLAT de markpage  (* résolu, distribuable *)
+               | fichier : <slug>.mpstyle.json
+               | marqueur "markpage-style-file":1, name, key, [meta], style
                | FUNDAMENTAL_STYLE_KEYS + champs neufs du paquet B
                | tout en hex / pt / mm / enum / booléen — AUCUNE règle
 ```
 
-Le **format source** est libre (c'est l'éditeur qui l'écrit et le relit). Le
-**format cible** est l'actuel `FUNDAMENTAL_STYLE` (fichier `.mpstyle.json`, référence
-`document-style:`, bibliothèque) — le conteneur le **plus riche et vivant** de
-markpage — **étendu** des champs plats du paquet B.
+Le **format source** est libre (c'est l'éditeur qui l'écrit et le relit) : il
+sérialise l'**état génératif entier** ; *Ouvrir…* le **réhydrate** pour reprendre
+l'édition. Le **format cible** est l'actuel `FUNDAMENTAL_STYLE` (fichier
+`.mpstyle.json`, référence `document-style:`, bibliothèque) — le conteneur le
+**plus riche et vivant** de markpage — **étendu** des champs plats du paquet B.
+
+### Identité du style et distribution
+
+Un style destiné à **circuler** porte une **identité** : `name`, `author`,
+`version`, `date`. Ces clés décrivent le style, **pas** son rendu — elles ne sont
+donc **pas** dans `FUNDAMENTAL_STYLE` (rien à peindre), mais dans le **conteneur**
+de chaque fichier.
+
+- **Nom de fichier lisible** — dérivé du nom via un `slug` (accents dépliés) :
+  « Rapport Élégant A4 » → `rapport-elegant-a4.mpstyle.json`. Plus de code opaque.
+- **Attribution qui voyage** — `author`/`version`/`date` sont émis au **niveau
+  haut** du conteneur compilé (là où l'éditeur les écrit) ; markpage les **relit**
+  (`NamedStyle.meta`), les **conserve** en bibliothèque, et les **ré-émet** à
+  l'export — de sorte que l'attribution survit **même quand seul le compilé
+  circule**. Le format source reste le chemin de préservation intégrale ; le
+  compilé n'en préserve que l'identité.
+
+::: note [Où vit quoi]
+Le rendu est **plat** dans `style` (FUNDAMENTAL_STYLE). L'**identité** est dans le
+conteneur (`name`/`key`/`meta`). L'**état génératif** ré-éditable n'existe que dans
+le **fichier source**, jamais dans le compilé.
+:::
 
 ---
 
@@ -248,3 +275,9 @@ une UI d'édition de style.
 
 A5 — **Le style est autonome et distribuable** — il embarque tout ce dont son rendu
 dépend (y compris `@font-face` et `layoutMode`).
+
+A6 — **Identité ≠ rendu.** `name`/`author`/`version`/`date` vivent dans le
+**conteneur** du fichier, jamais dans `FUNDAMENTAL_STYLE`. Le nom de fichier dérive
+du nom (slug) ; l'attribution est relue, conservée et ré-émise par markpage, donc
+elle **voyage avec le compilé**. La ré-édition intégrale, elle, n'existe que dans le
+**format source**.
