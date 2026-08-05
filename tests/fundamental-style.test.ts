@@ -36,7 +36,6 @@ const distinctive = (): PdfSettings => {
   s.mathFontSet = 'stix2';
   s.pageBackground = '#fffdf7';
   s.coverBackground = '#2b3a55';
-  s.language = 'en';
   s.author = { text: 'Ada Lovelace', show: true, bold: false };
   s.organization = { text: 'Analytical Engine Co.', show: true, bold: true };
   s.date = { mode: 'custom', custom: '1843' };
@@ -49,13 +48,14 @@ describe('fundamental style export/import', () => {
     // Guards against a new settings field being forgotten in the export.
     // `authoring` is the geometry PRODUCTION object — excluded from the style
     // (its resolved result is carried by `pageGeometry`). author/organization/
-    // date are DOCUMENT metadata — they live in the doc front-matter, not the
-    // style (document-style model).
+    // date/language are DOCUMENT-level — they live in the doc front-matter, not
+    // the style (document-style model; language is the one content override).
     const NON_FUNDAMENTAL = new Set([
       'authoring',
       'author',
       'organization',
       'date',
+      'language',
     ]);
     const missing = Object.keys(DEFAULT_SETTINGS).filter(
       (k) =>

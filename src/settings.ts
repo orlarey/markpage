@@ -1065,10 +1065,12 @@ export const FUNDAMENTAL_STYLE_KEYS = [
   'header', 'footer', 'runningApparatus',
   // typography
   'fonts', 'styles', 'mathScale', 'mathFontSet',
-  // surfaces + language
-  'pageBackground', 'coverBackground', 'language',
-  // NOTE: author / organization / date are DOCUMENT metadata, not style —
-  // they live in the doc front-matter, never in a named/exported style.
+  // surfaces
+  'pageBackground', 'coverBackground',
+  // NOTE: author / organization / date / language are DOCUMENT-level — they live
+  // in the doc front-matter, never in a named/exported style. Language is about
+  // the words, not the look (the same style serves fr or en), so it is the ONE
+  // front-matter key that overrides (see applyLanguageOverride).
   // embedded @font-face registry (data-URI faces the style ships with)
   'customFonts',
 ] as const;
@@ -1121,6 +1123,21 @@ export function applyFundamentalStyle(
   // imported `pageGeometry` verbatim instead of re-baking over it.
   if (fs.pageGeometry !== undefined) delete out.authoring;
   return out as unknown as PdfSettings;
+}
+
+/**
+ * Apply the document's front-matter `language:` over resolved settings — the ONE
+ * content-level override (language left the style; it is about the words, not the
+ * look). Absent/invalid values are ignored, so the base/style language stands.
+ */
+export function applyLanguageOverride(
+  settings: PdfSettings,
+  raw: string | undefined,
+): PdfSettings {
+  const lang = (raw ?? '').trim().toLowerCase();
+  if (lang !== 'fr' && lang !== 'en') return settings;
+  if (settings.language === lang) return settings;
+  return { ...settings, language: lang };
 }
 
 

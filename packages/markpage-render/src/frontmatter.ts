@@ -25,6 +25,11 @@ export interface Frontmatter {
   // TeX source prepended to every MathJax invocation — define macros once
   // at the top of the doc and use them in every formula thereafter.
   'mathjax-preamble'?: string;
+  // The ONE content-level override (STYLE-ALIGNMENT: language left the style).
+  // Language is about the document's words, not its look — the same style serves
+  // a French or English text — so a document carries it and it overrides the
+  // resolved style's language (hyphenation + date format). 'fr' | 'en'.
+  language?: string;
   // Per-doc override of the page format: when truthy the renderer
   // forces `pageSize: 'SLIDES_16_9'` so `## h2` starts a new slide
   // regardless of the active settings profile.
@@ -254,10 +259,12 @@ function unquote(s: string): string {
  */
 function assign(meta: Frontmatter, key: string, value: string): void {
   // Radical front-matter minimum (docs/STYLE-ALIGNMENT.md step 7): a document
-  // carries only its identity + a style NAME. It overrides NOTHING — no
-  // page-size / margins / slides / font-* / color-* / markpage-profile. Anything
-  // else lands in `extra` (ignored) with no graceful fallback ("suppression
-  // franche"): the style owns all appearance; tweak = fork a style.
+  // carries only its identity + a style NAME + its language. It overrides nothing
+  // about APPEARANCE — no page-size / margins / slides / font-* / color-* /
+  // markpage-profile. Anything else lands in `extra` (ignored) with no graceful
+  // fallback ("suppression franche"): the style owns all appearance; tweak = fork
+  // a style. `language` is the single exception — it is about the document's
+  // words, not its look, so it overrides the style's language.
   switch (key) {
     case 'title':
     case 'author':
@@ -265,6 +272,7 @@ function assign(meta: Frontmatter, key: string, value: string): void {
     case 'date':
     case 'mathjax-preamble':
     case 'document-style':
+    case 'language':
       meta[key] = value;
       break;
     default:

@@ -608,7 +608,7 @@ Ce modèle (sérialiser le style en **clés de front-matter** `document-type` /
 sérialisation effective est désormais **deux fichiers** — *source* génératif et
 *compilé* plat — décrits en *§ Identité & distribution* et, pour l'architecture,
 dans [STYLE-ALIGNMENT](STYLE-ALIGNMENT.md). markpage **ne dérive plus** de style
-depuis le front-matter (6 clés minimales, qui n'overrident rien). On garde le texte
+depuis le front-matter (7 clés minimales ; seule `language` override). On garde le texte
 ci-dessous pour mémoire du raisonnement « stocker le cran, pas la couleur », qui
 reste vrai — mais côté **source de l'éditeur**, pas côté front-matter markpage.
 :::

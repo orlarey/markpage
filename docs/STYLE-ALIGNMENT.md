@@ -74,7 +74,7 @@ contenu, une **bibliothèque de styles** et ses préférences d'appli. Trois foy
 
 | Foyer | Contenu | Qui l'édite |
 | :-- | :-- | :-- |
-| **Document** (front-matter, **6 clés**) | `title` · `author` · `organization` · `date` · `mathjax-preamble` · `document-style` | panneau « propriétés du document » |
+| **Document** (front-matter, **7 clés**) | `title` · `author` · `organization` · `date` · `mathjax-preamble` · `document-style` · `language` (seul override) | panneau « propriétés du document » |
 | **Style** (compilé, **autonome**) | **tout le reste** (voir ci-dessous) | l'**éditeur de style** (externe) |
 | **Appli** | bibliothèque de styles (lister · charger un compilé · exporter · supprimer · activer) + préférences d'appli | Réglages markpage |
 
@@ -96,12 +96,14 @@ les **axes neufs** (capitales, filet, tracking, coverScale, 2ᵉ teinte).
 ::: note [Deux cas tranchés]
 - **`slides` disparaît** comme drapeau : les slides deviennent un **style** (format
   16:9 + gabarit slide). Pour faire des slides on **choisit le style**.
-- **`language`** tombe dans le **style** (markpage la modélise déjà en
-  `FUNDAMENTAL_STYLE_KEYS`) — sémantiquement limite (la langue est du contenu), mais
-  cohérent avec un front-matter qui la sort du document.
+- **`language` quitte le style** *(révisé)* : c'est du **contenu**, pas de l'apparence
+  (le même style sert un texte fr ou en). Elle rejoint donc les métadonnées de
+  document et devient la **7ᵉ clé de front-matter — la seule qui override** le style
+  résolu (`applyLanguageOverride`). Retirée de `FUNDAMENTAL_STYLE_KEYS`.
 :::
 
-**Conséquence markpage** : le parseur de front-matter tombe à **6 clés** ; on retire
+**Conséquence markpage** : le parseur de front-matter tient en **7 clés** (identité +
+`document-style` + `language`) ; on retire
 tout le traitement `page-size`/`margins`/`font-*`/`color-*`/`slides`/`page-numbers`
 **et** la couche « vocabulaire Atelier en front-matter »
 (`color-hue`/`color-crans`/`font-pair`/`font-base`/`math-scale`). Le style n'est plus
@@ -216,8 +218,8 @@ exception : `styles`, dont l'import **complète** les éléments absents par des
    `parse → apply → withBakedGeometry → serialize` du fichier de l'éditeur redonne un
    `style` **byte-à-byte identique** (0 clé ajoutée/retirée).
 4. **Rien de figé côté éditeur** — chaque champ qui est un *vrai choix* est piloté
-   par l'état modélisé : `pageGeometry` (instrument géométrie), `language` (sélecteur
-   fr/en, le seul jeu que markpage consomme). Ne reste qu'une constante, **honnête** :
+   par l'état modélisé : `pageGeometry` (instrument géométrie). `language` n'est plus
+   dans le style (override document). Ne reste qu'une constante, **honnête** :
    `customFonts: []` — ce style n'embarque aucune fonte (familles système
    uniquement) ; ce sera un vrai réglage le jour où l'embarquement de fontes existera.
 
@@ -290,8 +292,8 @@ d'implémentation côté markpage.
 affiche un **sous-titre de couverture** que markpage **ne rend pas** (pas d'élément
 `subtitle` sur la couverture ; le `subtitle:` front-matter n'est pas parsé). C'est un
 manque **document/front-matter** (le *texte* du sous-titre n'a pas de foyer dans les
-6 clés) **et** style (l'élément `subtitle`). À trancher avec l'étape *front-matter
-minimal* — distinct de `coverScale`.
+clés reconnues) **et** style (l'élément `subtitle`). À trancher avec l'étape
+*front-matter minimal* — distinct de `coverScale`.
 :::
 
 ---
@@ -344,7 +346,7 @@ règles au rendu ; jamais.
 A2 — **Compilation à sens unique.** L'éditeur garde sa source ; le compilé ne se
 rouvre pas comme éditable.
 
-A3 — **Trois foyers étanches.** Document (6 clés) / Style (compilé autonome) / Appli
+A3 — **Trois foyers étanches.** Document (7 clés, dont `language` en seul override) / Style (compilé autonome) / Appli
 (bibliothèque + prefs). Le document n'override rien.
 
 A4 — **markpage ne gagne que des champs plats** (des valeurs), jamais des règles ni

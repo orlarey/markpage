@@ -162,7 +162,6 @@
       },
       "mathScale": 1,
       "mathFontSet": "newcm",
-      "language": "fr",
       "customFonts": [],
       "pageBackground": "#ffffff"
     }
@@ -330,7 +329,6 @@
       },
       "mathScale": 1,
       "mathFontSet": "newcm",
-      "language": "fr",
       "customFonts": [],
       "pageBackground": "#ffffff",
       "coverBackground": "#162138"
@@ -499,7 +497,6 @@
       },
       "mathScale": 1,
       "mathFontSet": "newcm",
-      "language": "fr",
       "customFonts": [],
       "pageBackground": "#ffffff"
     }
@@ -667,7 +664,6 @@
       },
       "mathScale": 1,
       "mathFontSet": "newcm",
-      "language": "fr",
       "customFonts": [],
       "pageBackground": "#ffffff",
       "coverBackground": "#382516",
@@ -839,7 +835,6 @@
       },
       "mathScale": 1,
       "mathFontSet": "newcm",
-      "language": "fr",
       "customFonts": [],
       "pageBackground": "#ffffff"
     }

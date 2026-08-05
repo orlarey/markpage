@@ -196,7 +196,7 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applySlideLayout, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { applySlideLayout, applyLanguageOverride, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import {
   flattenForRender,
   applyProfilePatch,
@@ -844,6 +844,9 @@ async function bootstrap(): Promise<void> {
       meta['document-style'],
       effectiveSettings,
     ).settings;
+    // The document's language is the ONE content-level override — applied over the
+    // resolved style (language left the style; STYLE-ALIGNMENT).
+    effectiveSettings = applyLanguageOverride(effectiveSettings, meta.language);
     // Bake the terminal page geometry LAST — after every setting that feeds the
     // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
     // reads a resolved `pageGeometry` and never the production inputs. A named
