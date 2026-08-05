@@ -2871,13 +2871,16 @@ async function bootstrap(): Promise<void> {
           onPick: (style) => setDocStyle(style.key),
           onExport: () => {
             const cur = parseFrontmatter(editor.getValue()).meta['document-style'];
-            const suggested = (cur && findStyle(cur)?.name) || 'Mon style';
+            const src = cur ? findStyle(cur) : null;
+            const suggested = src?.name || 'Mon style';
             const name = (globalThis.prompt(t('docstyle.export'), suggested) ?? '').trim();
             if (!name) return;
             const entry: NamedStyle = {
               key: slugify(name),
               name,
               style: serializeFundamentalStyle(lastEffectiveSettings),
+              // preserve attribution so it survives markpage's re-export too
+              ...(src?.meta ? { meta: src.meta } : {}),
             };
             downloadTextFile(
               serializeStyleFile(entry),

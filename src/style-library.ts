@@ -21,6 +21,17 @@ import {
   type PdfSettings,
 } from './settings';
 
+/**
+ * Distribution metadata ABOUT a style (not part of the rendered style itself).
+ * Authored in the style editor; carried through the style file so attribution
+ * survives even when only the compiled `.mpstyle.json` circulates.
+ */
+export interface StyleMeta {
+  author?: string;
+  version?: string;
+  date?: string;
+}
+
 export interface NamedStyle {
   /** Stable slug used in `document-style:` and as the library key. */
   key: string;
@@ -28,6 +39,8 @@ export interface NamedStyle {
   name: string;
   /** The complete fundamental style (FUNDAMENTAL_STYLE_KEYS), metadata excluded. */
   style: FundamentalStyle;
+  /** Optional distribution metadata (author / version / date). */
+  meta?: StyleMeta;
 }
 
 export const BUILTIN_STYLES: NamedStyle[] = builtinData as NamedStyle[];
@@ -111,13 +124,24 @@ export function defaultStyledSettings(): PdfSettings {
 }
 
 // ── Style file interchange (import / export a single named style) ──────────
-// A style file is JSON: { "markpage-style-file": 1, "name", "key", "style" }.
+// A style file is JSON: { "markpage-style-file": 1, "name", "key",
+//   ["author"], ["version"], ["date"], "style" }. The metadata keys sit at the
+// wrapper top level (matching the editor's compiled output) and are optional.
 
 const FILE_MARKER = 'markpage-style-file';
 
 export function serializeStyleFile(entry: NamedStyle): string {
+  const m = entry.meta ?? {};
   return JSON.stringify(
-    { [FILE_MARKER]: 1, name: entry.name, key: entry.key, style: entry.style },
+    {
+      [FILE_MARKER]: 1,
+      name: entry.name,
+      key: entry.key,
+      ...(m.author ? { author: m.author } : {}),
+      ...(m.version ? { version: m.version } : {}),
+      ...(m.date ? { date: m.date } : {}),
+      style: entry.style,
+    },
     null,
     2,
   );
@@ -135,7 +159,20 @@ export function parseStyleFile(text: string): NamedStyle | null {
       typeof o.key === 'string' && o.key.trim()
         ? o.key
         : slugify(name);
-    return { key, name, style: style as FundamentalStyle };
+    const str = (v: unknown) =>
+      typeof v === 'string' && v.trim() ? v : undefined;
+    const meta: StyleMeta = {
+      author: str(o.author),
+      version: str(o.version),
+      date: str(o.date),
+    };
+    const hasMeta = meta.author || meta.version || meta.date;
+    return {
+      key,
+      name,
+      style: style as FundamentalStyle,
+      ...(hasMeta ? { meta } : {}),
+    };
   } catch {
     return null;
   }

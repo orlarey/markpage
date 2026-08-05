@@ -109,6 +109,30 @@ describe('style file round-trip', () => {
     expect(parseStyleFile('{"hello":1}')).toBeNull();
     expect(parseStyleFile('not json')).toBeNull();
   });
+
+  it('round-trips distribution metadata (author / version / date)', () => {
+    const entry = {
+      key: 'rapport-elegant-a4',
+      name: 'Rapport Élégant A4',
+      style: { pageSize: 'A4' } as never,
+      meta: { author: 'Yann O.', version: '2.1', date: '2026-08-05' },
+    };
+    const back = parseStyleFile(serializeStyleFile(entry));
+    expect(back!.meta).toEqual(entry.meta);
+    // the metadata lives at the wrapper top level, as the editor emits it
+    const raw = JSON.parse(serializeStyleFile(entry));
+    expect(raw.author).toBe('Yann O.');
+    expect(raw.version).toBe('2.1');
+    expect(raw.date).toBe('2026-08-05');
+  });
+
+  it('omits absent metadata (no empty meta object leaks in)', () => {
+    const parsed = parseStyleFile(
+      JSON.stringify({ name: 'Sobre', style: { pageSize: 'A4' } }),
+    );
+    expect(parsed!.meta).toBeUndefined();
+    expect(JSON.parse(serializeStyleFile(parsed!)).author).toBeUndefined();
+  });
 });
 
 describe('slugify', () => {
