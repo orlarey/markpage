@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS, applyFundamentalStyle } from '../src/settings';
+import { parseStyleFile, serializeStyleFile } from '../src/style-library';
 import { capsCss, filetCss } from '../src/style-emit';
 
 // A representative compiled style — the shape the editor's compileStyle() emits
@@ -77,5 +78,21 @@ describe('compiled style → markpage (operational load path)', () => {
     );
     expect(capsCss(s.styles.h1)).toContain('font-variant: small-caps;');
     expect(capsCss(s.styles.h1)).toContain('letter-spacing: 0.04em;');
+  });
+
+  it('round-trips through the export file (serialize → parseStyleFile → apply)', () => {
+    // The exact file the editor's exportStyle() downloads.
+    const fileJson = serializeStyleFile({
+      key: 'editor-style',
+      name: 'Style éditeur',
+      style: compiled,
+    });
+    const parsed = parseStyleFile(fileJson);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.name).toBe('Style éditeur');
+    const loaded = applyFundamentalStyle(DEFAULT_SETTINGS, parsed!.style);
+    expect(loaded.numbering?.depth).toBe(2);
+    expect(loaded.styles.h1.rule?.position).toBe('below');
+    expect(loaded.runningApparatus?.header.recto.center).toEqual(['chapter']);
   });
 });
