@@ -215,10 +215,14 @@ exception : `styles`, dont l'import **complète** les éléments absents par des
    devient un no-op — pas de fuite. Vérifié bout-en-bout sur les **modules réels** :
    `parse → apply → withBakedGeometry → serialize` du fichier de l'éditeur redonne un
    `style` **byte-à-byte identique** (0 clé ajoutée/retirée).
-4. **Rien de figé côté éditeur** — les rares constantes encore émises « en dur »
-   (`language`, `customFonts`, `mermaidMax*`) doivent devenir **dérivées d'un état**
-   modélisé, ou être assumées comme des **défauts structurels** documentés (ils
-   n'empêchent pas la bijection — ils la satisfont — mais bornent l'expressivité).
+4. **Rien de figé côté éditeur** — chaque champ qui est un *vrai choix* est piloté
+   par l'état modélisé : `pageGeometry` (instrument géométrie), `language` (sélecteur
+   de langue). Restent deux valeurs assumées comme **défauts structurels documentés**,
+   non figés au sens trompeur : `customFonts: []` est **honnête** (ce style n'embarque
+   aucune fonte — il n'utilise que des familles système), et `mermaidMax*` sont des
+   **garde-fous** de mise à l'échelle des diagrammes surdimensionnés. Aucun n'empêche
+   la bijection ; ils bornent seulement l'expressivité, et pourront être modélisés
+   quand l'embarquement de fontes / le réglage des figures arriveront.
 
 ## La table de compilation
 
