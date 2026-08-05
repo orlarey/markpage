@@ -1168,6 +1168,13 @@ export function pagedCss(s: PdfSettings): string {
     s.numbering && s.numbering.on && s.chapterBreak !== 'none'
       ? `${SCOPE} h1:not(.doc-title) .chapter-num { display: block; line-height: 1; margin-bottom: 0.15em; font-size: ${s.numbering.chapterNumeralPt ? `${s.numbering.chapterNumeralPt}pt` : '2.4em'}; }`
       : '';
+  // Marginal chapter number: give it its OWN size (`chapterNumeralPt`, the "n° chap"
+  // scale) so it reads as a chapter number in the margin, not just an h1-sized one.
+  const chapterMarginalNumRule =
+    s.numbering && s.numbering.on && s.chapterBreak !== 'none' &&
+    s.numbering.chapterStyle !== 'numeral' && s.numbering.chapterNumeralPt
+      ? `${SCOPE} h1:not(.doc-title) .heading-num { font-size: ${s.numbering.chapterNumeralPt}pt; line-height: 1; }`
+      : '';
   // Running apparatus (step 6): when the style carries the resolved composition,
   // it owns the margin boxes — @page :right/:left content from the model. The
   // legacy fence path is skipped for it in paginateWithVivliostyle.
@@ -1201,6 +1208,7 @@ export function pagedCss(s: PdfSettings): string {
     ${chapterBreakRule}
     ${chapterDropRule}
     ${chapterNumeralRule}
+    ${chapterMarginalNumRule}
     ${coverBreakRule}
 
     /* Body-equivalent styles applied to the paginated container. */
