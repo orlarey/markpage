@@ -1168,20 +1168,27 @@ export function pagedCss(s: PdfSettings): string {
     s.numbering && s.numbering.on && s.chapterBreak !== 'none'
       ? `${SCOPE} h1:not(.doc-title) .chapter-num { display: block; line-height: 1; margin-bottom: 0.15em; font-size: ${s.numbering.chapterNumeralPt ? `${s.numbering.chapterNumeralPt}pt` : '2.4em'}; }`
       : '';
-  // Marginal chapter number: give it its OWN size (`chapterNumeralPt`, the "n° chap"
-  // scale) so it reads as a chapter number in the margin, not just an h1-sized one,
-  // and align its BASELINE to the title's. The general rule top-aligns the number;
-  // a much larger numeral would then sit lower than the title. Shift it up by the
-  // ascent difference (≈ 0.72 × the pt gap) so the two baselines coincide. Repeat
-  // the horizontal translate (a single `transform` wins over the general one).
+  // Marginal chapter number: a large numeral (`chapterNumeralPt`, the "n° chap"
+  // scale) sitting in the margin, BASELINE-aligned with the title. The general
+  // marginal rule positions the number absolutely (no baseline sharing), which
+  // makes a big numeral float above or below the title depending on the font. So
+  // for the chapter h1 we switch to FLEX with `align-items: baseline` — the browser
+  // aligns the two baselines natively, font-independently. The number is a fixed
+  // gutter-wide flex item pulled fully into the left margin by a negative margin
+  // (net zero width, so the title still starts at the text-block edge).
   const chapterMarginalNumRule =
     s.numbering && s.numbering.on && s.chapterBreak !== 'none' &&
     s.numbering.chapterStyle !== 'numeral' && s.numbering.chapterNumeralPt
       ? (() => {
           const numPt = s.numbering.chapterNumeralPt as number;
-          const h1Pt = styles.h1.fontSize ?? 24;
-          const upPt = Math.max(0, 1.0 * (numPt - h1Pt)).toFixed(1);
-          return `${SCOPE} h1:not(.doc-title) .heading-num { font-size: ${numPt}pt; line-height: 1; transform: translateX(calc(-100% - ${geo.sidenote.gap}mm)) translateY(-${upPt}pt); }`;
+          return (
+            `${SCOPE} h1:not(.doc-title) { display: flex; align-items: baseline; }\n` +
+            `${SCOPE} h1:not(.doc-title) .heading-num { ` +
+            `position: static; transform: none; ` +
+            `flex: 0 0 ${numPt}pt; margin-left: -${numPt}pt; ` +
+            `text-align: right; padding-right: ${geo.sidenote.gap}mm; ` +
+            `font-size: ${numPt}pt; line-height: 1; }`
+          );
         })()
       : '';
   // Running apparatus (step 6): when the style carries the resolved composition,
