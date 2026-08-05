@@ -80,18 +80,22 @@ describe('compiled style → markpage (operational load path)', () => {
     expect(capsCss(s.styles.h1)).toContain('letter-spacing: 0.04em;');
   });
 
-  it('fills missing / partial elements from the defaults (robust load)', () => {
-    // A style that specifies only h1.rule and nothing else must still load
-    // without dropping the other elements the render indexes unguarded.
-    const partial = { ...compiled, styles: { h1: { rule: { position: 'below' } } } };
+  it('takes provided elements verbatim (no default-attr leak) and defaults absent ones', () => {
+    // h2 exactly as the editor emits it — no `underline`. The DEFAULT h2 carries
+    // underline:true; it must NOT leak in (that would draw a filet the style
+    // never asked for). Elements the style omits fall back to full defaults.
+    const partial = {
+      ...compiled,
+      styles: { h2: { color: '#48658a', fontSize: 23, weight: 600, align: 'left' } },
+    };
     const loaded = applyFundamentalStyle(DEFAULT_SETTINGS, partial);
-    // an element absent from the style falls back to a full default
+    // an element absent from the style stays present via its full default
     expect(loaded.styles['running-content'].fontSize).toBe(
       DEFAULT_SETTINGS.styles['running-content'].fontSize,
     );
-    // a partial element keeps default attrs + the provided one
-    expect(loaded.styles.h1.fontSize).toBe(DEFAULT_SETTINGS.styles.h1.fontSize);
-    expect(loaded.styles.h1.rule?.position).toBe('below');
+    // the default underline:true does NOT leak onto the provided h2
+    expect(loaded.styles.h2.underline).toBeUndefined();
+    expect(filetCss(loaded.styles.h2)).toBe('');
   });
 
   it('round-trips through the export file (serialize → parseStyleFile → apply)', () => {

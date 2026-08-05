@@ -1118,16 +1118,17 @@ export function applyFundamentalStyle(
   // (no cover) would keep the navy cover, with a washed-out title on top.
   for (const k of FUNDAMENTAL_STYLE_KEYS) {
     if (k === 'styles') {
-      // A style may specify only a SUBSET of elements (and only some attrs on
-      // each). Merge over the full defaults so every ElementKey stays present —
-      // the render indexes `styles['running-content'].family` etc. unguarded —
-      // and unspecified attrs fall back rather than vanish.
-      const provided = (fs.styles ?? {}) as Record<string, Style>;
-      const merged: Record<string, Style> = { ...DEFAULT_SETTINGS.styles };
-      for (const el of Object.keys(provided)) {
-        merged[el] = { ...(merged[el] ?? {}), ...provided[el] };
-      }
-      out.styles = merged;
+      // Element-level merge: a provided element REPLACES the default wholesale,
+      // so a style's element is taken exactly as authored — no default attr
+      // (e.g. the legacy `underline: true` on h2/h3) leaks onto it. Elements the
+      // style omits fall back to their FULL default so every ElementKey stays
+      // present (the render indexes `styles['running-content'].family` unguarded).
+      // The render already defaults absent per-element attrs (weight ?? 500,
+      // margin ?? …); a compiled style always carries at least colour + size.
+      out.styles = {
+        ...DEFAULT_SETTINGS.styles,
+        ...((fs.styles ?? {}) as Record<string, Style>),
+      };
       continue;
     }
     if (fs[k] !== undefined) out[k] = fs[k];
