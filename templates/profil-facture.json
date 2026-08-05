@@ -3,15 +3,31 @@
   "name": "Facture",
   "settings": {
     "pageSize": "A4",
-    "margins": { "top": 25, "bottom": 25, "left": 25, "right": 25 },
+    "margins": {
+      "top": 25,
+      "bottom": 25,
+      "left": 25,
+      "right": 25
+    },
     "fonts": {
       "headings": "Source Serif 4",
       "body": "Source Serif 4",
       "code": "Roboto Mono"
     },
-    "author": { "text": "", "show": false, "bold": false },
-    "organization": { "text": "", "show": false, "bold": false },
-    "date": { "mode": "none", "custom": "" },
+    "author": {
+      "text": "",
+      "show": false,
+      "bold": false
+    },
+    "organization": {
+      "text": "",
+      "show": false,
+      "bold": false
+    },
+    "date": {
+      "mode": "none",
+      "custom": ""
+    },
     "styles": {
       "body": {
         "fontSize": 11,
@@ -71,9 +87,19 @@
         "marginAbove": 1.0,
         "marginBelow": 0.3
       },
-      "code-inline": { "fontSize": 10, "color": "#1f2328" },
-      "inline-link": { "color": "#0969da", "underline": true },
-      "metadata": { "fontSize": 11, "color": "#1a1a1a", "align": "center" },
+      "code-inline": {
+        "fontSize": 10,
+        "color": "#1f2328"
+      },
+      "inline-link": {
+        "color": "#0969da",
+        "underline": true
+      },
+      "metadata": {
+        "fontSize": 11,
+        "color": "#1a1a1a",
+        "align": "center"
+      },
       "code-block": {
         "fontSize": 10,
         "color": "#1f2328",
@@ -87,8 +113,12 @@
         "borderColor": "#d0d7de",
         "borderWidth": 3
       },
-      "math-block": { "align": "center" },
-      "mermaid": { "align": "center" },
+      "math-block": {
+        "align": "center"
+      },
+      "mermaid": {
+        "align": "center"
+      },
       "callout": {
         "padding": 0.6,
         "background": "#f6f8fa",
@@ -98,15 +128,27 @@
         "borderRadius": 4
       },
       "table": {},
-      "caption": { "fontSize": 10, "color": "#57606a", "italic": true, "align": "center", "marginAbove": 0.4, "marginBelow": 0.4 },
-      "page-number": { "fontSize": 9, "color": "#57606a", "weight": 400, "italic": false, "underline": false }
+      "caption": {
+        "fontSize": 10,
+        "color": "#57606a",
+        "italic": true,
+        "align": "center",
+        "marginAbove": 0.4,
+        "marginBelow": 0.4
+      },
+      "page-number": {
+        "fontSize": 9,
+        "color": "#57606a",
+        "weight": 400,
+        "italic": false,
+        "underline": false
+      }
     },
-    "pageNumber": { "position": "bottom-center" },
+    "pageNumber": {
+      "position": "bottom-center"
+    },
     "customFonts": [],
     "language": "fr",
-    "mermaidMaxScale": 2,
-    "mermaidMaxWidthPct": 1,
-    "mermaidMaxHeightPct": 0.7,
     "mathScale": 1.0,
     "mathFontSet": "newcm"
   }

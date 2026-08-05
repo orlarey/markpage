@@ -164,9 +164,6 @@
       "mathFontSet": "newcm",
       "language": "fr",
       "customFonts": [],
-      "mermaidMaxScale": 2,
-      "mermaidMaxWidthPct": 1,
-      "mermaidMaxHeightPct": 0.7,
       "pageBackground": "#ffffff"
     }
   },
@@ -335,9 +332,6 @@
       "mathFontSet": "newcm",
       "language": "fr",
       "customFonts": [],
-      "mermaidMaxScale": 2,
-      "mermaidMaxWidthPct": 1,
-      "mermaidMaxHeightPct": 0.7,
       "pageBackground": "#ffffff",
       "coverBackground": "#162138"
     }
@@ -507,9 +501,6 @@
       "mathFontSet": "newcm",
       "language": "fr",
       "customFonts": [],
-      "mermaidMaxScale": 2,
-      "mermaidMaxWidthPct": 1,
-      "mermaidMaxHeightPct": 0.7,
       "pageBackground": "#ffffff"
     }
   },
@@ -678,9 +669,6 @@
       "mathFontSet": "newcm",
       "language": "fr",
       "customFonts": [],
-      "mermaidMaxScale": 2,
-      "mermaidMaxWidthPct": 1,
-      "mermaidMaxHeightPct": 0.7,
       "pageBackground": "#ffffff",
       "coverBackground": "#382516",
       "chapter": {
@@ -853,9 +841,6 @@
       "mathFontSet": "newcm",
       "language": "fr",
       "customFonts": [],
-      "mermaidMaxScale": 2,
-      "mermaidMaxWidthPct": 1,
-      "mermaidMaxHeightPct": 0.7,
       "pageBackground": "#ffffff"
     }
   }

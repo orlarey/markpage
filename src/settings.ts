@@ -396,15 +396,6 @@ export interface PdfSettings {
   // line, the theorem-env names emitted in the preamble, and the
   // Intl format of the "Date du jour" metadata block.
   language: 'fr' | 'en';
-  mermaidMaxScale: number;
-  // Maximum width allowed for a mermaid diagram, as a fraction of the
-  // content (text) width of a page. 1.0 lets the diagram fill the column.
-  mermaidMaxWidthPct: number;
-  // Maximum height allowed for a mermaid diagram, as a fraction of the
-  // content (text) height of a page. Caps tall diagrams so they don't
-  // dominate or exceed a full page, which would otherwise force a page
-  // break before the diagram and leave the previous page half-empty.
-  mermaidMaxHeightPct: number;
   // Multiplicative size factor for MathJax output, relative to the body
   // font-size. 1.0 = MathJax's native size; values below tighten math
   // glyphs against text fonts that run visually larger (e.g. Roboto).
@@ -606,9 +597,6 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   // landing in an `en-*` browser gets English defaults. Existing
   // profiles keep whatever was previously persisted.
   language: 'fr',
-  mermaidMaxScale: 2,
-  mermaidMaxWidthPct: 1,
-  mermaidMaxHeightPct: 0.7,
   mathScale: 1.0,
   mathFontSet: 'newcm',
   // Layout / typography defaults — chosen so opening any pre-§9.6 profile
@@ -686,12 +674,6 @@ export function mergeWithDefaults(input: unknown): PdfSettings {
       ? (obj.customFonts as CustomFont[])
       : d.customFonts,
     language: (obj.language as 'fr' | 'en' | undefined) ?? d.language,
-    mermaidMaxScale:
-      (obj.mermaidMaxScale as number | undefined) ?? d.mermaidMaxScale,
-    mermaidMaxWidthPct:
-      (obj.mermaidMaxWidthPct as number | undefined) ?? d.mermaidMaxWidthPct,
-    mermaidMaxHeightPct:
-      (obj.mermaidMaxHeightPct as number | undefined) ?? d.mermaidMaxHeightPct,
     mathScale: (obj.mathScale as number | undefined) ?? d.mathScale,
     mathFontSet:
       (obj.mathFontSet as MathFontSet | undefined) ?? d.mathFontSet,
@@ -1087,8 +1069,8 @@ export const FUNDAMENTAL_STYLE_KEYS = [
   'pageBackground', 'coverBackground', 'language',
   // NOTE: author / organization / date are DOCUMENT metadata, not style —
   // they live in the doc front-matter, never in a named/exported style.
-  // fonts registry + figure caps
-  'customFonts', 'mermaidMaxScale', 'mermaidMaxWidthPct', 'mermaidMaxHeightPct',
+  // embedded @font-face registry (data-URI faces the style ships with)
+  'customFonts',
 ] as const;
 
 export type FundamentalStyle = Record<string, unknown>;

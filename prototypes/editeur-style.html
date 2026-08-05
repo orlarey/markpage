@@ -984,7 +984,7 @@ const MP_ELEMENT_ORDER=['body','title','h1','h2','h3','h4','code-inline','inline
   'code-block','quote','math-block','mermaid','callout','table','caption','footnote','running-content'];
 const MP_KEY_ORDER=['pageSize','pageGeometry','duplex','chapterBreak','chapter','notes','numbering',
   'header','footer','runningApparatus','fonts','styles','mathScale','mathFontSet','pageBackground',
-  'coverBackground','language','customFonts','mermaidMaxScale','mermaidMaxWidthPct','mermaidMaxHeightPct'];
+  'coverBackground','language','customFonts'];
 function canonicalOrder(obj, order){ const o={};
   for(const k of order) if(obj[k]!==undefined) o[k]=obj[k];
   for(const k of Object.keys(obj)) if(!(k in o)) o[k]=obj[k];   // any extra, appended
@@ -1040,7 +1040,6 @@ function compileStyle(){
     mathFontSet:S.mset, mathScale:S.mscale,
     pageSize:PSIZE[S.pageFormat]||'A4', pageGeometry, duplex:S.duplex,
     chapterBreak:S.chapterBreak, notes:{position:S.notesPos}, language:S.lang, customFonts:[],
-    mermaidMaxScale:2, mermaidMaxWidthPct:1, mermaidMaxHeightPct:0.7,
     pageBackground:colOf('page'),
     ...(S.hasCover ? { coverBackground:colOf('cover') } : {}),
     styles:canonicalOrder(styles, MP_ELEMENT_ORDER),

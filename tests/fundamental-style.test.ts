@@ -41,9 +41,6 @@ const distinctive = (): PdfSettings => {
   s.organization = { text: 'Analytical Engine Co.', show: true, bold: true };
   s.date = { mode: 'custom', custom: '1843' };
   s.customFonts = [{ name: 'Alegreya', url: 'https://fonts.googleapis.com/css2?family=Alegreya' }];
-  s.mermaidMaxScale = 1.4;
-  s.mermaidMaxWidthPct = 0.9;
-  s.mermaidMaxHeightPct = 0.6;
   return s;
 };
 

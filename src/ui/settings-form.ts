@@ -477,44 +477,11 @@ export function buildSettingsForm(
           {
             id: 'content-mermaid',
             label: t('settings.section.mermaid'),
-            build: () => [
-              section(t('settings.section.mermaid'), [
-                numberField(
-                  t('settings.field.mermaid-scale'),
-                  current.mermaidMaxScale,
-                  1,
-                  4,
-                  (v) => {
-                    current.mermaidMaxScale = v;
-                    emit();
-                  },
-                  { step: 0.1 },
-                ),
-                numberField(
-                  t('settings.field.mermaid-width'),
-                  Math.round(current.mermaidMaxWidthPct * 100),
-                  10,
-                  100,
-                  (v) => {
-                    current.mermaidMaxWidthPct = v / 100;
-                    emit();
-                  },
-                  { step: 5 },
-                ),
-                numberField(
-                  t('settings.field.mermaid-height'),
-                  Math.round(current.mermaidMaxHeightPct * 100),
-                  10,
-                  100,
-                  (v) => {
-                    current.mermaidMaxHeightPct = v / 100;
-                    emit();
-                  },
-                  { step: 5 },
-                ),
-              ]),
-              elementStyleSection('mermaid', current, emit),
-            ],
+            // Diagram sizing is fixed by the render (max-width 100% of the text
+            // column, max-height the page's text height); only the mermaid box
+            // STYLE is tunable. The former scale/width/height caps were vestigial
+            // (never read at render) and have been removed from the model.
+            build: () => [elementStyleSection('mermaid', current, emit)],
           },
           {
             id: 'content-callout',

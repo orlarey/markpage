@@ -217,12 +217,21 @@ exception : `styles`, dont l'import **complète** les éléments absents par des
    `style` **byte-à-byte identique** (0 clé ajoutée/retirée).
 4. **Rien de figé côté éditeur** — chaque champ qui est un *vrai choix* est piloté
    par l'état modélisé : `pageGeometry` (instrument géométrie), `language` (sélecteur
-   de langue). Restent deux valeurs assumées comme **défauts structurels documentés**,
-   non figés au sens trompeur : `customFonts: []` est **honnête** (ce style n'embarque
-   aucune fonte — il n'utilise que des familles système), et `mermaidMax*` sont des
-   **garde-fous** de mise à l'échelle des diagrammes surdimensionnés. Aucun n'empêche
-   la bijection ; ils bornent seulement l'expressivité, et pourront être modélisés
-   quand l'embarquement de fontes / le réglage des figures arriveront.
+   fr/en, le seul jeu que markpage consomme). Ne reste qu'une constante, **honnête** :
+   `customFonts: []` — ce style n'embarque aucune fonte (familles système
+   uniquement) ; ce sera un vrai réglage le jour où l'embarquement de fontes existera.
+
+   ::: note [`mermaidMax*` retirés du modèle]
+   Les trois plafonds `mermaidMaxScale/WidthPct/HeightPct` étaient **vestigiaux** :
+   présents dans le modèle et l'ancien formulaire, mais **jamais lus au rendu** (la
+   taille des diagrammes est codée en dur — `max-width: 100%` de la colonne,
+   `max-height` = hauteur de texte de la page). Les exposer aurait créé des **boutons
+   fantômes**. Ils ont donc été **supprimés** de `PdfSettings`,
+   `FUNDAMENTAL_STYLE_KEYS`, des défauts et des styles fournis, plutôt que déguisés en
+   réglages. Un vrai réglage « figures » (dont le débordement en marge d'un diagramme,
+   colonne étroite oblige) reste une **feature à part** : il faudra d'abord **câbler**
+   le rendu, pas seulement ajouter un curseur.
+   :::
 
 ## La table de compilation
 
