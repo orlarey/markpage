@@ -571,17 +571,21 @@ async function bootstrap(): Promise<void> {
   let slideIndex = 0;
   let returnMode: 'editor' | 'preview' = 'editor';
 
-  // Page zoom. Invariant: the FULL page width is always visible — pages render
-  // at r = min(z, W_v / W_p), where z (`previewZoom`) is the user's absolute
-  // zoom (1 = 100% of the natural page width, the default) and the min() caps
-  // it at the pane width so a page never overflows. Default z = 1 reproduces
-  // the old auto-fit (shrink to fit, never upscale past 100%). The user changes
-  // z by dragging a page side edge (see below). Driven by the `--mp-fit-zoom`
+  // Page zoom. Invariant: the FULL page width is always visible — the page never
+  // overflows the pane. DEFAULT is fit-to-width (`previewAutoFit`): the page fills
+  // the pane width, up- or down-scaling as needed. Once the user drags a page side
+  // edge it becomes manual absolute zoom z (`previewZoom`, 1 = 100% natural),
+  // rendered at min(z, W_v / W_p) so it still never overflows; double-click an
+  // edge restores fit-to-width. Driven by the `--mp-fit-zoom`
   // CSS var (applied to `.pagedjs_page` via `zoom`), so the page flow reflows
   // and vertical-scroll / click-to-source stay correct. No-op outside preview
   // and during fullscreen presentation (its own scaling).
   const PREVIEW_FIT_GUTTER = 28; // px breathing room + scrollbar allowance
-  let previewZoom = 1; // z — the user's absolute page zoom
+  let previewZoom = 1; // z — the user's absolute page zoom (once they drag)
+  // Default: FIT TO WIDTH — the page fills the pane width (upscaling on a wide/
+  // fullscreen pane instead of stranding it at 100% in a sea of desk). Dragging a
+  // page edge switches to manual absolute zoom; double-click restores auto-fit.
+  let previewAutoFit = true;
   const previewFillFactor = (natural: number): number =>
     (previewEl.clientWidth - PREVIEW_FIT_GUTTER) / natural; // W_v / W_p
   const fitPreviewWidth = (): void => {
@@ -594,9 +598,12 @@ async function bootstrap(): Promise<void> {
     previewEl.style.setProperty('--mp-fit-zoom', '1'); // reset to read natural width
     const natural = firstPage.getBoundingClientRect().width;
     if (natural === 0) return;
+    const fill = previewFillFactor(natural);
+    // auto-fit → fill the pane; manual → the user's zoom, capped so it never
+    // overflows the pane (the full page width stays visible).
     previewEl.style.setProperty(
       '--mp-fit-zoom',
-      String(Math.min(previewZoom, previewFillFactor(natural))),
+      String(previewAutoFit ? fill : Math.min(previewZoom, fill)),
     );
   };
 
@@ -643,6 +650,7 @@ async function bootstrap(): Promise<void> {
     previewAnchorGrab = previewAnchorEl
       ? e.clientY - previewAnchorEl.getBoundingClientRect().top
       : 0;
+    previewAutoFit = false; // dragging switches to manual absolute zoom
     previewDragging = true;
     previewEl.style.cursor = 'ew-resize';
     e.preventDefault();
@@ -669,7 +677,7 @@ async function bootstrap(): Promise<void> {
   });
   previewEl.addEventListener('dblclick', (e) => {
     if (!nearPreviewEdge(e.clientX, e.clientY)) return;
-    previewZoom = 1;
+    previewAutoFit = true; // restore fit-to-width
     fitPreviewWidth();
   });
   // Don't let an edge click fall through to the click-to-source handler.
