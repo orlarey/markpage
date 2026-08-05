@@ -240,7 +240,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }
     #preview-pane h5,
     #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${headingMargin(s.h4)} }
-    ${headingNumberCss(settings.numbering, 'none', s, '#preview-pane')}
+    ${headingNumberCss(settings.numbering, 'none', '#preview-pane', settings.pageGeometry?.sidenote?.gap ?? 3)}
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
