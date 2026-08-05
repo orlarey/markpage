@@ -10,7 +10,7 @@
  *******************************************************************************/
 
 import type { PdfSettings, Style } from './settings';
-import { blockBoxCss, capsCss, filetCss, inlineCss } from './style-emit';
+import { blockBoxCss, capsCss, filetCss, headingNumberCss, inlineCss } from './style-emit';
 import {
   quoteFontFamily,
   fontFamilyStack,
@@ -137,6 +137,7 @@ export async function paginateWithVivliostyle(
   // measure runs ~16% wide and every derived margin shrinks. Wait for the real
   // fonts BEFORE pagedCss() measures (the paged.js pipeline did this too).
   await ensureSettingsFontsLoaded(settings);
+  if (settings.numbering?.on) wrapHeadingNumbers(source);
   linkTocPlus(source);
   markChapterNumerals(source, settings);
   markConsecutiveParagraphs(source);
@@ -803,6 +804,35 @@ function leadingSectionNumber(text: string): string {
 }
 
 /**
+ * Purpose: Wrap each heading's leading number in a `<span class="heading-num">`
+ *   so it can be hung in a gutter (see headingNumberCss). Post-parse DOM pass —
+ *   markdown escapes inline HTML in headings, so the number can't be wrapped in
+ *   the source. Runs BEFORE markChapterNumerals, which promotes the span to the
+ *   big `.chapter-num` on chapter-opening h1s.
+ * How: On every heading except the cover title, split the leading number out of
+ *   the first text node into the span, keeping a literal space for a readable
+ *   textContent ("1 Intro").
+ */
+export function wrapHeadingNumbers(root: HTMLElement): void {
+  root
+    .querySelectorAll<HTMLElement>('h1:not(.doc-title), h2, h3, h4, h5, h6')
+    .forEach((h) => {
+      if (h.querySelector('.heading-num, .chapter-num')) return; // idempotent
+      const first = h.firstChild;
+      if (first == null || first.nodeType !== 3 /* text */) return;
+      const m = /^\s*(\d+(?:\.\d+)*)\.?\s+/.exec(first.textContent ?? '');
+      if (m == null) return;
+      first.textContent = (first.textContent ?? '').slice(m[0].length);
+      const doc = h.ownerDocument;
+      const span = doc.createElement('span');
+      span.className = 'heading-num';
+      span.textContent = m[1] ?? '';
+      h.insertBefore(doc.createTextNode(' '), h.firstChild);
+      h.insertBefore(span, h.firstChild);
+    });
+}
+
+/**
  * Purpose: Turn each chapter's inline h1 number into the big opening numeral
  *   (4c-2). Only when chapters get their own page (`chapterBreak`) AND numbering
  *   is on — every such h1 IS a chapter opening.
@@ -821,16 +851,15 @@ export function markChapterNumerals(
     .querySelectorAll<HTMLElement>('h1:not(.doc-title)')
     .forEach((h) => {
       if (h.querySelector('.chapter-num')) return; // idempotent
-      const first = h.firstChild;
-      if (first == null || first.nodeType !== 3 /* text */) return;
-      const m = /^\s*(\d+(?:\.\d+)*)\.?\s+/.exec(first.textContent ?? '');
-      if (m == null) return;
-      first.textContent = (first.textContent ?? '').slice(m[0].length);
-      const span = h.ownerDocument.createElement('span');
+      // The number is already wrapped in `.heading-num` by numberForRender —
+      // promote it to the big opening numeral instead of hanging it.
+      const span = h.querySelector<HTMLElement>('.heading-num');
+      if (span == null) return;
+      const num = (span.textContent ?? '').trim();
+      if (num === '') return;
       span.className = 'chapter-num';
       span.textContent =
-        n.chapterFormat === 'chapter' ? `Chapitre ${m[1]}` : (m[1] ?? '');
-      h.insertBefore(span, h.firstChild);
+        n.chapterFormat === 'chapter' ? `Chapitre ${num}` : num;
     });
 }
 
@@ -1192,6 +1221,7 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} ${pagedHeadingMargin(styles.h2)} }
     ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} ${pagedHeadingMargin(styles.h3)} }
     ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} ${pagedHeadingMargin(styles.h4)} }
+    ${headingNumberCss(s.numbering, s.chapterBreak, styles.h1.color, SCOPE)}
     /* First heading on the page should never push the body content
        down — paged.js doesn't trim leading margins itself. */
     ${SCOPE} > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }

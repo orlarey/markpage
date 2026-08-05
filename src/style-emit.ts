@@ -11,7 +11,7 @@
  *******************************************************************************/
 
 import { quoteFontFamily } from './font-loader';
-import type { Style } from './settings';
+import type { HeadingNumbering, Style } from './settings';
 
 /**
  * Purpose: Emit the inline-text declarations of `s`: font, color, weight,
@@ -104,4 +104,38 @@ export function blockBoxCss(s: Style): string {
     if (s.borderLeft) parts.push(`border-left: ${decl};`);
   }
   return parts.join(' ');
+}
+
+/**
+ * Purpose: Emit the CSS for HANGING, aligned heading numbers. The render wraps
+ *   each heading number in `<span class="heading-num">` (see numbering.ts); this
+ *   pulls it into a left gutter so the titles align in a clean column, with
+ *   tabular figures and a single readable accent colour across levels — instead
+ *   of the number blending into the words in the level's (often light) tint.
+ * How: A per-level `padding-left` opens the gutter; the span's negative margin +
+ *   `min-width` fills it. When chapters open a page, h1 is EXCLUDED — its number
+ *   becomes the big `.chapter-num` opening numeral instead of a hanging one.
+ */
+export function headingNumberCss(
+  numbering: HeadingNumbering | undefined,
+  chapterBreak: string,
+  h1Color: string | undefined,
+  scope: string,
+): string {
+  if (!numbering || !numbering.on) return '';
+  const depth = Math.max(1, Math.min(6, numbering.depth));
+  const gutter = `${(depth * 1.1 + 0.7).toFixed(1)}em`;
+  const accent = h1Color ?? '#30588a';
+  const levels = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].slice(0, depth);
+  // A chapter-opening h1 gets the big numeral, not a hanging one.
+  const hang = chapterBreak !== 'none' ? levels.filter((h) => h !== 'h1') : levels;
+  const padSel = hang.map((h) => `${scope} ${h}:not(.doc-title)`).join(', ');
+  const pad = padSel ? `${padSel} { padding-left: ${gutter}; }\n` : '';
+  return (
+    `${pad}` +
+    `${scope} :is(h1, h2, h3, h4, h5, h6) .heading-num { ` +
+    `display: inline-block; min-width: ${gutter}; margin-left: -${gutter}; ` +
+    `font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; ` +
+    `letter-spacing: 0; text-transform: none; color: ${accent}; }`
+  );
 }

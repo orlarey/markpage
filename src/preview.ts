@@ -16,7 +16,8 @@ import {
 } from './settings';
 import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
 import { numberForRender } from './numbering';
-import { blockBoxCss, capsCss, filetCss, inlineCss } from './style-emit';
+import { wrapHeadingNumbers } from './preview-paginated';
+import { blockBoxCss, capsCss, filetCss, headingNumberCss, inlineCss } from './style-emit';
 import { quoteFontFamily, fontFamilyStack } from './font-loader';
 
 /**
@@ -92,6 +93,8 @@ export function renderPreview(
     );
     if (first) first.classList.add('doc-title');
   }
+  // Hang the heading numbers (after .doc-title is tagged, which the wrap skips).
+  if (numbering?.on) wrapHeadingNumbers(target);
 }
 
 /**
@@ -237,6 +240,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }
     #preview-pane h5,
     #preview-pane h6 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${headingMargin(s.h4)} }
+    ${headingNumberCss(settings.numbering, 'none', s.h1.color, '#preview-pane')}
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }

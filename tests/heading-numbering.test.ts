@@ -5,7 +5,11 @@ import {
   renderNumberingDocStyle,
 } from '../src/numbering';
 import { renderPreview } from '../src/preview';
-import { linkTocPlus, markChapterNumerals } from '../src/preview-paginated';
+import {
+  linkTocPlus,
+  markChapterNumerals,
+  wrapHeadingNumbers,
+} from '../src/preview-paginated';
 import type { PdfSettings } from '../src/settings';
 
 const chapSettings = (over: Record<string, unknown> = {}): PdfSettings =>
@@ -20,6 +24,9 @@ const h1Root = (html: string): HTMLElement => {
   root.innerHTML = html;
   return root;
 };
+
+// The render wraps each number in a `.heading-num` span (numberForRender).
+const num = (n: string): string => `<span class="heading-num">${n}</span>`;
 
 const DOC = ['# Intro', '## Background', '## Method', '# Results', '## Data'].join(
   '\n',
@@ -130,19 +137,44 @@ describe('linkTocPlus — TOC number display (4c-1)', () => {
   });
 });
 
+describe('wrapHeadingNumbers — hang the number in a span', () => {
+  it('wraps the leading number of each heading, keeping a readable textContent', () => {
+    const root = h1Root('<h1>1 Intro</h1><h2>1.1 Objet</h2>');
+    wrapHeadingNumbers(root);
+    expect(root.querySelector('h1 .heading-num')?.textContent).toBe('1');
+    expect(root.querySelector('h2 .heading-num')?.textContent).toBe('1.1');
+    expect(root.querySelector('h1')?.textContent).toBe('1 Intro');
+    expect(root.querySelector('h2')?.textContent).toBe('1.1 Objet');
+  });
+
+  it('skips the cover doc-title and unnumbered headings', () => {
+    const root = h1Root('<h1 class="doc-title">1 My Doc</h1><h2>Sans numéro</h2>');
+    wrapHeadingNumbers(root);
+    expect(root.querySelector('.heading-num')).toBeNull();
+  });
+
+  it('is idempotent', () => {
+    const root = h1Root('<h2>2.3 Foo</h2>');
+    wrapHeadingNumbers(root);
+    wrapHeadingNumbers(root);
+    expect(root.querySelectorAll('.heading-num')).toHaveLength(1);
+  });
+});
+
 describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
-  it('moves the h1 number into a .chapter-num span (numeric)', () => {
-    const root = h1Root('<h1>1 Le pli comme unité</h1>');
+  it('promotes the h1 .heading-num into a .chapter-num span (numeric)', () => {
+    const root = h1Root(`<h1>${num('1')} Le pli comme unité</h1>`);
     markChapterNumerals(root, chapSettings());
     const h1 = root.querySelector('h1')!;
     expect(h1.querySelector('.chapter-num')?.textContent).toBe('1');
-    expect(h1.querySelector('.chapter-num')?.nextSibling?.textContent).toBe(
+    expect(h1.querySelector('.heading-num')).toBeNull(); // promoted, not duplicated
+    expect(h1.querySelector('.chapter-num')?.nextSibling?.textContent?.trim()).toBe(
       'Le pli comme unité',
     );
   });
 
   it('spells "Chapitre N" with chapterFormat: chapter', () => {
-    const root = h1Root('<h1>2 Résultats</h1>');
+    const root = h1Root(`<h1>${num('2')} Résultats</h1>`);
     markChapterNumerals(
       root,
       chapSettings({ numbering: { on: true, depth: 1, chapterFormat: 'chapter' } }),
@@ -151,27 +183,27 @@ describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
   });
 
   it('does nothing without chapterBreak, or with numbering off', () => {
-    const a = h1Root('<h1>1 Intro</h1>');
+    const a = h1Root(`<h1>${num('1')} Intro</h1>`);
     markChapterNumerals(a, chapSettings({ chapterBreak: 'none' }));
     expect(a.querySelector('.chapter-num')).toBeNull();
-    const b = h1Root('<h1>1 Intro</h1>');
+    const b = h1Root(`<h1>${num('1')} Intro</h1>`);
     markChapterNumerals(b, chapSettings({ numbering: { on: false, depth: 1 } }));
     expect(b.querySelector('.chapter-num')).toBeNull();
   });
 
   it('leaves the cover doc-title alone and preserves inline markup', () => {
-    const cover = h1Root('<h1 class="doc-title">1 My Doc</h1>');
+    const cover = h1Root(`<h1 class="doc-title">${num('1')} My Doc</h1>`);
     markChapterNumerals(cover, chapSettings());
     expect(cover.querySelector('.chapter-num')).toBeNull();
 
-    const marked = h1Root('<h1>3 Le <code>fold</code></h1>');
+    const marked = h1Root(`<h1>${num('3')} Le <code>fold</code></h1>`);
     markChapterNumerals(marked, chapSettings());
     expect(marked.querySelector('.chapter-num')?.textContent).toBe('3');
     expect(marked.querySelector('code')?.textContent).toBe('fold');
   });
 
   it('is idempotent', () => {
-    const root = h1Root('<h1>1 Intro</h1>');
+    const root = h1Root(`<h1>${num('1')} Intro</h1>`);
     markChapterNumerals(root, chapSettings());
     markChapterNumerals(root, chapSettings());
     expect(root.querySelectorAll('.chapter-num')).toHaveLength(1);
