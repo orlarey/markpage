@@ -108,24 +108,33 @@ export function blockBoxCss(s: Style): string {
 
 /**
  * Purpose: Emit the CSS for HANGING, aligned heading numbers. The render wraps
- *   each heading number in `<span class="heading-num">` (see numbering.ts); this
- *   pulls it into a left gutter so the titles align in a clean column, with
- *   tabular figures and a single readable accent colour across levels — instead
- *   of the number blending into the words in the level's (often light) tint.
- * How: A per-level `padding-left` opens the gutter; the span's negative margin +
- *   `min-width` fills it. When chapters open a page, h1 is EXCLUDED — its number
- *   becomes the big `.chapter-num` opening numeral instead of a hanging one.
+ *   each heading number in `<span class="heading-num">` (see wrapHeadingNumbers);
+ *   this pulls it into a left gutter so the titles line up in one column and
+ *   wrapped lines align under the title. The number keeps its heading's colour.
+ * How: A FIXED-width gutter (pt, not em) so every numbered level's title starts
+ *   at the SAME x regardless of the per-level font-size; the gutter is sized to
+ *   the widest number across the numbered levels. The span's negative margin +
+ *   `min-width` fills it (the trailing gap lives INSIDE the box, so it never
+ *   pushes the title out of alignment). A chapter-opening h1 is EXCLUDED — its
+ *   number becomes the big `.chapter-num` opening numeral instead.
  */
 export function headingNumberCss(
   numbering: HeadingNumbering | undefined,
   chapterBreak: string,
-  h1Color: string | undefined,
+  styles: Record<string, Style>,
   scope: string,
 ): string {
   if (!numbering || !numbering.on) return '';
   const depth = Math.max(1, Math.min(6, numbering.depth));
-  const gutter = `${(depth * 1.1 + 0.7).toFixed(1)}em`;
-  const accent = h1Color ?? '#30588a';
+  // Widest number, in pt: level L shows L tabular digits + (L-1) dots, in that
+  // level's font-size. Take the max across numbered levels; add a gap.
+  let widest = 0;
+  for (let L = 1; L <= depth; L += 1) {
+    const fs = styles[`h${Math.min(L, 4)}`]?.fontSize ?? 16;
+    widest = Math.max(widest, fs * (L * 0.55 + (L - 1) * 0.3));
+  }
+  const gap = (styles.body?.fontSize ?? 11) * 0.9;
+  const gutter = `${Math.round((widest + gap) * 10) / 10}pt`;
   const levels = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].slice(0, depth);
   // A chapter-opening h1 gets the big numeral, not a hanging one.
   const hang = chapterBreak !== 'none' ? levels.filter((h) => h !== 'h1') : levels;
@@ -136,6 +145,6 @@ export function headingNumberCss(
     `${scope} :is(h1, h2, h3, h4, h5, h6) .heading-num { ` +
     `display: inline-block; min-width: ${gutter}; margin-left: -${gutter}; ` +
     `font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; ` +
-    `letter-spacing: 0; text-transform: none; color: ${accent}; }`
+    `letter-spacing: 0; text-transform: none; }` // colour inherits the heading
   );
 }

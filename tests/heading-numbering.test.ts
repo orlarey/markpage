@@ -141,8 +141,9 @@ describe('wrapHeadingNumbers — hang the number in a span', () => {
   it('wraps the leading number of each heading, keeping a readable textContent', () => {
     const root = h1Root('<h1>1 Intro</h1><h2>1.1 Objet</h2>');
     wrapHeadingNumbers(root);
-    expect(root.querySelector('h1 .heading-num')?.textContent).toBe('1');
-    expect(root.querySelector('h2 .heading-num')?.textContent).toBe('1.1');
+    // the trailing gap lives inside the span (fixed-gutter alignment)
+    expect(root.querySelector('h1 .heading-num')?.textContent).toBe('1 ');
+    expect(root.querySelector('h2 .heading-num')?.textContent).toBe('1.1 ');
     expect(root.querySelector('h1')?.textContent).toBe('1 Intro');
     expect(root.querySelector('h2')?.textContent).toBe('1.1 Objet');
   });

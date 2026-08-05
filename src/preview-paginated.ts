@@ -826,8 +826,9 @@ export function wrapHeadingNumbers(root: HTMLElement): void {
       const doc = h.ownerDocument;
       const span = doc.createElement('span');
       span.className = 'heading-num';
-      span.textContent = m[1] ?? '';
-      h.insertBefore(doc.createTextNode(' '), h.firstChild);
+      // Trailing space lives INSIDE the span (its box is a fixed gutter), so the
+      // title still starts at the gutter edge — and textContent stays "1 Title".
+      span.textContent = `${m[1] ?? ''} `;
       h.insertBefore(span, h.firstChild);
     });
 }
@@ -1221,7 +1222,7 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} ${pagedHeadingMargin(styles.h2)} }
     ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} ${pagedHeadingMargin(styles.h3)} }
     ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} ${pagedHeadingMargin(styles.h4)} }
-    ${headingNumberCss(s.numbering, s.chapterBreak, styles.h1.color, SCOPE)}
+    ${headingNumberCss(s.numbering, s.chapterBreak, styles, SCOPE)}
     /* First heading on the page should never push the body content
        down — paged.js doesn't trim leading margins itself. */
     ${SCOPE} > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
