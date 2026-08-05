@@ -128,9 +128,9 @@ export function headingNumberCss(
   const gap = `${Math.round(Math.max(0, gapMm) * 10) / 10}mm`;
   const levels = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].slice(0, depth);
   // The heading is the positioned ancestor for its absolute number. A chapter-
-  // opening h1 is excluded ONLY when it carries the big numeral (chapterStyle
-  // 'numeral'); in 'marginal' mode it hangs in the margin like the others.
-  const bigNumeral = chapterBreak !== 'none' && numbering.chapterStyle !== 'marginal';
+  // opening h1 is excluded ONLY when it opts into the big numeral (chapterStyle
+  // 'numeral'); by default it hangs in the margin like the others.
+  const bigNumeral = chapterBreak !== 'none' && numbering.chapterStyle === 'numeral';
   const rel = bigNumeral ? levels.filter((h) => h !== 'h1') : levels;
   const relSel = rel.map((h) => `${scope} ${h}:not(.doc-title)`).join(', ');
   const pos = relSel ? `${relSel} { position: relative; }\n` : '';

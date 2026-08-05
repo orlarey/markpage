@@ -15,7 +15,8 @@ import type { PdfSettings } from '../src/settings';
 const chapSettings = (over: Record<string, unknown> = {}): PdfSettings =>
   ({
     chapterBreak: 'next-page',
-    numbering: { on: true, depth: 1 },
+    // the big opening numeral is now the explicit opt-in (default is marginal)
+    numbering: { on: true, depth: 1, chapterStyle: 'numeral' },
     ...over,
   }) as unknown as PdfSettings;
 
@@ -178,7 +179,9 @@ describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
     const root = h1Root(`<h1>${num('2')} Résultats</h1>`);
     markChapterNumerals(
       root,
-      chapSettings({ numbering: { on: true, depth: 1, chapterFormat: 'chapter' } }),
+      chapSettings({
+        numbering: { on: true, depth: 1, chapterFormat: 'chapter', chapterStyle: 'numeral' },
+      }),
     );
     expect(root.querySelector('.chapter-num')?.textContent).toBe('Chapitre 2 ');
   });

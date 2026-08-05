@@ -848,9 +848,10 @@ export function markChapterNumerals(
 ): void {
   const n = settings.numbering;
   if (!n || !n.on || settings.chapterBreak === 'none') return;
-  // 'marginal' keeps the chapter number in the left margin (headingNumberCss) like
-  // the other headings — no big opening numeral, so don't promote.
-  if (n.chapterStyle === 'marginal') return;
+  // Default is 'marginal' — the chapter number stays in the left margin
+  // (headingNumberCss) like the other headings. Only the explicit 'numeral' opt-in
+  // promotes it to the big opening numeral.
+  if (n.chapterStyle !== 'numeral') return;
   root
     .querySelectorAll<HTMLElement>('h1:not(.doc-title)')
     .forEach((h) => {
