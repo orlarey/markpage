@@ -222,7 +222,7 @@ const S = {
   // Local exception: the chapter-opening numeral has its own format (chapter facet lives in Polices).
   numbering:{on:true, depth:2, chapter:{format:'numeric'}},
   // PAGES
-  pageFormat:'A4', landscape:false, duplex:false, hasCover:true, chapterBreak:'none', geo:null,
+  pageFormat:'A4', landscape:false, duplex:false, hasCover:true, chapterBreak:'none', notesPos:'foot', geo:null,
   pgLayers:{diag:true,bands:true,notes:true,title:true},
   // APPAREIL — running-material composition, per band × parity × logical zone.
   // Position mirrors automatically (inner=spine, outer=edge); only content may differ verso/recto.
@@ -657,7 +657,12 @@ function pagesPanel(){ return `
     <option value="none" ${S.chapterBreak==='none'?'selected':''}>au fil du texte</option>
     <option value="next-page" ${S.chapterBreak==='next-page'?'selected':''}>chaque H1 sur une nouvelle page</option>
     <option value="next-recto" ${S.chapterBreak==='next-recto'?'selected':''}>chaque H1 sur un recto</option></select></div>
-  <p class="sub" style="margin:.2rem 0 0">Le grand numéral de chapitre (facette Polices) n'apparaît que si les chapitres ouvrent une page.</p>
+  <p class="sub" style="margin:.2rem 0 .5rem">Le grand numéral de chapitre (facette Polices) n'apparaît que si les chapitres ouvrent une page.</p>
+  <div class="field">Notes <select id="pgNotes">
+    <option value="foot" ${S.notesPos==='foot'?'selected':''}>en pied de page</option>
+    <option value="side" ${S.notesPos==='side'?'selected':''}>en marge (Tufte)</option>
+    <option value="end" ${S.notesPos==='end'?'selected':''}>en fin de document</option></select></div>
+  <p class="sub" style="margin:.2rem 0 0">« En marge » suppose des marges dérivées (canon) assez larges.</p>
   <h2>Calques</h2>
   <label class="fam"><input type="checkbox" id="lgDiag" ${S.pgLayers.diag?'checked':''}> Diagonales du canon</label>
   <label class="fam"><input type="checkbox" id="lgBands" ${S.pgLayers.bands?'checked':''}> Bandes en-tête / pied</label>
@@ -676,6 +681,7 @@ function wirePages(){
   document.getElementById('pgDuplex').onchange=(e)=>{S.duplex=e.target.checked; renderArtefact();};
   document.getElementById('pgCover').onchange=(e)=>{S.hasCover=e.target.checked; renderArtefact();};
   document.getElementById('pgChap').onchange=(e)=>{S.chapterBreak=e.target.value; renderArtefact();};
+  document.getElementById('pgNotes').onchange=(e)=>{S.notesPos=e.target.value; renderArtefact();};
   document.getElementById('resetCanon').onclick=()=>{S.geo=canon1_9();repaintPages();};
 }
 
@@ -989,7 +995,7 @@ function compileStyle(){
     fonts:{headings:S.fam.head, body:S.fam.body, code:S.fam.code},
     mathFontSet:S.mset, mathScale:S.mscale,
     pageSize:PSIZE[S.pageFormat]||'A4', duplex:S.duplex,
-    chapterBreak:S.chapterBreak, notes:{position:'foot'}, language:'fr', customFonts:[],
+    chapterBreak:S.chapterBreak, notes:{position:S.notesPos}, language:'fr', customFonts:[],
     mermaidMaxScale:2, mermaidMaxWidthPct:1, mermaidMaxHeightPct:0.7,
     pageBackground:colOf('page'),
     ...(S.hasCover ? { coverBackground:colOf('cover') } : {}),
