@@ -30,6 +30,9 @@
       },
       "duplex": false,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 43.6
+      },
       "notes": {
         "position": "foot"
       },
@@ -37,7 +40,8 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 65.5
+        "chapterNumeralPt": 65.5,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -215,6 +219,9 @@
       },
       "duplex": false,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 41
+      },
       "notes": {
         "position": "foot"
       },
@@ -222,7 +229,8 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 65.5
+        "chapterNumeralPt": 65.5,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -400,6 +408,9 @@
       },
       "duplex": false,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 43.6
+      },
       "notes": {
         "position": "foot"
       },
@@ -407,7 +418,8 @@
         "on": false,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 89.5
+        "chapterNumeralPt": 89.5,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -581,6 +593,9 @@
       },
       "duplex": false,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 41
+      },
       "notes": {
         "position": "foot"
       },
@@ -588,7 +603,8 @@
         "on": false,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 89.5
+        "chapterNumeralPt": 89.5,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -762,6 +778,9 @@
       },
       "duplex": true,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 43.6
+      },
       "notes": {
         "position": "foot"
       },
@@ -769,7 +788,8 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 54
+        "chapterNumeralPt": 54,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -952,6 +972,9 @@
       },
       "duplex": true,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 41
+      },
       "notes": {
         "position": "foot"
       },
@@ -959,7 +982,8 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 54
+        "chapterNumeralPt": 54,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -1142,6 +1166,9 @@
       },
       "duplex": true,
       "chapterBreak": "next-recto",
+      "chapter": {
+        "drop": 43.6
+      },
       "notes": {
         "position": "foot"
       },
@@ -1149,7 +1176,8 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 79.5
+        "chapterNumeralPt": 79.5,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -1332,6 +1360,9 @@
       },
       "duplex": true,
       "chapterBreak": "next-recto",
+      "chapter": {
+        "drop": 41
+      },
       "notes": {
         "position": "foot"
       },
@@ -1339,7 +1370,8 @@
         "on": true,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 79.5
+        "chapterNumeralPt": 79.5,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {
@@ -1522,6 +1554,9 @@
       },
       "duplex": false,
       "chapterBreak": "none",
+      "chapter": {
+        "drop": 24.5
+      },
       "notes": {
         "position": "foot"
       },
@@ -1529,7 +1564,8 @@
         "on": false,
         "depth": 2,
         "chapterFormat": "numeric",
-        "chapterNumeralPt": 54
+        "chapterNumeralPt": 54,
+        "chapterStyle": "marginal"
       },
       "runningApparatus": {
         "header": {

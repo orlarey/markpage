@@ -359,6 +359,10 @@ export interface HeadingNumbering {
   depth: number; // levels numbered, 1 = h1 only (inline compact 1, 1.1, 1.1.1…)
   chapterFormat?: 'numeric' | 'chapter'; // chapter-opening numeral (rendered apart)
   chapterNumeralPt?: number; // big chapter-opening numeral size (pt); default 2.4em of h1
+  // How a chapter-opening h1's number is shown: 'numeral' (default) = the big
+  // opening numeral above the title; 'marginal' = in the left margin like the
+  // other heading numbers (no big numeral).
+  chapterStyle?: 'numeral' | 'marginal';
 }
 
 /**

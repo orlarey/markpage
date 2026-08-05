@@ -1047,10 +1047,15 @@ function compileStyle(){
     mathFontSet:S.mset, mathScale:S.mscale,
     pageSize:PSIZE[S.pageFormat]||'A4', pageGeometry, duplex:S.duplex,
     chapterBreak:S.chapterBreak, notes:{position:S.notesPos}, customFonts:[],
+    // chapter opening "drop": the title line sinks (titleY − textTop) below the
+    // text-block top (the classic book sink), from the geometry instrument.
+    chapter:{ drop: Math.round(Math.max(0, S.geo.titleY - S.geo.textTop)*10)/10 },
     pageBackground:colOf('page'),
     ...(S.hasCover ? { coverBackground:colOf('cover') } : {}),
     styles:canonicalOrder(styles, MP_ELEMENT_ORDER),
-    numbering:{on:S.numbering.on, depth:S.numbering.depth, chapterFormat:S.numbering.chapter.format, chapterNumeralPt:sizePt(S.steps['chapter-number'])},
+    // chapterStyle 'marginal' → the chapter number hangs in the margin like the
+    // section numbers (no big opening numeral), matching the marginal aesthetic.
+    numbering:{on:S.numbering.on, depth:S.numbering.depth, chapterFormat:S.numbering.chapter.format, chapterNumeralPt:sizePt(S.steps['chapter-number']), chapterStyle:'marginal'},
     runningApparatus:{header:band(S.running.header), footer:band(S.running.footer)},
   };
   // canonical key order = markpage's serialize order → a byte-identical fixed point

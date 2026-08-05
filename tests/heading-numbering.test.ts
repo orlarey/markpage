@@ -209,4 +209,14 @@ describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
     markChapterNumerals(root, chapSettings());
     expect(root.querySelectorAll('.chapter-num')).toHaveLength(1);
   });
+
+  it('does NOT promote in chapterStyle: marginal (number stays in the margin)', () => {
+    const root = h1Root(`<h1>${num('5')} The session memory model</h1>`);
+    markChapterNumerals(
+      root,
+      chapSettings({ numbering: { on: true, depth: 1, chapterStyle: 'marginal' } }),
+    );
+    expect(root.querySelector('.chapter-num')).toBeNull();
+    expect(root.querySelector('.heading-num')?.textContent).toBe('5'); // untouched
+  });
 });
