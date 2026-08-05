@@ -538,7 +538,11 @@ function renderLadder(){
 }
 function attachRungDrag(row,key){
   row.addEventListener('pointerdown',(e)=>{e.preventDefault();row.classList.add('drag');const y0=e.clientY,s0=S.steps[key];
-    const move=(ev)=>{const d=(y0-ev.clientY)/46;S.steps[key]=Math.max(-2,Math.min(9,Math.round((s0+d)*2)/2));repaintTypo();};
+    // N° CHAP is a display numeral that may need to be much larger than a heading,
+    // so it gets extra headroom (still bounded — the scale is exponential); the
+    // other rungs keep the tighter ceiling.
+    const hi=key==='chapter-number'?18:9;
+    const move=(ev)=>{const d=(y0-ev.clientY)/46;S.steps[key]=Math.max(-2,Math.min(hi,Math.round((s0+d)*2)/2));repaintTypo();};
     const up=()=>{row.classList.remove('drag');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);});
 }
