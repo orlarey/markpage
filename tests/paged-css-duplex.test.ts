@@ -156,10 +156,26 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     expect(css).not.toContain(`margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`);
   });
 
-  it('mirrors inner/outer on @page :right / :left in duplex (vertical stays text-block)', () => {
+  it('folds the gutter into the mirrored @page margins in duplex (notes ≠ side)', () => {
+    // The live-area gutter carries no content without margin notes, and the single
+    // Vivliostyle flow body can't mirror per parity — so the gutter is folded into
+    // the @page margin (text-block inner/outer, mirrored) and NO body padding is
+    // emitted. This is what makes the verso text block mirror correctly.
     const css = pagedCss(derivedDuplex);
+    expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 54\.\d+mm 77\.\d+mm 27\.\d+mm; \}/);
+    expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 27\.\d+mm 77\.\d+mm 54\.\d+mm; \}/);
+  });
+
+  it('does NOT fold when notes are in the margin (side) — the gutter stays', () => {
+    const sideDuplex: PdfSettings = {
+      ...derivedDuplex,
+      notes: { position: 'side' },
+    };
+    const css = pagedCss(sideDuplex);
+    // live-area @page margins + per-parity body padding (the gutter feeds the
+    // sidenote column, so it must remain a real inset).
     expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 30\.\d+mm 77\.\d+mm 15\.\d+mm; \}/);
-    expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 15\.\d+mm 77\.\d+mm 30\.\d+mm; \}/);
+    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 0 12\.\d+mm 0 24\.\d+mm; \}/);
   });
 
   it('emits horizontal-only body padding on .pagedjs_page_content (simplex)', () => {
@@ -168,10 +184,10 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     expect(css).toMatch(/\.pagedjs_page_content \{ padding: 0 18\.\d+mm 0 18\.\d+mm; \}/);
   });
 
-  it('emits two body-padding rules in duplex, swapping inner/outer on the verso', () => {
+  it('emits NO body-padding rules in duplex (the gutter is folded into @page)', () => {
     const css = pagedCss(derivedDuplex);
-    expect(css).toMatch(/\.pagedjs_right_page \.pagedjs_page_content \{ padding: 0 24\.\d+mm 0 12\.\d+mm; \}/);
-    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 0 12\.\d+mm 0 24\.\d+mm; \}/);
+    expect(css).not.toContain('.pagedjs_page_content { padding:');
+    expect(css).not.toContain('#mp-viv-root {');
   });
 
   it('emits CSS variables --mp-live-* and --mp-gutter-* for the debug overlay', () => {

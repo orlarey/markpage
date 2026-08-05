@@ -859,8 +859,11 @@ export function markChapterNumerals(
       const num = (span.textContent ?? '').trim();
       if (num === '') return;
       span.className = 'chapter-num';
+      // Trailing space so the running header's `string-set: content()` reads
+      // "3 Hash-consing", not a glued "3Hash-consing" (invisible on the big
+      // block numeral itself).
       span.textContent =
-        n.chapterFormat === 'chapter' ? `Chapitre ${num}` : num;
+        (n.chapterFormat === 'chapter' ? `Chapitre ${num}` : num) + ' ';
     });
 }
 
@@ -1012,11 +1015,19 @@ export function pagedCss(s: PdfSettings): string {
   // from the live area (= text in manual). This puts the @top-* / @bottom-*
   // boxes inside the header / footer BANDS of the canon (§9.6.6); the
   // author-supplied text is pushed to the inside edge (align-items below).
+  // The live-area gutter (text ⊂ live area) only carries content for margin notes.
+  // When notes aren't 'side', that gutter is empty — and applying it as body
+  // padding on the SINGLE Vivliostyle flow body (`#mp-viv-root`, which can't vary
+  // per page parity) leaves verso text un-mirrored. So fold the gutter into the
+  // @page margin (which DOES mirror via @page :left/:right) and drop the body
+  // padding: the text block then mirrors correctly and running content aligns
+  // with it. Only for duplex (the parity that was broken); 'side' keeps the gutter.
+  const foldGutter = s.duplex && s.notes.position !== 'side';
   const effMargins = {
     top: geo.text.top,
     bottom: geo.text.bottom,
-    inner: geo.running.inner,
-    outer: geo.running.outer,
+    inner: foldGutter ? geo.text.inner : geo.running.inner,
+    outer: foldGutter ? geo.text.outer : geo.running.outer,
   };
   // §9.5.2 — when duplex is on, the inner margin (binding) stays
   // physically on the spine side of the open book. On recto (@page
@@ -1048,7 +1059,7 @@ export function pagedCss(s: PdfSettings): string {
   // to the page parity classes paged.js sets. In duplex on a verso
   // the inner/outer paddings swap, mirroring the margin swap above.
   const bodyPaddingRule =
-    gutter.inner > 0 || gutter.outer > 0
+    !foldGutter && (gutter.inner > 0 || gutter.outer > 0)
       ? buildBodyPaddingCss(SCOPE, gutter, s.duplex)
       : '';
 

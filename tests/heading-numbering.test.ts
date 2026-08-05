@@ -167,7 +167,7 @@ describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
     const root = h1Root(`<h1>${num('1')} Le pli comme unité</h1>`);
     markChapterNumerals(root, chapSettings());
     const h1 = root.querySelector('h1')!;
-    expect(h1.querySelector('.chapter-num')?.textContent).toBe('1');
+    expect(h1.querySelector('.chapter-num')?.textContent).toBe('1 '); // trailing space for the running head
     expect(h1.querySelector('.heading-num')).toBeNull(); // promoted, not duplicated
     expect(h1.querySelector('.chapter-num')?.nextSibling?.textContent?.trim()).toBe(
       'Le pli comme unité',
@@ -180,7 +180,7 @@ describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
       root,
       chapSettings({ numbering: { on: true, depth: 1, chapterFormat: 'chapter' } }),
     );
-    expect(root.querySelector('.chapter-num')?.textContent).toBe('Chapitre 2');
+    expect(root.querySelector('.chapter-num')?.textContent).toBe('Chapitre 2 ');
   });
 
   it('does nothing without chapterBreak, or with numbering off', () => {
@@ -199,7 +199,7 @@ describe('markChapterNumerals — big chapter numeral (4c-2)', () => {
 
     const marked = h1Root(`<h1>${num('3')} Le <code>fold</code></h1>`);
     markChapterNumerals(marked, chapSettings());
-    expect(marked.querySelector('.chapter-num')?.textContent).toBe('3');
+    expect(marked.querySelector('.chapter-num')?.textContent).toBe('3 ');
     expect(marked.querySelector('code')?.textContent).toBe('fold');
   });
 
