@@ -1117,6 +1117,19 @@ export function applyFundamentalStyle(
   // from the previously-applied style — switching Rapport (navy cover) → Article
   // (no cover) would keep the navy cover, with a washed-out title on top.
   for (const k of FUNDAMENTAL_STYLE_KEYS) {
+    if (k === 'styles') {
+      // A style may specify only a SUBSET of elements (and only some attrs on
+      // each). Merge over the full defaults so every ElementKey stays present —
+      // the render indexes `styles['running-content'].family` etc. unguarded —
+      // and unspecified attrs fall back rather than vanish.
+      const provided = (fs.styles ?? {}) as Record<string, Style>;
+      const merged: Record<string, Style> = { ...DEFAULT_SETTINGS.styles };
+      for (const el of Object.keys(provided)) {
+        merged[el] = { ...(merged[el] ?? {}), ...provided[el] };
+      }
+      out.styles = merged;
+      continue;
+    }
     if (fs[k] !== undefined) out[k] = fs[k];
     else delete out[k];
   }

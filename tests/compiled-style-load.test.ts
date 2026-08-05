@@ -80,6 +80,20 @@ describe('compiled style → markpage (operational load path)', () => {
     expect(capsCss(s.styles.h1)).toContain('letter-spacing: 0.04em;');
   });
 
+  it('fills missing / partial elements from the defaults (robust load)', () => {
+    // A style that specifies only h1.rule and nothing else must still load
+    // without dropping the other elements the render indexes unguarded.
+    const partial = { ...compiled, styles: { h1: { rule: { position: 'below' } } } };
+    const loaded = applyFundamentalStyle(DEFAULT_SETTINGS, partial);
+    // an element absent from the style falls back to a full default
+    expect(loaded.styles['running-content'].fontSize).toBe(
+      DEFAULT_SETTINGS.styles['running-content'].fontSize,
+    );
+    // a partial element keeps default attrs + the provided one
+    expect(loaded.styles.h1.fontSize).toBe(DEFAULT_SETTINGS.styles.h1.fontSize);
+    expect(loaded.styles.h1.rule?.position).toBe('below');
+  });
+
   it('round-trips through the export file (serialize → parseStyleFile → apply)', () => {
     // The exact file the editor's exportStyle() downloads.
     const fileJson = serializeStyleFile({
