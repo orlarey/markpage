@@ -156,6 +156,70 @@ le **fichier source**, jamais dans le compilé.
 
 ---
 
+## Le round-trip — contrat de bijection
+
+Le fichier compilé est le **pivot**. On veut une **bijection** entre le style que
+le fichier décrit et le style interne dont markpage se sert pour rendre. Deux
+round-trips, tous deux **idempotents** :
+
+RT-markpage — *point fixe*
+:   `parse → applyFundamentalStyle → serializeFundamentalStyle → serializeStyleFile`
+    **redonne le fichier d'entrée**. Importer un style puis le ré-exporter donne un
+    fichier **identique** (au sens byte).
+
+RT-éditeur — *isomorphisme*
+:   `compileStyle()` produit un fichier **isomorphe** à ce que markpage consomme —
+    **aucun champ omis ni figé** : chaque clé et chaque élément est **dérivé** de
+    l'état modélisé de l'éditeur.
+
+### La forme canonique
+
+::: important [Un fichier canonique est complet]
+Un style compilé **canonique** est celui dont l'objet `style` :
+
+- **C1** — porte exactement les clés de `FUNDAMENTAL_STYLE_KEYS` que le style
+  *définit* (ni plus, ni moins) ;
+- **C2** — porte une **matrice `styles` complète** : les **18** `ELEMENT_KEYS`, chacun
+  un `Style` résolu ;
+- **C3** — n'a que des **valeurs terminales** (hex / pt / mm / enum / booléen), zéro
+  règle ;
+- **C4** — clés en ordre `FUNDAMENTAL_STYLE_KEYS`, éléments en ordre `ELEMENT_KEYS`
+  (byte-identité, pas seulement égalité structurelle).
+:::
+
+### Pourquoi ça suffit
+
+`serializeFundamentalStyle` **n'émet que les clés définies** ; `applyFundamentalStyle`
+**pose les présentes, efface les absentes**. Ces deux-là sont donc **déjà bijectifs
+pour toute clé** — présence↔présence, absence↔absence. **Une seule** clé fait
+exception : `styles`, dont l'import **complète** les éléments absents par des défauts
+(absent→présent). D'où :
+
+> Un fichier **canonique** (matrice complète) est un **point fixe** de
+> `apply∘serialize` — le seul mécanisme non-idempotent (la complétion de la matrice)
+> ne s'y déclenche pas. markpage **normalise** tout fichier **partiel** vers le
+> canonique **au premier import**, et le canonique est stable ensuite.
+
+### Conditions du « pleinement satisfaisant »
+
+1. **L'éditeur émet du canonique** — les 18 éléments (dont `inline-link`, `mermaid`,
+   `table`, dérivés par règle de la palette/échelle), en ordre canonique. *(fait —
+   `compileStyle`.)*
+2. **markpage est un point fixe sur le canonique** — vérifié : `serialize == apply∘
+   serialize`, byte à byte (`tests/style-roundtrip.test.ts`).
+3. **Aucune clé n'apparaît/disparaît au rendu** — le snapshot ré-exporté ne gagne
+   aucune clé *bakée* que le fichier importé n'avait pas. **Résolu** : le seul risque
+   était `pageGeometry` (le rendu la bake depuis l'`authoring` retenu, cf. l'enquête
+   sur le chemin d'export) ; l'éditeur **émet désormais une `pageGeometry` résolue**,
+   donc `applyFundamentalStyle` **abandonne l'`authoring`** et `withBakedGeometry`
+   devient un no-op — pas de fuite. Vérifié bout-en-bout sur les **modules réels** :
+   `parse → apply → withBakedGeometry → serialize` du fichier de l'éditeur redonne un
+   `style` **byte-à-byte identique** (0 clé ajoutée/retirée).
+4. **Rien de figé côté éditeur** — les rares constantes encore émises « en dur »
+   (`language`, `customFonts`, `mermaidMax*`) doivent devenir **dérivées d'un état**
+   modélisé, ou être assumées comme des **défauts structurels** documentés (ils
+   n'empêchent pas la bijection — ils la satisfont — mais bornent l'expressivité).
+
 ## La table de compilation
 
 Deux paquets, selon que l'axe se résout dans un **slot plat existant** ou exige un

@@ -974,6 +974,17 @@ let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(ren
 const MP_ELEM={ title:'title', metadata:'metadata', h1:'h1', h2:'h2', h3:'h3', h4:'h4',
   body:'body', code:'code-block', math:'math-block', caption:'caption', note:'footnote',
   'running-content':'running-content' };
+// Canonical order — MUST mirror markpage's ELEMENT_KEYS / FUNDAMENTAL_STYLE_KEYS
+// so a compiled file equals markpage's own re-export byte-for-byte (a fixed point).
+const MP_ELEMENT_ORDER=['body','title','h1','h2','h3','h4','code-inline','inline-link','metadata',
+  'code-block','quote','math-block','mermaid','callout','table','caption','footnote','running-content'];
+const MP_KEY_ORDER=['pageSize','pageGeometry','duplex','chapterBreak','chapter','notes','numbering',
+  'header','footer','runningApparatus','fonts','styles','mathScale','mathFontSet','pageBackground',
+  'coverBackground','language','customFonts','mermaidMaxScale','mermaidMaxWidthPct','mermaidMaxHeightPct'];
+function canonicalOrder(obj, order){ const o={};
+  for(const k of order) if(obj[k]!==undefined) o[k]=obj[k];
+  for(const k of Object.keys(obj)) if(!(k in o)) o[k]=obj[k];   // any extra, appended
+  return o; }
 function mpStyleForElement(key){
   const r=ROSTER.find(e=>e.key===key)||{};
   const st={ color:colOf(key), fontSize:ptOf(key) };
@@ -991,6 +1002,12 @@ function compileStyle(){
     const mp=MP_ELEM[r.key]; if(mp) styles[mp]=mpStyleForElement(r.key);
   }
   if(styles['code-block']) styles['code-inline']={ color:styles['code-block'].color, fontSize:styles['code-block'].fontSize };
+  // the 3 structural elements markpage renders but the instruments don't yet
+  // expose — emitted as rule-derived entries (palette/scale-linked, not frozen
+  // constants) so the matrix is COMPLETE → the round-trip is bijective.
+  styles['inline-link']={ color:colOf('h1'), underline:true };   // link accent tracks the heading tint
+  styles['mermaid']={ align:'center' };                          // structural default
+  styles['table']={ fontSize:ptOf('body') };                     // tracks the base size
   // cover-only zoom: bake coverScale into title + metadata sizes + align
   for(const k of ['title','metadata']) if(styles[k]) styles[k]={...styles[k], fontSize:round2(styles[k].fontSize*S.coverScale), align:S.coverAlign};
   // block box styling (Blocs facet) → styles.<block>
@@ -1003,19 +1020,31 @@ function compileStyle(){
   const band=(b)=>({verso:{inner:zone(b.verso.inner),center:zone(b.verso.center),outer:zone(b.verso.outer)},
                     recto:{inner:zone(b.recto.inner),center:zone(b.recto.center),outer:zone(b.recto.outer)}});
   const PSIZE={A4:'A4',A5:'A5',B5:'B5',Letter:'LETTER','16:9':'SLIDES_16_9'};
-  return {
+  // RESOLVED page geometry (mm) — the terminal PageGeometry markpage renders from.
+  // Emitted verbatim from the geometry instrument (S.geo) so markpage honours it as-is
+  // (authoring dropped, no re-bake) → WYSIWYG + an immediate byte-identical fixed point.
+  const PGm=pageMm(), G=S.geo;
+  const pageGeometry={
+    text:{ top:G.textTop, bottom:G.textBottom, inner:G.textInner, outer:G.textOuter,
+           width:PGm.w-G.textInner-G.textOuter, height:PGm.h-G.textTop-G.textBottom },
+    running:{ inner:G.runInner, outer:G.runOuter },
+    header:{ top:G.headerTop }, footer:{ bottom:G.footerBottom },
+    sidenote:{ gap:G.noteGap, width:G.noteWidth },
+  };
+  const out={
     fonts:{headings:S.fam.head, body:S.fam.body, code:S.fam.code},
     mathFontSet:S.mset, mathScale:S.mscale,
-    pageSize:PSIZE[S.pageFormat]||'A4', duplex:S.duplex,
+    pageSize:PSIZE[S.pageFormat]||'A4', pageGeometry, duplex:S.duplex,
     chapterBreak:S.chapterBreak, notes:{position:S.notesPos}, language:'fr', customFonts:[],
     mermaidMaxScale:2, mermaidMaxWidthPct:1, mermaidMaxHeightPct:0.7,
     pageBackground:colOf('page'),
     ...(S.hasCover ? { coverBackground:colOf('cover') } : {}),
-    styles,
+    styles:canonicalOrder(styles, MP_ELEMENT_ORDER),
     numbering:{on:S.numbering.on, depth:S.numbering.depth, chapterFormat:S.numbering.chapter.format, chapterNumeralPt:sizePt(S.steps['chapter-number'])},
     runningApparatus:{header:band(S.running.header), footer:band(S.running.footer)},
-    // pageGeometry omitted → markpage bakes its default canon from pageSize.
   };
+  // canonical key order = markpage's serialize order → a byte-identical fixed point
+  return canonicalOrder(out, MP_KEY_ORDER);
 }
 // ---- style identity + the two file formats -------------------------------
 function slug(s){ return (s||'style').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
