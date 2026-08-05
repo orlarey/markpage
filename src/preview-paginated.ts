@@ -27,6 +27,7 @@ import {
   paginationCss,
   fitAtomicBlocks,
   fitWideTables,
+  runningApparatusCss,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
 import type { PageGeometry } from './typography';
@@ -146,8 +147,14 @@ export async function paginateWithVivliostyle(
   // blank. Engine-neutral: scale down / dedicate a page, never fragment.
   await fitOversizedAtomicBlocks(source, settings, renderTo);
   resetPageRunningCounter();
-  prependDefaultFences(source, settings);
-  const runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  // A style's running apparatus (step 6) OWNS the margin boxes — its CSS is
+  // emitted by pagedCss. Skip the legacy default fences + fence content so they
+  // don't compete; author in-doc fences also yield to the style here.
+  let runningCss = '';
+  if (!settings.runningApparatus) {
+    prependDefaultFences(source, settings);
+    runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
+  }
   // Hyphenation is dictionary-based: without a `lang` the browser silently
   // declines to hyphenate, and justified text keeps its rivers of white.
   source.lang = settings.language;
@@ -1116,6 +1123,12 @@ export function pagedCss(s: PdfSettings): string {
     s.numbering && s.numbering.on && s.chapterBreak !== 'none'
       ? `${SCOPE} h1:not(.doc-title) .chapter-num { display: block; line-height: 1; margin-bottom: 0.15em; font-size: ${s.numbering.chapterNumeralPt ? `${s.numbering.chapterNumeralPt}pt` : '2.4em'}; }`
       : '';
+  // Running apparatus (step 6): when the style carries the resolved composition,
+  // it owns the margin boxes — @page :right/:left content from the model. The
+  // legacy fence path is skipped for it in paginateWithVivliostyle.
+  const apparatusRule = s.runningApparatus
+    ? runningApparatusCss(s.runningApparatus)
+    : '';
   // Cover page (a title/metadata block on a tinted `coverBackground`): keep the
   // title + metadata legible against the fill, and isolate the cover so body
   // content starts on the next page — the next RECTO in duplex, inserting a
@@ -1405,6 +1418,9 @@ export function pagedCss(s: PdfSettings): string {
     /* Cover ink LAST so it overrides the per-element title/metadata colour when
        the cover is tinted (same specificity, wins on source order). */
     ${coverInkRule}
+    /* Running apparatus (style-owned header/footer) — after everything so its
+       @page margin-box content wins over any base rule on tie. */
+    ${apparatusRule}
   `;
 }
 
