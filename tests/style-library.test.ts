@@ -17,42 +17,55 @@ import { DEFAULT_SETTINGS } from '../src/settings';
  */
 
 describe('style library — built-ins', () => {
-  it('ships 5 named styles with the expected keys', () => {
-    expect(BUILTIN_STYLES).toHaveLength(5);
+  it('ships the archetype catalogue (archetype × format), A4 + Letter', () => {
+    // Compiled by scripts/build-builtin-styles.mjs from archetypes/*.mpstyle-src.json.
     expect(BUILTIN_STYLES.map((s) => s.key)).toEqual([
-      'note-technique',
-      'rapport',
-      'article',
-      'livre',
-      'lettre',
+      'note-a4',
+      'note-letter',
+      'lettre-a4',
+      'lettre-letter',
+      'rapport-a4',
+      'rapport-letter',
+      'livre-a4',
+      'livre-letter',
+      'presentation-16x9',
     ]);
   });
 
-  it('carries NO document metadata (author/organization/date) in the style', () => {
+  it('carries NO document metadata (author/organization/date/language) in the style', () => {
     for (const s of BUILTIN_STYLES) {
       const rec = s.style as Record<string, unknown>;
       expect('author' in rec).toBe(false);
       expect('organization' in rec).toBe(false);
       expect('date' in rec).toBe(false);
+      expect('language' in rec).toBe(false);
+    }
+  });
+
+  it('carries distribution metadata (provenance) on the NamedStyle', () => {
+    for (const s of BUILTIN_STYLES) {
+      expect(s.meta?.author).toBe('markpage');
+      expect(s.meta?.version).toBeTruthy();
     }
   });
 
   it('resolves by key and by name, case-insensitively', () => {
-    expect(findStyle('livre')?.key).toBe('livre');
-    expect(findStyle('LIVRE')?.key).toBe('livre');
-    expect(findStyle('Livre')?.name).toBe('Livre');
-    expect(findStyle('Note technique')?.key).toBe('note-technique');
+    expect(findStyle('livre-a4')?.key).toBe('livre-a4');
+    expect(findStyle('LIVRE-A4')?.key).toBe('livre-a4');
+    expect(findStyle('Livre A4')?.name).toBe('Livre A4');
+    expect(findStyle('note-a4')?.key).toBe('note-a4');
     expect(findStyle('nope')).toBeNull();
   });
 });
 
 describe('applyNamedStyle', () => {
   it('applies a known style over the base', () => {
-    const r = applyNamedStyle('livre', DEFAULT_SETTINGS);
+    const r = applyNamedStyle('livre-a4', DEFAULT_SETTINGS);
     expect(r.found).toBe(true);
-    expect(r.resolvedName).toBe('Livre');
-    expect(r.settings.pageSize).toBe('B5');
+    expect(r.resolvedName).toBe('Livre A4');
+    expect(r.settings.pageSize).toBe('A4');
     expect(r.settings.duplex).toBe(true);
+    expect(r.settings.chapterBreak).toBe('next-recto');
     expect(r.settings.fonts.body).toBe('EB Garamond');
   });
 
@@ -66,14 +79,14 @@ describe('applyNamedStyle', () => {
   });
 
   it('clears an inherited coverBackground when the new style has no cover', () => {
-    // Switching Rapport (navy cover) → Article (no cover) must not keep the navy
-    // cover: a named style fully defines its fundamental fields.
+    // Switching Rapport (cover) → Lettre (no cover) must not keep the cover:
+    // a named style fully defines its fundamental fields.
     const withNavyCover = { ...DEFAULT_SETTINGS, coverBackground: '#162138' };
-    const r = applyNamedStyle('article', withNavyCover);
+    const r = applyNamedStyle('lettre-a4', withNavyCover);
     expect(r.found).toBe(true);
     expect(r.settings.coverBackground).toBeUndefined();
     // A style that DOES define a cover still sets it.
-    expect(applyNamedStyle('rapport', DEFAULT_SETTINGS).settings.coverBackground)
+    expect(applyNamedStyle('rapport-a4', DEFAULT_SETTINGS).settings.coverBackground)
       .toBeTruthy();
   });
 
@@ -82,7 +95,7 @@ describe('applyNamedStyle', () => {
       ...DEFAULT_SETTINGS,
       author: { text: 'Ada', show: true, bold: false },
     };
-    const r = applyNamedStyle('article', base);
+    const r = applyNamedStyle('lettre-a4', base);
     expect(r.settings.author).toEqual(base.author);
   });
 });

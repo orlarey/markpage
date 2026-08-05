@@ -1,0 +1,257 @@
+{
+  "markpage-style-src": 1,
+  "meta": {
+    "name": "Note",
+    "author": "markpage",
+    "version": "0.42.0",
+    "date": ""
+  },
+  "state": {
+    "facet": "couleur",
+    "meta": {
+      "name": "Note",
+      "author": "markpage",
+      "version": "0.42.0",
+      "date": ""
+    },
+    "hue1": 213,
+    "angle": 150,
+    "crans": {
+      "page": {
+        "kind": "neutral",
+        "g": 0
+      },
+      "cover": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 4
+      },
+      "running-content": {
+        "kind": "neutral",
+        "g": 2
+      },
+      "title": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 4
+      },
+      "subtitle": {
+        "kind": "tint",
+        "family": "A",
+        "s": 3,
+        "v": 3
+      },
+      "h1": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 3
+      },
+      "h2": {
+        "kind": "tint",
+        "family": "B",
+        "s": 3,
+        "v": 2
+      },
+      "h3": {
+        "kind": "tint",
+        "family": "A",
+        "s": 3,
+        "v": 2
+      },
+      "h4": {
+        "kind": "tint",
+        "family": "A",
+        "s": 2,
+        "v": 1
+      },
+      "body": {
+        "kind": "neutral",
+        "g": 5
+      },
+      "code": {
+        "kind": "neutral",
+        "g": 4
+      },
+      "math": {
+        "kind": "neutral",
+        "g": 5
+      },
+      "caption": {
+        "kind": "neutral",
+        "g": 3
+      },
+      "note": {
+        "kind": "neutral",
+        "g": 3
+      },
+      "metadata": {
+        "kind": "neutral",
+        "g": 3
+      }
+    },
+    "fam": {
+      "head": "Source Serif 4",
+      "body": "Source Serif 4",
+      "code": "IBM Plex Mono"
+    },
+    "base": 11,
+    "ratio": 1.25,
+    "lh": 1.4,
+    "wHead": 600,
+    "wBody": 400,
+    "codeScale": 0.9,
+    "mscale": 1,
+    "mset": "stix2",
+    "pairing": "classique",
+    "steps": {
+      "running-content": -1,
+      "title": 5,
+      "subtitle": 3,
+      "h1": 4,
+      "h2": 3,
+      "h3": 2,
+      "h4": 1,
+      "chapter-number": 8,
+      "body": 0,
+      "caption": -1,
+      "note": -1,
+      "metadata": 0
+    },
+    "align": {
+      "title": "center",
+      "subtitle": "center",
+      "metadata": "center",
+      "h1": "left",
+      "h2": "left",
+      "h3": "left",
+      "h4": "left"
+    },
+    "rule": {
+      "running-content": "none",
+      "title": "none",
+      "subtitle": "none",
+      "metadata": "none",
+      "h1": "none",
+      "h2": "none",
+      "h3": "none",
+      "h4": "none"
+    },
+    "smallcaps": {
+      "running-content": "none",
+      "title": "none",
+      "subtitle": "none",
+      "metadata": "none",
+      "h1": "none",
+      "h2": "none",
+      "h3": "none",
+      "h4": "none"
+    },
+    "tracking": 0,
+    "justify": true,
+    "coverScale": 1.4,
+    "coverAlign": "center",
+    "numbering": {
+      "on": true,
+      "depth": 2,
+      "chapter": {
+        "format": "numeric"
+      }
+    },
+    "pageFormat": "A4",
+    "landscape": false,
+    "duplex": false,
+    "hasCover": false,
+    "chapterBreak": "none",
+    "notesPos": "foot",
+    "geo": {
+      "textTop": 33,
+      "textBottom": 66,
+      "textInner": 23.333333333333332,
+      "textOuter": 46.666666666666664,
+      "runInner": 11.666666666666666,
+      "runOuter": 23.333333333333332,
+      "headerTop": 16.5,
+      "footerBottom": 33,
+      "noteGap": 3,
+      "noteWidth": 20.333333333333332,
+      "titleY": 76.56
+    },
+    "pgLayers": {
+      "diag": true,
+      "bands": true,
+      "notes": true,
+      "title": true
+    },
+    "running": {
+      "header": {
+        "verso": {
+          "inner": [],
+          "center": [],
+          "outer": []
+        },
+        "recto": {
+          "inner": [],
+          "center": [],
+          "outer": []
+        }
+      },
+      "footer": {
+        "verso": {
+          "inner": [],
+          "center": [
+            "folio"
+          ],
+          "outer": []
+        },
+        "recto": {
+          "inner": [],
+          "center": [
+            "folio"
+          ],
+          "outer": []
+        }
+      }
+    },
+    "customText": "Notes de travail",
+    "blocSel": "callout",
+    "blocks": {
+      "code-block": {
+        "bgOn": true,
+        "bg": "#f4f6f9",
+        "bd": {
+          "on": false,
+          "color": "#d0d7de",
+          "width": 1
+        },
+        "pad": 0.55,
+        "radius": 6
+      },
+      "quote": {
+        "bgOn": false,
+        "bg": "#f4f6f9",
+        "bd": {
+          "on": true,
+          "color": "#3f9d78",
+          "width": 3
+        },
+        "pad": 0.5,
+        "radius": 3
+      },
+      "callout": {
+        "bgOn": true,
+        "bg": "#eef4ff",
+        "bd": {
+          "on": true,
+          "color": "#4a8cf0",
+          "width": 1
+        },
+        "pad": 0.7,
+        "radius": 8
+      }
+    },
+    "view": "recto"
+  }
+}

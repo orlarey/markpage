@@ -36,7 +36,7 @@ const A4 = { w: 210, h: 297 };
 const canonical = serializeFundamentalStyle(
   applyFundamentalStyle(
     DEFAULT_SETTINGS,
-    BUILTIN_STYLES.find((s) => s.key === 'rapport')!.style,
+    BUILTIN_STYLES.find((s) => s.key === 'rapport-a4')!.style,
   ),
 );
 

@@ -27,7 +27,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "build:styles": "node scripts/build-builtin-styles.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.11.0",

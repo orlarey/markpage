@@ -46,7 +46,7 @@ export interface NamedStyle {
 export const BUILTIN_STYLES: NamedStyle[] = builtinData as NamedStyle[];
 
 /** The default style applied when a document names no style (or an unknown one). */
-export const DEFAULT_STYLE_KEY = 'note-technique';
+export const DEFAULT_STYLE_KEY = 'note-a4';
 
 const USER_KEY = 'markpage:style-library';
 
