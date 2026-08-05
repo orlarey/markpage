@@ -1169,11 +1169,20 @@ export function pagedCss(s: PdfSettings): string {
       ? `${SCOPE} h1:not(.doc-title) .chapter-num { display: block; line-height: 1; margin-bottom: 0.15em; font-size: ${s.numbering.chapterNumeralPt ? `${s.numbering.chapterNumeralPt}pt` : '2.4em'}; }`
       : '';
   // Marginal chapter number: give it its OWN size (`chapterNumeralPt`, the "n° chap"
-  // scale) so it reads as a chapter number in the margin, not just an h1-sized one.
+  // scale) so it reads as a chapter number in the margin, not just an h1-sized one,
+  // and align its BASELINE to the title's. The general rule top-aligns the number;
+  // a much larger numeral would then sit lower than the title. Shift it up by the
+  // ascent difference (≈ 0.72 × the pt gap) so the two baselines coincide. Repeat
+  // the horizontal translate (a single `transform` wins over the general one).
   const chapterMarginalNumRule =
     s.numbering && s.numbering.on && s.chapterBreak !== 'none' &&
     s.numbering.chapterStyle !== 'numeral' && s.numbering.chapterNumeralPt
-      ? `${SCOPE} h1:not(.doc-title) .heading-num { font-size: ${s.numbering.chapterNumeralPt}pt; line-height: 1; }`
+      ? (() => {
+          const numPt = s.numbering.chapterNumeralPt as number;
+          const h1Pt = styles.h1.fontSize ?? 24;
+          const upPt = Math.max(0, 1.0 * (numPt - h1Pt)).toFixed(1);
+          return `${SCOPE} h1:not(.doc-title) .heading-num { font-size: ${numPt}pt; line-height: 1; transform: translateX(calc(-100% - ${geo.sidenote.gap}mm)) translateY(-${upPt}pt); }`;
+        })()
       : '';
   // Running apparatus (step 6): when the style carries the resolved composition,
   // it owns the margin boxes — @page :right/:left content from the model. The
