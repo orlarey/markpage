@@ -1184,7 +1184,10 @@ export function pagedCss(s: PdfSettings): string {
           return (
             `${SCOPE} h1:not(.doc-title) { display: flex; align-items: baseline; }\n` +
             `${SCOPE} h1:not(.doc-title) .heading-num { ` +
-            `position: static; transform: none; ` +
+            // border-box so the gap padding lives INSIDE the gutter width: the item's
+            // net contribution stays 0 (title starts at the text edge, like sections)
+            // and the number's right edge sits at −gap (like the section numbers).
+            `box-sizing: border-box; position: static; transform: none; ` +
             `flex: 0 0 ${numPt}pt; margin-left: -${numPt}pt; ` +
             `text-align: right; padding-right: ${geo.sidenote.gap}mm; ` +
             `font-size: ${numPt}pt; line-height: 1; }`
