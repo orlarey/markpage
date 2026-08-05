@@ -122,9 +122,20 @@
 </style>
 </head>
 <body>
-<header>
-  <h1>Éditeur de style</h1>
-  <button id="exportStyle" class="chip" style="margin-left:auto">Exporter le style (.mpstyle.json)</button>
+<header style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+  <h1 style="margin:0">Éditeur de style</h1>
+  <div id="styleMeta" style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-left:auto">
+    <input id="mName"    placeholder="Nom du style" title="Nom du style" style="width:150px">
+    <input id="mAuthor"  placeholder="Auteur"       title="Auteur"       style="width:120px">
+    <input id="mVersion" placeholder="Version"      title="Version"      style="width:64px">
+    <input id="mDate"    placeholder="AAAA-MM-JJ"   title="Date"         style="width:104px">
+  </div>
+  <div style="display:flex;align-items:center;gap:.35rem">
+    <button id="openSource"   class="chip" title="Rouvrir un style source (.mpstyle-src.json) pour l'éditer">Ouvrir…</button>
+    <button id="exportSource" class="chip" title="Exporter le format source, ré-éditable">Source (.mpstyle-src)</button>
+    <button id="exportStyle"  class="chip" title="Exporter le style compilé, à importer dans markpage">markpage (.mpstyle)</button>
+    <input id="srcFile" type="file" accept=".json,.mpstyle-src.json" style="display:none">
+  </div>
 </header>
 
 <div class="shell">
@@ -203,6 +214,7 @@ const LABEL={page:'page',cover:'couv.','running-content':'en-tête',title:'titre
 
 const S = {
   facet:'couleur',
+  meta:{name:'Mon style', author:'', version:'1.0', date:''},
   // COLOUR
   hue1:213, angle:150,
   crans:{
@@ -1005,15 +1017,50 @@ function compileStyle(){
     // pageGeometry omitted → markpage bakes its default canon from pageSize.
   };
 }
-function exportStyle(){
-  const style=compileStyle();
-  const file={ 'markpage-style-file':1, name:'Style éditeur', key:'editor-style', style };
-  const blob=new Blob([JSON.stringify(file,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='editor-style.mpstyle.json';
+// ---- style identity + the two file formats -------------------------------
+function slug(s){ return (s||'style').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'style'; }
+function download(name, obj){
+  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
   a.click(); URL.revokeObjectURL(a.href);
 }
+// compiled — flat, all-resolved; imported into markpage (lossy, not re-editable)
+function exportStyle(){
+  const m=S.meta, key=slug(m.name);
+  download(`${key}.mpstyle.json`, {
+    'markpage-style-file':1, key, name:m.name,
+    author:m.author||undefined, version:m.version||undefined, date:m.date||undefined,
+    style:compileStyle(),
+  });
+}
+// source — the generative editor state; re-opened by the editor to keep editing
+function exportSource(){
+  download(`${slug(S.meta.name)}.mpstyle-src.json`, { 'markpage-style-src':1, meta:{...S.meta}, state:S });
+}
+function importSource(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const o=JSON.parse(r.result);
+    const st=o&&o['markpage-style-src']?o.state:null;
+    if(!st){ alert('Fichier source non reconnu (attendu : .mpstyle-src.json).'); return; }
+    Object.assign(S, st);                 // S holds only data — safe to rehydrate
+    syncMeta(); renderPanel(); renderInstrument(); renderArtefact();
+  }catch(e){ alert('Lecture impossible : '+e.message); } };
+  r.readAsText(file);
+}
+// reflect S.meta into the header inputs (init + after import)
+function syncMeta(){ for(const k of ['name','author','version','date'])
+  document.getElementById('m'+k[0].toUpperCase()+k.slice(1)).value=S.meta[k]||''; }
+for(const k of ['name','author','version','date']){
+  document.getElementById('m'+k[0].toUpperCase()+k.slice(1)).oninput=(e)=>{ S.meta[k]=e.target.value; };
+}
 document.getElementById('exportStyle').onclick=exportStyle;
+document.getElementById('exportSource').onclick=exportSource;
+document.getElementById('openSource').onclick=()=>document.getElementById('srcFile').click();
+document.getElementById('srcFile').onchange=(e)=>{ const f=e.target.files[0]; if(f) importSource(f); e.target.value=''; };
 
+syncMeta();
 renderPanel(); renderInstrument(); renderArtefact();
 </script>
 </body>
