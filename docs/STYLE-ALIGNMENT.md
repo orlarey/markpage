@@ -298,6 +298,43 @@ clés reconnues) **et** style (l'élément `subtitle`). À trancher avec l'étap
 
 ---
 
+## Les styles par défaut — origine unique (O1)
+
+Les built-ins de markpage ne sont plus maintenus à la main : ils sont **générés
+depuis des sources d'éditeur**, seule origine. C'est le principe *source →
+compilateur → artefact*, appliqué au catalogue lui-même.
+
+```adt
+archétype (spec compacte)  ──▶  archetypes/<nom>.mpstyle-src.json   (* galerie éditeur *)
+                           └─▶  src/assets/builtin-styles.json      (* compilé, par format *)
+```
+
+**Variante B′ (intérimaire).** Le build **pilote le `compileStyle` du prototype**
+en Chromium headless (`scripts/build-builtin-styles.mjs`, `npm run build:styles`) :
+le prototype **est** le compilateur, donc **zéro dérive** entre ce qu'un designer
+produit et ce que markpage livre. Pas d'extraction de module (**B**) tant que
+l'éditeur reste une maquette — on la fera à la productisation.
+
+**Un axe format, pas un produit cartésien.** Une source est *agnostique au format* ;
+le build **re-bake le canon pour chaque taille cible**. Une source → A4 **et** Letter,
+sans duplication. La **langue** ne multiplie rien (override document). Suffixe format
+**systématique**.
+
+| Archétype | Formats | Couv. | R°/V° | Chapitres | Appareil |
+| --- | --- | --- | --- | --- | --- |
+| **note** *(défaut)* | A4, Letter | — | — | — | folio en pied |
+| **lettre** | A4, Letter | — | — | — | vierge |
+| **rapport** | A4, Letter | ✓ | ✓ | — | savant (folio + titres) |
+| **livre** | A4, Letter | ✓ | ✓ | nouveau recto | savant |
+| **présentation** | 16:9 | ✓ | — | — | vierge |
+
+→ **9 built-ins** (`note-a4`, `rapport-letter`, `presentation-16x9`, …), canoniques
+(matrice 18/18 + `pageGeometry` par format), chacun avec un `meta`
+(`author: markpage`, `version`). `DEFAULT_STYLE_KEY = note-a4`. Les **mêmes sources**
+alimentent la **galerie de départ** de l'éditeur (« Nouveau depuis… »).
+
+---
+
 ## Extension de l'éditeur
 
 Puisque **tout** le style migre dans l'éditeur (décision B) :
