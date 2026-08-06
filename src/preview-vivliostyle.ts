@@ -448,15 +448,18 @@ export async function renderVivliostylePreview(
     }
   }
 
-  // The generated cover — `h1.doc-title` plus the author/organization/date
-  // block — carries no running content at all: classical practice leaves the
-  // title page bare, and it is page 1, so a folio there is noise. Clearing the
-  // minor sections above is not enough on its own: the cover sits in the
-  // section opened by the settings' DEFAULT header/footer fences, so the page
-  // counter is that section's own declaration and legitimately outranks the
-  // reset. Give the cover a page of its own instead.
+  // The generated cover — `h1.doc-title`, the optional `.doc-subtitle`, plus
+  // the author/organization/date block — carries no running content at all:
+  // classical practice leaves the title page bare, and it is page 1, so a folio
+  // there is noise. Clearing the minor sections above is not enough on its own:
+  // the cover sits in the section opened by the settings' DEFAULT header/footer
+  // fences, so the page counter is that section's own declaration and
+  // legitimately outranks the reset. Give the cover a page of its own instead.
+  // The subtitle MUST be in this set: a named page forces a break wherever it
+  // changes, so a subtitle left off `mp-cover` splits the cover into three
+  // pages (title, stranded subtitle, metadata) instead of one.
   const coverParts = doc.querySelectorAll<HTMLElement>(
-    '.doc-title, .preview-metadata',
+    '.doc-title, .doc-subtitle, .preview-metadata',
   );
   if (coverParts.length > 0) {
     for (const el of coverParts) el.setAttribute('data-page', 'mp-cover');
