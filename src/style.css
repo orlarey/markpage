@@ -495,7 +495,11 @@ body,
   left: 0;
   margin: 0;
   box-shadow: none;
-  visibility: hidden;
+  /* The engine tags each page container with an inline `visibility: visible`;
+     `!important` is needed to hide the non-current pages, otherwise they all
+     pile up (unpositioned) at the origin and the LAST one paints over the
+     current spread's left page. */
+  visibility: hidden !important;
   /* main.ts positions each visible page in px (single page centred, or two
      side-by-side for a spread) via an inline transform; keep the origin at the
      top-left so those px land where computed. The fit-to-width zoom is kept off
@@ -504,7 +508,7 @@ body,
   zoom: 1;
 }
 #preview-pane.presentation .pagedjs_page.is-current {
-  visibility: visible;
+  visibility: visible !important;
   box-shadow: 0 2px 28px rgba(0, 0, 0, 0.55);
 }
 
