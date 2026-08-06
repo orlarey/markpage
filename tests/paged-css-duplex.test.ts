@@ -175,6 +175,23 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     expect(pagedCss(derivedDuplex)).not.toContain('@page :first');
   });
 
+  it('keeps the subtitle + metadata ON the cover — only the first content breaks', () => {
+    // Regression: a naive `h1.doc-title + *` cover-break rule catches the
+    // subtitle and pushes it (and then the metadata-following content) onto
+    // their own pages — two blank pages + a subtitle stranded off the cover.
+    // The rule must break only the FIRST block after the whole identity stack
+    // (title → optional subtitle → optional metadata).
+    const s: PdfSettings = { ...derivedDuplex, coverBackground: '#223e61' };
+    const css = pagedCss(s);
+    // subtitle after title must NOT be a break target
+    expect(css).toContain(':not(.doc-subtitle)');
+    // the only content-break selectors are the three identity-block exits
+    expect(css).toContain(
+      '.preview-metadata + *, .doc-subtitle + *:not(.preview-metadata), ' +
+        'h1.doc-title + *:not(.preview-metadata):not(.doc-subtitle) { break-before: right; }',
+    );
+  });
+
   it('does NOT fold when notes are in the margin (side) — the gutter stays', () => {
     const sideDuplex: PdfSettings = {
       ...derivedDuplex,

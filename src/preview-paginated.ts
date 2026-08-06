@@ -1222,12 +1222,19 @@ export function pagedCss(s: PdfSettings): string {
   const coverInkRule = coverInk
     ? `${SCOPE} h1.doc-title, ${SCOPE} .doc-subtitle, ${SCOPE} .preview-metadata { color: ${coverInk}; }`
     : '';
-  // Break before the first block AFTER the cover — whether the cover carries a
-  // metadata block (title + author/org/date) or just the title. The `:not`
-  // keeps the metadata itself on the cover when present. Unscoped like
-  // chapterBreakRule (the engine parses break rules itself).
+  // Break before the first block AFTER the cover identity block. That block is
+  // the title, then an OPTIONAL subtitle, then an OPTIONAL metadata block
+  // (author/org/date) — any of which may be absent. We break before the first
+  // sibling that is none of those, so subtitle + metadata stay ON the cover
+  // (the `:not` chains keep them there). Three cases: content after metadata,
+  // after subtitle (no metadata), or straight after the title (neither).
+  // Unscoped like chapterBreakRule (the engine parses break rules itself).
+  const coverBreak = s.duplex ? 'right' : 'page';
   const coverBreakRule = s.coverBackground
-    ? `.preview-metadata + *, h1.doc-title + *:not(.preview-metadata) { break-before: ${s.duplex ? 'right' : 'page'}; }`
+    ? `.preview-metadata + *, ` +
+      `.doc-subtitle + *:not(.preview-metadata), ` +
+      `h1.doc-title + *:not(.preview-metadata):not(.doc-subtitle) ` +
+      `{ break-before: ${coverBreak}; }`
     : '';
   return `
     ${pageRule}
