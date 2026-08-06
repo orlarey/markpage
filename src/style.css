@@ -480,8 +480,17 @@ body,
    absolutely at the centre and hidden with `visibility`, which keeps their
    boxes (and their counter contributions) alive. The current page is the
    only visible one, scaled to fill the viewport. */
+/* The paginated preview lays pages out in a facing-pages GRID whose container
+   carries a transform — and a transformed ancestor becomes the containing block
+   for positioned descendants, which would pin our pages to it (offset + sized
+   by the split) instead of the fullscreen viewport. Neutralise the grid + the
+   transform during presentation so the pages position against the viewport. */
+#preview-pane.presentation .pagedjs_pages {
+  display: block !important;
+  transform: none !important;
+}
 #preview-pane.presentation .pagedjs_page {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   margin: 0;
