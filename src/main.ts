@@ -548,7 +548,15 @@ async function bootstrap(): Promise<void> {
   // vs a fast continuous flow (false, the live-typing default).
   const PREF_VISIBLE = 'markpage:preview-visible';
   const PREF_PAGINATED = 'markpage:preview-paginated';
+  // `previewPaginated` is the user's PREFERENCE (persisted). Pagination is far
+  // too slow to run on every keystroke, so an edit while paginated SUSPENDS it:
+  // the active render drops to the fast continuous flow until the user clicks
+  // "Repaginer". `paginatedSuspended` is that transient state (never persisted).
   let previewPaginated = localStorage.getItem(PREF_PAGINATED) === '1';
+  let paginatedSuspended = false;
+  // The mode actually rendered right now: paginated only when preferred AND not
+  // suspended by an in-progress edit.
+  const activePaginated = (): boolean => previewPaginated && !paginatedSuspended;
   const previewVisiblePref = localStorage.getItem(PREF_VISIBLE) === '1';
   // True when the on-screen preview is out of date with the current
   // editor state or settings. Set on every doc/settings change, cleared
@@ -1015,7 +1023,7 @@ async function bootstrap(): Promise<void> {
       '--mp-cover-bg',
       r.effectiveSettings.coverBackground ?? '',
     );
-    if (previewPaginated) {
+    if (activePaginated()) {
       // Show a CLEAR "rendering" state: clear the stale pages now (so you never
       // wonder whether you're looking at the current render) and let the progress
       // spinner mark the wait — pages reappear only when the new render is ready.
@@ -1079,16 +1087,22 @@ async function bootstrap(): Promise<void> {
   // heavier, so it waits for a typing pause. The previewReqId stale-guard in
   // buildPreviewDom drops any render a newer keystroke superseded.
   const scheduleContinuousPreview = debounce(() => {
-    if (viewMode !== 'preview' || presenting || previewPaginated) return;
+    if (viewMode !== 'preview' || presenting || activePaginated()) return;
     void updatePreview(editor.getValue());
   }, 120);
   const schedulePaginatedPreview = debounce(() => {
-    if (viewMode !== 'preview' || presenting || !previewPaginated) return;
+    if (viewMode !== 'preview' || presenting || !activePaginated()) return;
     void updatePreview(editor.getValue());
   }, 500);
   const scheduleLivePreview = (): void => {
     if (viewMode !== 'preview' || presenting) return;
-    if (previewPaginated) schedulePaginatedPreview();
+    // An edit suspends a paginated preview (pagination can't keep up with
+    // typing): drop to the fast continuous flow until the user re-paginates.
+    if (previewPaginated && !paginatedSuspended) {
+      paginatedSuspended = true;
+      updatePreviewToggleUI();
+    }
+    if (activePaginated()) schedulePaginatedPreview();
     else scheduleContinuousPreview();
   };
 
@@ -1239,6 +1253,9 @@ async function bootstrap(): Promise<void> {
   // snapshot so the same source line lands at the same viewport y.
   const enterPreview = async (): Promise<void> => {
     const anchor = editorCursorAnchor(editor.view);
+    // Opening the preview shows the PREFERRED mode fresh — clear any stale
+    // edit-suspension so a paginated preference paginates on open.
+    paginatedSuspended = false;
     setViewMode('preview');
     if (dirty) {
       try {
@@ -1270,9 +1287,23 @@ async function bootstrap(): Promise<void> {
   // Switch the visible preview between continuous flow and paged A4, persist
   // the choice, and re-render if the split is up.
   const setPreviewPaginated = (on: boolean): void => {
-    if (previewPaginated === on) return;
+    if (previewPaginated === on && !paginatedSuspended) return;
     previewPaginated = on;
+    paginatedSuspended = false; // an explicit choice always un-suspends
     localStorage.setItem(PREF_PAGINATED, on ? '1' : '0');
+    updatePreviewToggleUI();
+    if (viewMode === 'preview' && !presenting) {
+      dirty = true;
+      void updatePreview(editor.getValue());
+    }
+  };
+
+  // Re-engage a paginated preview that an edit suspended: clear the suspension
+  // and paginate the current text. Same cost as a normal paginate — run only on
+  // the user's explicit request (the "Repaginer" button).
+  const repaginate = (): void => {
+    if (!previewPaginated || !paginatedSuspended) return;
+    paginatedSuspended = false;
     updatePreviewToggleUI();
     if (viewMode === 'preview' && !presenting) {
       dirty = true;
@@ -1302,13 +1333,25 @@ async function bootstrap(): Promise<void> {
     const on = viewMode === 'preview';
     showToggleBtn.classList.toggle('active', on);
     paginateToggleBtn.hidden = !on;
-    paginateToggleBtn.classList.toggle('active', on && previewPaginated);
+    // Three states: continuous (inactive), paginated (active), and
+    // paginated-but-suspended-by-an-edit → the button becomes "Repaginer".
+    const suspended = on && previewPaginated && paginatedSuspended;
+    paginateToggleBtn.classList.toggle('active', on && activePaginated());
+    paginateToggleBtn.classList.toggle('suspended', suspended);
+    paginateToggleBtn.textContent = suspended
+      ? t('preview-toggle.repaginate')
+      : t('preview-toggle.paginate');
+    paginateToggleBtn.title = suspended
+      ? t('preview-toggle.repaginate-title')
+      : t('preview-toggle.paginate-title');
   };
 
   showToggleBtn.addEventListener('click', () => toggleView());
-  paginateToggleBtn.addEventListener('click', () =>
-    setPreviewPaginated(!previewPaginated),
-  );
+  paginateToggleBtn.addEventListener('click', () => {
+    // Suspended → re-engage the paginated view; otherwise flip the preference.
+    if (previewPaginated && paginatedSuspended) repaginate();
+    else setPreviewPaginated(!previewPaginated);
+  });
   updatePreviewToggleUI();
 
   // Click inside the preview jumps the editor's cursor to that source line

@@ -30,8 +30,11 @@ const FR = {
   'preview-toggle.show': 'Aperçu',
   'preview-toggle.show-title':
     'Afficher / masquer l’aperçu en direct (Ctrl+Entrée / Cmd+Entrée)',
-  'preview-toggle.paginate': 'A4',
-  'preview-toggle.paginate-title': 'Aperçu : flux continu ↔ pages A4 paginées',
+  'preview-toggle.paginate': 'Pages',
+  'preview-toggle.paginate-title': 'Aperçu : flux continu ↔ pages paginées',
+  'preview-toggle.repaginate': 'Repaginer',
+  'preview-toggle.repaginate-title':
+    'Aperçu paginé suspendu pendant l’édition — cliquer pour repaginer',
   'toolbar.present': 'Présenter',
   'toolbar.present-title':
     'Lancer la présentation plein écran (Ctrl+Maj+Entrée / Cmd+Maj+Entrée)',
@@ -548,9 +551,12 @@ const EN: Record<keyof typeof FR, string> = {
   'preview-toggle.show': 'Preview',
   'preview-toggle.show-title':
     'Show / hide the live preview (Ctrl+Enter / Cmd+Enter)',
-  'preview-toggle.paginate': 'A4',
+  'preview-toggle.paginate': 'Pages',
   'preview-toggle.paginate-title':
-    'Preview: continuous flow ↔ paginated A4 pages',
+    'Preview: continuous flow ↔ paginated pages',
+  'preview-toggle.repaginate': 'Repaginate',
+  'preview-toggle.repaginate-title':
+    'Paginated preview suspended while editing — click to repaginate',
   'toolbar.present': 'Present',
   'toolbar.present-title':
     'Start the fullscreen presentation (Ctrl+Shift+Enter / Cmd+Shift+Enter)',

@@ -380,6 +380,16 @@ body,
   color: #fff;
   border-color: #2f6fdb;
 }
+/* Paginated preview suspended by an edit: the button offers "Repaginer".
+   Amber outline marks it as a pending action (the on-screen pages are stale). */
+.mp-preview-toggle.suspended {
+  background: #fff8e6;
+  color: #8a5a00;
+  border-color: #e0b23c;
+}
+.mp-preview-toggle.suspended:hover {
+  background: #fdefc8;
+}
 .mp-preview-toggle[hidden] {
   display: none;
 }
