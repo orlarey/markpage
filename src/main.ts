@@ -100,6 +100,7 @@ import { openSettingsWindow } from './ui/settings-window';
 import {
   allStyles,
   applyNamedStyle,
+  deleteUserStyle,
   findStyle,
   loadUserStyles,
   parseStyleFile,
@@ -2911,6 +2912,17 @@ async function bootstrap(): Promise<void> {
               'application/json',
             );
             globalThis.alert(t('docstyle.exported'));
+          },
+          onDelete: (style) => {
+            const ok = globalThis.confirm(
+              t('docstyle.delete-confirm').replace('{name}', style.name),
+            );
+            if (!ok) return false;
+            deleteUserStyle(style.key);
+            // If the current document referenced it, leave the front-matter as
+            // written — findStyle now misses and the doc falls back to base,
+            // which the next re-render already handles gracefully.
+            return true;
           },
           onImport: () => {
             const input = document.createElement('input');

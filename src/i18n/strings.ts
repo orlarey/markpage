@@ -51,6 +51,9 @@ const FR = {
   'docstyle.exported': 'Style exporté (fichier .mpstyle.json).',
   'docstyle.import-none': "Ce fichier n'est pas un style markpage valide.",
   'docstyle.imported': 'Style « {name} » importé et appliqué au document.',
+  'docstyle.delete': 'Supprimer ce style perso',
+  'docstyle.delete-confirm':
+    'Supprimer le style perso « {name} » de la bibliothèque ?',
   'toolbar.view': 'Vue',
   'toolbar.view-title': 'Affichage : aperçu, présentation, repères',
   'toolbar.menu': 'Menu',
@@ -567,6 +570,9 @@ const EN: Record<keyof typeof FR, string> = {
   'docstyle.exported': 'Style exported (.mpstyle.json file).',
   'docstyle.import-none': 'This file is not a valid markpage style.',
   'docstyle.imported': 'Style “{name}” imported and applied to the document.',
+  'docstyle.delete': 'Delete this custom style',
+  'docstyle.delete-confirm':
+    'Delete the custom style “{name}” from the library?',
   'toolbar.view': 'View',
   'toolbar.view-title': 'View: preview, presentation, guides',
   'toolbar.menu': 'Menu',
