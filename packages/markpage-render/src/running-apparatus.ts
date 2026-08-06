@@ -115,19 +115,26 @@ export function apparatusStringSets(app: RunningApparatus): string[] {
  * `@page :left` (verso) rule filling the three margin boxes with the mirrored,
  * verso-reversed zone content.
  */
-export function runningApparatusCss(app: RunningApparatus): string {
+export function runningApparatusCss(
+  app: RunningApparatus,
+  // running-content declarations (colour / size / font …) placed on EACH margin
+  // box: Vivliostyle styles the @page-generated running content here, not via the
+  // host `.pagedjs_margin-*` classes. Empty string leaves the boxes unstyled.
+  boxDecls = '',
+): string {
   const rules: string[] = [...apparatusStringSets(app)];
+  const d = boxDecls ? ` ${boxDecls}` : '';
   const band = (edge: 'top' | 'bottom', b: ApparatusBand): string => {
     const recto =
       `@page :right { ` +
-      `@${edge}-left { content: ${zoneToCss(b.recto.inner, false)}; } ` +
-      `@${edge}-center { content: ${zoneToCss(b.recto.center, false)}; } ` +
-      `@${edge}-right { content: ${zoneToCss(b.recto.outer, false)}; } }`;
+      `@${edge}-left { content: ${zoneToCss(b.recto.inner, false)};${d} } ` +
+      `@${edge}-center { content: ${zoneToCss(b.recto.center, false)};${d} } ` +
+      `@${edge}-right { content: ${zoneToCss(b.recto.outer, false)};${d} } }`;
     const verso =
       `@page :left { ` +
-      `@${edge}-left { content: ${zoneToCss(b.verso.outer, true)}; } ` +
-      `@${edge}-center { content: ${zoneToCss(b.verso.center, true)}; } ` +
-      `@${edge}-right { content: ${zoneToCss(b.verso.inner, true)}; } }`;
+      `@${edge}-left { content: ${zoneToCss(b.verso.outer, true)};${d} } ` +
+      `@${edge}-center { content: ${zoneToCss(b.verso.center, true)};${d} } ` +
+      `@${edge}-right { content: ${zoneToCss(b.verso.inner, true)};${d} } }`;
     return `${recto}\n${verso}`;
   };
   rules.push(band('top', app.header));

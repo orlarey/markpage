@@ -1198,7 +1198,10 @@ export function pagedCss(s: PdfSettings): string {
   // it owns the margin boxes — @page :right/:left content from the model. The
   // legacy fence path is skipped for it in paginateWithVivliostyle.
   const apparatusRule = s.runningApparatus
-    ? runningApparatusCss(s.runningApparatus)
+    ? runningApparatusCss(
+        s.runningApparatus,
+        runningContentDecls(styles['running-content']),
+      )
     : '';
   // Cover page (a title/metadata block on a tinted `coverBackground`): keep the
   // title + metadata legible against the fill, and isolate the cover so body
@@ -1924,7 +1927,11 @@ export function pageContentGeomPx(s: PdfSettings): {
  *   The inner `.pagedjs_margin-content` and `::after` inherit
  *   font-family / font-size / color / weight / style from the box.
  */
-function runningContentCss(style: Style): string {
+// The running-content declarations (font / size / colour / weight / italic /
+// caps) as a bare CSS fragment — shared by the host-class rule (legacy) and the
+// @page margin boxes (the apparatus path, where Vivliostyle actually styles the
+// running content, NOT via `.pagedjs_margin-*` host classes).
+function runningContentDecls(style: Style): string {
   const decls: string[] = [];
   if (style.family !== undefined && style.family.trim() !== '') {
     decls.push(`font-family: ${quoteFontFamily(style.family)};`);
@@ -1943,7 +1950,12 @@ function runningContentCss(style: Style): string {
   }
   const caps = capsCss(style);
   if (caps) decls.push(caps);
-  if (decls.length === 0) return '';
+  return decls.join(' ');
+}
+
+function runningContentCss(style: Style): string {
+  const declStr = runningContentDecls(style);
+  if (declStr === '') return '';
   // All eight @margin-box positions (4 sides × top/center/bottom or
   // left/center/right) plus the 4 corners. Listing them explicitly
   // matches what paged.js generates from @top-* / @bottom-* etc. rules,
@@ -1962,5 +1974,5 @@ function runningContentCss(style: Style): string {
     '.pagedjs_margin-bottom-right',
     '.pagedjs_margin-bottom-right-corner',
   ].join(', ');
-  return `:where(#preview-pane, #markpage-print-target) :is(${boxes}) { ${decls.join(' ')} }`;
+  return `:where(#preview-pane, #markpage-print-target) :is(${boxes}) { ${declStr} }`;
 }
