@@ -164,7 +164,14 @@ export async function paginateWithVivliostyle(
     source,
     `${pagedCss(settings)}\n${runningCss}`,
     renderTo,
-    { duplex: settings.duplex, spread: opts.spread ?? true },
+    {
+      duplex: settings.duplex,
+      spread: opts.spread ?? true,
+      // A cover is requested iff the style carries a coverBackground (the editor
+      // emits it only when "Couverture séparée" is on). Without one, the title
+      // block must NOT be isolated onto its own page.
+      hasCover: !!settings.coverBackground,
+    },
   );
 }
 

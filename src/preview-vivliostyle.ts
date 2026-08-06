@@ -355,7 +355,7 @@ export async function renderVivliostylePreview(
   source: HTMLElement,
   css: string,
   renderTo: HTMLElement,
-  options: { duplex?: boolean; spread?: boolean } = {},
+  options: { duplex?: boolean; spread?: boolean; hasCover?: boolean } = {},
 ): Promise<number> {
   installHostFixes();
   tagPristineBlocks(source);
@@ -458,10 +458,15 @@ export async function renderVivliostylePreview(
   // The subtitle MUST be in this set: a named page forces a break wherever it
   // changes, so a subtitle left off `mp-cover` splits the cover into three
   // pages (title, stranded subtitle, metadata) instead of one.
+  //
+  // Gated on hasCover: this very isolation (a named-page change forces a break)
+  // is exactly what a cover wants, but a cover-LESS style (no coverBackground)
+  // must NOT get it — else the title block is stranded on its own page, a cover
+  // nobody asked for. Without a cover the title is just a heading in the flow.
   const coverParts = doc.querySelectorAll<HTMLElement>(
     '.doc-title, .doc-subtitle, .preview-metadata',
   );
-  if (coverParts.length > 0) {
+  if (options.hasCover && coverParts.length > 0) {
     for (const el of coverParts) el.setAttribute('data-page', 'mp-cover');
     style.textContent += `
       [data-page="mp-cover"], [data-page="mp-cover"] * { page: mp-cover; }
