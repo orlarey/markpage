@@ -28,6 +28,9 @@ const META = { author: 'markpage', version };
 const RAPPORT_STATE = JSON.parse(
   readFileSync(join(root, 'scripts', 'rapport.state.json'), 'utf8'),
 );
+const LETTRE_STATE = JSON.parse(
+  readFileSync(join(root, 'scripts', 'lettre.state.json'), 'utf8'),
+);
 
 const FMT = {
   A4: { slug: 'a4', label: 'A4' },
@@ -44,9 +47,10 @@ const ARCHETYPES = [
     chapterBreak: 'none', notesPos: 'foot', numberingOn: true, apparatus: 2, // Folio en pied
   },
   {
+    // Lettre ships a hand-tuned full state (ET Book, centred title/heading,
+    // wide letter margins, date-only footer) — see scripts/lettre.state.json.
     base: 'Lettre', pageFormat: 'A4', formats: ['A4', 'Letter'],
-    pairing: 'elegant', hue: 210, hasCover: false, duplex: false,
-    chapterBreak: 'none', notesPos: 'foot', numberingOn: false, apparatus: 0, // Vierge
+    state: LETTRE_STATE,
   },
   {
     // Rapport ships a hand-tuned full state (ET Book, marginal chapter numbers,

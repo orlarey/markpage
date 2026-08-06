@@ -1,0 +1,234 @@
+{
+  "facet": "pages",
+  "meta": {
+    "name": "Lettre",
+    "author": "markpage",
+    "version": "1.0",
+    "date": ""
+  },
+  "hue1": 213,
+  "angle": 150,
+  "crans": {
+    "page": {
+      "kind": "neutral",
+      "g": 0
+    },
+    "cover": {
+      "kind": "tint",
+      "family": "B",
+      "s": 5,
+      "v": 1
+    },
+    "running-content": {
+      "kind": "neutral",
+      "g": 3
+    },
+    "title": {
+      "kind": "neutral",
+      "g": 4
+    },
+    "subtitle": {
+      "kind": "neutral",
+      "g": 4
+    },
+    "h1": {
+      "kind": "neutral",
+      "g": 4
+    },
+    "h2": {
+      "kind": "neutral",
+      "g": 4
+    },
+    "h3": {
+      "kind": "neutral",
+      "g": 5
+    },
+    "h4": {
+      "kind": "neutral",
+      "g": 5
+    },
+    "body": {
+      "kind": "neutral",
+      "g": 5
+    },
+    "code": {
+      "kind": "neutral",
+      "g": 4
+    },
+    "math": {
+      "kind": "neutral",
+      "g": 5
+    },
+    "caption": {
+      "kind": "neutral",
+      "g": 3
+    },
+    "note": {
+      "kind": "neutral",
+      "g": 3
+    },
+    "metadata": {
+      "kind": "neutral",
+      "g": 5
+    }
+  },
+  "fam": {
+    "head": "ET Book",
+    "body": "ET Book",
+    "code": "IBM Plex Mono"
+  },
+  "base": 10,
+  "ratio": 1.105,
+  "lh": 1.4,
+  "wHead": 600,
+  "wBody": 400,
+  "codeScale": 0.9,
+  "mscale": 1,
+  "mset": "newcm",
+  "pairing": "livre",
+  "steps": {
+    "running-content": -1,
+    "title": 8.5,
+    "subtitle": 3,
+    "h1": 8,
+    "h2": 3,
+    "h3": 2,
+    "h4": 1,
+    "chapter-number": 18,
+    "body": 0,
+    "caption": -1,
+    "note": -1,
+    "metadata": 1.5
+  },
+  "align": {
+    "title": "center",
+    "subtitle": "center",
+    "metadata": "center",
+    "h1": "center",
+    "h2": "left",
+    "h3": "left",
+    "h4": "left"
+  },
+  "rule": {
+    "running-content": "none",
+    "title": "below",
+    "subtitle": "none",
+    "metadata": "none",
+    "h1": "none",
+    "h2": "none",
+    "h3": "none",
+    "h4": "none"
+  },
+  "smallcaps": {
+    "running-content": "none",
+    "title": "none",
+    "subtitle": "none",
+    "metadata": "none",
+    "h1": "small",
+    "h2": "none",
+    "h3": "none",
+    "h4": "none"
+  },
+  "tracking": 0,
+  "justify": true,
+  "coverScale": 1.4,
+  "coverAlign": "center",
+  "numbering": {
+    "on": false,
+    "depth": 2,
+    "chapter": {
+      "format": "numeric"
+    }
+  },
+  "pageFormat": "A4",
+  "landscape": false,
+  "duplex": false,
+  "hasCover": false,
+  "chapterBreak": "none",
+  "notesPos": "foot",
+  "geo": {
+    "textTop": 19.556007385253906,
+    "textBottom": 19.885414123535156,
+    "textInner": 30.454421997070312,
+    "textOuter": 30.261703491210938,
+    "runInner": 30.089859008789062,
+    "runOuter": 29.766860961914062,
+    "headerTop": 0,
+    "footerBottom": 0,
+    "noteGap": 3,
+    "noteWidth": 20.333333333333332,
+    "titleY": 71.06546796601394
+  },
+  "pgLayers": {
+    "diag": false,
+    "bands": true,
+    "notes": false,
+    "title": false
+  },
+  "running": {
+    "header": {
+      "verso": {
+        "inner": [],
+        "center": [],
+        "outer": []
+      },
+      "recto": {
+        "inner": [],
+        "center": [],
+        "outer": []
+      }
+    },
+    "footer": {
+      "verso": {
+        "inner": [],
+        "center": [],
+        "outer": []
+      },
+      "recto": {
+        "inner": [
+          "date"
+        ],
+        "center": [],
+        "outer": []
+      }
+    }
+  },
+  "customText": "Notes de travail",
+  "blocSel": "callout",
+  "blocks": {
+    "code-block": {
+      "bgOn": true,
+      "bg": "#f4f6f9",
+      "bd": {
+        "on": false,
+        "color": "#d0d7de",
+        "width": 1
+      },
+      "pad": 0.55,
+      "radius": 6
+    },
+    "quote": {
+      "bgOn": false,
+      "bg": "#f4f6f9",
+      "bd": {
+        "on": false,
+        "color": "#3f9d78",
+        "width": 3
+      },
+      "pad": 0.5,
+      "radius": 3
+    },
+    "callout": {
+      "bgOn": false,
+      "bg": "#eef4ff",
+      "bd": {
+        "on": false,
+        "color": "#4a8cf0",
+        "width": 1
+      },
+      "pad": 0,
+      "radius": 1
+    }
+  },
+  "view": "recto"
+}

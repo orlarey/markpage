@@ -7,14 +7,14 @@
     "date": ""
   },
   "state": {
-    "facet": "couleur",
+    "facet": "pages",
     "meta": {
       "name": "Lettre",
       "author": "markpage",
       "version": "0.42.0",
       "date": ""
     },
-    "hue1": 210,
+    "hue1": 213,
     "angle": 150,
     "crans": {
       "page": {
@@ -23,49 +23,37 @@
       },
       "cover": {
         "kind": "tint",
-        "family": "A",
-        "s": 4,
-        "v": 4
+        "family": "B",
+        "s": 5,
+        "v": 1
       },
       "running-content": {
         "kind": "neutral",
-        "g": 2
+        "g": 3
       },
       "title": {
-        "kind": "tint",
-        "family": "A",
-        "s": 4,
-        "v": 4
+        "kind": "neutral",
+        "g": 4
       },
       "subtitle": {
-        "kind": "tint",
-        "family": "A",
-        "s": 3,
-        "v": 3
+        "kind": "neutral",
+        "g": 4
       },
       "h1": {
-        "kind": "tint",
-        "family": "A",
-        "s": 4,
-        "v": 3
+        "kind": "neutral",
+        "g": 4
       },
       "h2": {
-        "kind": "tint",
-        "family": "B",
-        "s": 3,
-        "v": 2
+        "kind": "neutral",
+        "g": 4
       },
       "h3": {
-        "kind": "tint",
-        "family": "A",
-        "s": 3,
-        "v": 2
+        "kind": "neutral",
+        "g": 5
       },
       "h4": {
-        "kind": "tint",
-        "family": "A",
-        "s": 2,
-        "v": 1
+        "kind": "neutral",
+        "g": 5
       },
       "body": {
         "kind": "neutral",
@@ -89,49 +77,49 @@
       },
       "metadata": {
         "kind": "neutral",
-        "g": 3
+        "g": 5
       }
     },
     "fam": {
-      "head": "EB Garamond",
-      "body": "EB Garamond",
+      "head": "ET Book",
+      "body": "ET Book",
       "code": "IBM Plex Mono"
     },
-    "base": 11,
-    "ratio": 1.3,
+    "base": 10,
+    "ratio": 1.105,
     "lh": 1.4,
     "wHead": 600,
     "wBody": 400,
     "codeScale": 0.9,
     "mscale": 1,
     "mset": "newcm",
-    "pairing": "elegant",
+    "pairing": "livre",
     "steps": {
       "running-content": -1,
-      "title": 5,
+      "title": 8.5,
       "subtitle": 3,
-      "h1": 4,
+      "h1": 8,
       "h2": 3,
       "h3": 2,
       "h4": 1,
-      "chapter-number": 8,
+      "chapter-number": 18,
       "body": 0,
       "caption": -1,
       "note": -1,
-      "metadata": 0
+      "metadata": 1.5
     },
     "align": {
       "title": "center",
       "subtitle": "center",
       "metadata": "center",
-      "h1": "left",
+      "h1": "center",
       "h2": "left",
       "h3": "left",
       "h4": "left"
     },
     "rule": {
       "running-content": "none",
-      "title": "none",
+      "title": "below",
       "subtitle": "none",
       "metadata": "none",
       "h1": "none",
@@ -144,7 +132,7 @@
       "title": "none",
       "subtitle": "none",
       "metadata": "none",
-      "h1": "none",
+      "h1": "small",
       "h2": "none",
       "h3": "none",
       "h4": "none"
@@ -167,23 +155,23 @@
     "chapterBreak": "none",
     "notesPos": "foot",
     "geo": {
-      "textTop": 33,
-      "textBottom": 66,
-      "textInner": 23.333333333333332,
-      "textOuter": 46.666666666666664,
-      "runInner": 11.666666666666666,
-      "runOuter": 23.333333333333332,
-      "headerTop": 16.5,
-      "footerBottom": 33,
+      "textTop": 19.556007385253906,
+      "textBottom": 19.885414123535156,
+      "textInner": 30.454421997070312,
+      "textOuter": 30.261703491210938,
+      "runInner": 30.089859008789062,
+      "runOuter": 29.766860961914062,
+      "headerTop": 0,
+      "footerBottom": 0,
       "noteGap": 3,
       "noteWidth": 20.333333333333332,
-      "titleY": 76.56
+      "titleY": 71.06546796601394
     },
     "pgLayers": {
-      "diag": true,
+      "diag": false,
       "bands": true,
-      "notes": true,
-      "title": true
+      "notes": false,
+      "title": false
     },
     "running": {
       "header": {
@@ -205,7 +193,9 @@
           "outer": []
         },
         "recto": {
-          "inner": [],
+          "inner": [
+            "date"
+          ],
           "center": [],
           "outer": []
         }
@@ -229,7 +219,7 @@
         "bgOn": false,
         "bg": "#f4f6f9",
         "bd": {
-          "on": true,
+          "on": false,
           "color": "#3f9d78",
           "width": 3
         },
@@ -237,15 +227,15 @@
         "radius": 3
       },
       "callout": {
-        "bgOn": true,
+        "bgOn": false,
         "bg": "#eef4ff",
         "bd": {
-          "on": true,
+          "on": false,
           "color": "#4a8cf0",
           "width": 1
         },
-        "pad": 0.7,
-        "radius": 8
+        "pad": 0,
+        "radius": 1
       }
     },
     "view": "recto"
