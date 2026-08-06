@@ -1404,7 +1404,12 @@ export function pagedCss(s: PdfSettings): string {
        box + inline (align / margins). */
     ${SCOPE} .math-block { ${blockBoxCss(styles['math-block'])} ${inlineCss(styles['math-block'])} }
     ${SCOPE} .mermaid-block { ${blockBoxCss(styles.mermaid)} ${inlineCss(styles.mermaid)} }
-    ${SCOPE} .admonition { ${blockBoxCss(styles.callout)} ${inlineCss(styles.callout)} }
+    /* The style's callout box is authoritative. Set an explicit transparent
+       background + no border FIRST, so a callout whose style has fond/bordure
+       OFF does not inherit the type-based tint + coloured left bar from
+       constructs.css (.admonition-note/-caution/…). blockBoxCss then overrides
+       these only when the style actually sets a background / border. */
+    ${SCOPE} .admonition { background: transparent; border: none; ${blockBoxCss(styles.callout)} ${inlineCss(styles.callout)} }
     ${SCOPE} table { border-collapse: collapse; ${inlineCss(styles.table)} ${blockBoxCss(styles.table)} }
 
     /* Letterhead layout (sender / recipient / signature positioning) — shared
