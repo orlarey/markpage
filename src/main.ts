@@ -858,6 +858,15 @@ async function bootstrap(): Promise<void> {
     // The document's language is the ONE content-level override — applied over the
     // resolved style (language left the style; STYLE-ALIGNMENT).
     effectiveSettings = applyLanguageOverride(effectiveSettings, meta.language);
+    // Fold the document's front-matter author into the settings so the running
+    // apparatus's `author` material resolves to the DOCUMENT author, not the
+    // profile placeholder (mirrors metadataLines' front-matter-first rule).
+    if (meta.author !== undefined) {
+      effectiveSettings = {
+        ...effectiveSettings,
+        author: { ...effectiveSettings.author, text: meta.author },
+      };
+    }
     // Bake the terminal page geometry LAST — after every setting that feeds the
     // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
     // reads a resolved `pageGeometry` and never the production inputs. A named

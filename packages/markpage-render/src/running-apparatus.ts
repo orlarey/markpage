@@ -24,6 +24,7 @@ export type ApparatusMaterial =
   | 'chapter'
   | 'section'
   | 'doctitle'
+  | 'author'
   | 'date'
   | { text: string };
 
@@ -54,8 +55,9 @@ function formatDate(): string {
   );
 }
 
-/** A material → its CSS `content` fragment. */
-export function materialToCss(m: ApparatusMaterial): string {
+/** A material → its CSS `content` fragment. `author` resolves to the document's
+ *  author (a metadata value known only at render), like `{text}`. */
+export function materialToCss(m: ApparatusMaterial, author = ''): string {
   if (typeof m === 'object') return cssString(m.text);
   switch (m) {
     case 'folio':
@@ -68,6 +70,8 @@ export function materialToCss(m: ApparatusMaterial): string {
       return 'string(mp-section)';
     case 'doctitle':
       return 'string(mp-doctitle)';
+    case 'author':
+      return cssString(author);
     case 'date':
       return cssString(formatDate());
     default:
@@ -76,13 +80,17 @@ export function materialToCss(m: ApparatusMaterial): string {
 }
 
 /** A zone's stack → an inline CSS `content` value; reversed on verso. */
-export function zoneToCss(stack: ApparatusMaterial[], reversed: boolean): string {
+export function zoneToCss(
+  stack: ApparatusMaterial[],
+  reversed: boolean,
+  author = '',
+): string {
   if (stack.length === 0) return '""';
   const items = reversed ? [...stack].reverse() : stack;
   const parts: string[] = [];
   items.forEach((m, i) => {
     if (i > 0) parts.push(cssString(SEP));
-    parts.push(materialToCss(m));
+    parts.push(materialToCss(m, author));
   });
   return parts.join(' ');
 }
@@ -117,24 +125,26 @@ export function apparatusStringSets(app: RunningApparatus): string[] {
  */
 export function runningApparatusCss(
   app: RunningApparatus,
-  // running-content declarations (colour / size / font …) placed on EACH margin
-  // box: Vivliostyle styles the @page-generated running content here, not via the
-  // host `.pagedjs_margin-*` classes. Empty string leaves the boxes unstyled.
-  boxDecls = '',
+  // opts.boxDecls: running-content declarations (colour / size / font …) placed on
+  // EACH margin box — Vivliostyle styles the @page-generated running content here,
+  // not via the host `.pagedjs_margin-*` classes. opts.author resolves the `author`
+  // material to the document's author (a render-time metadata value).
+  opts: { boxDecls?: string; author?: string } = {},
 ): string {
   const rules: string[] = [...apparatusStringSets(app)];
-  const d = boxDecls ? ` ${boxDecls}` : '';
+  const d = opts.boxDecls ? ` ${opts.boxDecls}` : '';
+  const a = opts.author ?? '';
   const band = (edge: 'top' | 'bottom', b: ApparatusBand): string => {
     const recto =
       `@page :right { ` +
-      `@${edge}-left { content: ${zoneToCss(b.recto.inner, false)};${d} } ` +
-      `@${edge}-center { content: ${zoneToCss(b.recto.center, false)};${d} } ` +
-      `@${edge}-right { content: ${zoneToCss(b.recto.outer, false)};${d} } }`;
+      `@${edge}-left { content: ${zoneToCss(b.recto.inner, false, a)};${d} } ` +
+      `@${edge}-center { content: ${zoneToCss(b.recto.center, false, a)};${d} } ` +
+      `@${edge}-right { content: ${zoneToCss(b.recto.outer, false, a)};${d} } }`;
     const verso =
       `@page :left { ` +
-      `@${edge}-left { content: ${zoneToCss(b.verso.outer, true)};${d} } ` +
-      `@${edge}-center { content: ${zoneToCss(b.verso.center, true)};${d} } ` +
-      `@${edge}-right { content: ${zoneToCss(b.verso.inner, true)};${d} } }`;
+      `@${edge}-left { content: ${zoneToCss(b.verso.outer, true, a)};${d} } ` +
+      `@${edge}-center { content: ${zoneToCss(b.verso.center, true, a)};${d} } ` +
+      `@${edge}-right { content: ${zoneToCss(b.verso.inner, true, a)};${d} } }`;
     return `${recto}\n${verso}`;
   };
   rules.push(band('top', app.header));

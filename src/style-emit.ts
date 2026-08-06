@@ -59,15 +59,16 @@ export function capsCss(s: Style): string {
  * Purpose: Emit the heading / running-content "filet" (horizontal rule)
  *   declaration — the caller's choice for what `underline` means on headings.
  * How: Prefer the resolved `rule` (position + colour/width/style) the style
- *   editor compiles; fall back to the legacy `underline` boolean (a 1px grey
- *   rule below). Empty string when neither is set.
+ *   editor compiles; a rule with no explicit colour takes the ELEMENT's own
+ *   colour (a title's filet matches the title), falling back to a neutral grey.
+ *   Legacy `underline` boolean draws a 1px grey rule below. Empty when unset.
  */
 export function filetCss(s: Style): string {
   const r = s.rule;
   if (r) {
     const w = r.width ?? 1;
     const st = r.style ?? 'solid';
-    const c = r.color ?? '#d0d7de';
+    const c = r.color ?? s.color ?? '#d0d7de';
     const decl = `${w}px ${st} ${c}`;
     return r.position === 'above'
       ? `border-top: ${decl}; padding-top: 0.2em;`

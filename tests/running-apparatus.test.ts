@@ -25,6 +25,13 @@ describe('materialToCss', () => {
     expect(materialToCss('doctitle')).toBe('string(mp-doctitle)');
     expect(materialToCss({ text: 'Brouillon' })).toBe('"Brouillon"');
   });
+
+  it('resolves the `author` material to the document author (render-time value)', () => {
+    expect(materialToCss('author', 'Yann Orlarey')).toBe('"Yann Orlarey"');
+    expect(materialToCss('author')).toBe('""'); // no author → empty
+    // threaded through a zone
+    expect(zoneToCss(['author'], false, 'Ada Lovelace')).toBe('"Ada Lovelace"');
+  });
 });
 
 describe('zoneToCss — inline sequence, reversed on verso', () => {

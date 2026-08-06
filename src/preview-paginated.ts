@@ -1198,10 +1198,10 @@ export function pagedCss(s: PdfSettings): string {
   // it owns the margin boxes — @page :right/:left content from the model. The
   // legacy fence path is skipped for it in paginateWithVivliostyle.
   const apparatusRule = s.runningApparatus
-    ? runningApparatusCss(
-        s.runningApparatus,
-        runningContentDecls(styles['running-content']),
-      )
+    ? runningApparatusCss(s.runningApparatus, {
+        boxDecls: runningContentDecls(styles['running-content']),
+        author: s.author?.text ?? '',
+      })
     : '';
   // Cover page (a title/metadata block on a tinted `coverBackground`): keep the
   // title + metadata legible against the fill, and isolate the cover so body
