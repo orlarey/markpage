@@ -192,6 +192,16 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     );
   });
 
+  it('re-inks the title filet on the cover, not just the text', () => {
+    // Regression: the filet is a border-bottom carrying the title's own (dark)
+    // colour. Recolouring only the text leaves the rule dark on the fill.
+    const s: PdfSettings = { ...derivedDuplex, coverBackground: '#223e61' };
+    const css = pagedCss(s);
+    expect(css).toMatch(
+      /h1\.doc-title,[^{]*\.doc-subtitle \{ border-bottom-color: #[0-9a-f]{6}; \}/,
+    );
+  });
+
   it('does NOT fold when notes are in the margin (side) — the gutter stays', () => {
     const sideDuplex: PdfSettings = {
       ...derivedDuplex,

@@ -1220,7 +1220,11 @@ export function pagedCss(s: PdfSettings): string {
   // them directly (engine-agnostic; no page-container :has needed).
   const coverInk = readableInk(s.coverBackground);
   const coverInkRule = coverInk
-    ? `${SCOPE} h1.doc-title, ${SCOPE} .doc-subtitle, ${SCOPE} .preview-metadata { color: ${coverInk}; }`
+    ? `${SCOPE} h1.doc-title, ${SCOPE} .doc-subtitle, ${SCOPE} .preview-metadata { color: ${coverInk}; } ` +
+      // The filet is a border-bottom carrying the title's OWN (dark) colour, so
+      // recolouring the text is not enough — re-ink the rule too, or it stays
+      // the style colour and reads wrong on the fill.
+      `${SCOPE} h1.doc-title, ${SCOPE} .doc-subtitle { border-bottom-color: ${coverInk}; }`
     : '';
   // Break before the first block AFTER the cover identity block. That block is
   // the title, then an OPTIONAL subtitle, then an OPTIONAL metadata block
