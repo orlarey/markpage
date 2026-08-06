@@ -1039,13 +1039,22 @@ export function pagedCss(s: PdfSettings): string {
   // they swap. CSS margin shorthand is `top right bottom left`.
   const rectoMargin = `margin: ${effMargins.top}mm ${effMargins.outer}mm ${effMargins.bottom}mm ${effMargins.inner}mm;`;
   const versoMargin = `margin: ${effMargins.top}mm ${effMargins.inner}mm ${effMargins.bottom}mm ${effMargins.outer}mm;`;
+  // A title page should be centred on the PAGE, not on the (spine-shifted) text
+  // block. When the style has a cover, give the FIRST page symmetric horizontal
+  // margins so its centred title/metadata sit at the page centre. Only in duplex
+  // (simplex margins are already symmetric); placed after :right/:left so it wins.
+  const coverSym = (effMargins.inner + effMargins.outer) / 2;
+  const coverCenterRule =
+    s.duplex && s.coverBackground
+      ? `\n    @page :first { margin-left: ${coverSym}mm; margin-right: ${coverSym}mm; }`
+      : '';
   const pageRule = s.duplex
     ? `
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;
     }
     @page :right { ${rectoMargin} }
-    @page :left  { ${versoMargin} }`
+    @page :left  { ${versoMargin} }${coverCenterRule}`
     : `
     @page {
       size: ${sizeMm.w}mm ${sizeMm.h}mm;

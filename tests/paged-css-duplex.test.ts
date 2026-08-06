@@ -166,6 +166,15 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 27\.\d+mm 77\.\d+mm 54\.\d+mm; \}/);
   });
 
+  it('centres the cover on the page (@page :first symmetric) when a cover exists', () => {
+    const s: PdfSettings = { ...derivedDuplex, coverBackground: '#223e61' };
+    const css = pagedCss(s);
+    // symmetric horizontal margins on the first page = the two mirrored margins averaged
+    expect(css).toMatch(/@page :first \{ margin-left: 40\.\d+mm; margin-right: 40\.\d+mm; \}/);
+    // no such rule without a cover
+    expect(pagedCss(derivedDuplex)).not.toContain('@page :first');
+  });
+
   it('does NOT fold when notes are in the margin (side) — the gutter stays', () => {
     const sideDuplex: PdfSettings = {
       ...derivedDuplex,
