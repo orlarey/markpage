@@ -21,6 +21,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 const META = { author: 'markpage', version };
 
+// A hand-tuned archetype: the full editor state, authored in the style editor
+// and dropped in verbatim. Preferred over a compact spec when a designer has
+// dialed in details (fonts, per-element scale/colour, cover zoom, apparatus)
+// that the compact spec cannot express. Geometry is still re-baked per format.
+const RAPPORT_STATE = JSON.parse(
+  readFileSync(join(root, 'scripts', 'rapport.state.json'), 'utf8'),
+);
+
 const FMT = {
   A4: { slug: 'a4', label: 'A4' },
   Letter: { slug: 'letter', label: 'Letter' },
@@ -41,9 +49,11 @@ const ARCHETYPES = [
     chapterBreak: 'none', notesPos: 'foot', numberingOn: false, apparatus: 0, // Vierge
   },
   {
+    // Rapport ships a hand-tuned full state (ET Book, marginal chapter numbers,
+    // scholarly apparatus with author/date in the footer) rather than a compact
+    // spec — see scripts/rapport.state.json.
     base: 'Rapport', pageFormat: 'A4', formats: ['A4', 'Letter'],
-    pairing: 'moderne', hue: 218, hasCover: true, duplex: true,
-    chapterBreak: 'none', notesPos: 'foot', numberingOn: true, apparatus: 1, // Savant
+    state: RAPPORT_STATE,
   },
   {
     base: 'Livre', pageFormat: 'A4', formats: ['A4', 'Letter'],
@@ -65,17 +75,26 @@ const slug = (s) =>
 // Applied IN the page (runs in the prototype's scope): mutate the editor state S
 // from a spec at one page format, then produce a value.
 const inPage = ([spec, pageFormat, meta, want]) => {
-  const P = PAIRINGS.find((p) => p.id === spec.pairing);
-  if (P) { S.pairing = P.id; S.fam = { head: P.head, body: P.body, code: P.code }; S.ratio = P.ratio; S.mset = P.math; }
-  if (spec.hue != null) S.hue1 = spec.hue;
-  S.hasCover = !!spec.hasCover;
-  S.duplex = !!spec.duplex;
-  S.chapterBreak = spec.chapterBreak || 'none';
-  S.notesPos = spec.notesPos || 'foot';
-  if (spec.numberingOn != null) S.numbering.on = !!spec.numberingOn;
-  if (spec.apparatus != null) S.running = JSON.parse(JSON.stringify(APPAREIL_PRESETS[spec.apparatus].running));
-  S.pageFormat = pageFormat;
-  S.geo = canon1_9(); // re-bake the canon for THIS format
+  if (spec.state) {
+    // Hand-tuned archetype: load the authored editor state verbatim. Its `geo`
+    // may carry a hand-dragged text block that the canon cannot reproduce, so
+    // PRESERVE it (absolute mm, reused as-is across formats) — re-baking with
+    // canon1_9() would silently discard the custom margins.
+    Object.assign(S, JSON.parse(JSON.stringify(spec.state)));
+    S.pageFormat = pageFormat;
+  } else {
+    const P = PAIRINGS.find((p) => p.id === spec.pairing);
+    if (P) { S.pairing = P.id; S.fam = { head: P.head, body: P.body, code: P.code }; S.ratio = P.ratio; S.mset = P.math; }
+    if (spec.hue != null) S.hue1 = spec.hue;
+    S.hasCover = !!spec.hasCover;
+    S.duplex = !!spec.duplex;
+    S.chapterBreak = spec.chapterBreak || 'none';
+    S.notesPos = spec.notesPos || 'foot';
+    if (spec.numberingOn != null) S.numbering.on = !!spec.numberingOn;
+    if (spec.apparatus != null) S.running = JSON.parse(JSON.stringify(APPAREIL_PRESETS[spec.apparatus].running));
+    S.pageFormat = pageFormat;
+    S.geo = canon1_9(); // re-bake the canon for THIS format
+  }
   S.meta = { ...S.meta, ...meta };
   return want === 'source'
     ? { 'markpage-style-src': 1, meta: { ...S.meta }, state: S }
