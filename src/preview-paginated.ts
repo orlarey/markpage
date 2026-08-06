@@ -1272,6 +1272,16 @@ export function pagedCss(s: PdfSettings): string {
       hyphens: auto;
       -webkit-hyphens: auto;
     }
+    /* Never hyphenate display type. Titles, subtitles and headings are set
+       ragged/centred and break on whole words — a hyphen mid-word ("chan-tier")
+       reads as a typo. Hyphenation stays on the justified body only. The screen
+       preview already scopes hyphens to p/li; this brings the paged path in
+       line by overriding the container's auto-hyphenation above. */
+    ${SCOPE} :is(h1, h2, h3, h4, h5, h6),
+    ${SCOPE} .doc-subtitle {
+      hyphens: none;
+      -webkit-hyphens: none;
+    }
 
     ${
       styles.body.align === 'justify'
