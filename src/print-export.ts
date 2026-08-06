@@ -30,6 +30,7 @@ import { paginateOnce, pageContentGeomPx, pageSizeMm } from './preview-paginated
 import { withBakedGeometry } from './geometry-producer';
 import { applyNamedStyle } from './style-library';
 import { applySlideLayout, type PdfSettings } from './settings';
+import { t } from './i18n/strings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
 const PRINT_STYLE_ID = 'markpage-print-style';
@@ -65,8 +66,16 @@ export async function exportViaPrint(
   await document.fonts.ready;
 
   // Same engine as the on-screen preview (Vivliostyle): identical pages, TOC
-  // numbers and running footers on screen and on paper.
-  const teardownPrintPreviewer = await paginateOnce(content, effectiveSettings, target);
+  // numbers and running footers on screen and on paper. Pagination happens
+  // off-screen and can take a while for a long document, so surface a spinner
+  // with a live page count — the user sees it is working (and roughly how big).
+  const progress = beginPrintProgress(target);
+  let teardownPrintPreviewer: () => void;
+  try {
+    teardownPrintPreviewer = await paginateOnce(content, effectiveSettings, target);
+  } finally {
+    progress.stop();
+  }
 
   // Clear the inline staging styles so @media print can take over.
   target.style.cssText = '';
@@ -103,6 +112,47 @@ export async function exportViaPrint(
   // Safari sometimes doesn't fire afterprint when the dialog is
   // dismissed without printing — schedule a fallback cleanup.
   setTimeout(() => cleanup(), 30_000);
+}
+
+/**
+ * Purpose: A centred "Préparation de l'impression… N pages" overlay shown while
+ *   the (off-screen) export pagination runs, with a LIVE page count so a long
+ *   export never looks frozen. Mirrors the preview's beginPaginationProgress.
+ * How: Poll `countIn` for the engine's emitted page containers every 200 ms and
+ *   rebuild the label. Returns a `stop()` that clears the poll + removes it.
+ */
+function beginPrintProgress(countIn: HTMLElement): { stop: () => void } {
+  const overlay = document.createElement('div');
+  overlay.className = 'mp-pagination-progress';
+  overlay.setAttribute('role', 'status');
+  overlay.setAttribute('aria-live', 'polite');
+  overlay.style.inset = '0'; // full viewport → the flex content centres itself
+  const spinner = document.createElement('div');
+  spinner.className = 'mp-pp-spinner';
+  const label = document.createElement('div');
+  label.className = 'mp-pp-label';
+  const render = (): void => {
+    const n = countIn.querySelectorAll(
+      '[data-vivliostyle-page-container]',
+    ).length;
+    label.textContent = t('print.preparing');
+    if (n > 0) {
+      const count = document.createElement('span');
+      count.className = 'mp-pp-count';
+      count.textContent = String(n);
+      label.append(' ', count, ` ${t('preview.paginating.pages')}`);
+    }
+  };
+  render();
+  overlay.append(spinner, label);
+  document.body.appendChild(overlay);
+  const poll = window.setInterval(render, 200);
+  return {
+    stop: (): void => {
+      window.clearInterval(poll);
+      overlay.remove();
+    },
+  };
 }
 
 /**

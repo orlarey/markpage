@@ -535,6 +535,7 @@ const FR = {
   // ---- pagination progress -----------------------------------------
   'preview.paginating': 'Mise en page…',
   'preview.paginating.pages': 'pages',
+  'print.preparing': 'Préparation de l’impression…',
 } as const;
 
 // EN must declare exactly the same keys. Typed via `Record<keyof typeof
@@ -1047,6 +1048,7 @@ const EN: Record<keyof typeof FR, string> = {
   'weight.700': 'Bold (700)',
   'preview.paginating': 'Laying out…',
   'preview.paginating.pages': 'pages',
+  'print.preparing': 'Preparing to print…',
 };
 
 const STRINGS = { fr: FR, en: EN } as const;
