@@ -31,6 +31,9 @@ const RAPPORT_STATE = JSON.parse(
 const LETTRE_STATE = JSON.parse(
   readFileSync(join(root, 'scripts', 'lettre.state.json'), 'utf8'),
 );
+const ARTICLE_STATE = JSON.parse(
+  readFileSync(join(root, 'scripts', 'article.state.json'), 'utf8'),
+);
 
 const FMT = {
   A4: { slug: 'a4', label: 'A4' },
@@ -51,6 +54,13 @@ const ARCHETYPES = [
     // wide letter margins, date-only footer) — see scripts/lettre.state.json.
     base: 'Lettre', pageFormat: 'A4', formats: ['A4', 'Letter'],
     state: LETTRE_STATE,
+  },
+  {
+    // Article: a single-sided academic article (no cover) with the doc title
+    // in the running header and a centred folio in the footer — full authored
+    // state, see scripts/article.state.json.
+    base: 'Article', pageFormat: 'A4', formats: ['A4', 'Letter'],
+    state: ARTICLE_STATE,
   },
   {
     // Rapport ships a hand-tuned full state (ET Book, marginal chapter numbers,

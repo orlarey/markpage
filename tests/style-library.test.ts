@@ -24,6 +24,8 @@ describe('style library — built-ins', () => {
       'note-letter',
       'lettre-a4',
       'lettre-letter',
+      'article-a4',
+      'article-letter',
       'rapport-a4',
       'rapport-letter',
       'livre-a4',

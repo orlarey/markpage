@@ -1,0 +1,265 @@
+{
+  "markpage-style-src": 1,
+  "meta": {
+    "name": "Article",
+    "author": "markpage",
+    "version": "0.42.0",
+    "date": ""
+  },
+  "state": {
+    "facet": "pages",
+    "meta": {
+      "name": "Article",
+      "author": "markpage",
+      "version": "0.42.0",
+      "date": ""
+    },
+    "hue1": 213,
+    "angle": 150,
+    "crans": {
+      "page": {
+        "kind": "neutral",
+        "g": 0
+      },
+      "cover": {
+        "kind": "tint",
+        "family": "B",
+        "s": 5,
+        "v": 1
+      },
+      "running-content": {
+        "kind": "tint",
+        "family": "A",
+        "s": 0,
+        "v": 5
+      },
+      "title": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 3
+      },
+      "subtitle": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 3
+      },
+      "h1": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 3
+      },
+      "h2": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 3
+      },
+      "h3": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 5
+      },
+      "h4": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 5
+      },
+      "body": {
+        "kind": "neutral",
+        "g": 5
+      },
+      "code": {
+        "kind": "neutral",
+        "g": 4
+      },
+      "math": {
+        "kind": "neutral",
+        "g": 5
+      },
+      "caption": {
+        "kind": "neutral",
+        "g": 3
+      },
+      "note": {
+        "kind": "neutral",
+        "g": 3
+      },
+      "metadata": {
+        "kind": "tint",
+        "family": "A",
+        "s": 4,
+        "v": 5
+      }
+    },
+    "fam": {
+      "head": "ET Book",
+      "body": "ET Book",
+      "code": "IBM Plex Mono"
+    },
+    "base": 10,
+    "ratio": 1.1,
+    "lh": 1.4,
+    "wHead": 600,
+    "wBody": 400,
+    "codeScale": 0.9,
+    "mscale": 1,
+    "mset": "stix2",
+    "pairing": "classique",
+    "steps": {
+      "running-content": -0.5,
+      "title": 8.5,
+      "subtitle": 3,
+      "h1": 8,
+      "h2": 3,
+      "h3": 2,
+      "h4": 1,
+      "chapter-number": 18,
+      "body": 0,
+      "caption": -1,
+      "note": -1,
+      "metadata": 1.5
+    },
+    "align": {
+      "title": "center",
+      "subtitle": "center",
+      "metadata": "center",
+      "h1": "left",
+      "h2": "left",
+      "h3": "left",
+      "h4": "left"
+    },
+    "rule": {
+      "running-content": "none",
+      "title": "below",
+      "subtitle": "none",
+      "metadata": "none",
+      "h1": "none",
+      "h2": "none",
+      "h3": "none",
+      "h4": "none"
+    },
+    "smallcaps": {
+      "running-content": "none",
+      "title": "none",
+      "subtitle": "none",
+      "metadata": "none",
+      "h1": "none",
+      "h2": "none",
+      "h3": "none",
+      "h4": "none"
+    },
+    "tracking": 0,
+    "justify": true,
+    "coverScale": 1.4,
+    "coverAlign": "center",
+    "numbering": {
+      "on": true,
+      "depth": 3,
+      "chapter": {
+        "format": "numeric"
+      }
+    },
+    "pageFormat": "A4",
+    "landscape": false,
+    "duplex": false,
+    "hasCover": false,
+    "chapterBreak": "none",
+    "notesPos": "foot",
+    "geo": {
+      "textTop": 35.96108250364044,
+      "textBottom": 35.148244823929815,
+      "textInner": 39.64147263024685,
+      "textOuter": 39.59930419921875,
+      "runInner": 40.24548231497319,
+      "runOuter": 39.90138488408377,
+      "headerTop": 14.889043129096597,
+      "footerBottom": 15.04560994293729,
+      "noteGap": 3,
+      "noteWidth": 20.333333333333332,
+      "titleY": 105.61483620186529
+    },
+    "pgLayers": {
+      "diag": true,
+      "bands": true,
+      "notes": false,
+      "title": false
+    },
+    "running": {
+      "header": {
+        "verso": {
+          "inner": [],
+          "center": [
+            "doctitle"
+          ],
+          "outer": []
+        },
+        "recto": {
+          "inner": [],
+          "center": [
+            "doctitle"
+          ],
+          "outer": []
+        }
+      },
+      "footer": {
+        "verso": {
+          "inner": [],
+          "center": [
+            "folio"
+          ],
+          "outer": []
+        },
+        "recto": {
+          "inner": [],
+          "center": [
+            "folio"
+          ],
+          "outer": []
+        }
+      }
+    },
+    "customText": "Notes de travail",
+    "blocSel": "code-block",
+    "blocks": {
+      "code-block": {
+        "bgOn": true,
+        "bg": "#f4f6f9",
+        "bd": {
+          "on": false,
+          "color": "#d0d7de",
+          "width": 0
+        },
+        "pad": 0.55,
+        "radius": 1
+      },
+      "quote": {
+        "bgOn": false,
+        "bg": "#f4f6f9",
+        "bd": {
+          "on": false,
+          "color": "#3f9d78",
+          "width": 3
+        },
+        "pad": 0.5,
+        "radius": 3
+      },
+      "callout": {
+        "bgOn": false,
+        "bg": "#eef4ff",
+        "bd": {
+          "on": true,
+          "color": "#4a8cf0",
+          "width": 1
+        },
+        "pad": 0.7,
+        "radius": 3
+      }
+    },
+    "view": "spread"
+  }
+}

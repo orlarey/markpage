@@ -762,6 +762,400 @@
     }
   },
   {
+    "key": "article-a4",
+    "name": "Article A4",
+    "style": {
+      "pageSize": "A4",
+      "pageGeometry": {
+        "text": {
+          "top": 35.96108250364044,
+          "bottom": 35.148244823929815,
+          "inner": 39.64147263024685,
+          "outer": 39.59930419921875,
+          "width": 130.7592231705344,
+          "height": 225.89067267242973
+        },
+        "running": {
+          "inner": 40.24548231497319,
+          "outer": 39.90138488408377
+        },
+        "header": {
+          "top": 14.889043129096597
+        },
+        "footer": {
+          "bottom": 15.04560994293729
+        },
+        "sidenote": {
+          "gap": 3,
+          "width": 20.333333333333332
+        }
+      },
+      "duplex": false,
+      "chapterBreak": "none",
+      "chapter": {
+        "drop": 69.7
+      },
+      "notes": {
+        "position": "foot"
+      },
+      "numbering": {
+        "on": true,
+        "depth": 3,
+        "chapterFormat": "numeric",
+        "chapterNumeralPt": 55.5,
+        "chapterStyle": "marginal"
+      },
+      "runningApparatus": {
+        "header": {
+          "verso": {
+            "inner": [],
+            "center": [
+              "doctitle"
+            ],
+            "outer": []
+          },
+          "recto": {
+            "inner": [],
+            "center": [
+              "doctitle"
+            ],
+            "outer": []
+          }
+        },
+        "footer": {
+          "verso": {
+            "inner": [],
+            "center": [
+              "folio"
+            ],
+            "outer": []
+          },
+          "recto": {
+            "inner": [],
+            "center": [
+              "folio"
+            ],
+            "outer": []
+          }
+        }
+      },
+      "fonts": {
+        "headings": "ET Book",
+        "body": "ET Book",
+        "code": "IBM Plex Mono"
+      },
+      "styles": {
+        "body": {
+          "color": "#000000",
+          "fontSize": 10,
+          "weight": 400
+        },
+        "title": {
+          "color": "#30588a",
+          "fontSize": 31.5,
+          "weight": 600,
+          "align": "center",
+          "rule": {
+            "position": "below",
+            "color": "#30588a",
+            "width": 1
+          }
+        },
+        "subtitle": {
+          "color": "#30588a",
+          "fontSize": 13.5,
+          "weight": 600,
+          "align": "center"
+        },
+        "h1": {
+          "color": "#30588a",
+          "fontSize": 21.5,
+          "weight": 600,
+          "align": "left"
+        },
+        "h2": {
+          "color": "#30588a",
+          "fontSize": 13.5,
+          "weight": 600,
+          "align": "left"
+        },
+        "h3": {
+          "color": "#122133",
+          "fontSize": 12,
+          "weight": 600,
+          "align": "left"
+        },
+        "h4": {
+          "color": "#122133",
+          "fontSize": 11,
+          "weight": 600,
+          "align": "left"
+        },
+        "code-inline": {
+          "color": "#383838",
+          "fontSize": 9
+        },
+        "inline-link": {
+          "color": "#30588a",
+          "underline": true
+        },
+        "metadata": {
+          "color": "#122133",
+          "fontSize": 16,
+          "align": "center"
+        },
+        "code-block": {
+          "color": "#383838",
+          "fontSize": 9,
+          "padding": 0.55,
+          "borderRadius": 1,
+          "background": "#f4f6f9"
+        },
+        "quote": {
+          "padding": 0.5,
+          "borderRadius": 3
+        },
+        "math-block": {
+          "color": "#000000",
+          "fontSize": 10
+        },
+        "mermaid": {
+          "align": "center"
+        },
+        "callout": {
+          "padding": 0.7,
+          "borderRadius": 3,
+          "borderTop": true,
+          "borderRight": true,
+          "borderBottom": true,
+          "borderLeft": true,
+          "borderColor": "#4a8cf0",
+          "borderWidth": 1
+        },
+        "table": {
+          "fontSize": 10
+        },
+        "caption": {
+          "color": "#6b6b6b",
+          "fontSize": 9
+        },
+        "footnote": {
+          "color": "#6b6b6b",
+          "fontSize": 9
+        },
+        "running-content": {
+          "color": "#303133",
+          "fontSize": 9.5
+        }
+      },
+      "mathScale": 1,
+      "mathFontSet": "stix2",
+      "pageBackground": "#ffffff",
+      "customFonts": []
+    },
+    "meta": {
+      "author": "markpage",
+      "version": "0.42.0"
+    }
+  },
+  {
+    "key": "article-letter",
+    "name": "Article Letter",
+    "style": {
+      "pageSize": "LETTER",
+      "pageGeometry": {
+        "text": {
+          "top": 35.96108250364044,
+          "bottom": 35.148244823929815,
+          "inner": 39.64147263024685,
+          "outer": 39.59930419921875,
+          "width": 136.6592231705344,
+          "height": 208.2906726724297
+        },
+        "running": {
+          "inner": 40.24548231497319,
+          "outer": 39.90138488408377
+        },
+        "header": {
+          "top": 14.889043129096597
+        },
+        "footer": {
+          "bottom": 15.04560994293729
+        },
+        "sidenote": {
+          "gap": 3,
+          "width": 20.333333333333332
+        }
+      },
+      "duplex": false,
+      "chapterBreak": "none",
+      "chapter": {
+        "drop": 69.7
+      },
+      "notes": {
+        "position": "foot"
+      },
+      "numbering": {
+        "on": true,
+        "depth": 3,
+        "chapterFormat": "numeric",
+        "chapterNumeralPt": 55.5,
+        "chapterStyle": "marginal"
+      },
+      "runningApparatus": {
+        "header": {
+          "verso": {
+            "inner": [],
+            "center": [
+              "doctitle"
+            ],
+            "outer": []
+          },
+          "recto": {
+            "inner": [],
+            "center": [
+              "doctitle"
+            ],
+            "outer": []
+          }
+        },
+        "footer": {
+          "verso": {
+            "inner": [],
+            "center": [
+              "folio"
+            ],
+            "outer": []
+          },
+          "recto": {
+            "inner": [],
+            "center": [
+              "folio"
+            ],
+            "outer": []
+          }
+        }
+      },
+      "fonts": {
+        "headings": "ET Book",
+        "body": "ET Book",
+        "code": "IBM Plex Mono"
+      },
+      "styles": {
+        "body": {
+          "color": "#000000",
+          "fontSize": 10,
+          "weight": 400
+        },
+        "title": {
+          "color": "#30588a",
+          "fontSize": 31.5,
+          "weight": 600,
+          "align": "center",
+          "rule": {
+            "position": "below",
+            "color": "#30588a",
+            "width": 1
+          }
+        },
+        "subtitle": {
+          "color": "#30588a",
+          "fontSize": 13.5,
+          "weight": 600,
+          "align": "center"
+        },
+        "h1": {
+          "color": "#30588a",
+          "fontSize": 21.5,
+          "weight": 600,
+          "align": "left"
+        },
+        "h2": {
+          "color": "#30588a",
+          "fontSize": 13.5,
+          "weight": 600,
+          "align": "left"
+        },
+        "h3": {
+          "color": "#122133",
+          "fontSize": 12,
+          "weight": 600,
+          "align": "left"
+        },
+        "h4": {
+          "color": "#122133",
+          "fontSize": 11,
+          "weight": 600,
+          "align": "left"
+        },
+        "code-inline": {
+          "color": "#383838",
+          "fontSize": 9
+        },
+        "inline-link": {
+          "color": "#30588a",
+          "underline": true
+        },
+        "metadata": {
+          "color": "#122133",
+          "fontSize": 16,
+          "align": "center"
+        },
+        "code-block": {
+          "color": "#383838",
+          "fontSize": 9,
+          "padding": 0.55,
+          "borderRadius": 1,
+          "background": "#f4f6f9"
+        },
+        "quote": {
+          "padding": 0.5,
+          "borderRadius": 3
+        },
+        "math-block": {
+          "color": "#000000",
+          "fontSize": 10
+        },
+        "mermaid": {
+          "align": "center"
+        },
+        "callout": {
+          "padding": 0.7,
+          "borderRadius": 3,
+          "borderTop": true,
+          "borderRight": true,
+          "borderBottom": true,
+          "borderLeft": true,
+          "borderColor": "#4a8cf0",
+          "borderWidth": 1
+        },
+        "table": {
+          "fontSize": 10
+        },
+        "caption": {
+          "color": "#6b6b6b",
+          "fontSize": 9
+        },
+        "footnote": {
+          "color": "#6b6b6b",
+          "fontSize": 9
+        },
+        "running-content": {
+          "color": "#303133",
+          "fontSize": 9.5
+        }
+      },
+      "mathScale": 1,
+      "mathFontSet": "stix2",
+      "pageBackground": "#ffffff",
+      "customFonts": []
+    },
+    "meta": {
+      "author": "markpage",
+      "version": "0.42.0"
+    }
+  },
+  {
     "key": "rapport-a4",
     "name": "Rapport A4",
     "style": {
