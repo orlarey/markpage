@@ -157,7 +157,16 @@ export function applyPreviewMetadata(
     if (line.bold) div.classList.add('bold');
     block.appendChild(div);
   }
-  firstH1.after(block);
+  // The title block sits under the whole cover identity: title, then the
+  // OPTIONAL subtitle (renderPreview inserts it right after the title), then
+  // this metadata. Anchoring after the subtitle keeps the visual order
+  // title → subtitle → author AND keeps the cover-break rule correct — it
+  // breaks before the first block after `.preview-metadata`, so the subtitle
+  // must precede the metadata, not follow it (else it is stranded off-cover).
+  const sub = firstH1.nextElementSibling;
+  const anchor =
+    sub && sub.classList.contains('doc-subtitle') ? sub : firstH1;
+  anchor.after(block);
 }
 
 /**
