@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import '@orlarey/markpage-render'; // registers the `::: toc+` marked extension
+
 import {
   numberForRender,
   renderNumberingDocStyle,
@@ -135,6 +137,29 @@ describe('linkTocPlus — TOC number display (4c-1)', () => {
     const a = root.querySelector('a[data-toc-title]')!;
     expect(a.querySelector('.toc-num')).toBeNull();
     expect(a.textContent).toBe('Contexte');
+  });
+
+  it('keeps a bold TOC title that itself contains an em dash', () => {
+    // Regression: `cleanTocTitle` split on the FIRST spaced em dash, so a bold
+    // title like "R — registres et pression" was truncated to "R" — which then
+    // matched no heading and rendered as a red struck-through hole.
+    const src = [
+      '::: toc+',
+      '- **R — registres et pression** — persistant vs transitoire.',
+      ':::',
+      '',
+      '## R — registres et pression',
+      'body',
+    ].join('\n');
+    const root = document.createElement('div');
+    renderPreview(root, src, { on: true, depth: 3 } as PdfSettings['numbering']);
+    linkTocPlus(root);
+    const a = root.querySelector('nav.toc-plus a[data-toc-title]')!;
+    expect(a.querySelector('.toc-title')?.textContent).toBe(
+      'R — registres et pression',
+    );
+    expect(a.hasAttribute('href')).toBe(true);
+    expect(a.classList.contains('toc-missing')).toBe(false);
   });
 });
 

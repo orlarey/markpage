@@ -305,10 +305,16 @@ function walkTocList(list: Tokens.List, level: number, out: TocEntry[]): void {
   }
 }
 
-// Title = the part before the first spaced em/en dash; strip emphasis /
-// code markers and any `\label{}` so the rendered entry is clean text.
+// Title vs intention. The TOC-PLUS format is `**Title** — intention`, so when
+// the entry LEADS with a bold span that span IS the whole title — it may itself
+// contain a spaced em/en dash ("R — registres et pression"), which we must keep
+// rather than truncate. Only when there is no leading bold do we fall back to
+// "the part before the first spaced dash". Then strip emphasis / code markers
+// and any `\label{}` so the rendered entry is clean text.
 function cleanTocTitle(raw: string): string {
-  const head = raw.split(/\s+[—–]\s+/)[0] ?? raw;
+  const s = raw.trim();
+  const bold = /^(?:\*\*|__)([\S\s]+?)(?:\*\*|__)(?:\s|$)/.exec(s);
+  const head = bold ? bold[1] : (s.split(/\s+[—–]\s+/)[0] ?? s);
   return head
     .replace(/\\label\{[^}\n]*\}/g, '')
     .replace(/[*`_]/g, '')
