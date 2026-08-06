@@ -20,7 +20,7 @@ const A4 = { w: 210, h: 297 };
  * the internal style markpage renders from. This suite locks the round-trip
  * contract (docs/STYLE-ALIGNMENT.md — "Le round-trip").
  *
- *   CANONICAL form = the `style` object carries a COMPLETE styles matrix (all 18
+ *   CANONICAL form = the `style` object carries a COMPLETE styles matrix (all 19
  *   ELEMENT_KEYS), every value terminal. Optional top-level keys may be absent;
  *   their absence round-trips exactly (serialize emits present keys only, apply
  *   sets present / clears absent).
@@ -31,7 +31,7 @@ const A4 = { w: 210, h: 297 };
  */
 
 // A realistic canonical style: run a built-in through one import → its matrix is
-// completed to all 18 elements, values terminal. This is exactly the shape the
+// completed to all 19 elements, values terminal. This is exactly the shape the
 // style editor's compileStyle() now emits.
 const canonical = serializeFundamentalStyle(
   applyFundamentalStyle(
@@ -41,7 +41,7 @@ const canonical = serializeFundamentalStyle(
 );
 
 describe('round-trip — the bijection contract', () => {
-  it('a canonical style carries the complete 18-element matrix', () => {
+  it('a canonical style carries the complete 19-element matrix', () => {
     const els = Object.keys((canonical.styles ?? {}) as object);
     expect(els.sort()).toEqual([...ELEMENT_KEYS].sort());
   });
@@ -88,8 +88,8 @@ describe('round-trip — the bijection contract', () => {
     const p2 = serializeFundamentalStyle(
       applyFundamentalStyle(DEFAULT_SETTINGS, p1),
     );
-    // first import COMPLETES the matrix (18 elements) — not identity yet
-    expect(Object.keys((p1.styles ?? {}) as object)).toHaveLength(18);
+    // first import COMPLETES the matrix (19 elements) — not identity yet
+    expect(Object.keys((p1.styles ?? {}) as object)).toHaveLength(19);
     expect(p1).not.toEqual(partial);
     // the provided element is taken verbatim (no default-attr leak)
     expect((p1.styles as Record<string, unknown>).h1).toEqual({

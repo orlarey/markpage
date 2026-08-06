@@ -986,12 +986,12 @@ let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(ren
 // generative rule (crans→hex, base×ratio→pt, coverScale, numbering, apparatus)
 // into a flat FUNDAMENTAL_STYLE that markpage loads verbatim (docs/STYLE-
 // ALIGNMENT). Values only — markpage never re-interprets.
-const MP_ELEM={ title:'title', metadata:'metadata', h1:'h1', h2:'h2', h3:'h3', h4:'h4',
+const MP_ELEM={ title:'title', subtitle:'subtitle', metadata:'metadata', h1:'h1', h2:'h2', h3:'h3', h4:'h4',
   body:'body', code:'code-block', math:'math-block', caption:'caption', note:'footnote',
   'running-content':'running-content' };
 // Canonical order — MUST mirror markpage's ELEMENT_KEYS / FUNDAMENTAL_STYLE_KEYS
 // so a compiled file equals markpage's own re-export byte-for-byte (a fixed point).
-const MP_ELEMENT_ORDER=['body','title','h1','h2','h3','h4','code-inline','inline-link','metadata',
+const MP_ELEMENT_ORDER=['body','title','subtitle','h1','h2','h3','h4','code-inline','inline-link','metadata',
   'code-block','quote','math-block','mermaid','callout','table','caption','footnote','running-content'];
 const MP_KEY_ORDER=['pageSize','pageGeometry','duplex','chapterBreak','chapter','notes','numbering',
   'header','footer','runningApparatus','fonts','styles','mathScale','mathFontSet','pageBackground',
@@ -1013,7 +1013,7 @@ function mpStyleForElement(key){
 function compileStyle(){
   const styles={};
   for(const r of ROSTER){
-    if(r.surface||r.key==='chapter-number'||r.key==='subtitle') continue;
+    if(r.surface||r.key==='chapter-number') continue;
     const mp=MP_ELEM[r.key]; if(mp) styles[mp]=mpStyleForElement(r.key);
   }
   if(styles['code-block']) styles['code-inline']={ color:styles['code-block'].color, fontSize:styles['code-block'].fontSize };

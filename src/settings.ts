@@ -125,6 +125,7 @@ export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
 export type ElementKey =
   | 'body'
   | 'title'
+  | 'subtitle'
   | 'h1'
   | 'h2'
   | 'h3'
@@ -145,6 +146,7 @@ export type ElementKey =
 export const ELEMENT_KEYS: ElementKey[] = [
   'body',
   'title',
+  'subtitle',
   'h1',
   'h2',
   'h3',
@@ -201,6 +203,10 @@ export const ELEMENT_DESCRIPTORS: Record<
   title: {
     category: 'inline',
     attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
+  },
+  subtitle: {
+    category: 'inline',
+    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
   },
   h1: {
     category: 'inline',
@@ -515,6 +521,15 @@ export const DEFAULT_SETTINGS: PdfSettings = {
       align: 'center',
       marginAbove: 0.4,
       marginBelow: 1.2,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: '#57606a',
+      weight: 400,
+      italic: true,
+      align: 'center',
+      marginAbove: 0.2,
+      marginBelow: 1,
     },
     h1: {
       fontSize: 22,

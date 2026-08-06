@@ -15,6 +15,8 @@
  */
 export interface Frontmatter {
   title?: string;
+  // Cover subtitle — sits under the title, styled by the `subtitle` element.
+  subtitle?: string;
   author?: string;
   organization?: string;
   date?: string;
@@ -267,6 +269,7 @@ function assign(meta: Frontmatter, key: string, value: string): void {
   // words, not its look, so it overrides the style's language.
   switch (key) {
     case 'title':
+    case 'subtitle':
     case 'author':
     case 'organization':
     case 'date':

@@ -93,6 +93,17 @@ export function renderPreview(
     );
     if (first) first.classList.add('doc-title');
   }
+  // Cover subtitle: a `.doc-subtitle` block right under the document title,
+  // styled by the `subtitle` element (front-matter `subtitle:`).
+  if (meta.subtitle) {
+    const docTitle = target.querySelector('h1.doc-title');
+    if (docTitle) {
+      const sub = document.createElement('div');
+      sub.className = 'doc-subtitle';
+      sub.textContent = meta.subtitle;
+      docTitle.after(sub);
+    }
+  }
   // Hang the heading numbers (after .doc-title is tagged, which the wrap skips).
   if (numbering?.on) wrapHeadingNumbers(target);
 }
@@ -235,6 +246,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
     #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${headingMargin(s.h1)} }
     #preview-pane h1.doc-title { font-size: ${s.title.fontSize}pt; color: ${s.title.color}; ${underlineRule(s.title)} ${headingExtras(s.title)} ${headingMargin(s.title)} }
+    #preview-pane .doc-subtitle { font-family: ${headFam}; ${inlineCss(s.subtitle)} }
     #preview-pane h2 { font-size: ${s.h2.fontSize}pt; color: ${s.h2.color}; ${underlineRule(s.h2)} ${headingExtras(s.h2)} ${headingMargin(s.h2)} }
     #preview-pane h3 { font-size: ${s.h3.fontSize}pt; color: ${s.h3.color}; ${underlineRule(s.h3)} ${headingExtras(s.h3)} ${headingMargin(s.h3)} }
     #preview-pane h4 { font-size: ${s.h4.fontSize}pt; color: ${s.h4.color}; ${underlineRule(s.h4)} ${headingExtras(s.h4)} ${headingMargin(s.h4)} }

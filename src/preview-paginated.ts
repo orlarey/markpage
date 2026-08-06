@@ -1220,7 +1220,7 @@ export function pagedCss(s: PdfSettings): string {
   // them directly (engine-agnostic; no page-container :has needed).
   const coverInk = readableInk(s.coverBackground);
   const coverInkRule = coverInk
-    ? `${SCOPE} h1.doc-title, ${SCOPE} .preview-metadata { color: ${coverInk}; }`
+    ? `${SCOPE} h1.doc-title, ${SCOPE} .doc-subtitle, ${SCOPE} .preview-metadata { color: ${coverInk}; }`
     : '';
   // Break before the first block AFTER the cover — whether the cover carries a
   // metadata block (title + author/org/date) or just the title. The `:not`
@@ -1273,6 +1273,7 @@ export function pagedCss(s: PdfSettings): string {
     ${SCOPE} :is(h1, h2, h3, h4, h5, h6) { font-family: ${headingsFamily}; }
     ${SCOPE} h1 { font-size: ${styles.h1.fontSize}pt; color: ${styles.h1.color}; ${pagedUnderline(styles.h1)} ${pagedHeadingExtras(styles.h1)} ${pagedHeadingMargin(styles.h1)} }
     ${SCOPE} h1.doc-title { font-size: ${styles.title.fontSize}pt; color: ${styles.title.color}; ${pagedUnderline(styles.title)} ${pagedHeadingExtras(styles.title)} ${pagedHeadingMargin(styles.title)} }
+    ${SCOPE} .doc-subtitle { font-family: ${headingsFamily}; ${inlineCss(styles.subtitle)} }
     ${SCOPE} h2 { font-size: ${styles.h2.fontSize}pt; color: ${styles.h2.color}; ${pagedUnderline(styles.h2)} ${pagedHeadingExtras(styles.h2)} ${pagedHeadingMargin(styles.h2)} }
     ${SCOPE} h3 { font-size: ${styles.h3.fontSize}pt; color: ${styles.h3.color}; ${pagedUnderline(styles.h3)} ${pagedHeadingExtras(styles.h3)} ${pagedHeadingMargin(styles.h3)} }
     ${SCOPE} h4, ${SCOPE} h5, ${SCOPE} h6 { font-size: ${styles.h4.fontSize}pt; color: ${styles.h4.color}; ${pagedUnderline(styles.h4)} ${pagedHeadingExtras(styles.h4)} ${pagedHeadingMargin(styles.h4)} }

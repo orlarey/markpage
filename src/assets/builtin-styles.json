@@ -90,6 +90,12 @@
           "weight": 600,
           "align": "center"
         },
+        "subtitle": {
+          "color": "#48658a",
+          "fontSize": 21.5,
+          "weight": 600,
+          "align": "center"
+        },
         "h1": {
           "color": "#30588a",
           "fontSize": 27,
@@ -279,6 +285,12 @@
           "weight": 600,
           "align": "center"
         },
+        "subtitle": {
+          "color": "#48658a",
+          "fontSize": 21.5,
+          "weight": 600,
+          "align": "center"
+        },
         "h1": {
           "color": "#30588a",
           "fontSize": 27,
@@ -464,6 +476,12 @@
           "weight": 600,
           "align": "center"
         },
+        "subtitle": {
+          "color": "#48698a",
+          "fontSize": 24,
+          "weight": 600,
+          "align": "center"
+        },
         "h1": {
           "color": "#305d8a",
           "fontSize": 31.5,
@@ -646,6 +664,12 @@
         "title": {
           "color": "#224161",
           "fontSize": 57.5,
+          "weight": 600,
+          "align": "center"
+        },
+        "subtitle": {
+          "color": "#48698a",
+          "fontSize": 24,
           "weight": 600,
           "align": "center"
         },
@@ -839,6 +863,12 @@
         "title": {
           "color": "#223961",
           "fontSize": 41.5,
+          "weight": 600,
+          "align": "center"
+        },
+        "subtitle": {
+          "color": "#48608a",
+          "fontSize": 20,
           "weight": 600,
           "align": "center"
         },
@@ -1036,6 +1066,12 @@
           "weight": 600,
           "align": "center"
         },
+        "subtitle": {
+          "color": "#48608a",
+          "fontSize": 20,
+          "weight": 600,
+          "align": "center"
+        },
         "h1": {
           "color": "#30518a",
           "fontSize": 24.5,
@@ -1227,6 +1263,12 @@
         "title": {
           "color": "#613722",
           "fontSize": 53,
+          "weight": 600,
+          "align": "center"
+        },
+        "subtitle": {
+          "color": "#8a5e48",
+          "fontSize": 23,
           "weight": 600,
           "align": "center"
         },
@@ -1424,6 +1466,12 @@
           "weight": 600,
           "align": "center"
         },
+        "subtitle": {
+          "color": "#8a5e48",
+          "fontSize": 23,
+          "weight": 600,
+          "align": "center"
+        },
         "h1": {
           "color": "#8a4e30",
           "fontSize": 29.5,
@@ -1607,6 +1655,12 @@
         "title": {
           "color": "#3c2261",
           "fontSize": 41.5,
+          "weight": 600,
+          "align": "center"
+        },
+        "subtitle": {
+          "color": "#63488a",
+          "fontSize": 20,
           "weight": 600,
           "align": "center"
         },
