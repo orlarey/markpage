@@ -1537,6 +1537,21 @@ async function bootstrap(): Promise<void> {
     easePreviewTo(previewYForLine(line, getPreviewLineMap()) - y);
   });
 
+  // Resizing the split (or the window) re-wraps the preview WITHOUT a re-render,
+  // so every line moves and the cached follow map goes stale — invalidate it so
+  // the next sync rebuilds against the new layout. previewEl's own size changes
+  // whenever the editor pane is resized (they share the split), so observing it
+  // covers both. Skip the observer's synchronous first callback.
+  let previewResizePrimed = false;
+  const previewResizeObserver = new ResizeObserver(() => {
+    if (!previewResizePrimed) {
+      previewResizePrimed = true;
+      return;
+    }
+    invalidatePreviewLineMap();
+  });
+  previewResizeObserver.observe(previewEl);
+
   // Edit path: keep the caret's line aligned in the preview while typing — only
   // when the editor has focus (never yank the preview if you're reading it).
   followPreviewToCaret = (): void => {
