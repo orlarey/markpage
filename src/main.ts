@@ -68,7 +68,9 @@ import {
   applyAnchorToPreview,
   currentPreviewAnchor,
   editorCursorAnchor,
+  editorScrollAnchor,
   previewClickAnchor,
+  scrollEditorToAnchor,
 } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
 import {
@@ -1082,13 +1084,17 @@ async function bootstrap(): Promise<void> {
     })();
   }, 200);
 
+  // Keep the preview aligned with the edit point (caret) — assigned later,
+  // where the scroll-follow driver lock lives. No-op until then.
+  let followPreviewToCaret: () => void = () => {};
+
   // Live preview while typing — only when the split is shown. Continuous
   // re-renders fast on every keystroke (short debounce); A4 pagination is
   // heavier, so it waits for a typing pause. The previewReqId stale-guard in
   // buildPreviewDom drops any render a newer keystroke superseded.
   const scheduleContinuousPreview = debounce(() => {
     if (viewMode !== 'preview' || presenting || activePaginated()) return;
-    void updatePreview(editor.getValue());
+    void updatePreview(editor.getValue()).then(followPreviewToCaret);
   }, 120);
   const schedulePaginatedPreview = debounce(() => {
     if (viewMode !== 'preview' || presenting || !activePaginated()) return;
@@ -1380,6 +1386,66 @@ async function bootstrap(): Promise<void> {
       editor.view.focus();
     }
   });
+
+  // ---- Live bidirectional scroll follow (editor ⇄ preview) --------------
+  // The pane the user is actively scrolling DRIVES the other; a short-lived
+  // driver lock keeps the programmatic scroll it triggers from echoing back
+  // into a feedback loop. Works in continuous AND paginated modes — the
+  // `[data-line]` anchors survive pagination. Inert while presenting.
+  let scrollDriver: 'editor' | 'preview' | null = null;
+  let scrollDriverUntil = 0;
+  const claimScrollDriver = (who: 'editor' | 'preview'): boolean => {
+    const now = performance.now();
+    // The other pane is mid-drive → this event is its echo; ignore it.
+    if (scrollDriver && scrollDriver !== who && now < scrollDriverUntil) {
+      return false;
+    }
+    scrollDriver = who;
+    scrollDriverUntil = now + 200;
+    return true;
+  };
+  const scrollSyncActive = (): boolean =>
+    viewMode === 'preview' && !presenting;
+
+  // rAF-coalesced so a burst of scroll events costs one anchor apply per frame.
+  let editorScrollTick = false;
+  editor.view.scrollDOM.addEventListener(
+    'scroll',
+    () => {
+      if (editorScrollTick) return;
+      editorScrollTick = true;
+      requestAnimationFrame(() => {
+        editorScrollTick = false;
+        if (!scrollSyncActive() || !claimScrollDriver('editor')) return;
+        const a = editorScrollAnchor(editor.view);
+        if (a) applyAnchorToPreview(previewEl, a);
+      });
+    },
+    { passive: true },
+  );
+  let previewScrollTick = false;
+  previewEl.addEventListener(
+    'scroll',
+    () => {
+      if (previewScrollTick) return;
+      previewScrollTick = true;
+      requestAnimationFrame(() => {
+        previewScrollTick = false;
+        if (!scrollSyncActive() || !claimScrollDriver('preview')) return;
+        const a = currentPreviewAnchor(previewEl);
+        if (a) scrollEditorToAnchor(editor.view, a);
+      });
+    },
+    { passive: true },
+  );
+  // Exposed for the edit path (caret-follow) — declared here where the lock is.
+  followPreviewToCaret = (): void => {
+    if (!scrollSyncActive() || activePaginated() || !editor.view.hasFocus) return;
+    const a = editorCursorAnchor(editor.view);
+    if (!a) return;
+    claimScrollDriver('editor'); // the resulting preview scroll must not echo
+    applyAnchorToPreview(previewEl, a);
+  };
 
   // ---- Presentation mode -------------------------------------------------
 

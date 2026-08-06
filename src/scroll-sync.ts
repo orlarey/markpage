@@ -186,3 +186,37 @@ export function applyAnchorToEditor(
   scroller.scrollTop = Math.max(0, Math.min(max, editorY - anchor.y));
   return true;
 }
+
+// --- Live scroll follow (split view) ------------------------------------
+// Unlike the anchors above (cursor / click), these drive a continuous
+// scroll-follow: the SOURCE LINE at the top of one pane's viewport, applied to
+// the other pane WITHOUT moving the caret.
+
+/**
+ * Purpose: Snapshot the source line at the TOP of the editor viewport.
+ * How: `lineBlockAtHeight(scrollTop)` is the block straddling the viewport top;
+ *   `y` is how far that block's start sits above the top (≤ 0), so re-applying
+ *   it elsewhere lands the same line at the same offset.
+ */
+export function editorScrollAnchor(view: EditorView): Anchor | null {
+  try {
+    const scrollTop = view.scrollDOM.scrollTop;
+    const block = view.lineBlockAtHeight(scrollTop);
+    const line = view.state.doc.lineAt(block.from).number - 1;
+    return { line, y: block.top - scrollTop };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Purpose: Scroll the editor so `anchor.line` lands at `anchor.y` — WITHOUT
+ *   dispatching a selection (the caret stays put; this is a follow, not a jump).
+ */
+export function scrollEditorToAnchor(view: EditorView, anchor: Anchor): void {
+  const editorY = editorYForLine(view, anchor.line);
+  if (editorY === null) return;
+  const scroller = view.scrollDOM;
+  const max = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = Math.max(0, Math.min(max, editorY - anchor.y));
+}
