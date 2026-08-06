@@ -1382,6 +1382,10 @@ async function bootstrap(): Promise<void> {
     }
     const anchor = previewClickAnchor(e, previewEl);
     if (anchor) {
+      // Preview-initiated: claim the driver so the editor scroll this triggers
+      // doesn't echo back through the follow and re-scroll the preview away
+      // from the clicked line (which would break the face-to-face alignment).
+      claimScrollDriver('preview');
       applyAnchorToEditor(editor.view, anchor);
       editor.view.focus();
     }
