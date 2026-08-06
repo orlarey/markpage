@@ -116,6 +116,7 @@ import {
   type NamedStyle,
 } from './style-library';
 import { openDocumentStyleMenu } from './ui/document-style-menu';
+import { presentLayout, presentStep } from './presentation';
 import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
@@ -579,14 +580,18 @@ async function bootstrap(): Promise<void> {
   // render must not overwrite a more recent one.
   let previewReqId = 0;
 
-  // Presentation mode: a fullscreen overlay laid over the existing
-  // paginated preview. We reuse the same paged.js render — no separate
-  // DOM, no re-pagination — and just show one `.pagedjs_page` at a time,
-  // scaled to fill the screen, navigated with the keyboard. `returnMode`
-  // remembers whether we came from the editor or the preview so we can
-  // restore it on exit. See enterPresentation() / exitPresentation() below.
+  // Presentation mode: a fullscreen overlay over the paginated preview, like a
+  // PDF reader. Shows one page at a time (slides), or TWO side-by-side when the
+  // page is portrait enough that a spread fills the screen better, navigated
+  // with the keyboard. `presentAnchor` is the FIRST page of the current row (a
+  // page index into `.pagedjs_page`), so the reading position survives a resize
+  // even if the single↔double choice flips. `returnMode` remembers whether we
+  // came from the editor or the preview. See enter/exitPresentation() below.
   let presenting = false;
-  let slideIndex = 0;
+  let presentAnchor = 0;
+  // True when entering presentation forced a paginated render over a preview
+  // that was continuous — so we know to restore the continuous flow on exit.
+  let presentForcedPaginate = false;
   let returnMode: 'editor' | 'preview' = 'editor';
 
   // Page zoom. Invariant: the FULL page width is always visible — the page never
@@ -1028,7 +1033,10 @@ async function bootstrap(): Promise<void> {
   let lastProgEditorScroll = 0;
   let lastProgPreviewScroll = 0;
 
-  const updatePreview = async (source: string): Promise<void> => {
+  const updatePreview = async (
+    source: string,
+    opts: { forcePaginated?: boolean } = {},
+  ): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
     lastEffectiveSettings = r.effectiveSettings;
@@ -1044,7 +1052,7 @@ async function bootstrap(): Promise<void> {
       '--mp-cover-bg',
       r.effectiveSettings.coverBackground ?? '',
     );
-    if (activePaginated()) {
+    if (activePaginated() || opts.forcePaginated) {
       // Show a CLEAR "rendering" state: clear the stale pages now (so you never
       // wonder whether you're looking at the current render) and let the progress
       // spinner mark the wait — pages reappear only when the new render is ready.
@@ -1568,27 +1576,59 @@ async function bootstrap(): Promise<void> {
   // We read offsetWidth/Height — paged.js's fixed layout size in px,
   // unaffected by our own transform — so the ratio stays correct and the
   // computation is stable across repeated calls (e.g. on resize).
-  const renderSlide = (): void => {
-    const pages = Array.from(
-      previewEl.querySelectorAll<HTMLElement>('.pagedjs_page'),
-    );
-    if (pages.length === 0) return;
-    slideIndex = Math.max(0, Math.min(slideIndex, pages.length - 1));
-    pages.forEach((p, i) =>
-      p.classList.toggle('is-current', i === slideIndex),
-    );
-    const page = pages[slideIndex];
-    if (!page) return;
-    const pw = page.offsetWidth;
-    const ph = page.offsetHeight;
-    if (pw === 0 || ph === 0) return;
-    const scale = Math.min(window.innerWidth / pw, window.innerHeight / ph);
-    previewEl.style.setProperty('--present-scale', String(scale));
+  const pagedPages = (): HTMLElement[] =>
+    Array.from(previewEl.querySelectorAll<HTMLElement>('.pagedjs_page'));
+
+  // Lay out the current row: reveal its page(s), position + scale them (single
+  // centred, or two side-by-side for a spread — see presentation.ts for the
+  // pure geometry). offsetWidth/Height is the engine's fixed px size, unaffected
+  // by our own transform, so it is stable across repeated calls (e.g. resize).
+  const renderPresent = (): void => {
+    const pages = pagedPages();
+    const first = pages[0];
+    if (!first) return;
+    const { boxes, anchor } = presentLayout({
+      pageCount: pages.length,
+      pw: first.offsetWidth,
+      ph: first.offsetHeight,
+      winW: window.innerWidth,
+      winH: window.innerHeight,
+      anchor: presentAnchor,
+      duplex: !!lastEffectiveSettings.duplex,
+    });
+    if (boxes.length === 0) return;
+    presentAnchor = anchor;
+    const shown = new Set(boxes.map((b) => b.pageIndex));
+    pages.forEach((p, i) => {
+      if (!shown.has(i)) {
+        p.classList.remove('is-current');
+        p.style.transform = '';
+      }
+    });
+    for (const b of boxes) {
+      const p = pages[b.pageIndex];
+      if (!p) continue;
+      p.classList.add('is-current');
+      p.style.transform = `translate(${b.x}px, ${b.y}px) scale(${b.scale})`;
+    }
   };
 
-  const gotoSlide = (i: number): void => {
-    slideIndex = i;
-    renderSlide();
+  // Move by whole rows (a spread counts as one step). `delta` is clamped.
+  const gotoRow = (delta: number): void => {
+    const pages = pagedPages();
+    const first = pages[0];
+    if (!first) return;
+    presentAnchor = presentStep({
+      pageCount: pages.length,
+      pw: first.offsetWidth,
+      ph: first.offsetHeight,
+      winW: window.innerWidth,
+      winH: window.innerHeight,
+      duplex: !!lastEffectiveSettings.duplex,
+      anchor: presentAnchor,
+      delta,
+    });
+    renderPresent();
   };
 
   // Keyboard nav, live only while presenting (capture phase so it wins
@@ -1602,34 +1642,33 @@ async function bootstrap(): Promise<void> {
       case ' ':
       case 'n':
         e.preventDefault();
-        gotoSlide(slideIndex + 1);
+        gotoRow(1);
         break;
       case 'ArrowLeft':
       case 'PageUp':
       case 'p':
         e.preventDefault();
-        gotoSlide(slideIndex - 1);
+        gotoRow(-1);
         break;
       case 'Home':
         e.preventDefault();
-        gotoSlide(0);
+        gotoRow(-Number.MAX_SAFE_INTEGER);
         break;
       case 'End':
         e.preventDefault();
-        gotoSlide(Number.MAX_SAFE_INTEGER);
+        gotoRow(Number.MAX_SAFE_INTEGER);
         break;
     }
   };
 
-  // Click on the slide advances — except on a real hyperlink, so in-slide
-  // links still work.
+  // Click advances one row — except on a real hyperlink, so in-page links work.
   const onPresentClick = (e: MouseEvent): void => {
     if ((e.target as HTMLElement | null)?.closest('a[href]')) return;
-    gotoSlide(slideIndex + 1);
+    gotoRow(1);
   };
 
   const onPresentResize = (): void => {
-    if (presenting) renderSlide();
+    if (presenting) renderPresent();
   };
 
   // Tear down the presentation overlay and restore the mode we came from.
@@ -1644,21 +1683,32 @@ async function bootstrap(): Promise<void> {
     previewEl.classList.remove('presentation');
     previewEl.style.removeProperty('--present-scale');
     previewEl
-      .querySelectorAll('.pagedjs_page.is-current')
-      .forEach((p) => p.classList.remove('is-current'));
+      .querySelectorAll<HTMLElement>('.pagedjs_page.is-current')
+      .forEach((p) => {
+        p.classList.remove('is-current');
+        p.style.transform = '';
+      });
     if (document.fullscreenElement) void document.exitFullscreen();
-    if (returnMode === 'editor') enterEditor(null);
-    else fitPreviewWidth(); // back to preview → re-fit to the pane
+    if (returnMode === 'editor') {
+      enterEditor(null);
+    } else if (presentForcedPaginate && !activePaginated()) {
+      // We paginated over a continuous preview for the show — restore the
+      // user's continuous flow now that we're back in the pane.
+      void updatePreview(editor.getValue());
+    } else {
+      fitPreviewWidth(); // back to preview → re-fit to the pane
+    }
+    presentForcedPaginate = false;
   };
 
-  // Enter fullscreen presentation. We reuse the preview render, so we
-  // first force preview mode (paginating if stale). requestFullscreen()
-  // MUST be called synchronously within the user gesture — before any
-  // await — or the browser rejects it; pagination, if needed, runs
-  // alongside. The `.presentation` class is added only AFTER pagination:
-  // it hides all but the current page (display:none), and paged.js can't
-  // measure hidden pages — applying it earlier collapses the layout to a
-  // single empty page.
+  // Enter fullscreen presentation. Works on ANY document (not just slides): it
+  // reuses the paginated preview, so we force a paginated render when the
+  // preview is continuous / suspended / stale — otherwise there are no pages to
+  // show. requestFullscreen() MUST be called synchronously within the user
+  // gesture — before any await — or the browser rejects it; pagination runs
+  // alongside. The `.presentation` class is added only AFTER pagination: it
+  // hides all but the current page, and the engine can't measure hidden pages —
+  // applying it earlier collapses the layout to a single empty page.
   const enterPresentation = async (): Promise<void> => {
     if (presenting) return;
     returnMode = viewMode;
@@ -1667,26 +1717,30 @@ async function bootstrap(): Promise<void> {
       console.error('Fullscreen request failed', err);
       return 'denied' as const;
     });
-    if (dirty) {
+    // Presentation needs paginated pages. If the visible preview isn't already
+    // showing current pages (continuous, edit-suspended, or dirty), paginate now.
+    presentForcedPaginate = !activePaginated();
+    if (dirty || presentForcedPaginate) {
       try {
-        await updatePreview(editor.getValue());
+        await updatePreview(editor.getValue(), { forcePaginated: true });
       } catch (err) {
         console.error('Preview render failed', err);
       }
     }
     const fsResult = await fsRequest;
     if (fsResult === 'denied') {
+      presentForcedPaginate = false;
       if (returnMode === 'editor') enterEditor(null);
       return;
     }
     presenting = true;
-    slideIndex = 0;
+    presentAnchor = 0;
     previewEl.classList.add('presentation');
     fitPreviewWidth(); // drops the fit-zoom so presentation scaling is clean
     window.addEventListener('keydown', onPresentKeydown, true);
     previewEl.addEventListener('click', onPresentClick);
     window.addEventListener('resize', onPresentResize);
-    renderSlide();
+    renderPresent();
   };
 
   // Single exit trigger: anything that drops us out of fullscreen (Esc,
@@ -1895,14 +1949,16 @@ async function bootstrap(): Promise<void> {
     refreshSettingsForm?.();
     if (presenting) {
       // paged.js can't measure the hidden (display:none) non-current pages, so
-      // drop `.presentation` for the re-paginate, then restore it + the slide.
+      // drop `.presentation` for the re-paginate, then restore it + the page.
+      // Force paginated: presentation may run over an otherwise-continuous
+      // preview, and a continuous re-render would leave no pages to show.
       previewEl.style.visibility = 'hidden';
       previewEl.classList.remove('presentation');
       try {
-        await updatePreview(content);
+        await updatePreview(content, { forcePaginated: true });
       } finally {
         previewEl.classList.add('presentation');
-        renderSlide(); // slideIndex preserved (clamped if pages shrank)
+        renderPresent(); // presentAnchor preserved (clamped if pages shrank)
         previewEl.style.visibility = '';
       }
     } else if (viewMode === 'preview') {

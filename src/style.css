@@ -482,19 +482,21 @@ body,
    only visible one, scaled to fill the viewport. */
 #preview-pane.presentation .pagedjs_page {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   margin: 0;
   box-shadow: none;
   visibility: hidden;
-  transform: translate(-50%, -50%);
-  /* Presentation has its own per-page scaling (--present-scale); keep the
-     fit-to-width zoom off here so the two don't compound. */
+  /* main.ts positions each visible page in px (single page centred, or two
+     side-by-side for a spread) via an inline transform; keep the origin at the
+     top-left so those px land where computed. The fit-to-width zoom is kept off
+     so it doesn't compound with the presentation scale. */
+  transform-origin: top left;
   zoom: 1;
 }
 #preview-pane.presentation .pagedjs_page.is-current {
   visibility: visible;
-  transform: translate(-50%, -50%) scale(var(--present-scale, 1));
+  box-shadow: 0 2px 28px rgba(0, 0, 0, 0.55);
 }
 
 /* Debug-guides overlay (toolbar button + Cmd/Ctrl+Shift+G). Toggled
