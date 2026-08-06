@@ -400,8 +400,8 @@ function contentPage(pg,g,pxmm,verso){
     `<div style="${CS('subtitle',`font-style:italic;margin:.15em 0;${dstyle('subtitle')}`)}">réductions, algèbres et évaluation paresseuse</div>`+
     `<div style="${CS('metadata',`margin:.15em 0 1.1em;${dstyle('metadata')}`)}">Yann Orlarey · Inria · 2026</div>`+
     `<div style="${CS('h1',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h1')}`)}">${hnum(1)}Le pli comme unité</div>`+
-    bodyP(`Une seule traversée de l’arbre — ${inlineCode('fold(tree, algebra)')} — évalue toutes les interprétations closes ; on en tire la moyenne <span style="${CS('math')}">µ</span> et la variance <span style="${CS('math')}">σ²</span>.`)+
-    `<div style="${CS('math',`text-align:center;font-style:italic;margin:.5em 0`)}">µ = ¹⁄ₙ ∑ᵢ xᵢ &nbsp;&nbsp;,&nbsp;&nbsp; σ² = ¹⁄ₙ ∑ᵢ (xᵢ − µ)²</div>`+
+    bodyP(`Une seule traversée de l’arbre — ${inlineCode('fold(tree, algebra)')} — évalue toutes les interprétations closes ; on en tire la moyenne <span class="mjxspec" data-tex="\\mu" style="${CS('math')}">µ</span> et la variance <span class="mjxspec" data-tex="\\sigma^2" style="${CS('math')}">σ²</span>.`)+
+    `<div class="mjxspec" data-display="1" data-tex="\\mu = \\frac{1}{n}\\sum_i x_i \\quad,\\quad \\sigma^2 = \\frac{1}{n}\\sum_i (x_i-\\mu)^2" style="${CS('math',`text-align:center;font-style:italic;margin:.5em 0`)}">µ = ¹⁄ₙ ∑ᵢ xᵢ &nbsp;&nbsp;,&nbsp;&nbsp; σ² = ¹⁄ₙ ∑ᵢ (xᵢ − µ)²</div>`+
     `<div style="${CS('h2',`font-weight:${S.wHead};margin:.5em 0 .25em;${dstyle('h2')}`)}">${hnum(2)}Évaluation par génération</div>`+
     bodyP(`L’échelle des tailles dérive de ${inlineCode('base · ratio^cran')} ; le canon de Van de Graaf place le bloc, et le corps porte la lecture continue le long de l’arbre.`)+
     `<pre style="${CS('code',`${blocCss(S.blocks['code-block'])};margin:.4em 0;white-space:pre;overflow:hidden`)}">fold f z (Leaf x)   = f x z\nfold f z (Node l r) = fold f (fold f z r) l</pre>`+
@@ -439,9 +439,43 @@ function chapterPage(pg,g,pxmm){
     `<div style="height:${drop}px"></div>`+
     bigNumber+
     `<div style="font-family:${ff('h1')};font-size:${fs('h1')};font-weight:${S.wHead};color:${colOf('h1')};line-height:1.1;${dstyle('h1')}">Chapitre premier</div>`+
-    `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:1em 0 .3em">Le chapitre s’ouvre sur un recto, son titre posé à la <b>ligne de titre</b> (drop) ; le corps suit et porte la lecture continue le long de l’arbre via <code style="font-family:${ff('code')};font-size:${fs('code')};color:${colOf('code')}">fold(tree, algebra)</code>, dont la somme <span style="font-size:${fs('math')};color:${colOf('math')}">∑ᵢ xᵢ</span> se dérive à l’identique.</p>`+
+    `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:1em 0 .3em">Le chapitre s’ouvre sur un recto, son titre posé à la <b>ligne de titre</b> (drop) ; le corps suit et porte la lecture continue le long de l’arbre via <code style="font-family:${ff('code')};font-size:${fs('code')};color:${colOf('code')}">fold(tree, algebra)</code>, dont la somme <span class="mjxspec" data-tex="\\sum_i x_i" style="font-size:${fs('math')};color:${colOf('math')}">∑ᵢ xᵢ</span> se dérive à l’identique.</p>`+
     `<p style="font-family:${ff('body')};font-size:${fs('body')};color:${colOf('body')};text-align:${S.justify?'justify':'left'};line-height:${S.lh};margin:.3em 0">Chaque terme se convertit à l’identique ; la géométrie du canon place le bloc, et le drop met le titre en réserve, sans en-tête courant sur l’ouverture.</p>`;
   return page;
+}
+// --- Live MathJax specimens ------------------------------------------------
+// The preview's maths are typeset by MathJax v4 (SVG) in the SELECTED font set,
+// so changing `S.mset` is actually visible. Loaded lazily from the CDN and ONLY
+// over http(s): the headless style build opens this file via file://, where
+// this stays OFF (the Unicode fallback shows) so the build never hits the
+// network. Switching the set reloads MathJax bound to `mathjax-<set>`.
+const MJX_ENABLED = /^https?:$/.test(location.protocol);
+let mjxFont=null, mjxTimer=null;
+function mjxLoad(font){
+  if(mjxFont===font && window.MathJax && window.MathJax.typesetPromise) return Promise.resolve();
+  return new Promise((resolve)=>{
+    delete window.MathJax;
+    document.querySelectorAll('script[data-mjx]').forEach(s=>s.remove());
+    window.MathJax={ svg:{font:'mathjax-'+font,fontCache:'none'},
+      startup:{typeset:false,ready(){window.MathJax.startup.defaultReady();mjxFont=font;resolve();}} };
+    const sc=document.createElement('script'); sc.dataset.mjx='1'; sc.async=true;
+    sc.src='https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-svg.js';
+    sc.onerror=()=>resolve();   // offline / blocked → keep the Unicode fallback
+    document.head.appendChild(sc);
+  });
+}
+function refreshMath(){
+  if(!MJX_ENABLED) return;
+  clearTimeout(mjxTimer);
+  mjxTimer=setTimeout(async ()=>{
+    const specs=[...document.querySelectorAll('.mjxspec')];
+    if(!specs.length) return;
+    await mjxLoad(S.mset);
+    if(!(window.MathJax && window.MathJax.typesetPromise)) return;
+    for(const el of specs){ const d=el.dataset.display==='1';
+      el.innerHTML=(d?'\\[':'\\(')+el.dataset.tex+(d?'\\]':'\\)'); }
+    try{ await window.MathJax.typesetPromise(specs); }catch(e){}
+  },120);
 }
 function renderArtefact(){
   const area=document.getElementById('parea'); if(!area) return;
@@ -455,6 +489,7 @@ function renderArtefact(){
   else if(S.view==='spread'){ pages.push(contentPage(pg,g,pxmm,true), contentPage(pg,g,pxmm,false)); }
   else pages.push(contentPage(pg,g,pxmm,false));
   area.replaceChildren(...pages);
+  refreshMath();
 }
 
 // ===================== INSTRUMENTS (per facet) ============================
