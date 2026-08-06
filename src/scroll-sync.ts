@@ -18,7 +18,7 @@ export interface Anchor {
   y: number; // pixels from the top of the target's viewport
 }
 
-interface LineEntry {
+export interface LineEntry {
   line: number;
   previewY: number;
 }
@@ -219,4 +219,61 @@ export function scrollEditorToAnchor(view: EditorView, anchor: Anchor): void {
   const scroller = view.scrollDOM;
   const max = scroller.scrollHeight - scroller.clientHeight;
   scroller.scrollTop = Math.max(0, Math.min(max, editorY - anchor.y));
+}
+
+// --- Reusable maps for the live scroll-follow ---------------------------
+// The follow rebuilds nothing per frame: it caches the preview line-map (Y is
+// content-relative, so it survives scrolling and is invalidated only on
+// re-render / resize) and otherwise queries CodeMirror's own cached layout.
+
+/** Build the (source line → content-relative Y) table for the preview. */
+export function buildPreviewLineMap(previewEl: HTMLElement): LineEntry[] {
+  return readLineMap(previewEl);
+}
+
+/** Content-relative Y of a source line in the preview (interpolated). */
+export function previewYForLine(line: number, map: LineEntry[]): number {
+  return lineToPreviewY(line, map);
+}
+
+/** Inverse of previewYForLine: the source line at a content-relative Y. */
+export function lineAtPreviewY(previewY: number, map: LineEntry[]): number {
+  if (map.length === 0) return 0;
+  let lo = 0;
+  let hi = map.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((map[mid]?.previewY ?? 0) <= previewY) lo = mid + 1;
+    else hi = mid;
+  }
+  if (lo === 0) return map[0]?.line ?? 0;
+  if (lo === map.length) return map.at(-1)?.line ?? 0;
+  const before = map[lo - 1];
+  const after = map[lo];
+  if (!before || !after || after.previewY === before.previewY) {
+    return before?.line ?? 0;
+  }
+  const t = (previewY - before.previewY) / (after.previewY - before.previewY);
+  return before.line + t * (after.line - before.line);
+}
+
+/** The source line at a viewport Y (from the scroller top) in the editor. */
+export function editorLineAtViewportY(
+  view: EditorView,
+  viewportY: number,
+): number {
+  try {
+    const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop + viewportY);
+    return view.state.doc.lineAt(block.from).number - 1;
+  } catch {
+    return 0;
+  }
+}
+
+/** Content-relative Y (scroller top) of a source line in the editor. */
+export function editorContentYForLine(
+  view: EditorView,
+  line: number,
+): number | null {
+  return editorYForLine(view, line);
 }

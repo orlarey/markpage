@@ -66,11 +66,15 @@ import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
+  buildPreviewLineMap,
   currentPreviewAnchor,
+  editorContentYForLine,
   editorCursorAnchor,
-  editorScrollAnchor,
+  editorLineAtViewportY,
+  lineAtPreviewY,
   previewClickAnchor,
-  scrollEditorToAnchor,
+  previewYForLine,
+  type LineEntry,
 } from './scroll-sync';
 import { ACCEPT_ATTRIBUTE, importFile } from './import';
 import {
@@ -1009,6 +1013,21 @@ async function bootstrap(): Promise<void> {
   // at render into effectiveSettings, so a faithful style export must use this.
   let lastEffectiveSettings: PdfSettings = state.settings;
 
+  // Cached (source line → preview Y) map for the live scroll-follow. Y is
+  // content-relative so it survives scrolling; invalidated on every re-render
+  // (and on resize) and rebuilt lazily on the next sync. Read via
+  // getPreviewLineMap() (defined with the follow controller).
+  let previewLineMap: LineEntry[] | null = null;
+  const invalidatePreviewLineMap = (): void => {
+    previewLineMap = null;
+  };
+  // Timestamp of the last FOLLOW-DRIVEN (programmatic) scroll of each pane. Each
+  // pane's scroll handler ignores its own events for a short window after, so
+  // our animation is never mistaken for a user scroll and echoed back — which
+  // is what made the two panes converge to a fixed point.
+  let lastProgEditorScroll = 0;
+  let lastProgPreviewScroll = 0;
+
   const updatePreview = async (source: string): Promise<void> => {
     const r = await buildPreviewDom(source);
     if (!r) return;
@@ -1062,6 +1081,8 @@ async function bootstrap(): Promise<void> {
       dirty = false;
       fitPreviewWidth();
     }
+    // The DOM changed → the cached scroll-follow line-map is stale.
+    invalidatePreviewLineMap();
   };
 
   // Autosave writes the *working copy* (draft), never the committed content
@@ -1382,36 +1403,84 @@ async function bootstrap(): Promise<void> {
     }
     const anchor = previewClickAnchor(e, previewEl);
     if (anchor) {
-      // Preview-initiated: claim the driver so the editor scroll this triggers
-      // doesn't echo back through the follow and re-scroll the preview away
-      // from the clicked line (which would break the face-to-face alignment).
-      claimScrollDriver('preview');
+      // Preview-initiated: mark the editor scroll this triggers as programmatic
+      // so the follow doesn't echo it back and re-scroll the preview away from
+      // the clicked line (which would break the face-to-face alignment).
+      lastProgEditorScroll = performance.now();
       applyAnchorToEditor(editor.view, anchor);
       editor.view.focus();
     }
   });
 
-  // ---- Live bidirectional scroll follow (editor ⇄ preview) --------------
-  // The pane the user is actively scrolling DRIVES the other; a short-lived
-  // driver lock keeps the programmatic scroll it triggers from echoing back
-  // into a feedback loop. Works in continuous AND paginated modes — the
-  // `[data-line]` anchors survive pagination. Inert while presenting.
-  let scrollDriver: 'editor' | 'preview' | null = null;
-  let scrollDriverUntil = 0;
-  const claimScrollDriver = (who: 'editor' | 'preview'): boolean => {
-    const now = performance.now();
-    // The other pane is mid-drive → this event is its echo; ignore it.
-    if (scrollDriver && scrollDriver !== who && now < scrollDriverUntil) {
-      return false;
-    }
-    scrollDriver = who;
-    scrollDriverUntil = now + 200;
-    return true;
-  };
+  // ---- Live scroll-follow: align at 1/3 of the viewport, lightly eased ---
+  // The pane you scroll DRIVES the other. Principle (same as a click): take the
+  // source line one third down the driver's viewport and put it one third down
+  // the other pane. A cached line-map keeps it cheap; a light ease glides over
+  // the per-block slope changes so it never lurches. Echo control is per pane:
+  // while we animate a pane we timestamp it, and that pane's own scroll handler
+  // ignores events within a short window — so our animation is never mistaken
+  // for a user scroll and fed back (which made the two panes converge). Works
+  // in continuous AND paginated modes (the [data-line] anchors survive
+  // pagination). Inert while presenting.
+  const REF_FRACTION = 1 / 3;
+  const ECHO_MS = 120;
   const scrollSyncActive = (): boolean =>
     viewMode === 'preview' && !presenting;
+  const getPreviewLineMap = (): LineEntry[] => {
+    if (!previewLineMap || previewLineMap.length === 0) {
+      previewLineMap = buildPreviewLineMap(previewEl);
+    }
+    return previewLineMap;
+  };
+  const clampScroll = (el: HTMLElement, top: number): number =>
+    Math.max(0, Math.min(el.scrollHeight - el.clientHeight, top));
 
-  // rAF-coalesced so a burst of scroll events costs one anchor apply per frame.
+  // One reusable glide (~50 ms). `mark` timestamps the eased pane every frame so
+  // that pane's scroll handler treats the events it fires as echoes.
+  let easeRAF = 0;
+  let easeEl: HTMLElement | null = null;
+  let easeTarget = 0;
+  let easeMark: () => void = () => {};
+  const easeScrollTo = (
+    el: HTMLElement,
+    target: number,
+    mark: () => void,
+  ): void => {
+    easeEl = el;
+    easeTarget = target;
+    easeMark = mark;
+    if (easeRAF) return;
+    const step = (): void => {
+      if (!easeEl) {
+        easeRAF = 0;
+        return;
+      }
+      easeMark();
+      const d = easeTarget - easeEl.scrollTop;
+      if (Math.abs(d) < 0.5) {
+        easeEl.scrollTop = easeTarget;
+        easeMark();
+        easeEl = null;
+        easeRAF = 0;
+        return;
+      }
+      easeEl.scrollTop += d * 0.34;
+      easeRAF = requestAnimationFrame(step);
+    };
+    easeRAF = requestAnimationFrame(step);
+  };
+  const easePreviewTo = (target: number): void =>
+    easeScrollTo(previewEl, clampScroll(previewEl, target), () => {
+      lastProgPreviewScroll = performance.now();
+    });
+  const easeEditorTo = (target: number): void => {
+    const s = editor.view.scrollDOM;
+    easeScrollTo(s, clampScroll(s, target), () => {
+      lastProgEditorScroll = performance.now();
+    });
+  };
+
+  // Editor drives → align the preview.
   let editorScrollTick = false;
   editor.view.scrollDOM.addEventListener(
     'scroll',
@@ -1420,13 +1489,20 @@ async function bootstrap(): Promise<void> {
       editorScrollTick = true;
       requestAnimationFrame(() => {
         editorScrollTick = false;
-        if (!scrollSyncActive() || !claimScrollDriver('editor')) return;
-        const a = editorScrollAnchor(editor.view);
-        if (a) applyAnchorToPreview(previewEl, a);
+        if (!scrollSyncActive()) return;
+        if (performance.now() - lastProgEditorScroll < ECHO_MS) return; // echo
+        const refY = editor.view.scrollDOM.clientHeight * REF_FRACTION;
+        const line = editorLineAtViewportY(editor.view, refY);
+        easePreviewTo(
+          previewYForLine(line, getPreviewLineMap()) -
+            previewEl.clientHeight * REF_FRACTION,
+        );
       });
     },
     { passive: true },
   );
+
+  // Preview drives → align the editor.
   let previewScrollTick = false;
   previewEl.addEventListener(
     'scroll',
@@ -1435,20 +1511,39 @@ async function bootstrap(): Promise<void> {
       previewScrollTick = true;
       requestAnimationFrame(() => {
         previewScrollTick = false;
-        if (!scrollSyncActive() || !claimScrollDriver('preview')) return;
-        const a = currentPreviewAnchor(previewEl);
-        if (a) scrollEditorToAnchor(editor.view, a);
+        if (!scrollSyncActive()) return;
+        if (performance.now() - lastProgPreviewScroll < ECHO_MS) return; // echo
+        const refY = previewEl.clientHeight * REF_FRACTION;
+        const line = lineAtPreviewY(
+          previewEl.scrollTop + refY,
+          getPreviewLineMap(),
+        );
+        const contentY = editorContentYForLine(editor.view, line);
+        if (contentY === null) return;
+        easeEditorTo(contentY - editor.view.scrollDOM.clientHeight * REF_FRACTION);
       });
     },
     { passive: true },
   );
-  // Exposed for the edit path (caret-follow) — declared here where the lock is.
+
+  // Click in the EDITOR → align the preview so the clicked line sits at the
+  // click's height (the mirror of a preview click aligning the editor).
+  editor.view.dom.addEventListener('click', (e) => {
+    if (!scrollSyncActive()) return;
+    const pos = editor.view.posAtCoords({ x: e.clientX, y: e.clientY });
+    if (pos == null) return;
+    const line = editor.view.state.doc.lineAt(pos).number - 1;
+    const y = e.clientY - previewEl.getBoundingClientRect().top;
+    easePreviewTo(previewYForLine(line, getPreviewLineMap()) - y);
+  });
+
+  // Edit path: keep the caret's line aligned in the preview while typing — only
+  // when the editor has focus (never yank the preview if you're reading it).
   followPreviewToCaret = (): void => {
-    if (!scrollSyncActive() || activePaginated() || !editor.view.hasFocus) return;
+    if (!scrollSyncActive() || !editor.view.hasFocus) return;
     const a = editorCursorAnchor(editor.view);
     if (!a) return;
-    claimScrollDriver('editor'); // the resulting preview scroll must not echo
-    applyAnchorToPreview(previewEl, a);
+    easePreviewTo(previewYForLine(a.line, getPreviewLineMap()) - a.y);
   };
 
   // ---- Presentation mode -------------------------------------------------
