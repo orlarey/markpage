@@ -123,6 +123,17 @@ GFM-flavoured Markdown is supported as-is:
 - Fenced code blocks: triple backticks with an optional language
   hint for syntax-highlighting (`js`, `python`, `rust`, …).
 
+**One paragraph per line — do NOT hard-wrap prose.** Two reasons. A
+wrapped line that happens to start with `>`, `-`, `*`, `#`, or `N.` turns
+into an unintended blockquote, list, or heading. And wrapping breaks the
+constructs parsed line-by-line, whose item must sit on a SINGLE line:
+`::: toc+` entries, footnote bodies, definition-list terms/definitions,
+and running-apparatus `{free text}`. (Inside ordinary body text a soft
+break in the middle of `**bold**` or `*italic*` is harmless — CommonMark
+joins it across the break — but keeping one line per paragraph sidesteps
+every one of these traps.) Separate paragraphs with a blank line; for a
+deliberate line break inside a paragraph use a trailing backslash `\`.
+
 ---
 
 ## Math (MathJax / LaTeX)
@@ -1425,6 +1436,7 @@ defining doc-local TeX macros.
 ```yaml
 ---
 title: My Talk
+subtitle: A gentle introduction
 author: Alice Dupont
 organization: Université de Lyon
 date: 2026-05-21
@@ -1440,6 +1452,9 @@ Recognised keys:
 - `title` — rendered as `<h1 class="doc-title">`, styled via
   `styles.title`. `#` headings in the body remain regular h1
   sections.
+- `subtitle` — rendered under the title as `<div class="doc-subtitle">`,
+  styled via `styles.subtitle`. Sits on the cover between the title and
+  the author/organization/date block.
 - `author`, `organization`, `date` — fill the metadata block
   shown beneath the title.
 - `slides` — `true` to force the document into 16:9 slides mode
