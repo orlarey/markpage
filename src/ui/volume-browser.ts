@@ -24,8 +24,13 @@ export interface VolumeBrowserOptions {
   mode?: 'open' | 'save';
   /** Prefilled file name in save mode. */
   defaultName?: string;
-  /** Start navigated into this volume + folder (e.g. a doc's origin on Save As). */
+  /** Start navigated into this volume + folder (the current doc's origin, or
+   *  the last folder visited). Falls back to the root when the volume isn't
+   *  ready, and to the volume's root when the folder no longer lists. */
   initial?: { volumeId: string; path: string };
+  /** Called on every move (volumeId null = the common root), so the caller
+   *  can remember where the user was. */
+  onNavigate?(volumeId: string | null, path: string): void;
   onOpen?(volume: Volume, entry: VolumeEntry): void;
   /** Open a loose file from the device (folds in the old *Import*, V4). */
   onOpenDeviceFile?(): void;
@@ -129,14 +134,24 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   // ---- navigation state: null = the common root (lists the volumes) ----
   let current: Volume | null = null;
   let path = '';
-  // Start inside a volume when asked (Save As → the doc's origin folder).
-  if (opts.initial) {
-    const v = opts.volumes.find((vv) => vv.id === opts.initial?.volumeId);
-    if (v) {
-      current = v;
-      path = opts.initial.path;
+  // Start inside a volume when asked (the doc's origin folder, or the last one
+  // visited). Resolved in startAt() — a volume that isn't ready (permission
+  // lapsed, offline) can't list, so the browser then opens on the root, where
+  // one click re-authorizes it.
+  let initialPending = false;
+  const startAt = async (): Promise<void> => {
+    const want = opts.initial;
+    const v = want ? opts.volumes.find((vv) => vv.id === want.volumeId) : undefined;
+    if (!want || !v) return;
+    try {
+      if ((await v.state()) !== 'ready') return;
+    } catch {
+      return;
     }
-  }
+    current = v;
+    path = want.path;
+    initialPending = true;
+  };
 
   // Save bar (save mode only): file-name input + confirm button (V5).
   const saveBar = doc.createElement('div');
@@ -303,7 +318,16 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
     let entries: VolumeEntry[];
     try {
       entries = await vol.list(path);
+      initialPending = false;
     } catch (err) {
+      // The remembered folder is gone (moved, deleted): fall back to the
+      // volume's root instead of an error.
+      if (initialPending && path !== '') {
+        initialPending = false;
+        path = '';
+        await render();
+        return;
+      }
       console.error('volume list failed', err);
       listEl.replaceChildren();
       const e = doc.createElement('div');
@@ -407,6 +431,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   };
 
   const render = async (): Promise<void> => {
+    opts.onNavigate?.(current?.id ?? null, path);
     renderCrumbs();
     // Save bar only makes sense inside a volume's folder (not at the root).
     saveBar.hidden = current === null;
@@ -423,6 +448,6 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   else panel.append(header, body, footer);
   overlay.appendChild(panel);
   doc.body.appendChild(overlay);
-  void render();
+  void startAt().then(render);
   if (mode === 'save') nameInput.focus();
 }

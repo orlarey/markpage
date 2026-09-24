@@ -161,6 +161,7 @@ import {
   OneDriveVolume,
   RepoVolume,
   resolveWithinRoot,
+  TRASH_DIR,
   type Volume,
   type VolumeEntry,
 } from './volumes';
@@ -2180,11 +2181,48 @@ async function bootstrap(): Promise<void> {
 
   let browserMode: 'open' | 'save' = 'open';
 
+  // The browser's last position (volume + folder), remembered across sessions
+  // so *Ouvrir* resumes where the user was. The Corbeille is never a place to
+  // resume in: it maps to the Bibliothèque's root.
+  const BROWSER_LOCATION_KEY = 'markpage:browser-location';
+  const rememberBrowserLocation = (volumeId: string | null, path: string): void => {
+    try {
+      if (volumeId === null) localStorage.removeItem(BROWSER_LOCATION_KEY);
+      else {
+        const p = volumeId === 'library' && path === TRASH_DIR ? '' : path;
+        localStorage.setItem(BROWSER_LOCATION_KEY, JSON.stringify({ volumeId, path: p }));
+      }
+    } catch {
+      /* storage unavailable — the browser just opens on the root next time */
+    }
+  };
+  const lastBrowserLocation = (
+    volumes: Volume[],
+  ): { volumeId: string; path: string } | undefined => {
+    try {
+      const raw = localStorage.getItem(BROWSER_LOCATION_KEY);
+      if (!raw) return undefined;
+      const loc = JSON.parse(raw) as { volumeId?: unknown; path?: unknown };
+      if (typeof loc.volumeId !== 'string' || typeof loc.path !== 'string') return undefined;
+      const { volumeId, path } = loc as { volumeId: string; path: string };
+      return volumes.some((v) => v.id === volumeId) ? { volumeId, path } : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  // Where the browser starts: the folder the current document was opened from,
+  // else the last folder visited, else the root.
+  const browserStart = (volumes: Volume[]): { volumeId: string; path: string } | undefined =>
+    originLocation(volumes, currentDoc) ?? lastBrowserLocation(volumes);
+
   // The unified browser (V1) — replaces Open / from-disk / from-GitHub / Import.
   const triggerOpen = async (): Promise<void> => {
     browserMode = 'open';
+    const volumes = await listVolumes();
     openVolumeBrowser({
-      volumes: await listVolumes(),
+      volumes,
+      initial: browserStart(volumes),
+      onNavigate: rememberBrowserLocation,
       onOpen: (vol, entry) => {
         void openFromVolume(vol, entry);
       },
@@ -2239,7 +2277,8 @@ async function bootstrap(): Promise<void> {
       volumes,
       mode: 'save',
       defaultName: origin?.fileName ?? `${currentDoc.name.trim().replace(/\s+/g, '-')}.md`,
-      initial: originLocation(volumes, currentDoc),
+      initial: browserStart(volumes),
+      onNavigate: rememberBrowserLocation,
       onSave: (vol, folder, name) => {
         void saveAsToVolume(vol, folder, name);
       },
