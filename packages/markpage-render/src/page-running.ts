@@ -161,14 +161,21 @@ export function renderPageRunning(
  *   first-page-only override). This is the "missing slots clear"
  *   property of SPEC §26.5 at the (kind, arg) granularity.
  *
+ *   `sided`: emit the default rule as `:right` + `:left` variants even in
+ *   simplex (no slot swap). Set when a style's running apparatus fills the
+ *   margin boxes through `@page :right/:left` rules: a fence band must match
+ *   that specificity to win, including once the engine renames the dominant
+ *   section to the anonymous page (preview-vivliostyle).
+ *
  *   Side effect: mutates the DOM. The mutation is idempotent on a
  *   stable input — calling twice yields the same result.
  */
 export function applyPageRunningRuns(
   root: HTMLElement,
-  options: { duplex?: boolean } = {},
+  options: { duplex?: boolean; sided?: boolean } = {},
 ): string {
   const duplex = options.duplex === true;
+  const sided = options.sided === true;
   const children = Array.from(root.children);
   let sectionIdx = 0;
   let currentDecls = new Map<string, string>();
@@ -300,6 +307,9 @@ export function applyPageRunningRuns(
         if (duplex) {
           cssRules.push(`@page ${pageName}:right { ${declText} }`);
           cssRules.push(`@page ${pageName}:left  { ${swapInnerOuter(declText)} }`);
+        } else if (sided) {
+          cssRules.push(`@page ${pageName}:right { ${declText} }`);
+          cssRules.push(`@page ${pageName}:left { ${declText} }`);
         } else {
           cssRules.push(`@page ${pageName} { ${declText} }`);
         }

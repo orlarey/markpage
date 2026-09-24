@@ -11,9 +11,9 @@
 // URL params:
 //   ?id=<snippet-id>     (defaults to "playground", which is an empty doc)
 //   ?lang=fr|en          (optional; overrides the visitor's UI locale)
-//   ?style=<preset-id>   (optional; picks a curated PdfSettings preset
-//                         from style-presets.ts — used by the "compare
-//                         stylings" showcase segment)
+//   ?style=<style-key>   (optional; renders under that library style, as a
+//                         `document-style:` key would — used by the
+//                         "compare styles" showcase segment)
 //
 // The runtime is intentionally tiny: no toolbar, no editor, no
 // storage. We just paginate the snippet through the same paged.js
@@ -55,19 +55,17 @@ import { parseFrontmatter } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
-import { applyNamedStyle } from './style-library';
-import { applySlideLayout, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { resolveDocumentSettings } from './style-library';
 import {
   findShowcaseEntry,
   HERO_DEMO_ENTRY,
   PLAYGROUND_ENTRY,
 } from './showcase-data';
 import type { ShowcaseEntry } from './showcase-types';
-import { applyStylePreset } from './style-presets';
 
 /**
  * Purpose: Entry — resolve params, build preview DOM, paginate into `#preview-pane`.
- * How: Read URL params, pick the showcase entry, apply style preset on default settings.
+ * How: Read URL params, pick the showcase entry, resolve its style.
  */
 async function run(): Promise<void> {
   const params = new URLSearchParams(globalThis.location.search);
@@ -94,37 +92,34 @@ async function run(): Promise<void> {
   };
   const entry = resolveEntry();
 
-  // The demo runs on default typography but blanks the metadata
-  // (author / organisation / date) — the snippet is a feature
-  // sample, not someone's actual document. If `?style=<id>` is
-  // present, the preset overrides apply on top of the defaults so
-  // the same source can be compared under several stylings.
-  const baseSettings: PdfSettings = {
-    ...DEFAULT_SETTINGS,
-    author: { ...DEFAULT_SETTINGS.author, show: false },
-    organization: { ...DEFAULT_SETTINGS.organization, show: false },
-    date: { mode: 'none', custom: '' },
-  };
-  const settings = applyStylePreset(baseSettings, params.get('style'));
+  // The snippet renders under its own `document-style:` (default style when
+  // absent) — or under `?style=<key>`, so the same source can be compared under
+  // several styles. The base shows no author / organisation / date: the snippet
+  // is a feature sample, not someone's document.
+  const { meta } = parseFrontmatter(entry.source);
+  const styleParam = params.get('style');
+  const resolvedSettings = resolveDocumentSettings(
+    styleParam ? { ...meta, 'document-style': styleParam } : meta,
+  ).settings;
+  const effectiveSettings = withBakedGeometry(
+    resolvedSettings,
+    pageSizeMm(resolvedSettings),
+  );
 
-  applyPreviewStyles(settings);
+  applyPreviewStyles(effectiveSettings);
 
   // Fire-and-forget the font loading. paged.js' first render uses
   // whatever's available; once the fonts resolve the next paint
   // picks them up.
   void registerFallbackFonts().catch(() => undefined);
-  void loadSettingsFonts(settings).catch(() => undefined);
+  void loadSettingsFonts(effectiveSettings).catch(() => undefined);
 
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 
   // Build the same DOM subtree as the main preview pipeline, then
   // hand it to paged.js.
   const built = document.createElement('div');
-  const { meta } = parseFrontmatter(entry.source);
-  const withFm = applySlideLayout(settings);
-  const withStyle = applyNamedStyle(meta['document-style'], withFm).settings;
-  const effectiveSettings = withBakedGeometry(withStyle, pageSizeMm(withStyle));
-  renderPreview(built, entry.source);
+  renderPreview(built, entry.source, effectiveSettings.numbering);
   applyPreviewMetadata(built, effectiveSettings, meta);
   annotateSourceLines(built, entry.source);
   const preamble = meta['mathjax-preamble'] ?? '';

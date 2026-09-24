@@ -60,7 +60,7 @@ import {
   renderMathBlocks,
   renderMathInlines,
 } from '@orlarey/markpage-render';
-import { parseFrontmatter, parseStackDoc, type StackDoc } from '@orlarey/markpage-render';
+import { parseFrontmatter } from '@orlarey/markpage-render';
 import { fitWideTables } from '@orlarey/markpage-render';
 import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
@@ -102,14 +102,13 @@ import { migrateImagesToOpfs } from './image-store';
 import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
-import { openSettingsWindow } from './ui/settings-window';
 import {
   allStyles,
-  applyNamedStyle,
   deleteUserStyle,
   findStyle,
   loadUserStyles,
   parseStyleFile,
+  resolveDocumentSettings,
   saveUserStyle,
   serializeStyleFile,
   slugify,
@@ -121,9 +120,7 @@ import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
-import { openNewFromModal } from './ui/new-from-modal';
-import { isolateHistory, redo, undo } from '@codemirror/commands';
-import { Transaction } from '@codemirror/state';
+import { redo, undo } from '@codemirror/commands';
 import helpMdFr from './HELP.fr.md?raw';
 import helpMdEn from './HELP.en.md?raw';
 import {
@@ -207,33 +204,8 @@ import {
   writeBundleToDir,
   writeFileHandle,
 } from './disk-link';
-import { applySlideLayout, applyLanguageOverride, serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
-import {
-  flattenForRender,
-  applyProfilePatch,
-  deriveSettingsForDoc,
-  essentialFrontmatterKeys,
-  essentialStyleFromSource,
-  getExtendsFromSource,
-  planProfileMigration,
-  resetStyleRecipeInLeaf,
-  settingsForRecipe,
-  setExtendsInSource,
-  setFrontmatterKeys,
-  styleVariationCount,
-  type EssentialFrontmatterKey,
-  writeStyleToLeaf,
-} from './stack-render';
-import type { Appearance, DocumentModel } from './style-recipes';
-import {
-  displayProfileName,
-  ensureActiveProfile,
-  getCurrentProfileId,
-  listProfiles,
-  loadProfileSettings,
-  migrateLegacySettingsIfNeeded,
-  saveProfileSettings,
-} from './settings-profiles';
+import { serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
+import { setFrontmatterKeys } from './frontmatter-edit';
 import {
   pageContentGeomPx,
   pageSizeMm,
@@ -343,7 +315,7 @@ async function runGC(): Promise<void> {
 /**
  * Purpose: One-shot app bootstrap — migrations, locale, fonts, UI, shortcuts.
  * How: Sequenced calls to storage migrations, then editor + toolbar mount,
- *   then event wiring (autosave, view toggle, profile/doc handlers, hotkeys).
+ *   then event wiring (autosave, view toggle, doc handlers, hotkeys).
  */
 async function bootstrap(): Promise<void> {
   // If this page load is returning from the OneDrive OAuth redirect (or
@@ -406,13 +378,12 @@ async function bootstrap(): Promise<void> {
 
   // Resolve the UI locale before any component reads `t(...)` at
   // construction time. First-launch detection via navigator.language;
-  // subsequent runs read the value the user pinned via Réglages.
+  // subsequent runs read the persisted value (locale.ts, setLanguage).
   const uiLocale = initLocale();
 
   // Apply the editor-pane font + colour preferences before the
   // editor mounts — each writes a CSS custom property on :root which
-  // #editor-pane consumes. Sane defaults; the user can switch from
-  // Réglages.
+  // #editor-pane consumes. Sane defaults; a persisted preference wins.
   initEditorFont();
   initEditorTextColor();
 
@@ -430,20 +401,22 @@ async function bootstrap(): Promise<void> {
   const resizerEl = document.getElementById('pane-resizer') as HTMLElement;
   initPaneSplitter(panesEl, resizerEl);
 
-  // Bring any legacy single-settings install into the multi-profile
-  // schema, then guarantee at least one profile exists so the rest of
-  // bootstrap has *some* settings to render against.
-  await migrateLegacySettingsIfNeeded();
-  // Seed the very first profile's doc language with whatever locale
-  // we resolved for the UI (above) — `en-*` users get an English doc
-  // (English babel, English-style date) by default.
-  const activeProfile = await ensureActiveProfile(uiLocale);
-  const state: {
-    settings: PdfSettings;
-    profileId: string;
-  } = {
-    settings: loadProfileSettings(activeProfile.uuid),
-    profileId: activeProfile.uuid,
+  // Every document's settings resolve from this base: its named style (or the
+  // default style) applied over DEFAULT_SETTINGS. The base language follows the
+  // UI locale — `en-*` users get English hyphenation and dates unless the
+  // document's front-matter says otherwise.
+  const baseSettings: PdfSettings = { ...DEFAULT_SETTINGS, language: uiLocale };
+  // A document overrides nothing: its look is its named style (`document-style:`,
+  // default style when absent); only language and author come from its
+  // front-matter (resolveDocumentSettings).
+  const deriveDocSettings = (src: string): PdfSettings => {
+    const r = resolveDocumentSettings(parseFrontmatter(src).meta, baseSettings);
+    if (r.unknownStyle)
+      console.warn(`[markpage] unknown document-style: "${r.unknownStyle}"`);
+    return r.settings;
+  };
+  const state: { settings: PdfSettings } = {
+    settings: deriveDocSettings(''),
   };
 
   // Custom fonts must be registered BEFORE loadSettingsFonts so the loader
@@ -483,36 +456,6 @@ async function bootstrap(): Promise<void> {
     }
   } catch (err) {
     console.error('Image store migration failed', err);
-  }
-
-  // STACK-SPEC §12.2 — one-time (idempotent) migration: bake every profile
-  // with real customizations into a style document in the library, and point
-  // every doc that carries no style of its own at the currently active
-  // profile's style doc. A doc that already has `extends`/a dotted key is
-  // left untouched, and a style doc already present under its planned name
-  // isn't recreated — safe to re-run on every boot.
-  try {
-    const profiles = listProfiles().map((p) => ({
-      uuid: p.uuid,
-      displayName: displayProfileName(p),
-      settings: loadProfileSettings(p.uuid),
-      active: p.uuid === getCurrentProfileId(),
-    }));
-    const libraryDocs = await listDocs();
-    const docsForMigration: { uuid: string; content: string }[] = [];
-    for (const e of libraryDocs) {
-      const c = await loadDocContent(e);
-      if (c != null) docsForMigration.push({ uuid: e.uuid, content: c });
-    }
-    const plan = planProfileMigration(
-      profiles,
-      new Set(libraryDocs.map((d) => d.name)),
-      docsForMigration,
-    );
-    for (const s of plan.styleDocsToCreate) await createDoc(s.name, s.markdown);
-    for (const l of plan.leavesToUpdate) await saveDocContent(l.uuid, l.markdown);
-  } catch (err) {
-    console.error('Profile migration failed', err);
   }
 
   // Doc selection cascade at boot:
@@ -569,12 +512,6 @@ async function bootstrap(): Promise<void> {
   // editor state or settings. Set on every doc/settings change, cleared
   // after a successful paginate.
   let dirty = true;
-
-  // Set while a settings-driven round-trip write replaces the editor text
-  // (writeStyleToLeaf): the editor's change callback still persists the new
-  // content, but skips its own live-preview — handleSettingsChange does the
-  // anchored render itself, so we'd otherwise paint twice.
-  let suppressEditorPreview = false;
 
   // We only show the latest paginate call's output. A previous in-flight
   // render must not overwrite a more recent one.
@@ -715,39 +652,7 @@ async function bootstrap(): Promise<void> {
     true, // capture — runs before the source-jump click handler
   );
 
-  // Resolve a stack `extends` reference (a library doc name) to its parsed
-  // source, for the document-stack flatten. A doc can't be its own parent, so
-  // the current doc is excluded. Returns null when no doc bears that name.
-  const resolveByName = async (name: string): Promise<StackDoc | null> => {
-    for (const entry of await listDocs()) {
-      if (entry.name !== name || entry.uuid === currentDoc.uuid) continue;
-      const content = (await loadDocContent(entry)) ?? '';
-      return parseStackDoc(content, name);
-    }
-    return null;
-  };
-
-  // Derive the document's settings from its stack, THEN resolve its named style
-  // (`document-style:` front-matter) from the library and apply it as the
-  // authoritative fundamental style — so a document renders from its named style
-  // everywhere state.settings flows (Réglages panel, continuous + paginated
-  // preview), not only right after a menu action.
-  const deriveDocSettings = async (
-    src: string,
-    base: PdfSettings,
-  ): Promise<PdfSettings> => {
-    const derived = await deriveSettingsForDoc(src, base, resolveByName);
-    const name = parseFrontmatter(src).meta['document-style'];
-    const r = applyNamedStyle(name, derived);
-    if (name && name.trim() && !r.found)
-      console.warn(`[markpage] unknown document-style: "${name}"`);
-    return r.settings;
-  };
-
-  // STACK-SPEC §12.1 (Étape 1 — dérivation au chargement): the Réglages panel
-  // reflects the boot doc's own stack (extends chain + dotted style keys),
-  // not just the app-wide profile it was seeded from above.
-  state.settings = await deriveDocSettings(initialDoc, state.settings);
+  state.settings = deriveDocSettings(initialDoc);
 
   // Auto-load relative images from the document's mounted folder. When a doc is
   // opened from a disk volume (`link.volume`/`link.dir`), a `![](rel/path.png)`
@@ -838,55 +743,14 @@ async function bootstrap(): Promise<void> {
     myReq: number;
   } | null> => {
     const myReq = ++previewReqId;
-    // Document-stack (STACK-SPEC): resolve the `extends` chain, flatten (merged
-    // front-matter + tokens + folded body) and keep the per-element style patch.
-    // Gated to documents that use a stack feature; guarded so any error (cycle,
-    // missing parent, undefined token) degrades to the un-flattened render.
-    let toRender = source;
-    let stylePatch = null as Awaited<ReturnType<typeof flattenForRender>>;
-    try {
-      const flat = await flattenForRender(source, {
-        settings: state.settings,
-        resolveByName,
-      });
-      if (flat) {
-        toRender = flat.md;
-        stylePatch = flat;
-      }
-    } catch (err) {
-      console.warn('[markpage] stack flatten failed', err);
-    }
     const resolved = await expandRefsToBlobUrls(
-      toRender,
+      source,
       makeFolderImageResolver(currentDoc),
     );
     const { meta } = parseFrontmatter(resolved);
-    // Apply the slide layout when the style's page format is 16:9 (a document
-    // overrides nothing — STYLE-ALIGNMENT step 7), then the stack profile patch.
-    let effectiveSettings = applySlideLayout(state.settings);
-    if (stylePatch) {
-      effectiveSettings = applyProfilePatch(effectiveSettings, stylePatch.patch);
-    }
-    // The document's NAMED style (`document-style:` front-matter) is the
-    // authoritative style: resolve it from the library and apply it LAST, over
-    // the recipe/stack/frontmatter/vocabulary layers. The style is never in the
-    // document — only its name (docs/FUNDAMENTAL-SETTINGS.md, document-style model).
-    effectiveSettings = applyNamedStyle(
-      meta['document-style'],
-      effectiveSettings,
-    ).settings;
-    // The document's language is the ONE content-level override — applied over the
-    // resolved style (language left the style; STYLE-ALIGNMENT).
-    effectiveSettings = applyLanguageOverride(effectiveSettings, meta.language);
-    // Fold the document's front-matter author into the settings so the running
-    // apparatus's `author` material resolves to the DOCUMENT author, not the
-    // profile placeholder (mirrors metadataLines' front-matter-first rule).
-    if (meta.author !== undefined) {
-      effectiveSettings = {
-        ...effectiveSettings,
-        author: { ...effectiveSettings.author, text: meta.author },
-      };
-    }
+    // Resolved from the source being rendered, not the debounced state.settings,
+    // so a `document-style:` edit shows in the very render it triggers.
+    let effectiveSettings = deriveDocSettings(source);
     // Bake the terminal page geometry LAST — after every setting that feeds the
     // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
     // reads a resolved `pageGeometry` and never the production inputs. A named
@@ -1012,10 +876,8 @@ async function bootstrap(): Promise<void> {
     };
   };
 
-  // The RESOLVED fundamental style (state.settings + frontmatter vocabulary +
-  // stack patch), captured from the last render. state.settings alone is only
-  // the recipe BASE — the atelier's font-pair/colour/size vocabulary is applied
-  // at render into effectiveSettings, so a faithful style export must use this.
+  // The settings of the last render — the resolved style with its page geometry
+  // baked — read by the presentation layout and the style export.
   let lastEffectiveSettings: PdfSettings = state.settings;
 
   // Cached (source line → preview Y) map for the live scroll-follow. Y is
@@ -1143,15 +1005,9 @@ async function bootstrap(): Promise<void> {
 
   applyPreviewStyles(state.settings);
 
-  // The detached Settings window is a live projection of the current
-  // document. Keep its repaint hook available to editor-driven frontmatter
-  // changes as well as document/profile switches.
-  let refreshSettingsForm: (() => void) | null = null;
+  // A front-matter edit can change the document's style (`document-style:`) or
+  // language: re-derive the settings, then repaint the preview CSS and fonts.
   let scheduleSettingsFromFrontmatter: (source: string) => void = () => {};
-  // Undo/redo must restore the exact historical source. A canonicalisation
-  // transaction inserted between the two would remap (or invalidate) the redo
-  // branch, so history replay only derives settings and repaints the UI.
-  let preserveHistoricalFrontmatterOnce = false;
   const frontmatterSnapshot = (source: string): string => {
     if (!source.startsWith('---\n')) return '';
     const end = source.indexOf('\n---', 4);
@@ -1171,13 +1027,11 @@ async function bootstrap(): Promise<void> {
       // auto-persist the working copy.
       dirty = true;
       debouncedSaveDraft(currentDoc.uuid, doc);
-      if (!suppressEditorPreview) {
-        scheduleLivePreview();
-        // Always feed the debouncer: a replace operation is emitted as
-        // "delete, then insert". Keeping only the first changed snapshot would
-        // derive the transient empty document and discard the final source.
-        scheduleSettingsFromFrontmatter(doc);
-      }
+      scheduleLivePreview();
+      // Always feed the debouncer: a replace operation is emitted as
+      // "delete, then insert". Keeping only the first changed snapshot would
+      // derive the transient empty document and discard the final source.
+      scheduleSettingsFromFrontmatter(doc);
     },
     editorShortcuts,
   );
@@ -1185,86 +1039,16 @@ async function bootstrap(): Promise<void> {
   attachStyleContextMenu(editor.view.dom, editor.view);
 
   scheduleSettingsFromFrontmatter = debounce((source: string) => {
-    void (async () => {
-      const preserveHistoricalFrontmatter =
-        preserveHistoricalFrontmatterOnce;
-      preserveHistoricalFrontmatterOnce = false;
-      const snapshot = frontmatterSnapshot(source);
-      if (snapshot === lastAppliedSettingsFrontmatter) return;
-      const derived = await deriveDocSettings(source, state.settings);
-      // A newer edit superseded this derivation while an extends layer was
-      // resolving. Only publish settings for the source still in the editor.
-      if (source !== editor.getValue()) return;
-      state.settings = derived;
-      lastAppliedSettingsFrontmatter = snapshot;
-      // document-style model: a doc that NAMES its style keeps a minimal
-      // front-matter — never canonicalise the resolved style back into dotted
-      // keys (that's the legacy stack/profile convergence, STACK §12).
-      const named = (parseFrontmatter(source).meta['document-style'] ?? '').trim();
-      const canonical = named
-        ? source
-        : writeStyleToLeaf(source, derived, DEFAULT_SETTINGS);
-      if (!preserveHistoricalFrontmatter && canonical !== source) {
-        // Canonicalisation only touches the style keys in frontmatter. Apply a
-        // minimal CodeMirror change so a user editing the YAML keeps their
-        // cursor near the same key instead of suffering a whole-document reset.
-        let from = 0;
-        while (
-          from < source.length &&
-          from < canonical.length &&
-          source[from] === canonical[from]
-        )
-          from += 1;
-        let sourceTo = source.length;
-        let canonicalTo = canonical.length;
-        while (
-          sourceTo > from &&
-          canonicalTo > from &&
-          source[sourceTo - 1] === canonical[canonicalTo - 1]
-        ) {
-          sourceTo -= 1;
-          canonicalTo -= 1;
-        }
-        suppressEditorPreview = true;
-        editor.view.dispatch({
-          changes: {
-            from,
-            to: sourceTo,
-            insert: canonical.slice(from, canonicalTo),
-          },
-          // Canonicalisation is a mechanical consequence of the user's edit,
-          // not a new intention. Keeping it outside history preserves a redo
-          // branch after undo and makes one settings gesture one history step.
-          annotations: Transaction.addToHistory.of(false),
-        });
-        suppressEditorPreview = false;
-        lastAppliedSettingsFrontmatter = frontmatterSnapshot(canonical);
-      }
-      const styled = derived;
-      registerCustomFonts(styled.customFonts);
-      applyPreviewStyles(styled);
-      void loadSettingsFonts(styled).catch((err: unknown) => {
-        console.error('Font load failed', err);
-      });
-      refreshSettingsForm?.();
-    })();
+    const snapshot = frontmatterSnapshot(source);
+    if (snapshot === lastAppliedSettingsFrontmatter) return;
+    lastAppliedSettingsFrontmatter = snapshot;
+    state.settings = deriveDocSettings(source);
+    registerCustomFonts(state.settings.customFonts);
+    applyPreviewStyles(state.settings);
+    void loadSettingsFonts(state.settings).catch((err: unknown) => {
+      console.error('Font load failed', err);
+    });
   }, 180);
-
-  const refreshSettingsFromHistory = (source: string): void => {
-    void (async () => {
-      const derived = await deriveDocSettings(source, state.settings);
-      if (source !== editor.getValue()) return;
-      state.settings = derived;
-      lastAppliedSettingsFrontmatter = frontmatterSnapshot(source);
-      const styled = derived;
-      registerCustomFonts(styled.customFonts);
-      applyPreviewStyles(styled);
-      void loadSettingsFonts(styled).catch((err: unknown) => {
-        console.error('Font load failed', err);
-      });
-      refreshSettingsForm?.();
-    })();
-  };
 
   // Assigned in renderToolbar() below before any user input has the
   // chance to fire setViewMode().
@@ -1781,10 +1565,9 @@ async function bootstrap(): Promise<void> {
     currentDoc = target;
     await setCurrentDocId(target.uuid);
     const content = (await loadDocContent(target)) ?? '';
-    // STACK-SPEC §12.1: Réglages follows the doc — derive its settings from
-    // its own stack before rendering, so the panel never shows the outgoing
-    // doc's values.
-    state.settings = await deriveDocSettings(content, state.settings);
+    // Resolve the incoming doc's style before rendering, so nothing renders
+    // with the outgoing doc's settings.
+    state.settings = deriveDocSettings(content);
     editor.setValue(content);
     dirty = true;
     // Keep the split open across doc switches — refresh it for the new doc.
@@ -1793,19 +1576,18 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(isModified(target));
     toolbarCtrl.setOrigin(originOf(target));
     toolbarCtrl.setConflict(false);
-    refreshSettingsForm?.();
     void checkSync();
   };
 
   const createNewDoc = async (): Promise<void> => {
     await flushSave();
-    // A brand-new doc starts empty — styling is chosen from the Style menu
-    // (document-style), not seeded as a stack `extends:` layer.
+    // A brand-new doc starts empty — it renders with the default style until
+    // one is picked from the Style menu (document-style).
     const content = '';
     const entry = await createDoc('Sans titre', content);
     currentDoc = entry;
     await setCurrentDocId(entry.uuid);
-    state.settings = await deriveDocSettings(content, state.settings);
+    state.settings = deriveDocSettings(content);
     editor.setValue(content);
     dirty = true;
     // Keep the split open — refresh it for the new empty doc.
@@ -1813,27 +1595,6 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setModified(false);
     toolbarCtrl.setOrigin(null);
     toolbarCtrl.setDocName(entry.name);
-    refreshSettingsForm?.();
-  };
-
-  // "Style parent" in Réglages (STACK-SPEC §12.1): pick the layer the current
-  // document `extends`, writing it into the leaf's front-matter (the round-trip).
-  const changeParentStyle = async (): Promise<void> => {
-    const docs = (await listDocs())
-      .filter((d) => d.uuid !== currentDoc.uuid)
-      .map((d) => ({ uuid: d.uuid, name: d.name }));
-    const picked = await openNewFromModal(docs, {
-      title: t('settings.parent-style.pick-title'),
-      noneLabel: t('settings.parent-style.none'),
-      currentName: getExtendsFromSource(editor.getValue()),
-    });
-    if (picked === null) return; // cancelled
-    editor.setValue(setExtendsInSource(editor.getValue(), picked === '' ? null : picked));
-    dirty = true;
-    // A new parent changes the effective style — re-derive before the form refresh.
-    state.settings = await deriveDocSettings(editor.getValue(), state.settings);
-    if (viewMode === 'preview') void updatePreview(editor.getValue());
-    refreshSettingsForm?.(); // reflect the new parent in the open form
   };
 
   const renameCurrentDoc = async (newName: string): Promise<void> => {
@@ -1857,14 +1618,14 @@ async function bootstrap(): Promise<void> {
       const fresh = await createDoc('Sans titre');
       currentDoc = fresh;
       await setCurrentDocId(fresh.uuid);
-      state.settings = await deriveDocSettings('', state.settings);
+      state.settings = deriveDocSettings('');
       editor.setValue('');
     } else {
       const next = remaining[0];
       currentDoc = next;
       await setCurrentDocId(next.uuid);
       const content = (await loadDocContent(next)) ?? '';
-      state.settings = await deriveDocSettings(content, state.settings);
+      state.settings = deriveDocSettings(content);
       editor.setValue(content);
     }
     dirty = true;
@@ -1872,7 +1633,6 @@ async function bootstrap(): Promise<void> {
     toolbarCtrl.setDocName(currentDoc.name);
     toolbarCtrl.setModified(isModified(currentDoc));
     toolbarCtrl.setOrigin(originOf(currentDoc));
-    refreshSettingsForm?.();
   };
 
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
@@ -1893,12 +1653,11 @@ async function bootstrap(): Promise<void> {
     if (!isModified(currentDoc)) return;
     currentDoc = await revertDoc(currentDoc.uuid);
     const content = (await loadCommittedContent(currentDoc)) ?? '';
-    state.settings = await deriveDocSettings(content, state.settings);
+    state.settings = deriveDocSettings(content);
     editor.setValue(content);
     dirty = true;
     if (viewMode === 'preview') void updatePreview(editor.getValue());
     toolbarCtrl.setModified(false);
-    refreshSettingsForm?.();
   };
 
   // ---- disk link (Phase 4, File System Access — Chromium only) ----------
@@ -1942,11 +1701,10 @@ async function bootstrap(): Promise<void> {
   const applyDiskContent = async (content: string): Promise<void> => {
     await saveDraft(currentDoc.uuid, content);
     currentDoc = await commitDoc(currentDoc.uuid);
-    state.settings = await deriveDocSettings(content, state.settings);
+    state.settings = deriveDocSettings(content);
     editor.setValue(content);
     toolbarCtrl.setModified(false);
     dirty = true;
-    refreshSettingsForm?.();
     if (presenting) {
       // paged.js can't measure the hidden (display:none) non-current pages, so
       // drop `.presentation` for the re-paginate, then restore it + the page.
@@ -2653,82 +2411,6 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  const handleSettingsChange = (
-    s: PdfSettings,
-    variationKey?: EssentialFrontmatterKey,
-  ) => {
-    state.settings = s;
-    // Fire-and-forget: the SHA hash + localStorage write is fast and
-    // the form's onChange is sync. Any error stays in the console.
-    void saveProfileSettings(state.profileId, s).catch((err: unknown) => {
-      console.error('Profile save failed', err);
-    });
-    // The settings form mutates its own customFonts list before
-    // calling us, but registering here too keeps things consistent
-    // when a settings change arrives from another path (cross-window
-    // sync, reset-to-defaults, etc.).
-    registerCustomFonts(s.customFonts);
-    applyPreviewStyles(s);
-    // Kick off loading any newly-selected Google Font in parallel.
-    // We don't block on it: the preview repaints with the bundled
-    // fallback, then the browser swaps in the real font as soon as
-    // its CSS resolves (display=swap).
-    void loadSettingsFonts(s).catch((err: unknown) => {
-      console.error('Font load failed', err);
-    });
-    // Round-trip write (STACK-SPEC §12.1): land the change in the document
-    // itself, as dotted style keys on the leaf, so the .md describes its own
-    // look (and a reverted control cleans its key back out). The profile save
-    // above stays for now — both agree, the stack patch equals the profile
-    // delta — until the profile store is retired. We replace the editor text
-    // in place; the editor callback persists it (preview suppressed: the block
-    // below does the anchored render with the fresh content).
-    // Skip the round-trip write when the doc names its style (document-style
-    // model): the style lives in the library, not in the document.
-    const namedNow = (
-      parseFrontmatter(editor.getValue()).meta['document-style'] ?? ''
-    ).trim();
-    const withStyle = namedNow
-      ? editor.getValue()
-      : writeStyleToLeaf(
-          editor.getValue(),
-          s,
-          DEFAULT_SETTINGS,
-          variationKey ? new Set([variationKey]) : new Set(),
-        );
-    if (withStyle !== editor.getValue()) {
-      suppressEditorPreview = true;
-      editor.setValue(withStyle);
-      suppressEditorPreview = false;
-      lastAppliedSettingsFrontmatter = frontmatterSnapshot(withStyle);
-    }
-    // The @page CSS depends on settings (page size, margins, page-number
-    // position). Mark dirty so we repaginate on the next toggle into
-    // preview; if we're already in preview, refresh now. paged.js
-    // rebuilds the entire DOM, so capture the current viewport's top
-    // line first and re-apply it once the new render lands.
-    dirty = true;
-    if (viewMode === 'preview') {
-      const anchor = currentPreviewAnchor(previewEl);
-      // Make the preview transparent while paged.js rebuilds and while we
-      // restore the scroll anchor. Do not use `visibility: hidden`: paged.js
-      // lays out inside this element and an inherited invisible state can make
-      // its overflow detector conclude that the whole document fits page 1.
-      // Opacity suppresses the intermediate paint without changing layout.
-      previewEl.style.opacity = '0';
-      void updatePreview(editor.getValue())
-        .then(() => {
-          if (anchor) applyAnchorToPreview(previewEl, anchor);
-        })
-        .catch((err: unknown) => {
-          console.error('Preview render failed', err);
-        })
-        .finally(() => {
-          previewEl.style.opacity = '';
-        });
-    }
-  };
-
   // Imports an external file (.md / .docx / .html / .txt) as a *new*
   // doc in the index, switches to it. Unlike the mono-doc era, this
   // never overwrites the current doc, so no confirmation is needed.
@@ -2975,69 +2657,6 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
-  const triggerSettings = (): void => {
-    const handle = openSettingsWindow({
-      getSettings: () => state.settings,
-      onChange: handleSettingsChange,
-      onChangeRecipe: (
-        documentType: DocumentModel,
-        appearance: Appearance,
-      ) => {
-        const source = editor.getValue();
-        const reset = resetStyleRecipeInLeaf(
-          source,
-          documentType,
-          appearance,
-        );
-        if (reset === source) return;
-        state.settings = settingsForRecipe(
-          state.settings,
-          documentType,
-          appearance,
-        );
-        editor.view.dispatch({
-          changes: {
-            from: 0,
-            to: editor.view.state.doc.length,
-            insert: reset,
-          },
-          annotations: isolateHistory.of('full'),
-        });
-        registerCustomFonts(state.settings.customFonts);
-        applyPreviewStyles(state.settings);
-        refreshSettingsForm?.();
-      },
-      getEssentialStyle: () => essentialStyleFromSource(editor.getValue()),
-      getVariationKeys: () => essentialFrontmatterKeys(editor.getValue()),
-      getVariationCount: () => styleVariationCount(editor.getValue()),
-      onResetVariation: (key: EssentialFrontmatterKey) => {
-        const cleaned = setFrontmatterKeys(
-          editor.getValue(),
-          new Map(),
-          new Set([key]),
-        );
-        if (cleaned === editor.getValue()) return;
-        editor.setValue(cleaned);
-        scheduleSettingsFromFrontmatter(cleaned);
-      },
-      onUndo: () => {
-        preserveHistoricalFrontmatterOnce = true;
-        if (undo(editor.view)) refreshSettingsFromHistory(editor.getValue());
-        else preserveHistoricalFrontmatterOnce = false;
-      },
-      onRedo: () => {
-        preserveHistoricalFrontmatterOnce = true;
-        if (redo(editor.view)) refreshSettingsFromHistory(editor.getValue());
-        else preserveHistoricalFrontmatterOnce = false;
-      },
-      getParentStyle: () => getExtendsFromSource(editor.getValue()),
-      onChangeParentStyle: () => {
-        void changeParentStyle();
-      },
-    });
-    refreshSettingsForm = handle?.refresh ?? null;
-  };
-
   // Debug-guides overlay (toolbar [Guides] button + Cmd/Ctrl+Shift+G).
   // Non-persistent across reloads — toggles the .debug-layout class on
   // #preview-pane, which the static CSS in style.css wires to the
@@ -3231,7 +2850,6 @@ async function bootstrap(): Promise<void> {
         });
       },
       onHelp: triggerHelp,
-      onSettings: triggerSettings,
       onTogglePreview: toggleView,
       onPresent: () => {
         void enterPresentation();
@@ -3335,10 +2953,8 @@ async function bootstrap(): Promise<void> {
   document.addEventListener('visibilitychange', pollSync);
   globalThis.setInterval(pollSync, 2000);
 
-  // When the UI language changes (typically from the Réglages
-  // popup's "Langue de l'interface" select), rebuild the toolbar so
-  // its labels translate in place. The Réglages form itself
-  // refreshes locally; long-lived UI elements subscribe here.
+  // When the UI language changes, rebuild the toolbar so its labels
+  // translate in place; long-lived UI elements subscribe here.
   onLanguageChange(() => {
     renderToolbar();
     toolbarCtrl.setModified(isModified(currentDoc));
@@ -3400,14 +3016,13 @@ async function bootstrap(): Promise<void> {
       const entry = await createDoc(name ?? 'Sans titre', markdown);
       currentDoc = entry;
       await setCurrentDocId(entry.uuid);
-      state.settings = await deriveDocSettings(markdown, state.settings);
+      state.settings = deriveDocSettings(markdown);
       editor.setValue(markdown);
       dirty = true;
       if (viewMode === 'preview') void updatePreview(editor.getValue());
       toolbarCtrl.setDocName(entry.name);
       toolbarCtrl.setModified(false);
       toolbarCtrl.setOrigin(null);
-      refreshSettingsForm?.();
       return docSummary(entry);
     },
     renameDocument: async (uuid, name) => {
@@ -3476,13 +3091,12 @@ async function bootstrap(): Promise<void> {
     getSettings: () => ({
       settings: state.settings as unknown as Record<string, unknown>,
     }),
-    // Profiles were retired (STACK-SPEC §12) — a document's style now lives
-    // in its own stack (`extends` + dotted keys), not in a switchable
-    // profile. Kept as inert stubs so older MCP clients degrade gracefully
-    // instead of hitting an unknown-tool error.
+    // Profiles were retired — a document names its style (`document-style:`
+    // front-matter) from the style library. Kept as inert stubs so older MCP
+    // clients degrade gracefully instead of hitting an unknown-tool error.
     listProfiles: () => [],
     setProfile: () => {
-      throw new Error('Profiles have been retired — use "Style parent" (extends) instead');
+      throw new Error('Profiles have been retired — set `document-style:` in the front-matter instead');
     },
   };
   initMcp(mcpContext);

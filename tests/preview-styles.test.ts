@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { applyPreviewStyles } from '../src/preview';
 import { DEFAULT_SETTINGS } from '../src/settings';
-import { applyParagraphSeparation } from '../src/style-recipes';
 
 describe('preview paragraph styles', () => {
   beforeEach(() => {
@@ -10,10 +9,14 @@ describe('preview paragraph styles', () => {
   });
 
   it('keeps CSS indentation confined to the continuous preview', () => {
-    const settings = applyParagraphSeparation(
-      structuredClone(DEFAULT_SETTINGS),
-      'indent',
-    );
+    // Paragraphs separated by a first-line indent instead of whitespace.
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.styles.body = {
+      ...settings.styles.body,
+      marginAbove: 0,
+      marginBelow: 0,
+      firstLineIndent: 1.5,
+    };
 
     applyPreviewStyles(settings);
 

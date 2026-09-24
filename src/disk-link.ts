@@ -242,18 +242,6 @@ export async function fileHandleMtime(
   }
 }
 
-/** Whether `dir` already holds a bundle (a content.md). */
-export async function dirHasBundle(
-  dir: FileSystemDirectoryHandle,
-): Promise<boolean> {
-  try {
-    await dir.getFileHandle(CONTENT_FILE);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // ---- handle persistence (IndexedDB markpage-fs / handles) --------------
 
 const DB_NAME = 'markpage-fs';

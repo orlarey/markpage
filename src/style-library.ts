@@ -14,8 +14,10 @@
  *****************************************************************************/
 
 import builtinData from './assets/builtin-styles.json';
+import type { Frontmatter } from '@orlarey/markpage-render';
 import {
   applyFundamentalStyle,
+  applyLanguageOverride,
   DEFAULT_SETTINGS,
   type FundamentalStyle,
   type PdfSettings,
@@ -115,12 +117,30 @@ export function applyNamedStyle(
   };
 }
 
-/** The default style's resolved settings (over DEFAULT_SETTINGS). */
-export function defaultStyledSettings(): PdfSettings {
-  const hit = findStyle(DEFAULT_STYLE_KEY);
-  return hit
-    ? applyFundamentalStyle(DEFAULT_SETTINGS, hit.style)
-    : DEFAULT_SETTINGS;
+/**
+ * Purpose: The ONE settings resolution for a document — every render path
+ *   (preview, print, demo) goes through it. A document overrides nothing: its
+ *   look is its named style, or the default style when it names none (or an
+ *   unknown one). Only content-level fields come from the front-matter.
+ * How: apply `document-style` (fallback DEFAULT_STYLE_KEY) over `base`, then
+ *   the language override, then fold the front-matter author into the settings
+ *   so the running apparatus's `author` material names the DOCUMENT author.
+ *   `unknownStyle` carries a named-but-missing style so the caller can warn.
+ */
+export function resolveDocumentSettings(
+  meta: Pick<Frontmatter, 'document-style' | 'language' | 'author'>,
+  base: PdfSettings = DEFAULT_SETTINGS,
+): { settings: PdfSettings; unknownStyle?: string } {
+  const name = (meta['document-style'] ?? '').trim();
+  const named = name ? applyNamedStyle(name, base) : null;
+  let settings = named?.found
+    ? named.settings
+    : applyNamedStyle(DEFAULT_STYLE_KEY, base).settings;
+  settings = applyLanguageOverride(settings, meta.language);
+  if (meta.author !== undefined) {
+    settings = { ...settings, author: { ...settings.author, text: meta.author } };
+  }
+  return named && !named.found ? { settings, unknownStyle: name } : { settings };
 }
 
 // ── Style file interchange (import / export a single named style) ──────────

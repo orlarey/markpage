@@ -280,22 +280,6 @@ export async function updateRef(
   throw new GithubError(res.status, `GitHub update ref → ${res.status} ${await errorMessage(res)}`);
 }
 
-/**
- * Create a branch ref pointing at `commitSha`. Used when linking to a brand-new
- * branch. Returns false on 422 (already exists). Other failures throw.
- */
-export async function createRef(token: string, ref: RepoRef, commitSha: string): Promise<boolean> {
-  const url = `${API}/repos/${ref.owner}/${ref.repo}/git/refs`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ref: `refs/heads/${ref.branch}`, sha: commitSha }),
-  });
-  if (res.ok) return true;
-  if (res.status === 422) return false;
-  throw new GithubError(res.status, `GitHub create ref → ${res.status} ${await errorMessage(res)}`);
-}
-
 // ---- local git blob SHA (anti-overwrite, zero fetch — SPEC R3) ----------
 
 /**
@@ -389,6 +373,3 @@ async function kvGet(key: string): Promise<string | null> {
 export const saveToken = (token: string): Promise<void> => kvSet(TOKEN_KEY, token);
 export const loadToken = (): Promise<string | null> => kvGet(TOKEN_KEY);
 export const clearToken = (): Promise<void> => kvSet(TOKEN_KEY, null);
-export async function hasToken(): Promise<boolean> {
-  return (await loadToken()) !== null;
-}

@@ -138,7 +138,7 @@ function buildSection(entry: ShowcaseEntry, index: number): HTMLElement {
   );
 
   // Compare layout: two preview iframes side by side, no source pane.
-  // The same `source` is rendered under each preset, so the visitor
+  // The same `source` is rendered under each style, so the visitor
   // sees the styling change at a glance.
   if (entry.compareStyles) {
     const [a, b] = entry.compareStyles;

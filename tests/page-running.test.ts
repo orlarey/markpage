@@ -178,6 +178,20 @@ describe('applyPageRunningRuns — DOM partition into runs', () => {
     expect(root.innerHTML).toBe('<p>Hello</p><p>World</p>');
   });
 
+  it('sided simplex: :right + :left variants with identical, unswapped slots', () => {
+    // A style's running apparatus fills :right/:left — the fence must match that
+    // specificity to win its band, but without the duplex inner/outer swap.
+    const root = makeRoot(
+      renderPageRunning('header', 'Title | | Page {page}') + '<p>Body</p>',
+    );
+    const css = applyPageRunningRuns(root, { sided: true });
+    const right = /@page mp-section-1:right \{([^\n]*)\}/.exec(css)?.[1];
+    const left = /@page mp-section-1:left \{([^\n]*)\}/.exec(css)?.[1];
+    expect(right).toContain('@top-left { content: "Title"; }');
+    expect(left).toBe(right);
+    expect(css).not.toContain('@page mp-section-1 {');
+  });
+
   it('simplex (no duplex flag): emits a single @page rule per section, no auto-swap', () => {
     const root = makeRoot(
       renderPageRunning('header', 'Title | | Page {page}') +

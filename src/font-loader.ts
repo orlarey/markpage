@@ -8,7 +8,6 @@
  *******************************************************************************/
 
 import catalog from './assets/google-fonts-catalog.json';
-import { t } from './i18n/strings';
 import type { CustomFont } from './settings';
 
 /**
@@ -49,9 +48,7 @@ export function getFontCatalog(): FontEntry[] {
   const customEntries: FontEntry[] = customFonts.map((f) => ({
     name: f.name,
     // We don't know the script category a custom Google Font belongs
-    // to; tag it `sans` so it shows up in the headings / body slots
-    // out of the box. The picker also includes custom fonts in the
-    // mono slot via an explicit pass — see `fontField` in settings-form.
+    // to; tag it `sans`.
     family: 'sans',
     weights: [400],
     custom: true,
@@ -65,43 +62,6 @@ export function getFontCatalog(): FontEntry[] {
  */
 export function findFont(name: string): FontEntry | null {
   return getFontCatalog().find((f) => f.name === name) ?? null;
-}
-
-/**
- * Purpose: Parse one or more `family=` declarations from a Google Fonts URL.
- * How: Validate host/`family=` params, then split each value at `:` for the name.
- */
-export function parseGoogleFontsUrl(
-  raw: string,
-): { ok: true; fonts: CustomFont[] } | { ok: false; error: string } {
-  let parsed: URL;
-  try {
-    parsed = new URL(raw.trim());
-  } catch {
-    return { ok: false, error: t('fonts.custom-fonts-invalid-url') };
-  }
-  if (parsed.host !== 'fonts.googleapis.com') {
-    return { ok: false, error: t('fonts.custom-fonts-bad-host') };
-  }
-  const families = parsed.searchParams.getAll('family');
-  if (families.length === 0) {
-    return { ok: false, error: t('fonts.custom-fonts-no-family') };
-  }
-  // Each `family=` value is `Name+With+Spaces[:wght@…][:ital@…]`.
-  // We only care about the name; the rest is the URL's job.
-  const fonts = families.map((f) => ({
-    name: f.split(':')[0].replaceAll('+', ' '),
-    url: raw.trim(),
-  }));
-  return { ok: true, fonts };
-}
-
-/**
- * Purpose: Tell whether a family is already locally available (no network).
- * How: True iff the catalogue marks it `bundled: true`.
- */
-export function isBundled(name: string): boolean {
-  return findFont(name)?.bundled === true;
 }
 
 /**

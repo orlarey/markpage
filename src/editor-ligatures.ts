@@ -500,18 +500,3 @@ export const ligatures: Extension = EditorView.updateListener.of((update) => {
 });
 
 // ---- Help / documentation hook ----------------------------------------
-
-/**
- * Purpose: Flat list of every ligature (tail keys + `\`-prefixed commands) for the help table.
- * How: Concatenate `TAIL_LIGATURES` entries with `BS_COMMANDS` ones, prefixing the latter with `\`.
- */
-export function ligatureList(): { from: string; to: string }[] {
-  const out: { from: string; to: string }[] = [];
-  for (const [key, value] of TAIL_LIGATURES) {
-    out.push({ from: key, to: value });
-  }
-  for (const [name, value] of BS_COMMANDS) {
-    out.push({ from: BS + name, to: value });
-  }
-  return out;
-}

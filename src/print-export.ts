@@ -28,8 +28,7 @@ import {
 import { parseFrontmatter } from '@orlarey/markpage-render';
 import { paginateOnce, pageContentGeomPx, pageSizeMm } from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
-import { applyNamedStyle } from './style-library';
-import { applySlideLayout, type PdfSettings } from './settings';
+import type { PdfSettings } from './settings';
 import { t } from './i18n/strings';
 
 const PRINT_TARGET_ID = 'markpage-print-target';
@@ -38,6 +37,8 @@ const PRINT_STYLE_ID = 'markpage-print-style';
 /**
  * Purpose: Drive the entire print → PDF export pipeline from markdown source.
  * How: Build content, paginate off-screen, swap to print stylesheet, `print()`.
+ *   `settings` are the document's already-resolved settings
+ *   (resolveDocumentSettings) — the same the preview renders with.
  */
 export async function exportViaPrint(
   expandedSource: string,
@@ -165,11 +166,7 @@ async function buildPrintContent(
 ): Promise<{ el: HTMLElement; effectiveSettings: PdfSettings }> {
   const el = document.createElement('div');
   const { meta } = parseFrontmatter(source);
-  // Same per-doc override hook as the preview path: a frontmatter
-  // `slides: true` forces the SLIDES_16_9 page format.
-  const withFm = applySlideLayout(settings);
-  const withStyle = applyNamedStyle(meta['document-style'], withFm).settings;
-  const effectiveSettings = withBakedGeometry(withStyle, pageSizeMm(withStyle));
+  const effectiveSettings = withBakedGeometry(settings, pageSizeMm(settings));
   renderPreview(el, source, effectiveSettings.numbering);
   applyPreviewMetadata(el, effectiveSettings, meta);
   const preamble = meta['mathjax-preamble'] ?? '';

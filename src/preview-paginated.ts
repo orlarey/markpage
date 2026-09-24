@@ -148,14 +148,18 @@ export async function paginateWithVivliostyle(
   // blank. Engine-neutral: scale down / dedicate a page, never fragment.
   await fitOversizedAtomicBlocks(source, settings, renderTo);
   resetPageRunningCounter();
-  // A style's running apparatus (step 6) OWNS the margin boxes — its CSS is
-  // emitted by pagedCss. Skip the legacy default fences + fence content so they
-  // don't compete; author in-doc fences also yield to the style here.
-  let runningCss = '';
-  if (!settings.runningApparatus) {
-    prependDefaultFences(source, settings);
-    runningCss = applyPageRunningRuns(source, { duplex: settings.duplex });
-  }
+  // A style's running apparatus (step 6) fills the margin boxes through
+  // `@page :left/:right` rules emitted by pagedCss; the legacy default fences
+  // (settings.header/footer) only stand in for a style without one. An in-doc
+  // ```header / ```footer fence is document content: it opens a named-page
+  // section whose band outranks the apparatus (a named page selector is more
+  // specific than :left/:right) — the fence wins band by band, the other band
+  // stays the style's.
+  if (!settings.runningApparatus) prependDefaultFences(source, settings);
+  const runningCss = applyPageRunningRuns(source, {
+    duplex: settings.duplex,
+    sided: !!settings.runningApparatus,
+  });
   // Hyphenation is dictionary-based: without a `lang` the browser silently
   // declines to hyphenate, and justified text keeps its rivers of white.
   source.lang = settings.language;
@@ -1211,8 +1215,9 @@ export function pagedCss(s: PdfSettings): string {
         })()
       : '';
   // Running apparatus (step 6): when the style carries the resolved composition,
-  // it owns the margin boxes — @page :right/:left content from the model. The
-  // legacy fence path is skipped for it in paginateWithVivliostyle.
+  // it fills the margin boxes — @page :right/:left content from the model. An
+  // in-doc header/footer fence still overrides its band (named-page section,
+  // see paginateWithVivliostyle).
   const apparatusRule = s.runningApparatus
     ? runningApparatusCss(s.runningApparatus, {
         boxDecls: runningContentDecls(styles['running-content']),

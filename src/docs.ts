@@ -758,46 +758,6 @@ export async function emptyTrash(): Promise<void> {
   }
 }
 
-/** Duplicate a doc into a fresh bundle ("Copie de …"). */
-export async function duplicateDoc(uuid: string): Promise<DocEntry | null> {
-  if (!opfsAvailable()) {
-    const index = legacyReadIndex();
-    const src = index.find((e) => e.uuid === uuid);
-    if (!src) return null;
-    const name = uniqueName(
-      `Copie de ${src.name}`,
-      new Set(index.map((e) => e.name)),
-    );
-    const entry: DocEntry = {
-      uuid: crypto.randomUUID(),
-      name,
-      mtime: Date.now(),
-      contentSha: src.contentSha,
-    };
-    index.push(entry);
-    legacyWriteIndex(index);
-    return entry;
-  }
-  const lib = await loadLibrary();
-  const src = lib.docs.find((e) => e.uuid === uuid);
-  if (!src) return null;
-  const content = (await readTextFile(bundlePath(src.uuid))) ?? '';
-  const name = uniqueName(
-    `Copie de ${src.name}`,
-    new Set(lib.docs.map((e) => e.name)),
-  );
-  const entry: DocEntry = {
-    uuid: crypto.randomUUID(),
-    name,
-    mtime: Date.now(),
-    contentSha: src.contentSha,
-  };
-  await writeTextFile(bundlePath(entry.uuid), content);
-  lib.docs.push(entry);
-  await saveLibrary(lib);
-  return entry;
-}
-
 /**
  * Purpose: One-shot migration of the pre-§19 mono-doc schema.
  * How: When `KEY_INDEX` is absent and `markpage:doc` exists, seed the legacy

@@ -111,7 +111,7 @@ export function renderPreview(
 /**
  * Purpose: Insert/refresh the centered author/organization/date block after the first h1.
  * How: Removes any prior `.preview-metadata`, builds one div per line, places after h1.
- *   `frontmatter` (optional) overrides the matching profile fields on a
+ *   `frontmatter` (optional) overrides the matching settings fields on a
  *   per-document basis — same precedence rule as `title`.
  */
 export function applyPreviewMetadata(
@@ -123,10 +123,10 @@ export function applyPreviewMetadata(
 
   // Document types with no cover (a letter) get no identity block: without
   // this, a letter carrying only `document-type: letter` opened on a page
-  // showing the profile's placeholder author and organization.
+  // showing a placeholder author and organization.
   // A letterhead document carries its own identity: the `sender` block names
   // who is writing, with address and legal identifiers. A generated cover would
-  // restate it — and, with the profile's placeholder author and organization,
+  // restate it — and, with a placeholder author and organization,
   // restate it WRONGLY: a letter whose frontmatter is just
   // `document-type: letter` opened on a page reading "Prénom Nom / Mon
   // organisation".

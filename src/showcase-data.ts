@@ -60,7 +60,7 @@ une pipe*. The point was simple: an image of a pipe is not a pipe.
     id: 'styles',
     title: 'Restyle the document, not the source',
     description:
-      'The same Markdown rendered through two style presets. Open the Réglages panel to tweak fonts, sizes, colours, spacing, page numbers — every change updates the preview live. Save the configuration as a profile, export it as JSON to share or version, import one from a colleague.',
+      'The same Markdown rendered through two named styles. A document only names its style (`document-style:` in the front-matter, or a pick from the Style menu) — fonts, sizes, colours and page layout all live in the style. Import a style file from a colleague, export yours to share it.',
     source: `# Meeting notes — 12 May
 
 **Present:** Alice, Bob, Carole.
@@ -73,8 +73,8 @@ une pipe*. The point was simple: an image of a pipe is not a pipe.
 
 > Next meeting: Tuesday 17, 14:00.
 `,
-    compareStyles: ['classic', 'manuscript'],
-    compareLabels: ['Classic preset', 'Manuscript preset'],
+    compareStyles: ['note-a4', 'livre-a4'],
+    compareLabels: ['Note style', 'Livre style'],
   },
   {
     id: 'images',

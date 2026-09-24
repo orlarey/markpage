@@ -14,7 +14,7 @@
 /**
  * Purpose: One showcase section's metadata + Markdown source.
  * How: Required `id`/`title`/`description`/`source`; optional source-language hint
- *   and a `compareStyles` pair for the side-by-side preset layout.
+ *   and a `compareStyles` pair for the side-by-side style layout.
  */
 export interface ShowcaseEntry {
   // Slug used in the `?demo=<id>` query param. Stable, kebab-case.
@@ -33,8 +33,8 @@ export interface ShowcaseEntry {
   // anything else falls back to plain markdown.
   sourceLang?: string;
   // When set, the section renders TWO preview iframes side by side
-  // (no source pane) — the same `source` rendered with each preset
-  // from `./style-presets.ts`. Used to demonstrate live restyling.
+  // (no source pane) — the same `source` rendered under each named style
+  // (library keys, see style-library.ts). Used to demonstrate restyling.
   compareStyles?: [string, string];
   // Captions shown below each iframe in the compare layout.
   compareLabels?: [string, string];

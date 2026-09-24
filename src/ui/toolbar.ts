@@ -1,7 +1,7 @@
 /********************************* toolbar.ts **********************************
  *
  * Purpose: Build the app toolbar — brand, the Fichier / Format / Vue menus,
- *   editable doc title, Réglages, and a Help (?) icon — and return a small
+ *   editable doc title, the Style menu, and a Help (?) icon — and return a small
  *   control surface for live label / view-mode / modified updates.
  * How: Static DOM via `document.createElement`, each control wired to one of
  *   the caller's handlers. Below ~600px the menu triggers collapse into a
@@ -31,7 +31,6 @@ export interface ToolbarHandlers {
   // Open the document-style menu (named-style library), anchored on its trigger.
   onDocStyle(anchor: HTMLElement): void;
   onHelp(): void;
-  onSettings(): void;
   onTogglePreview(): void;
   // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
   onPresent(): void;
@@ -114,12 +113,6 @@ export function mountToolbar(
       onToggleGuides: handlers.onToggleGuides,
     });
   viewBtn.addEventListener('click', () => openView(viewBtn));
-
-  // [Réglages] and the style atelier are retired: the document-style menu is the
-  // sole styling surface (docs/FUNDAMENTAL-SETTINGS.md). `onSettings` remains in
-  // the handler contract but is no longer reachable from the UI; the atelier
-  // panel + its front-matter style-vocabulary have been removed (STYLE-ALIGNMENT
-  // step 7: the external style editor owns styling, markpage only renders).
 
   // [?] — Help, a compact icon at the end of the bar.
   const helpBtn = document.createElement('button');

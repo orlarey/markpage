@@ -1,10 +1,11 @@
 /********************************* settings.ts *********************************
  *
- * Purpose: Typed model + defaults + (de)serialisation for the user's
- *   PDF rendering settings (page, fonts, styles, margins, metadata, …).
- * How: Plain interfaces over a JSON-able shape; `mergeWithDefaults` tolerates
- *   missing fields from older versions on load. Persisted under
- *   `markpage:settings`.
+ * Purpose: Typed model + defaults for the PDF rendering settings (page,
+ *   fonts, styles, geometry, metadata, …), and the fundamental-style snapshot
+ *   a named style is made of.
+ * How: Plain interfaces over a JSON-able shape. Nothing is persisted here: a
+ *   document's settings are resolved from its named style on every render
+ *   (style-library.ts, resolveDocumentSettings).
  *
  *******************************************************************************/
 
@@ -25,32 +26,10 @@ export type PageSize =
   // every `h2` so each second-level heading starts its own slide.
   | 'SLIDES_16_9';
 
-export const PAGE_SIZES: PageSize[] = [
-  'A4',
-  'A5',
-  'A3',
-  'B5',
-  'LETTER',
-  'LEGAL',
-  'SLIDES_16_9',
-];
-
-export const PAGE_SIZE_LABELS: Record<PageSize, string> = {
-  A4: 'A4',
-  A5: 'A5',
-  A3: 'A3',
-  B5: 'B5',
-  LETTER: 'Letter',
-  LEGAL: 'Legal',
-  SLIDES_16_9: 'Slides 16:9',
-};
-
 /**
  * Purpose: Text alignment for a styled element.
  */
 export type Align = 'left' | 'center' | 'right' | 'justify';
-
-export const ALIGNS: Align[] = ['left', 'center', 'right', 'justify'];
 
 /**
  * Purpose: A heading / running-content "filet" (horizontal rule) — a resolved,
@@ -105,22 +84,9 @@ export interface Style {
 }
 
 /**
- * Purpose: Weight choices surfaced in the Réglages dropdown.
- * How: Tight CSS-weight list (300-700) — values most Google Fonts ship
- *   natively, avoiding the worse-looking browser-synthesised weights.
- */
-export const WEIGHT_OPTIONS: { value: number; label: string }[] = [
-  { value: 300, label: 'Light (300)' },
-  { value: 400, label: 'Regular (400)' },
-  { value: 500, label: 'Medium (500)' },
-  { value: 600, label: 'Semibold (600)' },
-  { value: 700, label: 'Bold (700)' },
-];
-
-/**
- * Purpose: Stable identifier for every typographic element addressable from
- *   the settings form / matrix. Adding a row to the styling matrix = adding
- *   an entry here + a default in `DEFAULT_SETTINGS.styles`.
+ * Purpose: Stable identifier for every typographic element a style addresses.
+ *   Adding an element = adding an entry here + a default in
+ *   `DEFAULT_SETTINGS.styles`.
  */
 export type ElementKey =
   | 'body'
@@ -164,115 +130,6 @@ export const ELEMENT_KEYS: ElementKey[] = [
   'footnote',
   'running-content',
 ];
-
-/**
- * Purpose: Name of one tweakable attribute on a `Style`. Drives the per-
- *   element form generator (one helper per name).
- */
-export type AttrName =
-  | 'family'
-  | 'fontSize'
-  | 'color'
-  | 'weight'
-  | 'italic'
-  | 'underline'
-  | 'align'
-  | 'marginAbove'
-  | 'marginBelow'
-  | 'lineHeight'
-  | 'padding'
-  | 'background'
-  | 'borders' // virtual — the picker drives the four `border<Side>` bools
-  | 'borderColor'
-  | 'borderWidth'
-  | 'borderRadius';
-
-/**
- * Purpose: Per-element list of attributes the matrix form should surface.
- * How: One entry per `ElementKey`; the form generator iterates `attrs`
- *   and dispatches to the per-attribute control builder.
- */
-export const ELEMENT_DESCRIPTORS: Record<
-  ElementKey,
-  { category: 'inline' | 'block'; attrs: AttrName[] }
-> = {
-  body: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'align', 'lineHeight', 'marginAbove', 'marginBelow'],
-  },
-  title: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
-  },
-  subtitle: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
-  },
-  h1: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
-  },
-  h2: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
-  },
-  h3: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
-  },
-  h4: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'underline', 'align', 'marginAbove', 'marginBelow'],
-  },
-  'code-inline': {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color'],
-  },
-  'inline-link': {
-    category: 'inline',
-    attrs: ['color', 'weight', 'italic', 'underline'],
-  },
-  metadata: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align'],
-  },
-  'code-block': {
-    category: 'block',
-    attrs: ['family', 'fontSize', 'color', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
-  },
-  quote: {
-    category: 'block',
-    attrs: ['family', 'fontSize', 'color', 'italic', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
-  },
-  'math-block': {
-    category: 'block',
-    attrs: ['align', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
-  },
-  mermaid: {
-    category: 'block',
-    attrs: ['align', 'padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
-  },
-  callout: {
-    category: 'block',
-    attrs: ['padding', 'background', 'borders', 'borderColor', 'borderWidth', 'borderRadius', 'marginAbove', 'marginBelow'],
-  },
-  table: {
-    category: 'block',
-    attrs: ['fontSize', 'color', 'borders', 'borderColor', 'borderWidth'],
-  },
-  caption: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic', 'align', 'marginAbove', 'marginBelow'],
-  },
-  footnote: {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'italic'],
-  },
-  'running-content': {
-    category: 'inline',
-    attrs: ['family', 'fontSize', 'color', 'weight', 'italic'],
-  },
-};
 
 /**
  * Purpose: Page margins in millimetres.
@@ -489,8 +346,10 @@ export const DEFAULT_GEOMETRY_AUTHORING: GeometryAuthoring = {
 };
 
 /**
- * Purpose: Out-of-the-box settings used as the seed for the first
- *   profile and as the fallback for missing fields in `mergeWithDefaults`.
+ * Purpose: The base every document's settings resolve from: the named style
+ *   (or the default style) is applied over it (resolveDocumentSettings).
+ *   Author / organization / date are document content — they come from the
+ *   front-matter only, so the base shows none of them.
  */
 export const DEFAULT_SETTINGS: PdfSettings = {
   pageSize: 'A4',
@@ -499,9 +358,9 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     body: 'Roboto Condensed',
     code: 'Roboto Mono',
   },
-  author: { text: 'Prénom Nom', show: true, bold: true },
-  organization: { text: 'Mon organisation', show: true, bold: true },
-  date: { mode: 'today', custom: '' },
+  author: { text: '', show: false, bold: true },
+  organization: { text: '', show: false, bold: true },
+  date: { mode: 'none', custom: '' },
   styles: {
     body: {
       fontSize: 11,
@@ -604,18 +463,14 @@ export const DEFAULT_SETTINGS: PdfSettings = {
     footnote: { fontSize: 9, color: '#57606a' },
     'running-content': { fontSize: 9, color: '#57606a', weight: 400, italic: false },
   },
-  // Default header / footer for new profiles. Matches the previous
-  // built-in default of `pageNumber.position = 'bottom-center'` — an
-  // empty header and a centered page counter in the footer. Users can
-  // edit both fields in Réglages → Page, or override them by writing a
-  // \`\`\`header / \`\`\`footer fence directly in the doc.
+  // Default header / footer: an empty header and a centered page counter in
+  // the footer. A document can override them with a ```header / ```footer
+  // fence.
   header: '',
   footer: ' | {page} | ',
   customFonts: [],
-  // First-launch default for the doc language. Re-resolved at the
-  // creation of a fresh profile via `detectLanguage()` so a user
-  // landing in an `en-*` browser gets English defaults. Existing
-  // profiles keep whatever was previously persisted.
+  // Default document language. The app replaces it with the UI locale, and a
+  // document's `language:` front-matter overrides both.
   language: 'fr',
   mathScale: 1.0,
   mathFontSet: 'newcm',
@@ -631,368 +486,6 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   authoring: DEFAULT_GEOMETRY_AUTHORING,
   notes: { position: 'foot' },
 };
-
-const KEY = 'markpage:settings';
-
-/**
- * Purpose: Load persisted settings, falling back to defaults on any failure.
- * How: JSON parse, then run through `mergeWithDefaults` for tolerance.
- */
-export function loadSettings(): PdfSettings {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return DEFAULT_SETTINGS;
-  try {
-    const parsed = JSON.parse(raw);
-    return mergeWithDefaults(parsed);
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
-/**
- * Purpose: Persist the settings to localStorage as JSON.
- * How: `JSON.stringify` + `setItem`.
- */
-export function saveSettings(s: PdfSettings): void {
-  localStorage.setItem(KEY, JSON.stringify(s));
-}
-
-/**
- * Purpose: Coerce a possibly-partial JSON blob into a full `PdfSettings`.
- * How: Field-by-field with default fallback; v0.4-and-earlier shapes (per-
- *   element keys `code` / `quote.barColor`, top-level `pageNumber.style`)
- *   are detected and rewritten into the new `Record<ElementKey, Style>`.
- */
-export function mergeWithDefaults(input: unknown): PdfSettings {
-  const d = DEFAULT_SETTINGS;
-  if (!input || typeof input !== 'object') return d;
-  const obj = input as Record<string, unknown>;
-  const merge = <T>(def: T, partial: Partial<T> | undefined): T =>
-    partial ? { ...def, ...partial } : def;
-  return {
-    pageSize: (obj.pageSize as PageSize | undefined) ?? d.pageSize,
-    fonts: merge(d.fonts, obj.fonts as Partial<FontTrio> | undefined),
-    author: merge(d.author, obj.author as Partial<MetadataField> | undefined),
-    organization: merge(
-      d.organization,
-      obj.organization as Partial<MetadataField> | undefined,
-    ),
-    date: merge(d.date, obj.date as Partial<DateSetting> | undefined),
-    styles: mergeStyles(obj),
-    // Migrate the legacy pageNumber.position → an equivalent footer
-    // (or header for top-* positions) fence body string. Any explicit
-    // `header` / `footer` field in the input wins over the migration.
-    header:
-      typeof obj.header === 'string'
-        ? (obj.header as string)
-        : migrateHeaderFromPageNumber(obj) ?? d.header,
-    footer:
-      typeof obj.footer === 'string'
-        ? (obj.footer as string)
-        : migrateFooterFromPageNumber(obj) ?? d.footer,
-    customFonts: Array.isArray(obj.customFonts)
-      ? (obj.customFonts as CustomFont[])
-      : d.customFonts,
-    language: (obj.language as 'fr' | 'en' | undefined) ?? d.language,
-    mathScale: (obj.mathScale as number | undefined) ?? d.mathScale,
-    mathFontSet:
-      (obj.mathFontSet as MathFontSet | undefined) ?? d.mathFontSet,
-    duplex: (obj.duplex as boolean | undefined) ?? d.duplex,
-    chapterBreak:
-      (obj.chapterBreak as PdfSettings['chapterBreak'] | undefined) ??
-      d.chapterBreak,
-    authoring: mergeAuthoring(obj),
-    pageGeometry: obj.pageGeometry as PageGeometry | undefined,
-    chapter: obj.chapter as PdfSettings['chapter'],
-    notes: merge(
-      d.notes,
-      obj.notes as Partial<PdfSettings['notes']> | undefined,
-    ),
-  };
-}
-
-/**
- * Purpose: Resolve the geometry authoring object from a persisted / imported
- *   blob, tolerating three shapes: the new nested `authoring`, the pre-2d flat
- *   fields (marginMode / margins / measureChars / liveAreaChars), or neither.
- * How: nested wins over flat; both fall back to DEFAULT_GEOMETRY_AUTHORING. When
- *   NEITHER is present, a blob carrying a resolved `pageGeometry` is treated as a
- *   pure fundamental style → authoring stays `undefined` (the producer honours
- *   its geometry verbatim); otherwise defaults seed editable geometry.
- */
-function mergeAuthoring(
-  obj: Record<string, unknown>,
-): GeometryAuthoring | undefined {
-  const a = obj.authoring as Partial<GeometryAuthoring> | undefined;
-  const legacy =
-    obj.marginMode !== undefined ||
-    obj.margins !== undefined ||
-    obj.measureChars !== undefined ||
-    obj.liveAreaChars !== undefined;
-  if (!a && !legacy) {
-    return obj.pageGeometry !== undefined
-      ? undefined
-      : DEFAULT_GEOMETRY_AUTHORING;
-  }
-  const d = DEFAULT_GEOMETRY_AUTHORING;
-  return {
-    marginMode:
-      (a?.marginMode ??
-        (obj.marginMode as GeometryAuthoring['marginMode'] | undefined)) ??
-      d.marginMode,
-    margins: {
-      ...d.margins,
-      ...((a?.margins ?? (obj.margins as Partial<Margins> | undefined)) ?? {}),
-    },
-    measureChars:
-      (a?.measureChars ?? (obj.measureChars as number | undefined)) ??
-      d.measureChars,
-    liveAreaChars:
-      (a?.liveAreaChars ?? (obj.liveAreaChars as number | undefined)) ??
-      d.liveAreaChars,
-  };
-}
-
-/**
- * Purpose: Migrate the legacy `pageNumber.position` field into a slot
- *   string for the new `footer` (or `header`) setting. Returns `null`
- *   when the input doesn't carry a recognisable pageNumber position —
- *   the caller falls back to the DEFAULT_SETTINGS value. The slot
- *   layout mirrors the dropdown corners:
- *     - `top-{side}` ↔ header band; `bottom-{side}` ↔ footer band.
- *     - `-left` / `-center` / `-right` fills the matching slot with
- *       `{page}`; the other two slots stay empty.
- */
-function migrateFromPageNumber(
-  obj: Record<string, unknown>,
-  band: 'top' | 'bottom',
-): string | null {
-  const pn = obj.pageNumber as { position?: string } | undefined;
-  const pos = pn?.position;
-  if (typeof pos !== 'string') return null;
-  if (pos === 'none') return '';
-  const [b, slot] = pos.split('-');
-  if (b !== band) return '';
-  if (slot === 'left') return '{page} | | ';
-  if (slot === 'center') return ' | {page} | ';
-  if (slot === 'right') return ' | | {page}';
-  return null;
-}
-function migrateHeaderFromPageNumber(obj: Record<string, unknown>): string | null {
-  return migrateFromPageNumber(obj, 'top');
-}
-function migrateFooterFromPageNumber(obj: Record<string, unknown>): string | null {
-  return migrateFromPageNumber(obj, 'bottom');
-}
-
-/**
- * Purpose: Describe a layout configuration issue produced by
- *   `validateLayoutSettings`. Carries a field id (so the Settings UI can
- *   highlight the offending input) and a severity:
- *     - 'error':   the configuration is invalid (the renderer must not
- *                  attempt the 'derived' computation); the form should
- *                  block the save.
- *     - 'warning': the configuration is unusual but renderable; surface
- *                  a hint to the user without blocking.
- */
-export type LayoutValidationField =
-  | 'measureChars'
-  | 'liveAreaChars';
-export interface LayoutValidationIssue {
-  field: LayoutValidationField;
-  severity: 'error' | 'warning';
-  message: string;
-}
-
-/**
- * Purpose: Statically validate the two `measureChars` / `liveAreaChars`
- *   levers introduced by §9.6 (live area model). Returns an empty list
- *   when the configuration is sound.
- * How: Three checks — Bringhurst's readability band (45-75), the
- *   hard structural invariant `liveAreaChars > measureChars` (§9.6.3:
- *   the live area must strictly contain the text block), and a soft
- *   upper cap on `liveAreaChars` (110 chars × 0.5 em × 11 pt ≈ 213 mm,
- *   already over an A4's width — the page-fit check that depends on
- *   the actually-loaded body font happens at render time).
- *   Only relevant when `marginMode === 'derived'`; in 'manual' mode
- *   the two measures are ignored. The validator does NOT gate on
- *   `marginMode` itself — the caller decides whether to ignore issues
- *   for an inert config.
- */
-export function validateLayoutSettings(s: PdfSettings): LayoutValidationIssue[] {
-  const issues: LayoutValidationIssue[] = [];
-  const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
-  if (a.measureChars < 45 || a.measureChars > 75) {
-    issues.push({
-      field: 'measureChars',
-      severity: 'warning',
-      message: `measureChars=${a.measureChars} sort de la zone de lisibilité (Bringhurst 45-75)`,
-    });
-  }
-  if (a.liveAreaChars <= a.measureChars) {
-    issues.push({
-      field: 'liveAreaChars',
-      severity: 'error',
-      message: `liveAreaChars (${a.liveAreaChars}) doit être strictement supérieur à measureChars (${a.measureChars})`,
-    });
-  }
-  if (a.liveAreaChars > 110) {
-    issues.push({
-      field: 'liveAreaChars',
-      severity: 'warning',
-      message: `liveAreaChars=${a.liveAreaChars} risque de sortir de la largeur d'une A4 standard à 11 pt`,
-    });
-  }
-  return issues;
-}
-
-/**
- * Purpose: Build the per-element styles map, migrating pre-matrix shapes.
- * How: Start from defaults; copy known v0.4 keys (h1..h4, body, code, quote);
- *   split `code` into `code-inline` + `code-block`; convert `quote.barColor`
- *   to `borderColor` + `borderLeft: true`; lift legacy `pageNumber.style`
- *   into `styles['page-number']`. Pre-v0.5 top-level `justify` / `lineHeight`
- *   / `paragraphSpacing` / `headingSpacing` migrate into `body` and h1-h4.
- *   Legacy `borderSides` enum migrates into the four `border<Side>` bools.
- */
-function mergeStyles(obj: Record<string, unknown>): Record<ElementKey, Style> {
-  const d = DEFAULT_SETTINGS.styles;
-  const out: Record<ElementKey, Style> = { ...d };
-  const inStyles = obj.styles;
-  if (inStyles && typeof inStyles === 'object') {
-    const s = inStyles as Record<
-      string,
-      Style & { barColor?: string; borderSides?: string }
-    >;
-    for (const k of ELEMENT_KEYS) {
-      if (s[k]) out[k] = { ...d[k], ...s[k], ...sidesFromLegacy(s[k]) };
-    }
-    // Legacy: 'code' was the single key for both inline + block code.
-    if (s.code) {
-      const c = s.code;
-      out['code-inline'] = { ...d['code-inline'], ...c };
-      out['code-block'] = { ...d['code-block'], ...c, ...sidesFromLegacy(c) };
-    }
-    // Legacy: quote carried `barColor` for the left vertical bar.
-    if (s.quote?.barColor) {
-      out.quote = {
-        ...out.quote,
-        borderLeft: true,
-        borderColor: s.quote.barColor,
-        borderWidth: out.quote.borderWidth ?? 3,
-      };
-    }
-    // Pre-v0.8: `h1` doubled as the document title. The renderer now
-    // distinguishes the two — lift the user's old h1 styling onto the
-    // new `title` element so existing docs keep their look. Only fires
-    // when the profile pre-dates the split (no explicit `title`).
-    if (s.h1 && !s.title) {
-      out.title = { ...d.title, ...s.h1 };
-    }
-    // Pre-v0.16: dedicated `page-number` element style — fold it into
-    // `running-content` (which now styles the whole header / footer
-    // band, page counter included) when the latter is at defaults.
-    const pn = (inStyles as Record<string, Style>)['page-number'];
-    if (
-      pn &&
-      out['running-content'].fontSize === d['running-content'].fontSize &&
-      out['running-content'].color === d['running-content'].color
-    ) {
-      out['running-content'] = { ...out['running-content'], ...pn };
-    }
-  }
-  // Legacy: pre-v0.16 pageNumber.style { fontSize, italics, color }
-  // lived at the top level. Migrate into `running-content` (same
-  // condition as above — only if running-content is at defaults).
-  const inPageNumber = obj.pageNumber;
-  if (inPageNumber && typeof inPageNumber === 'object') {
-    const ps = (inPageNumber as { style?: { fontSize?: number; italics?: boolean; color?: string } })
-      .style;
-    if (
-      ps &&
-      out['running-content'].fontSize === d['running-content'].fontSize &&
-      out['running-content'].color === d['running-content'].color
-    ) {
-      out['running-content'] = {
-        ...out['running-content'],
-        ...(ps.fontSize !== undefined && { fontSize: ps.fontSize }),
-        ...(ps.color !== undefined && { color: ps.color }),
-        ...(ps.italics !== undefined && { italic: ps.italics }),
-      };
-    }
-  }
-  // Pre-v0.5: typography fields lived at the top level. Lift them into the
-  // appropriate per-element styles, but only when the new field hasn't been
-  // explicitly set in `styles` already (newer wins on round-trip).
-  if (typeof obj.justify === 'boolean' && out.body.align === d.body.align) {
-    out.body = { ...out.body, align: obj.justify ? 'justify' : 'left' };
-  }
-  if (typeof obj.lineHeight === 'number' && out.body.lineHeight === d.body.lineHeight) {
-    out.body = { ...out.body, lineHeight: obj.lineHeight };
-  }
-  if (
-    typeof obj.paragraphSpacing === 'number' &&
-    out.body.marginAbove === d.body.marginAbove &&
-    out.body.marginBelow === d.body.marginBelow
-  ) {
-    out.body = {
-      ...out.body,
-      marginAbove: obj.paragraphSpacing,
-      marginBelow: obj.paragraphSpacing,
-    };
-  }
-  if (obj.headingSpacing && typeof obj.headingSpacing === 'object') {
-    const hs = obj.headingSpacing as { above?: number; below?: number };
-    for (const k of ['h1', 'h2', 'h3', 'h4'] as const) {
-      if (
-        hs.above !== undefined &&
-        out[k].marginAbove === d[k].marginAbove
-      ) {
-        out[k] = { ...out[k], marginAbove: hs.above };
-      }
-      if (
-        hs.below !== undefined &&
-        out[k].marginBelow === d[k].marginBelow
-      ) {
-        out[k] = { ...out[k], marginBelow: hs.below };
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * Purpose: Convert a v0.5-era `borderSides` enum value into the four
- *   independent `border<Side>` bools introduced in the visual border picker.
- * How: Pattern-match the eight legacy tokens; missing / unknown → no bools
- *   (caller's spread keeps any bools already present in the new shape).
- */
-function sidesFromLegacy(
-  s: Style & { borderSides?: string } | undefined,
-): Partial<Style> {
-  const sides = s?.borderSides;
-  if (sides === undefined) return {};
-  const out: Partial<Style> = {};
-  if (sides === 'all') {
-    out.borderTop = out.borderRight = out.borderBottom = out.borderLeft = true;
-  } else if (sides === 'top-bottom') {
-    out.borderTop = out.borderBottom = true;
-  } else if (sides === 'left-right') {
-    out.borderLeft = out.borderRight = true;
-  } else if (sides === 'top') out.borderTop = true;
-  else if (sides === 'right') out.borderRight = true;
-  else if (sides === 'bottom') out.borderBottom = true;
-  else if (sides === 'left') out.borderLeft = true;
-  // 'none' → no bools set
-  return out;
-}
-
-// 1 mm = 1/25.4 in × 72 pt/in.
-export const MM_TO_PT = 72 / 25.4;
-
-export function mmToPt(mm: number): number {
-  return mm * MM_TO_PT;
-}
 
 // Per-locale long-date formatters, lazily cached. Driven by the
 // document's language (PdfSettings.language) so an English doc shows
@@ -1027,52 +520,9 @@ export interface MetadataLine {
 }
 
 /**
- * Purpose: Collect the title-block metadata lines (author / org / date)
- *   in display order, dropping hidden or empty entries.
- * How: Append author and organization when `show && text.trim()`; append
- *   the formatted date when `formatDate` returns non-null. Per-document
- *   YAML frontmatter takes precedence over the profile fields when
- *   provided.
- */
-/**
- * Purpose: Apply the slide layout when the (style-supplied) page format is 16:9
- *   — the last vestige of the old front-matter override path. A document
- *   overrides nothing now; the style owns the format (STYLE-ALIGNMENT step 7).
- */
-export function applySlideLayout(settings: PdfSettings): PdfSettings {
-  return settings.pageSize === 'SLIDES_16_9' ? slidesSettings(settings) : settings;
-}
-
-/**
- * Purpose: Serialize the style-relevant parts of the settings as JSON, for the
- *   `markpage-profile` frontmatter block — so external renderers (the VS Code
- *   preview) can reproduce the document's full per-element typography + layout.
- * How: Emit `fonts`, the per-element `styles` record, and the layout (pageSize,
- *   margins, whether the footer carries a page number). Compact JSON, one line.
- */
-export function serializeProfile(s: PdfSettings): string {
-  const a = s.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
-  return JSON.stringify({
-    fonts: s.fonts,
-    styles: s.styles,
-    pageSize: s.pageSize,
-    margins: a.margins,
-    marginMode: a.marginMode,
-    measureChars: a.measureChars,
-    liveAreaChars: a.liveAreaChars,
-    duplex: s.duplex,
-    chapterBreak: s.chapterBreak,
-    notesPosition: s.notes.position,
-    footer: s.footer,
-    mathFontSet: s.mathFontSet,
-  });
-}
-
-/**
  * Every field of `PdfSettings` that defines the FUNDAMENTAL style
- * (docs/FUNDAMENTAL-SETTINGS.md) — the complete, interpretation-free snapshot,
- * as opposed to `serializeProfile`'s partial subset (kept for the VS Code
- * interop). Everything a self-contained style file must carry to reproduce the
+ * (docs/FUNDAMENTAL-SETTINGS.md) — the complete, interpretation-free snapshot.
+ * Everything a self-contained style file must carry to reproduce the
  * look on any engine, with nothing derivable left out.
  */
 export const FUNDAMENTAL_STYLE_KEYS = [
@@ -1162,26 +612,13 @@ export function applyLanguageOverride(
 
 
 /**
- * Purpose: Apply the slide-specific defaults that only make sense for
- *   the 16:9 format — primarily tighter vertical margins so a title +
- *   description + figure can all fit on one slide.
- * How: Clamp top/bottom margins to a slide-friendly ceiling (10 mm).
- *   Horizontal margins stay as the user picked them. Idempotent: applied
- *   only when needed.
+ * Purpose: Collect the title-block metadata lines (author / org / date)
+ *   in display order, dropping hidden or empty entries.
+ * How: Append author and organization when `show && text.trim()`; append
+ *   the formatted date when `formatDate` returns non-null. Per-document
+ *   YAML frontmatter takes precedence over the settings fields when
+ *   provided.
  */
-function slidesSettings(settings: PdfSettings): PdfSettings {
-  const SLIDE_MARGIN_CAP_MM = 10;
-  const a = settings.authoring ?? DEFAULT_GEOMETRY_AUTHORING;
-  const m = a.margins;
-  const top = Math.min(m.top, SLIDE_MARGIN_CAP_MM);
-  const bottom = Math.min(m.bottom, SLIDE_MARGIN_CAP_MM);
-  if (top === m.top && bottom === m.bottom) return settings;
-  return {
-    ...settings,
-    authoring: { ...a, margins: { ...m, top, bottom } },
-  };
-}
-
 export function metadataLines(
   s: PdfSettings,
   frontmatter?: {

@@ -93,3 +93,24 @@ test('mid-slot *italic* renders as a real <em>', async ({ page }) => {
   expect(r.emText).toBe('introduction');
   expect(r.fullText.includes('*')).toBe(false);
 });
+
+test("a header fence replaces only the style's header band — the style's footer folio stays", async ({
+  page,
+}) => {
+  await page.goto('/');
+  // No `document-style:` → the default style, whose running apparatus puts the
+  // folio in the footer centre and leaves the header empty.
+  await pasteDoc(page, '```header\n | | Band test\n```\n\n# Test\n\nBody.\n');
+  await waitForRender(page);
+
+  const r = await page.evaluate(() => ({
+    header: (
+      document.querySelector('.pagedjs_margin-top-right')?.textContent || ''
+    ).trim(),
+    footer: (
+      document.querySelector('.pagedjs_margin-bottom-center')?.textContent || ''
+    ).trim(),
+  }));
+  expect(r.header).toBe('Band test');
+  expect(r.footer).toBe('1');
+});
