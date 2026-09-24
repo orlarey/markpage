@@ -34,32 +34,38 @@ moment regarder à gauche pour voir « comment c'est fait ».
 Sélectionnez tout le contenu de l'éditeur (`Cmd/Ctrl + A`) et
 supprimez. La page est blanche. On y va.
 
-### Le titre principal
+### Le titre du document
 
-Sur la première ligne, tapez un dièse (`#`), un espace, puis le titre
-de votre document :
+Tout en haut, tapez ces trois lignes :
 
 ```
-# Mon premier document
+---
+title: Mon premier document
+---
 ```
 
-C'est tout. Le `#` au début de la ligne signifie *« ce qui suit est
-un titre »*. Une seule ligne, pas de point final, pas de fermeture —
-on saute simplement à la ligne quand on a fini.
+C'est l'**en-tête** du document : un petit bloc entre deux lignes de
+trois tirets, qui dit *ce qu'est* le document plutôt que ce qu'il
+contient. La ligne `title:` donne son titre, affiché en tête et centré.
 
-> **À noter** : ce premier titre `#` du document sert de **couverture**
-> dans le PDF (centré, suivi de l'auteur, l'organisation et la date si
-> vous les renseignez dans **Réglages**). Vos sections internes
-> utiliseront donc plutôt `##` (deux dièses) ou `###` (trois).
+> **À noter** : l'en-tête peut aussi porter l'auteur, l'organisation et
+> la date (`author:`, `organization:`, `date:`), affichés sous le
+> titre — voir \ref{sec:frontmatter}.
 
 ### Une section
 
-Sautez une ligne, puis tapez deux dièses suivis du titre de votre
-section :
+Sautez une ligne, puis tapez un dièse (`#`), un espace et le titre de
+votre section :
 
 ```
-## Introduction
+# Introduction
 ```
+
+Le `#` au début de la ligne signifie *« ce qui suit est un titre »*.
+Une seule ligne, pas de point final, pas de fermeture — on saute
+simplement à la ligne quand on a fini. Inutile de taper des numéros :
+selon le style du document, les sections sont numérotées
+automatiquement (1, 1.1, 1.1.1…).
 
 ### Du texte
 
@@ -87,10 +93,11 @@ Le mot **important** est en gras.
 
 ### Une sous-section
 
-Trois dièses pour un titre de niveau plus profond :
+Deux dièses pour un titre de niveau plus profond, trois pour le
+suivant :
 
 ```
-### Mes idées principales
+## Mes idées principales
 ```
 
 Vous pouvez descendre jusqu'à six dièses, mais en pratique trois
@@ -153,12 +160,11 @@ En haut de l'écran, quelques boutons :
 - **Format ▾** — un menu de mise en forme (titres, gras, listes,
   insérer une image…). Le **clic-droit** dans l'éditeur ouvre le
   même menu.
+- **Style ▾** — l'apparence du document : choisissez un style dans la
+  bibliothèque (Note, Article, Rapport, Livre, Lettre, Présentation),
+  importez-en ou exportez-en (voir \ref{sec:settings}).
 - **Vue ▾** — *Aperçu* (bascule éditeur / rendu paginé), *Présenter*
-  (plein écran), *Repères* (overlay de mise en page).
-- **Réglages** — personnaliser le rendu PDF (auteur, marges,
-  polices…). S'ouvre dans une **fenêtre séparée** que vous pouvez
-  poser à côté de l'aperçu pour voir l'effet de chaque changement
-  en temps réel.
+  (plein écran), *Guides* (overlay de mise en page).
 - **?** (jaune) — ouvre ce tutoriel.
 
 ### Voir l'aperçu
@@ -194,9 +200,8 @@ Cliquez sur **Enregistrer**, donnez un nom au fichier, c'est fait.
 > sélectionnez **« Marges : Aucune »**. Sinon, le navigateur ajoute
 > ses propres marges par-dessus celles déjà gérées par markpage, ce
 > qui rétrécit la zone imprimable et fait dépasser le contenu. Les
-> marges visibles dans le PDF sont **toujours** celles que vous
-> avez choisies dans **Réglages**, jamais celles du dialogue
-> d'impression.
+> marges visibles dans le PDF sont **toujours** celles du style du
+> document, jamais celles du dialogue d'impression.
 
 ### Et voilà
 
@@ -520,11 +525,10 @@ Un **dépôt GitHub** vous permet d'éditer le **même document** depuis
 plusieurs appareils (portable, bureau, autre navigateur), versionné,
 **sans serveur**.
 
-1. **Le jeton.** Dans **Réglages ▸ GitHub**, collez un *jeton personnel
-   fine-grained* (le bouton *Créer un token →* ouvre la page GitHub
-   pré-remplie ; permission **Contents : lecture et écriture**). Le
-   jeton reste **sur cet appareil** ; utilisez *Oublier le token* sur
-   une machine partagée.
+1. **Le jeton.** À la première connexion, markpage vous demande un
+   *jeton personnel fine-grained* (permission **Contents : lecture et
+   écriture**) et vous donne le lien pour le créer sur GitHub. Le jeton
+   reste **sur cet appareil**.
 2. **Monter le dépôt** depuis le navigateur (*Monter un dépôt…*), puis
    ouvrez un `.md`. Il s'édite en place ; **Save** le republie.
 3. Sur un autre appareil : même jeton, *Monter un dépôt…*, ouvrez le
@@ -586,118 +590,76 @@ Votre travail est **automatiquement sauvegardé** dans le navigateur,
 donc si vous fermez l'onglet par accident, tout est récupéré à la
 prochaine ouverture.
 
-### Personnaliser le rendu PDF (Réglages) \label{sec:settings}
+### Choisir le style du document \label{sec:settings}
 
-Le bouton **Réglages ▾** (raccourci `Cmd/Ctrl + ,`) ouvre une
-**fenêtre séparée** où vous pouvez configurer le PDF sans toucher
-au contenu. **Astuce** : passez d'abord en mode Aperçu, ouvrez les
-Réglages, posez la fenêtre à côté de l'aperçu — chaque modification
-se reflète en temps réel sur le document paginé.
+Dans markpage, **l'apparence d'un document est son style** : format de
+page, marges, polices et tailles, couleurs, numérotation des titres,
+en-tête et pied de page, placement des notes, couverture. Le document,
+lui, ne contient que son texte et sa carte d'identité (titre, auteur,
+date… — voir \ref{sec:frontmatter}).
 
-La fenêtre s'ouvre sur la vue **Essentiel**. Elle propose quelques
-décisions cohérentes : type de document, apparence, taille du corps,
-densité, séparation des paragraphes, accent, format et pagination.
-Markpage en déduit les marges, la mesure de ligne, les fontes, la
-hiérarchie des titres et le rythme vertical.
+Le menu **Style ▾** de la toolbar liste les styles disponibles.
+Choisissez-en un : markpage écrit une ligne dans l'en-tête du document,
 
-Le commutateur **Avancé** redonne accès à la matrice complète :
-style parent, marges physiques, fontes individuelles, exceptions par
-élément, en-têtes/pieds de page, mathématiques et diagrammes. Un ancien
-style qui ne correspond à aucune recette reste intact et apparaît
-simplement comme « Personnalisé » dans la vue Essentiel.
+```yaml
+---
+title: Rapport d'activité
+document-style: rapport-a4
+---
+```
 
-Les sections ci-dessous détaillent les principaux leviers.
+et l'aperçu comme le PDF suivent immédiatement. Vous pouvez aussi
+taper cette ligne vous-même. Un document **sans** `document-style:`
+(ou qui nomme un style inconnu) prend le style par défaut, **Note A4**.
 
-#### Format, marges et canon de mise en page \label{sec:layout}
+Les styles livrés avec markpage, chacun en **A4** et en **Letter**
+(`note-a4`, `note-letter`…) :
 
-La carte **Mise en page** rassemble le format de page, le choix
-des marges (manuelles ou dérivées) et les présets prêts à l'emploi.
+| Style | Pour | Caractéristiques |
+| :-- | :-- | :-- |
+| **Note** | notes, comptes-rendus, documents courts | recto seul, sections numérotées |
+| **Article** | article, papier académique | recto seul, titre du document en en-tête, sections numérotées |
+| **Rapport** | rapport, mémoire | couverture, recto-verso, chapitres sur page de droite |
+| **Livre** | livre, polycopié long | couverture, recto-verso, chapitres sur page de droite |
+| **Lettre** | courrier | recto seul, pas de numérotation, blocs `sender` / `recipient` / `signature` |
+| **Présentation 16:9** | diapositives | une diapositive par section `##` (voir \ref{sec:slides}) |
 
-- **Format de page** : A4, A5, Letter, Legal, B5, A3, plus
-  **Slides 16:9** pour un PDF de présentation à la Beamer (voir
-  *Mode slides* plus bas).
+**Vos propres styles.** Un style est un fichier `.mpstyle.json`,
+fabriqué avec l'**éditeur de style** (un outil à part : on y règle
+visuellement les couleurs, les polices et la page). Dans le menu
+**Style ▾** :
 
-- **Préréglages** : cinq combinaisons cohérentes pour démarrer en un
-  clic ; chaque préréglage règle d'un coup les marges, la mesure de
-  ligne, le recto-verso et le placement des notes.
-  - *Note technique* — marges dérivées, mesure ~70 caractères,
-    simplex, notes de bas de page.
-  - *Rapport* — marges dérivées, mesure ~66 caractères, simplex
-    (défaut sobre).
-  - *Article* — marges dérivées, mesure ~68 caractères, notes
-    regroupées en fin de document.
-  - *Livre* — marges dérivées, mesure ~60 caractères, **recto-verso**,
-    nouveau chapitre sur recto.
-  - *Édition critique* — marges dérivées larges, mesure ~52 caractères,
-    recto-verso, notes **en marge** à la Tufte.
+- **Importer un style…** — ajoute un fichier `.mpstyle.json` à votre
+  bibliothèque et l'applique au document. Il apparaît dans la liste
+  avec la mention *perso*, et peut être supprimé de la bibliothèque.
+- **Exporter le style courant…** — télécharge le style du document en
+  `.mpstyle.json`, pour le partager ou le retoucher dans l'éditeur.
 
-  Modifier un seul levier après avoir choisi un préréglage bascule
-  la dropdown en « Personnalisé ».
+> **Partager un document.** Le style n'est **pas** dans le document,
+> seulement son nom. Si vous envoyez un `.md` qui utilise un style
+> *perso*, envoyez aussi le fichier du style ; sans lui, le
+> destinataire verra le document avec le style par défaut.
 
-- **Mode de marges**. Deux modes au choix.
-  - *Manuel* — les quatre champs Haut / Bas / Gauche / Droite (en
-    millimètres) sont éditables, et le résultat dépend uniquement de
-    vos valeurs.
-  - *Dérivé* — markpage calcule les marges à partir de la
-    construction de Van de Graaf (canon du livre). Vous fixez la
-    **mesure de ligne** (`measureChars`, le nombre de caractères de
-    largeur d'une ligne de corps de texte, idéalement entre 45 et 75
-    pour la lisibilité, cf. Bringhurst) et la **largeur de l'aire
-    vivante** (`liveAreaChars`, plus large que la mesure : c'est elle
-    qui contient l'en-tête, le pied de page et les notes en marge).
-    Le bloc de texte et l'aire vivante sont alors deux rectangles
-    similaires à la page. En **simple face**, ils sont centrés
-    horizontalement : les marges gauche et droite sont égales. En
-    **recto-verso**, la proportion intérieure/extérieure classique de
-    1:2 est conservée puis inversée sur le verso. Le rapport haut/bas
-    reste de 1:2 dans les deux cas.
-    Les sliders manuels sont alors désactivés (les valeurs montrées
-    sont indicatives).
+**Retouches locales.** Pour un réglage ponctuel — un titre de
+couverture coloré, une légende centrée — utilisez un bloc
+`::: style` (voir \ref{sec:style}) : il agit sur un passage sans
+toucher au style du document.
 
-- **Recto-verso (duplex)** : case à cocher. Active la mise en page
-  en double page (recto à droite, verso à gauche) avec inversion
-  automatique des marges intérieures/extérieures. La page de
-  couverture (page 1) reste seule à droite dans l'aperçu, puis les
-  spreads se suivent. En aperçu, vous voyez physiquement les deux
-  pages côte à côte avec le pli au centre.
-
-- **Saut de chapitre** : trois options pour le comportement à
-  chaque titre `# H1`.
-  - *Aucun* — le titre suit le flux.
-  - *Page suivante* (`next-page`) — chaque `h1` démarre sur une
-    nouvelle page.
-  - *Recto suivant* (`next-recto`) — chaque `h1` démarre sur un
-    recto (insère une page blanche si nécessaire). Convention livre.
-
-- **Notes** : *bas de page* (par page, défaut), *en marge* (style
-  Tufte, mode dérivé requis), ou *fin de document*. Voir la section
-  *Notes* plus bas.
-
-> **💡 Aperçu visuel des marges** — Activez l'overlay de debug
-> avec le bouton **Repères** dans la toolbar, ou le raccourci
-> `Cmd/Ctrl + Shift + G`. Trois rectangles apparaissent sur
-> chaque page : le contour de la page (gris), l'aire vivante (vert)
-> et le bloc de texte (orange), plus les diagonales du canon.
-> Pratique pour voir où vos en-têtes, pieds de page et notes
-> viennent se loger. Cliquez à nouveau pour masquer.
+> **💡 Aperçu visuel de la page** — le menu **Vue ▾ → Guides** (ou
+> `Cmd/Ctrl + Shift + G`) superpose à chaque page son contour, la zone
+> de l'en-tête et du pied de page, le bloc de texte et les diagonales
+> de la page. Pratique pour voir où se logent en-têtes, pieds de page
+> et notes. Recommencez pour masquer.
 
 #### En-tête et pied de page \label{sec:running}
 
-Pour afficher un en-tête, un pied de page ou un numéro de page,
-deux mécanismes complémentaires :
-
-**Les deux champs Réglages** « En-tête par défaut » et « Pied de
-page par défaut » dans la carte *Page*. Ils s'appliquent à tout le
-document tant qu'un fence dans le markdown ne les remplace pas (voir
-ci-dessous). La syntaxe est la même qu'un fence : trois slots
-séparés par des `|`. Par défaut, le pied de page contient le numéro
-de page centré : ` | {page} | `.
-
-**Les fences `\`\`\`header` / `\`\`\`footer`** dans le document
-lui-même. Ils prennent effet à partir de leur position dans la
-source jusqu'à la fin du document (ou jusqu'au prochain fence du
-même type), et **remplacent** le défaut Réglages pour la bande
-correspondante. Trois slots :
+L'en-tête et le pied de page (numéro de page, titre, date…) viennent
+du **style**. Pour en changer dans un document, écrivez un fence
+` ```header ` ou ` ```footer ` : il **remplace la bande
+correspondante du style** (l'en-tête, ou le pied), l'autre bande
+restant celle du style. Il prend effet à partir de sa position dans la
+source jusqu'à la fin du document (ou jusqu'au prochain fence du même
+type). Trois emplacements, séparés par des `|` :
 
 ````markdown
 ```header
@@ -705,8 +667,8 @@ gauche | centre | droite
 ```
 ````
 
-Exemple : un en-tête avec le titre du document à droite, et un
-pied de page avec un numéro de page à droite et la date à gauche :
+Exemple : un en-tête avec le titre du chapitre à droite, et un pied de
+page avec la date à gauche et le numéro de page à droite :
 
 ````markdown
 ```header
@@ -718,218 +680,76 @@ pied de page avec un numéro de page à droite et la date à gauche :
 ```
 ````
 
-**Variables disponibles** dans les slots :
+**Variables disponibles** dans les emplacements :
 
 - `{page}` — numéro de page courant.
 - `{pages}` — nombre total de pages.
-- `{title}` — texte du dernier `# H1` croisé (utile pour rappeler
+- `{title}` — texte du dernier `# titre` croisé (utile pour rappeler
   le chapitre courant en haut de page).
-- `{date}` — date du document (telle que définie dans Réglages).
+- `{date}` — date du jour.
 
-**Mise en forme inline** dans les slots :
+**Mise en forme inline** dans les emplacements :
 
 - `**texte**` — gras.
 - `*texte*` — italique.
 - `***texte***` — gras italique.
 
 Vous pouvez mélanger texte fixe et variables :
-`Bienvenue dans **markpage** | | {page} / {pages}`.
+`Bienvenue dans **markpage** | | {page} / {pages}`. La police, la
+taille et la couleur des en-têtes et pieds de page sont celles du
+style.
 
-**Typographie** des en-têtes/pieds de page : carte *Typographie* →
-*En-tête / pied de page*. Police, taille, couleur, graisse, italique
-— les défauts visent une légère grise (`#57606a`, ~9 pt) pour ne
-pas concurrencer le corps de texte.
-
-> ⚠ Limitation : un slot qui combine **à la fois** une variable
-> (`{page}`) **et** une emphase mid-slot (`Page **{page}**`) rend
+> ⚠ Limitation : un emplacement qui combine **à la fois** une variable
+> (`{page}`) **et** une emphase au milieu (`Page **{page}**`) rend
 > les astérisques littéralement. Pour mettre le numéro en gras,
-> entourez **tout** le slot d'astérisques (`**{page}**`).
+> entourez **tout** l'emplacement d'astérisques (`**{page}**`).
 
 #### Notes : bas de page, en marge, fin de document \label{sec:notes-modes}
 
-Le champ **Notes** (carte *Mise en page*) contrôle où atterrissent
-les notes Pandoc (`[^id]` + définition, voir *Notes de bas de page*
-plus loin pour la syntaxe).
+Le **style** décide où atterrissent les notes Pandoc (`[^id]` +
+définition, voir \ref{sec:footnotes} pour la syntaxe) :
 
-- *Bas de page* (`foot`, défaut) — chaque note est placée
-  **automatiquement au pied de la page** où se trouve son appel,
-  comme dans un livre imprimé. La marque dans le corps et le numéro
-  en pied de page sont générés et numérotés par paged.js.
+- *Bas de page* (tous les styles livrés) — chaque note est placée
+  **automatiquement au pied de la page** où se trouve son appel, comme
+  dans un livre imprimé.
+- *En marge* — chaque note glisse dans la marge extérieure, à la
+  hauteur de son appel (à la Tufte). Le numéro apparaît à la fois en
+  exposant dans le corps et au début de la note. Demande un style dont
+  la page réserve une colonne de marge ; sinon les notes restent en fin
+  de document.
+- *Fin de document* — toutes les notes sont rassemblées à la fin, dans
+  une section *Notes* numérotée.
 
-- *En marge* (`side`) — chaque note glisse dans la gouttière
-  extérieure, à la hauteur de son appel (Tufte CSS). Le numéro
-  apparaît à la fois en exposant dans le corps et en petit exposant
-  au début de la note. **Requiert le mode marges dérivé** (sinon
-  markpage ne connaît pas la largeur de la gouttière où poser la
-  note) ; en mode manuel, ce réglage retombe sur le mode *fin de
-  document*.
-
-- *Fin de document* (`end`) — toutes les notes sont rassemblées en
-  fin de document dans une section *Notes* numérotée.
+La syntaxe est la même dans les trois cas : changer de style suffit à
+passer de l'un à l'autre.
 
 #### Figures en marge \label{sec:margin-figures}
 
-En mode marges dérivé (gouttière extérieure connue), vous pouvez
-placer une figure dans la marge avec la syntaxe d'attribut Pandoc :
+Avec un style qui réserve une colonne de marge, vous pouvez placer une
+figure dans la marge avec la syntaxe d'attribut Pandoc :
 
 ```
 ![Schéma](mon-schema.png){.margin}
 ```
 
-L'image s'aligne dans la gouttière extérieure (droite sur recto,
-gauche sur verso en duplex), à la hauteur du paragraphe qui la
-contient. Sa largeur est cappée à la largeur de la gouttière pour
-ne pas déborder. La classe `.margin` n'affecte que ce placement —
-vous pouvez la combiner avec une légende `![alt](url "ma
-légende"){.margin}`.
-
-#### Typographie \label{sec:typography}
-
-Dans la vue **Essentiel**, quatre apparences accordent automatiquement
-les fontes du corps, des titres, du code et des mathématiques :
-*Classique* (EB Garamond), *Moderne* (Inter), *Académique* (STIX Two)
-et *Technique* (Fira). La **taille du corps** génère toute l'échelle
-des titres ; la **densité** génère l'interligne, les espacements et le
-padding des blocs. La **séparation des paragraphes** propose soit un
-espace vertical supplémentaire, soit un retrait de 1,5 em sur la
-première ligne des paragraphes consécutifs ; le premier paragraphe
-après un titre reste sans retrait. La **couleur d'accent** alimente les
-titres, liens et encadrés.
-
-La vue **Avancé** conserve les leviers globaux et par élément :
-
-- **Polices** des titres, du corps et du code — choisies parmi un
-  catalogue de ~17 polices Google Fonts (Inter, EB Garamond,
-  JetBrains Mono…). Les polices sont chargées à la demande ; la
-  première utilisation nécessite une connexion, ensuite le
-  navigateur les met en cache. Roboto Condensed et Roboto Mono
-  sont embarquées et fonctionnent hors-ligne. *Note : l'éditeur
-  lui-même garde toujours Roboto Condensed / Mono, indépendamment
-  de vos choix — la cohérence de la zone de saisie ne change pas.*
-
-- **Pack assorti** — au-dessus des trois sélecteurs de police,
-  une dropdown qui aligne les 4 fontes (titres / corps / code /
-  fonte math) en un clic vers un pack pré-coordonné. Trois packs
-  livrés : *Roboto Condensed + NewCM* (défaut, valeur historique),
-  *Fira Sans + Fira Math* (sans-serif moderne, recommandé pour les
-  docs avec beaucoup de math), *STIX Two + STIX Math* (serif à
-  grand x-height pour les longs textes académiques). Si vous
-  modifiez une seule des fontes individuellement, la dropdown
-  passe en « Personnalisé ».
-
-- **Polices Google personnalisées** — pour une famille hors
-  catalogue, copiez l'URL Google Fonts (par exemple
-  `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)
-  dans le champ « + Ajouter », validez. La police apparaît
-  immédiatement dans les trois sélecteurs (Titres / Corps / Code)
-  et peut être retirée d'un clic sur la croix de sa chip.
-
-- **Espacement** — trois ratios qui contrôlent la densité verticale
-  du document :
-  - *Au-dessus / en dessous des titres* (`1.6` / `0.6` par défaut) :
-    l'espace au-dessus d'un titre de taille T est `ratio × T`.
-    Asymétrique exprès — plus d'air au-dessus, pour que le titre
-    « appartienne » à la section qui suit.
-  - *Entre paragraphes* (`1.0` par défaut) : marge symétrique
-    appliquée à chaque paragraphe.
-
-- **Par élément** (titre, h1 à h4, corps, code en ligne, bloc de
-  code, citation, lien, métadonnées, formule en bloc, encadré,
-  Mermaid, tableau, légende, **en-tête / pied de page**) : pour
-  chacun, taille, couleur, **graisse** (Light / Regular / Medium /
-  Semibold / Bold), **italique**, et selon le type une **bordure**,
-  un **fond**, des **marges au-dessus / en-dessous**. Si la police
-  choisie ne fournit pas la graisse ou l'italique demandée, le
-  navigateur *synthétise* un faux gras / italique, en général moins
-  joli — la solution est de choisir une police plus complète, ou
-  d'inclure le poids voulu dans votre URL Google Fonts personnalisée.
-
-- **Justification** du texte et **interligne** dans la sous-carte
-  *Corps*.
-
-- **Diagrammes Mermaid** (carte *Contenu*) : agrandissement max,
-  largeur max, hauteur max (cf. section *Diagrammes Mermaid* plus
-  bas).
-
-- **Formules mathématiques** (carte *Contenu*) :
-  - *Police des formules* — cinq fontes math au choix : NewComputerModern
-    (défaut, serif TeX), Fira Math (sans-serif, idéal avec Roboto / Fira),
-    STIX 2 ou Asana (serifs modernes), ou la fonte TeX classique.
-  - *Échelle des formules* (50-200 %, défaut 100 %) — pour ajuster la
-    taille des glyphes au visuel de la police choisie (certaines polices
-    à grande hauteur d'x font paraître les formules trop petites).
-
-Les réglages sont **mémorisés entre vos sessions**. Pour revenir aux
-valeurs par défaut, ouvrez le menu **Profil** en haut de la fenêtre
-Réglages (cf. section suivante) et cliquez sur *Réinitialiser*.
-
-### Plusieurs profils de réglages
-
-Vous pouvez maintenir **plusieurs jeux de réglages** sous des noms
-différents — par exemple un profil « Article scientifique » sobre, un
-autre « Notes de cours » aéré, un troisième « Diaporama A5 » — et
-basculer de l'un à l'autre en un clic. Un seul profil est actif à la
-fois et s'applique à tous vos documents.
-
-Le dropdown du profil courant se trouve **en haut de la fenêtre
-Réglages**, à côté du titre. Il affiche le nom du profil actif suivi
-de `▾`.
-
-À l'intérieur du menu :
-
-- **Le nom courant est éditable** en haut. Tapez, validez par
-  `Entrée`, le profil est renommé.
-- **+ Nouveau profil** crée un profil à partir de la copie des
-  réglages actuels (utile pour tester une variante sans casser
-  l'existant) et bascule dessus.
-- **La liste en dessous** liste les autres profils. **Un clic =
-  bascule** vers ce profil. L'aperçu et le PDF s'adaptent
-  immédiatement.
-- En **bas du menu**, trois actions s'appliquent au **profil courant
-  uniquement** :
-  - *Dupliquer* — crée une copie nommée « Copie de … » et bascule
-    dessus.
-  - *Supprimer* (avec confirmation) — désactivé s'il ne reste qu'un
-    profil ; le profil le plus récent restant devient le nouveau
-    courant.
-  - *Réinitialiser* — revient aux valeurs par défaut **sans changer
-    le nom**, équivalent du Reset historique.
-- **Importer…** ouvre un sélecteur de fichier `.json` (export d'un
-  profil de votre collègue, par exemple). **Exporter…** télécharge
-  le profil courant comme `<nom-du-profil>.json`. Format auto-suffisant
-  et lisible à la main si besoin.
+L'image s'aligne dans la marge extérieure (droite sur une page de
+droite, gauche sur une page de gauche en recto-verso), à la hauteur du
+paragraphe qui la contient. Sa largeur est limitée à celle de la
+colonne pour ne pas déborder. La classe `.margin` n'affecte que ce
+placement — vous pouvez la combiner avec une légende :
+`![alt](url "ma légende"){.margin}`.
 
 ### Mode slides (présentation 16:9) \label{sec:slides}
 
 markpage sait produire un **PDF de présentation à la Beamer** : page
-au format paysage 16:9 (largeur d'une A4, soit 210 × 118.1 mm), et
-**chaque `## titre de section` démarre une nouvelle slide**. Le
-`# titre du document` reste pour la slide de titre.
-
-Deux façons de l'activer :
-
-- **Réglages → Page → Format = Slides 16:9** — affecte tous les
-  documents du profil courant. Conseillé pour un profil dédié
-  « Diaporamas ».
-- **Frontmatter YAML par document** — pratique quand un seul doc
-  doit basculer en slides sans toucher au profil :
-
-```yaml
----
-title: Mon talk
-slides: true
----
-```
-
-Le `slides: true` du frontmatter prend le pas sur le format choisi
-dans les réglages.
-
-Exemple minimal :
+au format paysage 16:9, et **chaque `## titre de section` démarre une
+nouvelle diapositive**. Il suffit de choisir le style **Présentation
+16:9** :
 
 ```markdown
 ---
 title: Algèbres de blocs-diagrammes
-slides: true
+document-style: presentation-16x9
 ---
 
 ## Motivation
@@ -950,22 +770,18 @@ Le langage Faust repose sur 5 opérateurs binaires…
 \`\`\`
 ```
 
-Trois slides : titre (auto), Motivation, Les opérateurs, Démo.
+Quatre diapositives : le titre, puis Motivation, Les opérateurs, Démo.
 
 **Tout le reste fonctionne** comme dans un document classique :
-captions, références croisées, formules MathJax, blocs `mermaid`,
+légendes, références croisées, formules MathJax, blocs `mermaid`,
 `category`, `bda`, `chart`, etc. — vous bénéficiez du même rendu
-typographique sur slides.
+typographique sur les diapositives. Le menu **Vue ▾ → Présenter**
+affiche le résultat en plein écran, une diapositive à la fois.
 
-**Astuce pratique** : créez un profil de réglages dédié au format
-slides (taille de corps plus grosse, polices sans-serif pour la
-projection, marges plus généreuses). Vous gardez vos profils
-« document » et « slides » et basculez selon le contexte.
-
-**Bloc `demo`** : pour des slides pédagogiques, le fence
+**Bloc `demo`** : pour des diapositives pédagogiques, le fence
 ` ```demo` affiche côte à côte la source markdown et son rendu.
 Le zoom automatique adapte les deux panneaux pour qu'ils tiennent
-dans la slide.
+dans la diapositive.
 
 ```markdown
 \`\`\`demo
@@ -1184,7 +1000,7 @@ l'algorithme 1 » sans recopier de numéro à la main, attachez un
 **`\label{clé}`** à votre cible et référencez-la depuis n'importe où
 dans le document avec **`\ref{clé}`** :
 
-- sur un **titre** : `## Réglages \label{sec:settings}`
+- sur un **titre** : `## Méthode \label{sec:methode}`
 - sur un **bloc captionné** (figure, tableau, algorithme, listing) :
   `\label{}` après la caption — ` ```algorithm "Tri à bulles" \label{alg:tri} `
 - sur une **équation** en bloc : `\label{}` à l'intérieur du
@@ -1193,14 +1009,12 @@ dans le document avec **`\ref{clé}`** :
 
 Le rendu de `\ref{clé}` s'adapte au type de cible :
 
-- **Section** → le titre de la section lui-même (les sections n'étant
-  pas numérotées par défaut dans markpage, montrer un numéro serait
-  parlant pour personne). Exemple : « voir la \ref{sec:settings} »
-  devient « voir la *Personnaliser le rendu PDF (Réglages)* »,
-  cliquable.
+- **Section** → le titre de la section, précédé de son numéro quand le
+  style numérote ce niveau de titre. Exemple : `voir la \ref{sec:math}`
+  donne « voir la \ref{sec:math} », cliquable.
 - **Figure / tableau / algorithme / listing / équation** → le numéro
   attribué par leur caption ou leur `\tag` (toujours visible à côté
-  de la cible). Exemple : « algorithme \ref{alg:tri} » → « algorithme
+  de la cible). Exemple : `algorithme \ref{alg:tri}` → « algorithme
   2 ».
 
 C'est vous qui écrivez le **mot d'introduction** (« voir la »,
@@ -1293,10 +1107,10 @@ automatique). À l'export LaTeX, les colonnes sont empilées.
 
 ### Style local (`::: style`) \label{sec:style}
 
-La typographie vient surtout de votre **profil de style** (Réglages),
-qui s'applique à *tous* les éléments d'un même type. Pour un réglage
-local — un grand titre coloré sur une couverture, une légende centrée —
-enveloppez le contenu dans un bloc `::: style` :
+La typographie vient du **style du document** (voir
+\ref{sec:settings}), qui s'applique à *tous* les éléments d'un même
+type. Pour un réglage local — un grand titre coloré sur une couverture,
+une légende centrée — enveloppez le contenu dans un bloc `::: style` :
 
 ```
 ::: style color=#0b3d91 size=22pt align=center weight=700
@@ -1315,7 +1129,7 @@ Les paramètres (une liste fixe et sûre — pas de CSS ni HTML arbitraire) :
 - `line-height=` — multiplicateur d'interligne (`1.3`)
 
 L'intérieur est du Markdown ordinaire, et le style s'applique à tout —
-il surcharge le profil localement, même la taille d'un titre ou
+il surcharge le style localement, même la taille d'un titre ou
 l'alignement d'un paragraphe. Imbriquez un `::: style` dans un autre
 pour un réglage plus fin ; l'interne l'emporte.
 
@@ -1464,16 +1278,19 @@ compte. Sinon vous pouvez sauter directement aux Crédits.
 
 ### Frontmatter YAML \label{sec:frontmatter}
 
-En tête de document, vous pouvez insérer un **bloc YAML** (entre deux
-lignes de `---`) qui surcharge la métadonnée du profil pour ce
-document précis :
+En tête de document, un **bloc YAML** (entre deux lignes de `---`)
+donne la carte d'identité du document — ce qu'il *est*, pas à quoi il
+*ressemble* :
 
 ```yaml
 ---
 title: Une étude des automates finis
+subtitle: Notes de cours
 author: Alice Dupont
 organization: Université de Lyon
-date: 2026-05-21
+date: 21 mai 2026
+language: fr
+document-style: article-a4
 mathjax-preamble: |
   \newcommand{\R}{\mathbb{R}}
   \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
@@ -1482,69 +1299,27 @@ mathjax-preamble: |
 
 Les clés reconnues :
 
-- **`title`** — le titre du document. Affiché en gros, centré, stylé
-  via *Réglages → Typographie → Titre du document*. Quand cette clé
-  est présente, vos `# Heading` dans le corps deviennent de **vrais
-  titres de section** (alignés à gauche, plus discrets, stylés via
-  *Titre 1*), au lieu d'être promus au statut de titre principal.
-- **`author`**, **`organization`**, **`date`** — surchargent les
-  champs correspondants du profil. Pratique pour un document
-  co-signé ou daté différemment du défaut.
+- **`title`** — le titre du document, affiché en tête (sur la
+  couverture si le style en a une). C'est la seule façon de donner un
+  titre au document : les `# titres` du corps sont toujours des
+  sections.
+- **`subtitle`** — un sous-titre, sous le titre.
+- **`author`**, **`organization`**, **`date`** — affichés sous le
+  titre, dans cet ordre. `date:` est du texte libre, recopié tel quel.
+- **`language`** — `fr` ou `en` : la langue du texte, pour la césure
+  des mots et le format des dates. Par défaut, la langue de
+  l'interface.
+- **`document-style`** — le nom du style (voir \ref{sec:settings}).
+  Sans cette clé, le style par défaut *Note A4*.
 - **`mathjax-preamble`** — du code TeX (multi-ligne avec `|`)
   collé avant **chaque** formule MathJax du document. Idéal pour
   définir une fois `\newcommand{\R}{\mathbb{R}}` et l'utiliser dans
-  toutes les formules sans repéter la définition.
-- **`slides`** — `true` pour produire un PDF de présentation 16:9
-  où chaque `## titre` démarre une nouvelle slide (voir
-  *\ref{sec:slides}*). Force `pageSize` à `SLIDES_16_9` quel que
-  soit le réglage du profil courant.
+  toutes les formules sans répéter la définition.
 
-Le bloc est entièrement optionnel — un document sans frontmatter
-continue à fonctionner exactement comme avant, le premier `#` du
-corps devient automatiquement le titre.
-
-Quand vous modifiez **Réglages**, Markpage écrit aussi une description
-**sémantique et minimale** du style. Aucune propriété n'est obligatoire :
-les valeurs par défaut sont simplement omises.
-
-```yaml
----
-document-type: book
-appearance: classic
-paragraphs: indent
----
-```
-
-Les clés essentielles sont **`document-type`** (`tech-note`, `report`,
-`paper`, `book`, `letter`, `slides`), **`appearance`** (`classic`,
-`modern`, `academic`, `technical`), **`density`** (`compact`,
-`normal`, `airy`), **`body-size`** (en points), **`paragraphs`**
-(`spacing` ou `indent`), **`alignment`** (`left` ou `justify`),
-**`accent`**, **`pagination`** et **`notes`** (`foot`, `side` ou `end`).
-Elles décrivent une intention ; Markpage en déduit les fontes, marges,
-interlignes et proportions cohérentes.
-
-Un réglage de la vue **Avancé** qui s'écarte de cette recette reste
-écrit comme exception, par exemple
-**`styles.h2.color: "#7a1f5c"`**. Les anciennes clés détaillées
-(`page-size`, `font-body`, `styles.*`…) restent lisibles ; elles sont
-nettoyées ou conservées comme exceptions pertinentes lors de la
-prochaine modification dans Réglages.
-
-Dans la vue **Essentiel**, chaque champ indique **Par défaut** ou
-**Variation**. Le défaut dépend du type de document et de l'apparence
-choisis. Une variation correspond toujours à une clé du frontmatter ;
-le bouton de retour supprime cette clé. Réciproquement, supprimer la
-clé dans l'éditeur remet immédiatement le champ à sa valeur
-contextuelle et à l'état **Par défaut**.
-
-Changer le type de document ou l'apparence applique une nouvelle recette et
-supprime toutes les variations stylistiques locales. Cette opération constitue
-une seule étape de l'historique : `Cmd/Ctrl + Z` restaure la recette et toutes
-les variations précédentes, y compris lorsque le raccourci est utilisé depuis
-la fenêtre Réglages. Le type **Lettre** fournit une page A4 simple face, sans
-numérotation par défaut, adaptée aux blocs `sender`, `recipient` et
-`signature`.
+Toutes les clés sont optionnelles. Une clé inconnue est ignorée — en
+particulier, **aucune clé ne modifie l'apparence** : marges, polices,
+couleurs et format viennent du style. Pour changer d'apparence, on
+change de style.
 
 ### Ligatures de saisie
 
@@ -1755,9 +1530,9 @@ Soit $\epsilon > 0$ tel que…
 
 #### À savoir
 
-- La taille des formules s'aligne sur la taille du texte courant ; si
-  vous changez le réglage **Texte normal** dans **Réglages**, les
-  formules grandissent ou rétrécissent en proportion.
+- La taille des formules s'aligne sur la taille du texte courant (celle
+  que fixe le style) : un style à gros corps donne de grosses
+  formules.
 - Si une formule est plus large que la zone de texte de la page, elle
   est automatiquement réduite pour tenir.
 - Les commandes LaTeX usuelles fonctionnent : `\frac`, `\sqrt`,
@@ -2030,19 +1805,6 @@ pie title Répartition
 Autres types reconnus : `stateDiagram`, `gantt`, `mindmap`, etc. — voir
 la [documentation Mermaid](https://mermaid.js.org/) pour la liste
 complète.
-
-#### Réglages
-
-La section **Diagrammes Mermaid** du panneau **Réglages** propose
-trois contrôles pour adapter la taille des diagrammes dans le PDF :
-
-- **Agrandissement max.** : facteur d'agrandissement maximal
-  (par défaut 2). Les petits diagrammes sont agrandis jusqu'à ce
-  facteur ; jamais au-delà.
-- **Largeur max. (% du texte)** : fraction de la largeur de la page
-  (hors marges) que le diagramme peut occuper (par défaut 100 %).
-- **Hauteur max. (% du texte)** : fraction de la hauteur de la page
-  (hors marges) que le diagramme peut occuper (par défaut 70 %).
 
 ### Grammaires EBNF \label{sec:ebnf}
 
@@ -2325,7 +2087,8 @@ production). Voir *Grammaires EBNF*.
 ````
 
 3 slots `gauche | centre | droite`. Variables `{page}`, `{pages}`,
-`{title}`, `{date}`. Emphase inline `**gras**` / `*italique*`. Voir
+`{title}`, `{date}`. Emphase inline `**gras**` / `*italique*`.
+Remplace la bande correspondante du style. Voir
 *En-tête et pied de page*.
 
 ### `inference` — règles d'inférence
@@ -2538,7 +2301,7 @@ Merci à toutes les personnes qui maintiennent ces projets :
 - **Édition et rendu** :
   [CodeMirror](https://codemirror.net/) pour l'éditeur,
   [marked](https://marked.js.org/) pour le parser Markdown,
-  [paged.js](https://pagedjs.org/) pour la mise en page paginée
+  [Vivliostyle](https://vivliostyle.org/) pour la mise en page paginée
   (l'aperçu et le PDF passent par le moteur d'impression du
   navigateur sur ce même rendu).
 - **Diagrammes et formules** :

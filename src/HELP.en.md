@@ -32,32 +32,38 @@ left side any time to see "how it's done".
 Select all the editor content (`Cmd/Ctrl + A`) and delete. The page
 is blank. Let's go.
 
-### The main title
+### The document title
 
-On the first line, type a hash (`#`), a space, then the title of your
-document:
+At the very top, type these three lines:
 
 ```
-# My first document
+---
+title: My first document
+---
 ```
 
-That's it. The `#` at the start of the line means *"what follows is
-a heading"*. Just one line, no period at the end, no closing — you
-just go to the next line when you're done.
+This is the document's **header**: a small block between two lines of
+three dashes, which says *what* the document is rather than what it
+contains. The `title:` line gives its title, shown at the top and
+centred.
 
-> **Note**: this first `#` heading of the document acts as the
-> **cover page** in the PDF (centred, followed by author,
-> organisation and date if you fill them in under **Settings**). Your
-> internal sections should therefore use `##` (two hashes) or `###`
-> (three) instead.
+> **Note**: the header can also carry the author, organisation and
+> date (`author:`, `organization:`, `date:`), shown under the title —
+> see \ref{sec:frontmatter}.
 
 ### A section
 
-Skip a line, then type two hashes followed by your section title:
+Skip a line, then type a hash (`#`), a space and your section title:
 
 ```
-## Introduction
+# Introduction
 ```
+
+The `#` at the start of the line means *"what follows is a heading"*.
+Just one line, no period at the end, no closing — you just go to the
+next line when you're done. No need to type numbers: depending on the
+document's style, sections are numbered automatically (1, 1.1,
+1.1.1…).
 
 ### Some text
 
@@ -84,10 +90,10 @@ The word **important** is in bold.
 
 ### A sub-section
 
-Three hashes for a deeper heading level:
+Two hashes for a deeper heading level, three for the next:
 
 ```
-### My main ideas
+## My main ideas
 ```
 
 You can go down to six hashes, but in practice three is enough for
@@ -145,11 +151,11 @@ At the top of the screen, a handful of buttons:
   origin chip.
 - **Format ▾** — a formatting menu (headings, bold, lists, insert
   image…). **Right-clicking** in the editor opens the same menu.
+- **Style ▾** — the document's look: pick a style from the library
+  (Note, Article, Rapport, Livre, Lettre, Présentation), import or
+  export one (see \ref{sec:settings}).
 - **View ▾** — *Preview* (toggle editor / paginated render), *Present*
   (full screen), *Guides* (layout overlay).
-- **Settings** — customise the PDF render (author, margins,
-  fonts…). Opens in a **separate window** that you can place next
-  to the preview to see each change in real time.
 - **?** (yellow) — opens this tutorial.
 
 ### Seeing the preview
@@ -185,8 +191,8 @@ Click **Save**, give the file a name, you're done.
 > None"**. Otherwise the browser adds its own margins on top of the
 > ones markpage already handles, which shrinks the printable area
 > and makes the content overflow. The margins visible in the PDF
-> are **always** the ones you chose under **Settings**, never the
-> ones from the print dialog.
+> are **always** the document style's, never the ones from the print
+> dialog.
 
 ### And that's it
 
@@ -501,11 +507,10 @@ A **GitHub repo** lets you edit the **same document** across several
 devices (laptop, desktop, another browser), versioned, **with no
 server**.
 
-1. **The token.** In **Settings ▸ GitHub**, paste a *fine-grained
-   personal access token* (the *Create a token →* button opens the
-   prefilled GitHub page; **Contents: Read and write** permission). The
-   token stays **on this device**; use *Forget token* on a shared
-   machine.
+1. **The token.** On the first connection, markpage asks for a
+   *fine-grained personal access token* (**Contents: Read and write**
+   permission) and gives you the link to create it on GitHub. The token
+   stays **on this device**.
 2. **Mount the repo** from the browser (*Mount a repo…*), then open a
    `.md`. It edits in place; **Save** re-publishes it.
 3. On another device: same token, *Mount a repo…*, open the same file —
@@ -564,110 +569,72 @@ Your work is **saved automatically** in the browser, so if you
 close the tab by mistake, everything is recovered the next time
 you open it.
 
-### Customising the PDF render (Settings) \label{sec:settings}
+### Choosing the document's style \label{sec:settings}
 
-The **Settings ▾** button (shortcut `Cmd/Ctrl + ,`) opens a
-**separate window** where you can configure the PDF without touching
-the content. **Tip**: switch to Preview mode first, open Settings,
-place the window next to the preview — every change reflects in
-real time on the paginated document.
+In markpage, **a document's look is its style**: page format, margins,
+fonts and sizes, colours, heading numbering, header and footer, note
+placement, cover. The document itself holds only its text and its
+identity card (title, author, date… — see \ref{sec:frontmatter}).
 
-The window opens in the **Essential** view. It presents a few coherent
-decisions: document type, appearance, body size, density, paragraph
-separation, accent, format and pagination. Markpage derives margins,
-line measure, fonts, heading hierarchy and vertical rhythm from them.
+The **Style ▾** menu in the toolbar lists the available styles. Pick
+one: markpage writes a line into the document's header,
 
-The **Advanced** switch restores the complete matrix: parent style,
-physical margins, individual fonts, per-element exceptions, running
-headers, maths and diagrams. An existing style that does not match a
-recipe remains intact and simply appears as “Custom” in Essential view.
+```yaml
+---
+title: Annual report
+document-style: rapport-a4
+---
+```
 
-The sections below cover the main levers.
+and the preview and the PDF follow at once. You can also type that line
+yourself. A document **without** `document-style:` (or naming an
+unknown style) gets the default style, **Note A4**.
 
-#### Page format, margins and canon \label{sec:layout}
+The styles shipped with markpage, each in **A4** and **Letter**
+(`note-a4`, `note-letter`…):
 
-The **Layout** card gathers the page format, margin mode (manual
-or derived) and ready-to-use presets.
+| Style | For | Characteristics |
+| :-- | :-- | :-- |
+| **Note** | notes, minutes, short documents | single-sided, numbered sections |
+| **Article** | article, academic paper | single-sided, document title in the header, numbered sections |
+| **Rapport** | report, thesis | cover, double-sided, chapters on a right-hand page |
+| **Livre** | book, long course notes | cover, double-sided, chapters on a right-hand page |
+| **Lettre** | letter | single-sided, no numbering, `sender` / `recipient` / `signature` blocks |
+| **Présentation 16:9** | slides | one slide per `##` section (see \ref{sec:slides}) |
 
-- **Page format**: A4, A5, Letter, Legal, B5, A3, plus **Slides
-  16:9** for a Beamer-style presentation PDF (see *Slides mode*
-  below).
+**Your own styles.** A style is a `.mpstyle.json` file, made with the
+**style editor** (a separate tool where colours, fonts and the page are
+set visually). In the **Style ▾** menu:
 
-- **Presets**: five coherent combos to get going in one click; each
-  preset sets margins, line measure, duplex mode and note placement
-  in one go.
-  - *Tech note* — derived margins, ~70-character measure, simplex,
-    footnotes.
-  - *Report* — derived margins, ~66-character measure, simplex
-    (sober default).
-  - *Paper* — derived margins, ~68-character measure, notes
-    collected at end of document.
-  - *Book* — derived margins, ~60-character measure, **duplex**,
-    new chapter on a recto.
-  - *Critical edition* — wide derived margins, ~52-character measure,
-    duplex, **margin notes** Tufte-style.
+- **Import a style…** — adds a `.mpstyle.json` file to your library and
+  applies it to the document. It shows in the list tagged *custom*, and
+  can be deleted from the library.
+- **Export current style…** — downloads the document's style as
+  `.mpstyle.json`, to share it or refine it in the editor.
 
-  Tweaking any one lever after picking a preset flips the dropdown
-  to "Custom".
+> **Sharing a document.** The style is **not** inside the document —
+> only its name. If you send a `.md` that uses a *custom* style, send
+> the style file too; without it, the recipient sees the document in
+> the default style.
 
-- **Margin mode**. Two modes.
-  - *Manual* — the four Top / Bottom / Left / Right fields (in
-    millimetres) are editable and the result depends solely on your
-    values.
-  - *Derived* — markpage computes the margins from the Van de Graaf
-    construction (the book canon). You set the **line measure**
-    (`measureChars`, the number of characters wide a body line is —
-    ideally between 45 and 75 for readability, cf. Bringhurst) and
-    the **live-area width** (`liveAreaChars`, wider than the
-    measure: it holds the header, footer and margin notes). The
-    text block and the live area are then two rectangles similar to
-    the page. In **simplex**, both are horizontally centred, so left
-    and right margins are equal. In **duplex**, the classical 1:2
-    inner/outer ratio is retained and mirrored on verso. The 1:2
-    top/bottom ratio applies in both cases. The manual sliders are
-    disabled (the values shown are advisory).
+**Local touches.** For a one-off adjustment — a coloured cover title, a
+centred caption — use a `::: style` block (see \ref{sec:style}): it
+acts on a passage without touching the document's style.
 
-- **Duplex (recto-verso)**: checkbox. Enables a two-page layout
-  (recto on the right, verso on the left) with automatic
-  inner/outer margin mirroring. The cover (page 1) stays alone on
-  the right in the preview, then spreads follow. In the preview
-  you actually see the two facing pages side by side with the
-  spine in the middle.
-
-- **Chapter break**: three options for what happens at each `# H1`
-  heading.
-  - *None* — the heading follows the flow.
-  - *Next page* (`next-page`) — every `h1` starts on a new page.
-  - *Next recto* (`next-recto`) — every `h1` starts on a recto
-    (insert a blank page if needed). Book convention.
-
-- **Notes**: *foot* (per-page, default), *side* (Tufte style,
-  derived margins required), or *end* (end of document). See the
-  *Notes* section below.
-
-> **💡 Visual margin overlay** — Toggle the debug overlay with the
-> **Guides** button in the toolbar, or the `Cmd/Ctrl + Shift + G`
-> shortcut. Three rectangles appear on every page: the page outline
-> (grey), the live area (green) and the text block (orange), plus
-> the canon diagonals. Handy to see where your headers, footers and
-> notes actually land. Toggle again to hide.
+> **💡 Seeing the page layout** — the **View ▾ → Guides** menu (or
+> `Cmd/Ctrl + Shift + G`) overlays each page with its outline, the
+> header/footer area, the text block and the page diagonals. Handy to
+> see where headers, footers and notes land. Toggle again to hide.
 
 #### Header and footer \label{sec:running}
 
-To show a header, a footer or a page number, two complementary
-mechanisms:
-
-**The two Settings fields** "Default header" and "Default footer"
-in the *Page* card. They apply to the whole document unless a fence
-in the markdown overrides them (see below). The syntax is the same
-as a fence body: three slots separated by `|`. By default the footer
-holds a centered page counter: ` | {page} | `.
-
-**The `\`\`\`header` / `\`\`\`footer` fences** in the document
-itself. They take effect from their position in the source until
-the end of the document (or until the next fence of the same kind),
-and **override** the Settings default for the matching band. Three
-slots:
+The header and footer (page number, title, date…) come from the
+**style**. To change them in a document, write a ` ```header ` or
+` ```footer ` fence: it **replaces the matching band of the style**
+(the header, or the footer), the other band staying the style's. It
+takes effect from its position in the source until the end of the
+document (or until the next fence of the same kind). Three slots,
+separated by `|`:
 
 ````markdown
 ```header
@@ -675,8 +642,8 @@ left | centre | right
 ```
 ````
 
-Example: a header with the document title on the right, and a
-footer with a page counter on the right and the date on the left:
+Example: a header with the chapter title on the right, and a footer
+with the date on the left and the page number on the right:
 
 ````markdown
 ```header
@@ -688,215 +655,77 @@ footer with a page counter on the right and the date on the left:
 ```
 ````
 
-**Variables available** inside slots:
+**Available variables** in the slots:
 
 - `{page}` — current page number.
-- `{pages}` — total page count.
-- `{title}` — text of the most recent `# H1` crossed (useful for a
-  running chapter title in the header).
-- `{date}` — document date (as set in Settings).
+- `{pages}` — total number of pages.
+- `{title}` — text of the last `# heading` crossed (handy to recall
+  the current chapter at the top of the page).
+- `{date}` — today's date.
 
-**Inline formatting** in slots:
+**Inline formatting** in the slots:
 
 - `**text**` — bold.
 - `*text*` — italic.
 - `***text***` — bold italic.
 
 You can mix fixed text and variables:
-`Welcome to **markpage** | | {page} / {pages}`.
+`Welcome to **markpage** | | {page} / {pages}`. The font, size and
+colour of headers and footers are the style's.
 
-**Typography** of headers/footers: *Typography* card → *Header /
-footer*. Font, size, colour, weight, italic — defaults aim for a
-light grey (`#57606a`, ~9 pt) so they don't compete with the body
-text.
+> ⚠ Limitation: a slot that combines **both** a variable (`{page}`)
+> **and** mid-slot emphasis (`Page **{page}**`) renders the asterisks
+> literally. To make the number bold, wrap the **whole** slot in
+> asterisks (`**{page}**`).
 
-> ⚠ Limitation: a slot that combines **both** a variable
-> (`{page}`) **and** mid-slot emphasis (`Page **{page}**`) renders
-> the asterisks literally. To bold the counter, wrap the **whole**
-> slot in asterisks (`**{page}**`).
+#### Notes: footnotes, sidenotes, endnotes \label{sec:notes-modes}
 
-#### Notes: foot of page, margin, end of document \label{sec:notes-modes}
+The **style** decides where Pandoc notes land (`[^id]` + definition,
+see \ref{sec:footnotes} for the syntax):
 
-The **Notes** field (*Layout* card) controls where Pandoc notes
-(`[^id]` + definition, see *Footnotes* below for the syntax) land.
+- *Footnotes* (every shipped style) — each note is placed
+  **automatically at the foot of the page** holding its call, as in a
+  printed book.
+- *Sidenotes* — each note slides into the outer margin, level with its
+  call (Tufte-style). The number shows both as a superscript in the
+  body and at the start of the note. Needs a style whose page reserves
+  a margin column; otherwise the notes stay at the end of the document.
+- *Endnotes* — all notes are gathered at the end, in a numbered
+  *Notes* section.
 
-- *Foot of page* (`foot`, default) — each note is placed
-  **automatically at the foot of the page** that holds its anchor,
-  like in a printed book. The body marker and the foot-of-page
-  number are generated and numbered by paged.js.
-
-- *In the margin* (`side`) — each note slides into the outer
-  gutter, at the height of its anchor (Tufte CSS). The number
-  shows as both an in-body superscript and a small superscript at
-  the start of the note. **Requires derived margin mode** (markpage
-  needs to know the gutter width to place the note); in manual
-  mode this setting falls back to *end of document*.
-
-- *End of document* (`end`) — all notes are gathered at the end of
-  the document in a numbered *Notes* section.
+The syntax is the same in all three cases: switching style is enough to
+move from one to another.
 
 #### Margin figures \label{sec:margin-figures}
 
-In derived margin mode (outer gutter known) you can drop a figure
-into the margin with the Pandoc attribute syntax:
+With a style that reserves a margin column, you can put a figure in
+the margin with the Pandoc attribute syntax:
 
 ```
 ![Diagram](my-diagram.png){.margin}
 ```
 
-The image aligns in the outer gutter (right on recto, left on
-verso in duplex), at the height of the paragraph that holds it.
-Its width is capped to the gutter width so it doesn't overflow.
-The `.margin` class only affects placement — you can combine it
+The image aligns in the outer margin (right on a right-hand page, left
+on a left-hand page when double-sided), level with the paragraph that
+holds it. Its width is capped to the column's so it never overflows.
+The `.margin` class only affects this placement — you can combine it
 with a caption: `![alt](url "my caption"){.margin}`.
-
-#### Typography \label{sec:typography}
-
-In **Essential** view, four appearances automatically coordinate body,
-heading, code and maths fonts: *Classic* (EB Garamond), *Modern*
-(Inter), *Academic* (STIX Two) and *Technical* (Fira). **Body size**
-generates the whole heading scale; **density** generates leading,
-spacing and block padding. **Paragraph separation** offers either
-extra vertical space or a 1.5 em first-line indent on consecutive
-paragraphs; the first paragraph after a heading remains unindented.
-The **accent colour** feeds headings, links and callouts.
-
-The **Advanced** view retains the global and per-element controls:
-
-- **Fonts** for headings, body and code — picked from a catalogue of
-  ~17 Google Fonts (Inter, EB Garamond, JetBrains Mono…). Fonts
-  are loaded on demand; first use needs a connection, after that
-  the browser caches them. Roboto Condensed and Roboto Mono are
-  bundled and work offline. *Note: the editor itself always keeps
-  Roboto Condensed / Mono regardless of your choices — the
-  input zone's appearance doesn't change.*
-
-- **Matching pack** — a dropdown above the three font selectors that
-  aligns all four font slots (headings / body / code / math font)
-  to a pre-coordinated pack in one click. Three packs ship by
-  default: *Roboto Condensed + NewCM* (the historical default),
-  *Fira Sans + Fira Math* (modern sans-serif, recommended for
-  math-heavy documents), *STIX Two + STIX Math* (large-x-height
-  serif for long academic texts). Tweaking any single slot
-  switches the dropdown to "Custom".
-
-- **Custom Google Fonts** — for a family outside the catalogue,
-  paste the Google Fonts URL (for example
-  `https://fonts.googleapis.com/css2?family=Tangerine:wght@400;700&display=swap`)
-  into the "+ Add" field, confirm. The font appears immediately
-  in all three pickers (Headings / Body / Code) and can be removed
-  with a click on the cross on its chip.
-
-- **Spacing** — three ratios that control the document's vertical
-  density:
-  - *Above / below headings* (default `1.6` / `0.6`):
-    space above a heading of size T equals `ratio × T`.
-    Deliberately asymmetric — more air above, so the heading
-    "belongs" to the section that follows.
-  - *Between paragraphs* (default `1.0`): symmetric margin
-    applied to each paragraph.
-
-- **Per element** (title, h1 to h4, body, inline code, code block,
-  quote, link, metadata, math block, callout, Mermaid, table,
-  caption, **header / footer**): for each, size, colour, **weight**
-  (Light / Regular / Medium / Semibold / Bold), **italic**, and
-  depending on the type a **border**, **background**, **above /
-  below margin**. If the chosen font doesn't ship the requested
-  weight or italic cut, the browser *synthesises* a fake bold /
-  italic, usually less pretty — the fix is to pick a more complete
-  font, or to include the desired weight in your custom Google
-  Fonts URL.
-
-- **Justification** of text and **line spacing** in the *Body*
-  sub-card.
-
-- **Mermaid diagrams** (*Content* card): max upscale, max width, max
-  height (cf. *Mermaid diagrams* section below).
-
-- **Math formulas** (*Content* card):
-  - *Math font* — five math fonts to pick from: NewComputerModern
-    (default, TeX serif), Fira Math (sans-serif, pairs with Roboto /
-    Fira Sans), STIX 2 or Asana (modern serifs), or classic TeX.
-  - *Formula scale* (50-200 %, default 100 %) — adjusts the size of
-    MathJax glyphs to match the visual size of the body font (some
-    large-x-height fonts make formulas look too small).
-
-Settings are **remembered between sessions**. To revert to the
-default values, open the **Profile** menu at the top of the Settings
-window (cf. next section) and click *Reset*.
-
-### Multiple settings profiles
-
-You can keep **several settings sets** under different names — for
-example a "Research article" profile that's sober, a "Course notes"
-profile that's airy, an "A5 slides" third one — and switch between
-them in one click. Only one profile is active at a time and applies
-to all your documents.
-
-The current profile's dropdown lives **at the top of the Settings
-window**, next to the title. It shows the active profile's name
-followed by `▾`.
-
-Inside the menu:
-
-- **The current name is editable** at the top. Type, confirm with
-  `Enter`, the profile is renamed.
-- **+ New profile** creates a profile starting from a copy of the
-  current settings (useful for testing a variant without breaking
-  the existing one) and switches to it.
-- **The list below** shows the other profiles. **One click =
-  switch** to that profile. The preview and PDF adapt
-  immediately.
-- At the **bottom of the menu**, three actions apply to the
-  **current profile only**:
-  - *Duplicate* — creates a copy named "Copy of …" and switches
-    to it.
-  - *Delete* (with confirmation) — disabled if only one profile is
-    left; the most recent remaining profile becomes the new
-    current.
-  - *Reset* — reverts to the default values **without changing the
-    name**, equivalent of the historical Reset button.
-- **Import…** opens a `.json` file picker (a colleague's profile
-  export, for example). **Export…** downloads the current profile
-  as `<profile-name>.json`. The format is self-contained and human-
-  readable if needed.
 
 ### Slides mode (16:9 presentation) \label{sec:slides}
 
-markpage can produce a **Beamer-style presentation PDF**: landscape
-16:9 page format (A4 width, so 210 × 118.1 mm), and **every
-`## section heading` starts a new slide**. The `# document title`
-remains the title slide.
-
-Two ways to opt in:
-
-- **Settings → Page → Format = Slides 16:9** — applies to every doc
-  in the current profile. Best suited to a dedicated "Slides"
-  profile.
-- **Per-document YAML frontmatter** — handy when a single doc
-  should be slides without rebinding your profile:
-
-```yaml
----
-title: My talk
-slides: true
----
-```
-
-The frontmatter `slides: true` overrides whatever format was picked
-in the settings.
-
-Minimal example:
+markpage can produce a **Beamer-like presentation PDF**: a 16:9
+landscape page, and **each `## section heading` starts a new slide**.
+Just pick the **Présentation 16:9** style:
 
 ```markdown
 ---
 title: Block-diagram algebras
-slides: true
+document-style: presentation-16x9
 ---
 
 ## Motivation
 
-The Faust language rests on five binary operators…
+The Faust language rests on 5 binary operators…
 
 ## The operators
 
@@ -912,20 +741,17 @@ The Faust language rests on five binary operators…
 \`\`\`
 ```
 
-Three slides: title (auto), Motivation, The operators, Demo.
+Four slides: the title, then Motivation, The operators, Demo.
 
 **Everything else works** as in a regular document: captions,
-cross-refs, MathJax formulas, `mermaid` / `category` / `bda` /
-`chart` blocks — you get the same typography on slides.
+cross-references, MathJax formulas, `mermaid`, `category`, `bda`,
+`chart` blocks, etc. — you get the same typographic render on slides.
+The **View ▾ → Present** menu shows the result full screen, one slide at
+a time.
 
-**Practical tip**: create a dedicated settings profile for slides
-(larger body size, sans-serif fonts tuned for projection, more
-generous margins). You then keep your "document" and "slides"
-profiles separate and switch as needed.
-
-**`demo` fence**: for teaching slides, the ` ```demo` fence shows
-the markdown source side-by-side with its rendered output.
-Auto-zoom resizes both panes so they fit the slide.
+**`demo` block**: for teaching slides, the ` ```demo` fence shows the
+markdown source and its render side by side. The automatic zoom fits
+both panels on the slide.
 
 ```markdown
 \`\`\`demo
@@ -935,10 +761,11 @@ Auto-zoom resizes both panes so they fit the slide.
 \`\`\`
 ```
 
-*Caveat*: avoid opening a `demo` with a prose sentence followed
-by a rigid block (code, diagram, displayed equation). The layout
-then has to balance a wrappable element against a rigid one and
-the result is less clean. Put the showcased block first.
+*Caveat*: avoid starting a `demo` block with a sentence of prose
+followed by a rigid block (code, diagram, displayed equation). The
+layout then has to compose an element that can wrap with one that
+can't, and the result is less clean. Put the block you want to show
+first.
 
 ### Special characters and symbols
 
@@ -1133,7 +960,7 @@ without copying numbers by hand, attach a **`\label{key}`** to your
 target and reference it from anywhere in the document with
 **`\ref{key}`**:
 
-- on a **heading**: `## Settings \label{sec:settings}`
+- on a **heading**: `## Method \label{sec:method}`
 - on a **captioned block** (figure, table, algorithm, listing):
   `\label{}` after the caption — ` ```algorithm "Quicksort" \label{alg:sort} `
 - on a **display equation**: `\label{}` inside the `$$ … $$` —
@@ -1141,13 +968,12 @@ target and reference it from anywhere in the document with
 
 `\ref{key}` adapts its output to the kind of target:
 
-- **Section** → the heading text itself (markpage sections aren't
-  numbered by default, so a number would be meaningless). Example:
-  "see \ref{sec:settings}" becomes "see *Customising the PDF render
-  (Settings)*", clickable.
+- **Section** → the heading text, preceded by its number when the
+  style numbers that heading level. Example: `see \ref{sec:math}`
+  gives "see \ref{sec:math}", clickable.
 - **Figure / table / algorithm / listing / equation** → the number
   assigned by their caption or `\tag` (always shown next to the
-  target). Example: "algorithm \ref{alg:sort}" → "algorithm 2".
+  target). Example: `algorithm \ref{alg:sort}` → "algorithm 2".
 
 You write the **lead-in word** ("see", "algorithm", "equation", …)
 yourself — the engine only provides the number or the title, which
@@ -1237,10 +1063,10 @@ columns degrade to stacked content.
 
 ### Local styling (`::: style`) \label{sec:style}
 
-Most typography comes from your **style profile** (Settings), which
-applies to *every* element of a kind. When you need a local override —
-a big coloured title on a cover, a centred caption — wrap the content
-in a `::: style` block:
+Typography comes from the **document's style** (see
+\ref{sec:settings}), which applies to *every* element of a kind. When
+you need a local override — a big coloured title on a cover, a centred
+caption — wrap the content in a `::: style` block:
 
 ```
 ::: style color=#0b3d91 size=22pt align=center weight=700
@@ -1259,7 +1085,7 @@ The parameters (a fixed, safe list — no arbitrary CSS or HTML):
 - `line-height=` — line-spacing multiplier (`1.3`)
 
 The inside is ordinary Markdown, and the style applies to all of it —
-overriding the profile locally, even a heading's own size or a
+overriding the style locally, even a heading's own size or a
 paragraph's alignment. Nest a `::: style` inside another for a finer
 override; the inner one wins.
 
@@ -1401,16 +1227,19 @@ skip straight to Credits.
 
 ### YAML frontmatter \label{sec:frontmatter}
 
-At the top of a document, you can insert a **YAML block** (between
-two `---` lines) that overrides the profile metadata for that
-specific document:
+At the top of a document, a **YAML block** (between two `---` lines)
+gives the document's identity card — what it *is*, not what it *looks
+like*:
 
 ```yaml
 ---
 title: A study of finite automata
+subtitle: Course notes
 author: Alice Dupont
 organization: Université de Lyon
-date: 2026-05-21
+date: 21 May 2026
+language: en
+document-style: article-a4
 mathjax-preamble: |
   \newcommand{\R}{\mathbb{R}}
   \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
@@ -1419,67 +1248,24 @@ mathjax-preamble: |
 
 Recognised keys:
 
-- **`title`** — the document title. Rendered large, centred, styled
-  via *Settings → Typography → Document title*. When this key is
-  present, the `# Heading`s in the body act as **real section
-  headings** (left-aligned, more discreet, styled via *Heading 1*),
-  instead of being promoted to the title role.
-- **`author`**, **`organization`**, **`date`** — override the
-  matching profile fields. Handy for a co-authored document, or a
-  document dated differently from the profile default.
+- **`title`** — the document title, shown at the top (on the cover if
+  the style has one). It is the only way to give the document a title:
+  `# headings` in the body are always sections.
+- **`subtitle`** — a subtitle, under the title.
+- **`author`**, **`organization`**, **`date`** — shown under the
+  title, in that order. `date:` is free text, copied as is.
+- **`language`** — `fr` or `en`: the language of the text, for
+  hyphenation and date format. Defaults to the interface language.
+- **`document-style`** — the style's name (see \ref{sec:settings}).
+  Without this key, the default style *Note A4*.
 - **`mathjax-preamble`** — TeX source (multi-line via `|`) pasted
   before **every** MathJax formula in the document. Ideal for
   defining once `\newcommand{\R}{\mathbb{R}}` and using it in every
   formula without repeating the definition.
-- **`slides`** — `true` to produce a 16:9 presentation PDF where
-  every `## heading` starts a new slide (see *\ref{sec:slides}*).
-  Forces `pageSize` to `SLIDES_16_9` regardless of the active
-  profile's setting.
 
-The block is fully optional — a document without frontmatter keeps
-working as before, with the first `#` in the body promoted to the
-document title automatically.
-
-When you edit **Settings**, Markpage also writes a **semantic, minimal**
-style description. No property is required: default values are simply
-omitted.
-
-```yaml
----
-document-type: book
-appearance: classic
-paragraphs: indent
----
-```
-
-The essential keys are **`document-type`** (`tech-note`, `report`,
-`paper`, `book`, `letter`, `slides`), **`appearance`** (`classic`,
-`modern`, `academic`, `technical`), **`density`** (`compact`,
-`normal`, `airy`), **`body-size`** (in points), **`paragraphs`**
-(`spacing` or `indent`), **`alignment`** (`left` or `justify`),
-**`accent`**, **`pagination`**, and **`notes`** (`foot`, `side`, or `end`).
-They describe an intention; Markpage derives coherent fonts, margins,
-leading, and proportions from it.
-
-An **Advanced** setting that departs from this recipe remains an
-explicit exception, for example
-**`styles.h2.color: "#7a1f5c"`**. Older detailed keys (`page-size`,
-`font-body`, `styles.*`…) remain readable; the next Settings edit
-cleans them up or retains them as relevant exceptions.
-
-In the **Essential** view, every field is marked **Default** or
-**Variation**. The default depends on the selected document type and
-appearance. A variation always corresponds to a frontmatter key; its
-reset button removes that key. Conversely, deleting the key in the
-editor immediately restores the contextual value and the **Default**
-state.
-
-Changing the document type or appearance applies a fresh recipe and removes
-all local style variations. This is one history step: `Cmd/Ctrl + Z` restores
-the previous recipe and all its variations, including when the shortcut is
-used from the Settings window. The **Letter** type provides a single-sided A4
-page without numbering by default, suited to the `sender`, `recipient`, and
-`signature` blocks.
+Every key is optional. An unknown key is ignored — in particular, **no
+key changes the look**: margins, fonts, colours and format come from the
+style. To change the look, change the style.
 
 ### Input ligatures
 
@@ -1686,9 +1472,8 @@ Let $\epsilon > 0$ such that…
 
 #### Things to know
 
-- Formula size matches the current text size; if you change the
-  **Body text** setting under **Settings**, formulas grow or shrink
-  proportionally.
+- Formula size matches the current text size (set by the style): a
+  style with a large body gives large formulas.
 - If a formula is wider than the page's text area, it is
   automatically scaled down to fit.
 - The usual LaTeX commands work: `\frac`, `\sqrt`, `\sum`, `\int`,
@@ -1955,18 +1740,6 @@ pie title Distribution
 Other recognised types: `stateDiagram`, `gantt`, `mindmap`, etc. —
 see the [Mermaid documentation](https://mermaid.js.org/) for the
 full list.
-
-#### Settings
-
-The **Mermaid diagrams** section of the **Settings** panel offers
-three controls to adjust diagram size in the PDF:
-
-- **Max upscale**: maximum scale-up factor (default 2). Small
-  diagrams are scaled up to this factor; never beyond.
-- **Max width (% of text)**: fraction of the page width (excluding
-  margins) the diagram can occupy (default 100 %).
-- **Max height (% of text)**: fraction of the page height
-  (excluding margins) the diagram can occupy (default 70 %).
 
 ### EBNF grammars \label{sec:ebnf}
 
@@ -2244,8 +2017,8 @@ production). See *EBNF grammars*.
 ````
 
 3 slots `left | centre | right`. Variables `{page}`, `{pages}`,
-`{title}`, `{date}`. Inline emphasis `**bold**` / `*italic*`. See
-*Header and footer*.
+`{title}`, `{date}`. Inline emphasis `**bold**` / `*italic*`. Replaces
+the style's matching band. See *Header and footer*.
 
 ### `inference` — inference rules
 
@@ -2456,7 +2229,7 @@ Thanks to everyone who maintains these projects:
 - **Editing and rendering**:
   [CodeMirror](https://codemirror.net/) for the editor,
   [marked](https://marked.js.org/) for the Markdown parser,
-  [paged.js](https://pagedjs.org/) for paginated layout
+  [Vivliostyle](https://vivliostyle.org/) for paginated layout
   (the preview and the PDF both go through the browser's print
   engine on this same rendering).
 - **Diagrams and formulas**:
