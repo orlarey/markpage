@@ -1,148 +1,76 @@
-// preview.ts — runs inside the webview. Renders the document text with
-// @orlarey/markpage-render: phase A (transform) then phase B (hydratePreview —
-// MathJax + Mermaid). MathJax/Mermaid load as on-demand ESM chunks.
+// preview.ts — runs inside the webview. Renders the document with the SAME
+// pipeline as the markpage app (src/document-render.ts): the named style (or
+// the default style) resolved from `document-style:`, the shared DOM build
+// (Markdown → HTML, MathJax, Mermaid, mosaic), then either the continuous sheet
+// or Vivliostyle pages. The webview owns only its chrome: zoom, scroll-sync,
+// the floating toolbar and the HTML export.
 //
 // Scroll-sync: every top-level block is tagged with its source line (data-line)
 // so the host can scroll the preview to the editor's position and vice versa.
 
-import {
-  renderMarkpageMarkdown,
-  renderMetadataBlock,
-  parseFrontmatter,
-  hydratePreview,
-  applyBackgrounds,
-  paginationCss,
-  keepLabelsWithNext,
-  splitLongPreBlocks,
-  PRE_SPLIT_TARGET_LINES,
-  PRE_SPLIT_SLACK_LINES,
-  groupLetterheads,
-  letterheadCss,
-  parseStackDoc,
-  resolveTokens,
-  denormalizeProfile,
-} from '@orlarey/markpage-render';
-import { marked } from 'marked';
-import { profileToCss, type Profile } from './profile-css';
-// Bundled into dist/webview.css by esbuild — the hljs colour theme markpage uses
-// (light) and the @orlarey/blocks DSL styles. media/preview.css adds the paper
-// look + the CSS variables these need, and loads after to win overrides.
+// Same bundled faces as the app (main.ts) so the preview paints in the style's
+// fonts on first frame; Google-hosted families load on demand (font-loader).
+import '@fontsource/roboto-condensed/400.css';
+import '@fontsource/roboto-condensed/500.css';
+import '@fontsource/roboto-condensed/400-italic.css';
+import '@fontsource/roboto-condensed/500-italic.css';
+import '@fontsource/roboto-mono/400.css';
+import '@fontsource/roboto-mono/500.css';
+import '@fontsource/roboto-mono/400-italic.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '../../../src/assets/fonts/et-book/et-book.css';
 import 'highlight.js/styles/atom-one-light.css';
 import '@orlarey/blocks/styles.css';
 import '@orlarey/markpage-render/constructs.css';
+import '../../../src/style.css';
+// Side-effect import: registers markpage's marked extensions (fences, math, …).
+import '@orlarey/markpage-render';
+
+import { parseFrontmatter } from '@orlarey/markpage-render';
+import {
+  applyPageFills,
+  buildDocumentDom,
+  documentSettings,
+  renderContinuousSheet,
+} from '../../../src/document-render';
+import { loadSettingsFonts, registerCustomFonts } from '../../../src/font-loader';
+import { registerFallbackFonts } from '../../../src/fonts';
+import { annotateSourceLines, applyPreviewStyles } from '../../../src/preview';
+import { pageSizeMm, paginate } from '../../../src/preview-paginated';
+import { DEFAULT_SETTINGS, type PdfSettings } from '../../../src/settings';
 
 interface RenderMessage {
   type: 'render';
   md: string;
   baseUri: string;
   paginated: boolean;
+  // VS Code's display language (`vscode.env.language`, e.g. 'fr', 'en-us'): the
+  // base document language, overridden by a `language:` front-matter key.
+  uiLanguage?: string;
 }
 interface ScrollMessage {
   type: 'scrollToLine';
   line: number;
 }
 
-// Page dimensions (mm) for the formats a `page-size:` frontmatter key may name.
-const PAGE_DIMS_MM: Record<string, [number, number]> = {
-  A3: [297, 420],
-  A4: [210, 297],
-  A5: [148, 210],
-  B5: [176, 250],
-  LETTER: [215.9, 279.4],
-  LEGAL: [215.9, 355.6],
-};
-
-// markpage's default profile (settings.ts DEFAULT_SETTINGS): A4, 25 mm top/
-// bottom, 35 mm left/right, footer page numbers on. Used when the document
-// doesn't override them via frontmatter — so the preview looks like the PDF.
-const DEFAULT_MARGINS = { top: 25, right: 35, bottom: 25, left: 35 };
-
-interface Layout {
-  pageW: number;
-  pageH: number;
-  margins: { top: number; right: number; bottom: number; left: number };
-  pageNumbers: boolean;
-  fonts: { body?: string; headings?: string; mono?: string };
-}
-
-/** Resolve the effective page layout: flat frontmatter keys win, then the
- *  embedded profile's layout, then the defaults. */
-function layoutFromMeta(
-  meta: ReturnType<typeof parseFrontmatter>['meta'],
-  profile: Profile | null,
-): Layout {
-  const sizeKey = (meta['page-size'] ?? profile?.pageSize)?.trim().toUpperCase() ?? 'A4';
-  const [pageW, pageH] = PAGE_DIMS_MM[sizeKey] ?? PAGE_DIMS_MM.A4;
-  const pm = profile?.margins;
-  const profileMargins = pm
-    ? { top: pm.top, right: pm.right, bottom: pm.bottom, left: pm.left }
-    : undefined;
-  return {
-    pageW,
-    pageH,
-    margins: meta.margins ?? profileMargins ?? DEFAULT_MARGINS,
-    pageNumbers: meta['page-numbers'] ?? profile?.pageNumbers ?? true,
-    fonts: { body: meta['font-body'], headings: meta['font-heading'], mono: meta['font-mono'] },
-  };
-}
-
-/** @page rules for the paginated mode (paged.js reads these): size, margins,
- *  and a centred footer page number. */
-function pageCss(L: Layout): string {
-  const m = L.margins;
-  const numbers = L.pageNumbers
-    ? '@bottom-center { content: counter(page); font-size: 9pt; color: #555; }'
-    : '';
-  // The fragmentation policy (heading/table/atomic-block break rules,
-  // orphans/widows) is shared with the host app via paginationCss() so the two
-  // never drift apart.
-  return `@page { size: ${L.pageW}mm ${L.pageH}mm; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; ${numbers} }
-    ${paginationCss()}
-    ${letterheadCss({ margins: m, pageW: L.pageW, pageH: L.pageH })}`;
-}
-
-/** Apply the layout to the page sheet: font overrides always; in continuous
- *  mode the sheet carries the page width + margins (paged.js owns them when
- *  paginated, so we clear the inline box there). */
-function applyLayoutToRoot(L: Layout, paginated: boolean): void {
-  const setVar = (k: string, v?: string): void => {
-    if (v) root.style.setProperty(k, v);
-    else root.style.removeProperty(k);
-  };
-  setVar('--font-body', L.fonts.body);
-  setVar('--font-heading', L.fonts.headings);
-  setVar('--font-mono', L.fonts.mono);
-  if (paginated) {
-    for (const p of ['width', 'min-height', 'padding', 'max-width']) root.style.removeProperty(p);
-  } else {
-    const m = L.margins;
-    root.style.width = `${L.pageW}mm`;
-    root.style.minHeight = `${L.pageH}mm`;
-    root.style.padding = `${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm`;
-  }
-}
-
-let currentLayout: Layout = layoutFromMeta({ extra: {} }, null);
-
-// Holds the CSS translated from the document's `markpage-profile` (per-element
-// typography). Appended after the linked stylesheets so it wins the cascade;
-// the flat font-* keys (set inline on the root) still win over it.
-const profileStyle = document.createElement('style');
-profileStyle.id = 'mp-profile';
-document.head.append(profileStyle);
-
 // Bridge to the extension host (absent in the plain-browser dev harness).
 const vscode =
   typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : undefined;
 
-const root = document.getElementById('markpage-preview') as HTMLElement;
+const pane = document.getElementById('preview-pane') as HTMLElement;
 let renderToken = 0;
 let suppressScroll = false; // ignore the scroll event our own scrollToLine causes
 let lastMsg: RenderMessage | undefined;
+let currentSettings: PdfSettings = DEFAULT_SETTINGS;
+let currentPaginated = false;
+// Named styles already reported as unknown to the host (warn once per name).
+const reportedStyles = new Set<string>();
 
-// Floating widget (top-right, outside #markpage-preview so paged.js leaves it
-// alone): toggle pagination + print. In VS Code it drives the host (source of
-// truth); in the plain-browser harness it re-renders locally.
+void registerFallbackFonts().catch(() => undefined);
+
+// Floating widget (top-right): toggle pagination + export. In VS Code it drives
+// the host (source of truth); in the plain-browser harness it re-renders locally.
 const toggleBtn = makeToolbar();
 
 function makeToolbar(): HTMLButtonElement {
@@ -150,15 +78,15 @@ function makeToolbar(): HTMLButtonElement {
   bar.className = 'mp-toolbar';
   const toggle = document.createElement('button');
   toggle.className = 'mp-toggle';
-  toggle.title = 'Toggle pagination (continuous ↔ A4 pages)';
-  toggle.textContent = '▭ A4 pages';
+  toggle.title = 'Toggle pagination (continuous ↔ pages)';
+  toggle.textContent = '▭ Pages';
   toggle.addEventListener('click', () => {
     if (vscode) vscode.postMessage({ type: 'togglePagination' });
     else if (lastMsg) void render({ ...lastMsg, paginated: !lastMsg.paginated });
   });
   const print = document.createElement('button');
   print.className = 'mp-toggle';
-  print.title = 'Open in browser to Save as PDF (best in A4 pages mode)';
+  print.title = 'Open in browser to Save as PDF (best in Pages mode)';
   print.textContent = '⎙ PDF';
   print.addEventListener('click', requestExport);
   bar.append(toggle, print);
@@ -174,72 +102,10 @@ window.addEventListener('message', (e: MessageEvent) => {
   else if (msg.type === 'print') requestExport();
 });
 
-// ---- PDF export -----------------------------------------------------------
-// VS Code webviews can't reliably window.print(), so the "PDF" button serializes
-// the current render to a self-contained HTML document and hands it to the host,
-// which opens it in the system browser (Cmd/Ctrl-P → Save as PDF).
-
-/** Build a standalone HTML doc of the current render, with all CSS inlined. */
-function buildStandaloneHtml(): string {
-  let css = '';
-  for (const sheet of Array.from(document.styleSheets)) {
-    try {
-      for (const rule of Array.from(sheet.cssRules)) css += `${rule.cssText}\n`;
-    } catch {
-      /* a cross-origin sheet we can't read — skip it */
-    }
-  }
-  const L = currentLayout;
-  // Print rules: hide the widget, drop shadows, and set the page box. In
-  // paginated mode each .pagedjs_page is a physical sheet (margins baked in →
-  // @page margin 0); in continuous mode the single sheet keeps its padding.
-  const printCss = `@media print {
-  html, body { background: #fff !important; margin: 0; }
-  .mp-toolbar { display: none !important; }
-  @page { size: ${L.pageW}mm ${L.pageH}mm; margin: 0; }
-  #markpage-preview { box-shadow: none !important; margin: 0 !important; max-width: none !important; zoom: 1 !important; }
-  .pagedjs_page { box-shadow: none !important; margin: 0 !important; break-after: page; }
-}`;
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>markpage — PDF</title>
-<style>${css}\n${printCss}</style></head>
-<body>${root.outerHTML}</body></html>`;
-}
-
-/** Hand the standalone HTML to the host (→ system browser); harness falls back
- *  to the browser's own print. */
-function requestExport(): void {
-  if (vscode) vscode.postMessage({ type: 'exportHtml', html: buildStandaloneHtml() });
-  else window.print();
-}
-
-/**
- * Build the per-element profile from the document stack: parse the front-matter
- * (which explodes a `markpage-profile` embed into dotted keys), resolve
- * `var(--token)` references, then rebuild a profile. This makes tokens + dotted
- * `styles.<el>.<attr>` keys work in the preview, exactly as in the app — and
- * still honours the legacy JSON embed. (Cross-document `extends` needs a file
- * resolver the webview doesn't have yet, so it's left to the host app.)
- * Returns null when the document carries no profile-relevant keys, or on a token
- * error, so the preview falls back to its default theme.
- */
-function profileFromStack(md: string): Profile | null {
-  let patch;
-  try {
-    patch = denormalizeProfile(resolveTokens(parseStackDoc(md, 'doc').frontmatter));
-  } catch {
-    return null; // undefined token / cycle → fall back to the default theme
-  }
-  if (
-    !patch.fonts &&
-    !patch.styles &&
-    patch.pageSize === undefined &&
-    !patch.margins &&
-    patch.pageNumbers === undefined
-  ) {
-    return null;
-  }
-  return patch as Profile;
+/** The base every document resolves from: DEFAULT_SETTINGS in VS Code's language. */
+function baseSettings(uiLanguage: string | undefined): PdfSettings {
+  const lang = (uiLanguage ?? '').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  return { ...DEFAULT_SETTINGS, language: uiLanguage ? lang : DEFAULT_SETTINGS.language };
 }
 
 async function render(msg: RenderMessage): Promise<void> {
@@ -247,127 +113,251 @@ async function render(msg: RenderMessage): Promise<void> {
   toggleBtn.classList.toggle('active', msg.paginated);
   const token = (renderToken += 1);
   const base = msg.baseUri ? msg.baseUri.replace(/\/?$/, '/') : '';
-  // Same frontmatter handling as the markpage app: parse the YAML, render a
-  // doc-title + author/org/date header (renderMetadataBlock), apply a per-doc
-  // mathjax-preamble. The body offset keeps scroll-sync line numbers correct.
-  const { meta, body } = parseFrontmatter(msg.md);
-  const lineOffset = countNewlines(msg.md.slice(0, msg.md.length - body.length));
-  const profile = profileFromStack(msg.md);
-  currentLayout = layoutFromMeta(meta, profile);
-  profileStyle.textContent = profileToCss(profile);
-  applyLayoutToRoot(currentLayout, msg.paginated);
-  root.classList.remove('paginated');
-  root.innerHTML =
-    renderMetadataBlock(meta) +
-    renderMarkpageMarkdown(body, {
-      resolveImageSrc: (src) => resolveSrc(src, base),
-    });
-  annotateSourceLines(root, body, lineOffset);
+  const { meta } = parseFrontmatter(msg.md);
+  const { settings, unknownStyle } = documentSettings(meta, baseSettings(msg.uiLanguage));
+  if (unknownStyle && !reportedStyles.has(unknownStyle)) {
+    reportedStyles.add(unknownStyle);
+    console.warn(`[markpage] unknown document-style: "${unknownStyle}"`);
+    vscode?.postMessage({ type: 'unknownStyle', name: unknownStyle });
+  }
+  registerCustomFonts(settings.customFonts);
+  applyPreviewStyles(settings);
+  void loadSettingsFonts(settings).catch((err: unknown) => {
+    console.error('[markpage] font load failed', err);
+  });
+  let built: HTMLElement;
   try {
-    await hydratePreview(root, { fontSet: 'newcm', preamble: meta['mathjax-preamble'] ?? '' });
+    ({ built } = await buildDocumentDom(msg.md, settings, {
+      resolveImageSrc: (src) => resolveSrc(src, base),
+      beforeHydrate: (b) => annotateSourceLines(b, msg.md),
+    }));
   } catch (err) {
-    console.error('[markpage] hydrate failed', err);
+    console.error('[markpage] render failed', err);
+    return;
   }
   if (token !== renderToken) return; // superseded
+  applyPageFills(pane, settings);
   if (msg.paginated) {
+    // Paginate into a hidden buffer inside the pane (so the scoped page CSS
+    // applies) and swap the pages in once ready — the previous render stays on
+    // screen meanwhile. The engine measures glyphs as it breaks lines, so wait
+    // for the fonts first.
+    pane.classList.remove('continuous');
+    const buffer = document.createElement('div');
+    buffer.style.cssText =
+      'position: absolute; top: 0; left: 0; width: 100%; visibility: hidden; pointer-events: none;';
+    pane.append(buffer);
     try {
-      await paginate(token);
+      if (document.fonts?.ready) await document.fonts.ready;
+      await paginate(built, settings, buffer);
     } catch (err) {
       console.error('[markpage] pagination failed', err);
+      buffer.remove();
+      return;
     }
+    if (token !== renderToken) {
+      buffer.remove();
+      return;
+    }
+    pane.replaceChildren(...buffer.childNodes);
+  } else {
+    renderContinuousSheet(built, settings, pane);
   }
+  currentSettings = settings;
+  currentPaginated = msg.paginated;
   applyZoom();
 }
 
-// ---- zoom (fit-to-width + drag-to-zoom) -----------------------------------
+// ---- PDF export -----------------------------------------------------------
+// VS Code webviews can't reliably window.print(), so the "PDF" button serializes
+// the current render to a self-contained HTML document and hands it to the host,
+// which opens it in the system browser (Cmd/Ctrl-P → Save as PDF). That browser
+// can't reach the webview's resources, so everything they serve — the fonts the
+// document uses, its images — is inlined as data: URLs; Google-hosted fonts are
+// public and stay linked.
+
+/** Fetch a resource and return it as a data: URL (null when unreachable). */
+async function toDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** The font families the rendered document can use (style trio + per-element). */
+function usedFamilies(s: PdfSettings): Set<string> {
+  const names = [s.fonts.headings, s.fonts.body, s.fonts.code];
+  for (const st of Object.values(s.styles)) if (st.family) names.push(st.family);
+  return new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean));
+}
+
+/** An @font-face rule with its url()s inlined, or '' when unused / unreachable. */
+async function inlineFontFace(rule: CSSFontFaceRule, base: string, used: Set<string>): Promise<string> {
+  const family = rule.style.getPropertyValue('font-family').replace(/["']/g, '').trim().toLowerCase();
+  if (!used.has(family)) return '';
+  let css = rule.cssText;
+  for (const m of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
+    const ref = m[1];
+    if (ref.startsWith('data:')) continue;
+    const data = await toDataUrl(new URL(ref, base).href);
+    if (!data) return '';
+    css = css.replace(m[0], `url("${data}")`);
+  }
+  return css;
+}
+
+/** Build a standalone HTML doc of the current render, with its CSS, fonts and
+ *  images inlined. */
+async function buildStandaloneHtml(): Promise<string> {
+  const used = usedFamilies(currentSettings);
+  let css = '';
+  const links: string[] = [];
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules: CSSRule[];
+    try {
+      rules = Array.from(sheet.cssRules);
+    } catch {
+      // Cross-origin (Google Fonts): unreadable here, but public — link it.
+      if (sheet.href?.startsWith('https:')) links.push(`<link rel="stylesheet" href="${sheet.href}">`);
+      continue;
+    }
+    const base = sheet.href ?? document.baseURI;
+    for (const rule of rules) {
+      css += rule instanceof CSSFontFaceRule
+        ? `${await inlineFontFace(rule, base, used)}\n`
+        : `${rule.cssText}\n`;
+    }
+  }
+  const clone = pane.cloneNode(true) as HTMLElement;
+  for (const img of clone.querySelectorAll('img')) {
+    const src = img.getAttribute('src');
+    if (!src || src.startsWith('data:')) continue;
+    const data = await toDataUrl(new URL(src, document.baseURI).href);
+    if (data) img.setAttribute('src', data);
+  }
+  const { w, h } = pageSizeMm(currentSettings);
+  // Print rules: hide the widget, drop the desk + shadows, print at natural size.
+  // In Pages mode each page is a physical sheet (margins baked in → @page margin
+  // 0); the continuous sheet keeps its padding.
+  const printCss = `@media print {
+  html, body { background: #fff !important; margin: 0; padding: 0 !important; }
+  .mp-toolbar { display: none !important; }
+  @page { size: ${w}mm ${h}mm; margin: 0; }
+  #preview-pane { background: #fff !important; padding: 0 !important; min-height: 0 !important; --mp-fit-zoom: 1; }
+  #preview-pane .pagedjs_page { box-shadow: none !important; margin: 0 !important; }
+  /* A break BEFORE every page but the first: a break after the last one would
+     print a trailing blank sheet. */
+  #preview-pane .pagedjs_page ~ .pagedjs_page { break-before: page; }
+  #preview-pane .mp-continuous-sheet { box-shadow: none !important; zoom: 1 !important; }
+  #preview-pane .mp-spread { display: block !important; }
+}`;
+  return `<!DOCTYPE html>
+<html lang="${currentSettings.language}"><head><meta charset="utf-8"><title>markpage — PDF</title>
+${links.join('\n')}
+<style>${css}\n${printCss}</style></head>
+<body class="mp-webview">${clone.outerHTML}</body></html>`;
+}
+
+/** Hand the standalone HTML to the host (→ system browser); harness falls back
+ *  to the browser's own print. */
+function requestExport(): void {
+  if (!vscode) {
+    window.print();
+    return;
+  }
+  void buildStandaloneHtml().then((html) => vscode.postMessage({ type: 'exportHtml', html }));
+}
+
+// ---- zoom (drag-to-zoom, never wider than the panel) ----------------------
 // Invariant: the FULL page width is always visible — the page is shown at
 //   r = min(z, W_v / W_p)
 // where z is the user's absolute zoom (1 = 100% of the natural page width, the
-// default), W_p the natural page width and W_v the panel's content width. The
-// min() guarantees the page never gets wider than the panel (no horizontal
-// scroll). Dragging a side border sets z so the edge tracks the cursor;
-// double-clicking a border resets z = 1. Uses the `zoom` CSS property (Chromium,
-// which the VS Code webview is) so layout reflows and scrollbars stay correct.
+// default), W_p the natural width (a page, or a facing spread in duplex) and W_v
+// the panel's content width. Dragging a side border sets z so the edge tracks
+// the cursor; double-clicking a border resets z = 1. Pages zoom through the
+// app's `--mp-fit-zoom` variable (style.css applies it to each page); the
+// continuous sheet takes `zoom` directly. `zoom` reflows, so scrollbars and
+// scroll-sync stay correct.
 
 const Z_MIN = 0.2;
 const Z_MAX = 3;
 const EDGE_PX = 8; // hot zone (px) around a page side for the resize cursor
+const PANE_GUTTER = 24; // px breathing room + scrollbar allowance
 let zoom = 1; // z — the user's absolute zoom factor
+let naturalWidth = 0; // W_p, measured at zoom 1 by applyZoom()
+let appliedZoom = 1; // r
 
 /** Panel content width W_v (px). */
 function panelWidth(): number {
-  const styles = getComputedStyle(document.body);
-  const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-  return document.body.clientWidth - padX;
+  return pane.clientWidth - PANE_GUTTER;
 }
 
-/** Natural (unzoomed) page width W_p (px). */
-function naturalPageWidth(): number {
-  return (currentLayout.pageW * 96) / 25.4;
+function setZoom(r: number): void {
+  appliedZoom = r;
+  if (currentPaginated) pane.style.setProperty('--mp-fit-zoom', String(r));
+  else {
+    const sheet = pane.querySelector<HTMLElement>('.mp-continuous-sheet');
+    if (sheet) sheet.style.zoom = String(r);
+  }
 }
 
-/** Apply r = min(z, W_v / W_p) via the `zoom` property. */
+/** Measure W_p at zoom 1, then apply r = min(z, W_v / W_p). */
 function applyZoom(): void {
-  const wp = naturalPageWidth();
-  if (wp <= 0) return;
-  root.style.setProperty('zoom', String(Math.min(zoom, panelWidth() / wp)));
+  setZoom(1);
+  const first = pane.querySelector<HTMLElement>(
+    currentPaginated ? '.pagedjs_page' : '.mp-continuous-sheet',
+  );
+  if (!first) return;
+  const w = first.getBoundingClientRect().width;
+  // A duplex spread shows two pages side by side: fit both.
+  naturalWidth = currentPaginated && pane.querySelector('.mp-spread') ? 2 * w : w;
+  if (naturalWidth <= 0) return;
+  setZoom(Math.min(zoom, panelWidth() / naturalWidth));
 }
 
 // Page side edges are computed from first principles in client coordinates,
-// NOT from the zoomed element's getBoundingClientRect — under CSS `zoom` the
-// VS Code webview's Chromium reports a rect that doesn't match `clientX`, which
-// mis-placed the edge (and the drag centre) by the zoom factor. The page is
-// centred in the body content box (un-zoomed, reliable) and its on-screen width
-// is naturalWidth × appliedZoom.
+// NOT from the zoomed elements' getBoundingClientRect — under CSS `zoom` the
+// webview's Chromium reports rects that don't match `clientX`. The page is
+// centred in the pane and its on-screen width is naturalWidth × appliedZoom.
 
-/** Page centre x, in client px (page is centred in the body content box). */
+/** Page centre x, in client px (the page is centred in the pane). */
 function pageCenterX(): number {
-  const cs = getComputedStyle(document.body);
-  const padL = parseFloat(cs.paddingLeft) || 0;
-  const padR = parseFloat(cs.paddingRight) || 0;
-  const left = document.body.getBoundingClientRect().left + padL;
-  return left + (document.body.clientWidth - padL - padR) / 2;
+  const r = pane.getBoundingClientRect();
+  return r.left + pane.clientWidth / 2;
 }
 
-/** Half the page's on-screen width, in client px = naturalWidth × appliedZoom / 2. */
-function pageHalfWidth(): number {
-  const r = parseFloat(root.style.zoom) || 1;
-  return (naturalPageWidth() * r) / 2;
-}
-
-/** Is the cursor in the hot zone around a page side edge? (grabbable at any
- *  height of the preview). */
+/** Is the cursor in the hot zone around a page side edge? */
 function nearEdge(clientX: number, clientY: number): boolean {
-  if (clientY < 0 || clientY > window.innerHeight) return false;
+  if (clientY < 0 || clientY > window.innerHeight || naturalWidth <= 0) return false;
   const c = pageCenterX();
-  const h = pageHalfWidth();
+  const h = (naturalWidth * appliedZoom) / 2;
   return Math.abs(clientX - (c - h)) <= EDGE_PX || Math.abs(clientX - (c + h)) <= EDGE_PX;
 }
 
 let dragging = false;
 let centerX = 0; // page centre (px) captured at drag start — the page stays centred
 // Anchored zoom: the grabbed content point, in natural (un-zoomed) px, kept
-// opposite the cursor as the zoom changes. Computed in scroll space only
-// (window.scrollY / clientY / body padding-top) — NO getBoundingClientRect,
-// which the webview's Chromium reports inconsistently under `zoom`.
+// opposite the cursor as the zoom changes. Scroll space only (window.scrollY /
+// clientY) — no getBoundingClientRect under `zoom`.
 let anchorNatY = 0;
-
-/** Body content-box top offset (padding-top), in px — reliable (un-zoomed). */
-function bodyPadTop(): number {
-  return parseFloat(getComputedStyle(document.body).paddingTop) || 0;
-}
 
 window.addEventListener('pointermove', (e) => {
   if (dragging) {
     // On-screen half-width = |cursor − centre| ⇒ z = (2·half) / W_p. The edge
     // can't pass the panel border: min(z, fill) caps it there.
     const half = Math.abs(e.clientX - centerX);
-    zoom = Math.max(Z_MIN, Math.min(Z_MAX, (2 * half) / naturalPageWidth()));
-    const r = Math.min(zoom, panelWidth() / naturalPageWidth());
-    root.style.setProperty('zoom', String(r));
-    // Keep the grabbed line opposite the cursor: a point at natural Y appears at
-    // padTop + Y·r − scrollY, so solving for the cursor gives this scroll.
-    window.scrollTo(window.scrollX, bodyPadTop() + anchorNatY * r - e.clientY);
+    zoom = Math.max(Z_MIN, Math.min(Z_MAX, (2 * half) / naturalWidth));
+    setZoom(Math.min(zoom, panelWidth() / naturalWidth));
+    window.scrollTo(window.scrollX, anchorNatY * appliedZoom - e.clientY);
     e.preventDefault();
     return;
   }
@@ -377,9 +367,7 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerdown', (e) => {
   if (!nearEdge(e.clientX, e.clientY)) return;
   centerX = pageCenterX();
-  // Anchor the content point under the cursor, in natural (un-zoomed) px.
-  const r0 = parseFloat(root.style.zoom) || 1;
-  anchorNatY = (e.clientY + window.scrollY - bodyPadTop()) / r0;
+  anchorNatY = (e.clientY + window.scrollY) / appliedZoom;
   dragging = true;
   document.body.style.cursor = 'ew-resize';
   e.preventDefault(); // suppress text selection while dragging
@@ -403,110 +391,6 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(applyZoom, 100);
 });
 
-/**
- * Defuse `.keep-with-next` wrappers taller than a page. keepLabelsWithNext()
- * wraps every heading with the block that follows it in a `break-inside: avoid`
- * box; when the pair grows past a full page (a long paragraph, or a table whose
- * cells wrap once the column is narrowed by wide margins) paged.js cannot place
- * the unbreakable box — its break-token search walks off the rendered tree, and
- * the local pagedjs patch turns the crash into a silent bail that drops or crams
- * the rest of the document (no error surfaced). This measures each pair offscreen
- * at the real page-content width and dissolves any that reach ~90% of the page
- * height, so its content can break normally (the heading keeps its
- * `break-after: avoid` hint). Mirrors unwrapOversizedKeepWithNext() in the host
- * app's preview-paginated.ts.
- */
-async function unwrapOversizedKeepWithNext(source: HTMLElement, L: Layout): Promise<void> {
-  const wrappers = [...source.querySelectorAll<HTMLElement>('.keep-with-next')];
-  if (wrappers.length === 0) return;
-  const PX_PER_MM = 96 / 25.4;
-  const widthPx = Math.max(1, (L.pageW - L.margins.left - L.margins.right) * PX_PER_MM);
-  const threshold = Math.max(1, (L.pageH - L.margins.top - L.margins.bottom) * PX_PER_MM) * 0.9;
-  // Hidden offscreen stage inside #markpage-preview so the same scoped
-  // typography that shapes the live preview also shapes the measurement.
-  const stage = document.createElement('div');
-  stage.style.cssText = [
-    'position: absolute',
-    'left: -99999px',
-    'top: 0',
-    `width: ${widthPx}px`,
-    'visibility: hidden',
-    'pointer-events: none',
-  ].join('; ');
-  root.appendChild(stage);
-  stage.appendChild(source);
-  // Force layout so web fonts referenced by the CSS get requested, then wait.
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  stage.offsetHeight;
-  if (document.fonts && document.fonts.ready) {
-    try {
-      await document.fonts.ready;
-    } catch {
-      /* best-effort — measure with whatever is ready */
-    }
-  }
-  try {
-    for (const w of wrappers) {
-      if (w.getBoundingClientRect().height < threshold) continue;
-      while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
-      w.remove();
-    }
-  } finally {
-    source.remove(); // detach `source` from the stage; the caller still holds it
-    stage.remove();
-  }
-}
-
-/** Paginated mode: fragment the rendered content into A4 pages via paged.js. */
-async function paginate(token: number): Promise<void> {
-  // Snapshot the hydrated content (SVGs included) as the paged.js source.
-  const source = document.createElement('div');
-  source.innerHTML = root.innerHTML;
-  // Wrap consecutive sender/recipient/signature blocks in a .letterhead-group
-  // (+ reserve vertical space for a window-positioned recipient) so the
-  // letterheadCss() rules apply — same DOM pass the host app runs.
-  groupLetterheads(source);
-  // Fragment any `<pre>` taller than a page into contiguous chunks so paged.js
-  // has natural break points — without this a >1-page code block drops
-  // downstream content (leaving a blank page) or triggers paged.js's
-  // blank-page/duplicate bug (SPEC §13.3). MUST run before keepLabelsWithNext,
-  // so a lead-in paragraph pairs with the FIRST chunk, not the whole block.
-  splitLongPreBlocks(source, PRE_SPLIT_TARGET_LINES, PRE_SPLIT_SLACK_LINES);
-  // Keep each heading / lead-in with the block that follows it — the reliable
-  // half of the orphan-control policy (`break-after: avoid` alone is flaky in
-  // paged.js when the next block is tall). Pairs with `.keep-with-next` in
-  // paginationCss().
-  keepLabelsWithNext(source);
-  // Undo any keep-with-next pair that ended up taller than a page — left in
-  // place it makes paged.js drop or cram the rest of the document.
-  await unwrapOversizedKeepWithNext(source, currentLayout);
-  const { Previewer } = await import('pagedjs');
-  if (token !== renderToken) return; // a newer render started while loading
-  // paged.js injects a generated <style> into <head> on every preview() and
-  // never removes it — across edits/toggles they pile up and stale rules
-  // (e.g. a previous run's @bottom-center page number) leak into the new
-  // pages. Drop them before re-paginating so each run starts from a clean slate.
-  document.querySelectorAll('style[data-pagedjs-inserted-styles]').forEach((s) => s.remove());
-  root.classList.add('paginated');
-  // Wait for fonts, and paginate at natural scale: paged.js measures glyph
-  // widths and page geometry as it decides breaks, so a font that swaps in
-  // afterwards, or a stale fit-to-width `zoom` left on `root` by applyZoom(),
-  // skews those measurements — content clips and the breaks drift away from the
-  // print output. applyZoom() re-applies the display zoom once pages exist.
-  if (document.fonts && document.fonts.ready) {
-    try {
-      await document.fonts.ready;
-    } catch {
-      /* best-effort */
-    }
-  }
-  root.style.setProperty('zoom', '1');
-  root.innerHTML = '';
-  await new Previewer().preview(source, [{ 'markpage-page.css': pageCss(currentLayout) }], root);
-  // Clone `::: background` backdrops onto each page of their run (behind content).
-  applyBackgrounds(root);
-}
-
 // ---- scroll-sync ----------------------------------------------------------
 
 /** Host → preview: scroll so the block at `line` sits near the top. */
@@ -525,7 +409,7 @@ function scrollToLine(line: number): void {
 /** The last annotated block whose source line is ≤ `line`. */
 function elementForLine(line: number): HTMLElement | null {
   let best: HTMLElement | null = null;
-  for (const el of root.querySelectorAll<HTMLElement>('[data-line]')) {
+  for (const el of pane.querySelectorAll<HTMLElement>('[data-line]')) {
     if (Number(el.dataset.line) <= line) best = el;
     else break;
   }
@@ -545,44 +429,12 @@ window.addEventListener(
 );
 
 function reportTopLine(): void {
-  for (const el of root.querySelectorAll<HTMLElement>('[data-line]')) {
+  for (const el of pane.querySelectorAll<HTMLElement>('[data-line]')) {
     if (el.getBoundingClientRect().top >= 0) {
       vscode?.postMessage({ type: 'revealLine', line: Number(el.dataset.line) });
       return;
     }
   }
-}
-
-// ---- source-line annotation (ported from markpage's annotateSourceLines) --
-
-/** Tag each top-level rendered block with its source line (+ frontmatter offset). */
-function annotateSourceLines(target: HTMLElement, source: string, offset: number): void {
-  const tokens = marked.lexer(source);
-  // The frontmatter header (doc-title h1 + .preview-metadata) has no source
-  // line — skip it so body tokens still align with their rendered elements.
-  const elements = Array.from(target.children).filter(
-    (el): el is HTMLElement =>
-      el instanceof HTMLElement &&
-      !el.classList.contains('preview-metadata') &&
-      !el.classList.contains('doc-title'),
-  );
-  let i = 0;
-  let line = 0;
-  for (const tok of tokens) {
-    const renders = tok.type !== 'space' && tok.type !== 'html' && tok.type !== 'footnoteDef';
-    if (renders) {
-      const el = elements[i];
-      if (el) el.dataset.line = String(line + offset);
-      i += 1;
-    }
-    line += countNewlines(tok.raw);
-  }
-}
-
-function countNewlines(s: string): number {
-  let n = 0;
-  for (let i = 0; i < s.length; i += 1) if (s.codePointAt(i) === 10) n += 1;
-  return n;
 }
 
 // ---- helpers --------------------------------------------------------------

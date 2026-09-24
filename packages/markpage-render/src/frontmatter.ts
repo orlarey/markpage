@@ -4,7 +4,7 @@
  *   Markdown source, returning the recognised metadata + the doc body.
  * How: Tiny purpose-built parser — we only need plain `key: value` lines
  *   and `key: |` block scalars (for `mathjax-preamble`). Avoids pulling
- *   a full YAML dependency for our 5 known keys.
+ *   a full YAML dependency for our handful of document keys.
  *
  *******************************************************************************/
 
@@ -32,44 +32,6 @@ export interface Frontmatter {
   // a French or English text — so a document carries it and it overrides the
   // resolved style's language (hyphenation + date format). 'fr' | 'en'.
   language?: string;
-  // Per-doc override of the page format: when truthy the renderer
-  // forces `pageSize: 'SLIDES_16_9'` so `## h2` starts a new slide
-  // regardless of the active settings profile.
-  slides?: boolean;
-
-  // --- Layout / typography overrides (SPEC: applied on top of the active
-  // profile by applyFrontmatterToSettings, and by the VS Code preview directly).
-  // These make a document self-describing so it renders the same in the app
-  // and in any host that reads the frontmatter. ---
-  // Page format name (A4 / A5 / LETTER / …); case-insensitive.
-  'page-size'?: string;
-  // Page margins in mm. Authored as a CSS-shorthand list (`25`, `25 35`,
-  // `20 30 25 30`) and stored already expanded to the four sides.
-  margins?: { top: number; right: number; bottom: number; left: number };
-  // Footer page numbers on/off (the default profile footer is ' | {page} | ').
-  'page-numbers'?: boolean;
-  // Font family overrides for the three slots (body / headings / monospace).
-  'font-body'?: string;
-  'font-heading'?: string;
-  'font-mono'?: string;
-  // Style-editor colour axis (docs/STYLE-EDITOR-SPEC.md §8). `color-hue` is the
-  // single bin's hue (0–359); `color-crans` a compact table of per-element
-  // positions on the 6×6 sat×value grid (`s,v`) or neutral column (`n<i>`),
-  // e.g. "titre:4,4 h1:4,3 corps:n4". Colours are DERIVED from (hue, cran) so
-  // rotating the hue pivots the whole family (see style-vocabulary.ts).
-  'color-hue'?: number;
-  'color-crans'?: string;
-  // Style-editor fonts axis (docs/STYLE-EDITOR-SPEC.md §6). `font-pair` names a
-  // curated pairing (headings/body/code/maths + scale ratio); `font-base` is the
-  // body size anchor (pt); `math-scale` sizes the maths relative to the body.
-  'font-pair'?: string;
-  'font-base'?: number;
-  'math-scale'?: number;
-  // A full style profile serialized as JSON (markpage's per-element `styles` +
-  // fonts + layout), written by markpage for external renderers (the VS Code
-  // preview) so a document carries its complete typography. Authored as a
-  // `markpage-profile: |` block scalar. The flat keys above take precedence.
-  'markpage-profile'?: string;
   extra: Record<string, string>;
 }
 
@@ -110,66 +72,6 @@ export function parseFrontmatter(source: string): ParseResult {
   let bodyStart = end + 1;
   if (lines[bodyStart]?.trim() === '') bodyStart += 1;
   return { meta, body: lines.slice(bodyStart).join('\n') };
-}
-
-const PROFILE_KEY = 'markpage-profile';
-
-/**
- * Purpose: Insert or replace the `markpage-profile` block in a document's
- *   frontmatter (creating the frontmatter if absent), carrying a serialized
- *   style profile for external renderers. Pure text transform — leaves the rest
- *   of the frontmatter and the body untouched.
- * How: Emit the JSON as a one-line `| ` block scalar. If frontmatter exists,
- *   strip any prior `markpage-profile` (key line + its indented block) and
- *   append the fresh one before the closing fence; otherwise prepend a new
- *   fenced block.
- */
-export function embedProfileInFrontmatter(source: string, profileJson: string): string {
-  return embedBlockInFrontmatter(source, PROFILE_KEY, profileJson);
-}
-
-/**
- * Purpose: Insert or replace a one-line `key: |` block-scalar in a document's
- *   frontmatter (creating the frontmatter if absent) — the generic form behind
- *   `embedProfileInFrontmatter`, reused for the fundamental-style embed
- *   (`markpage-style`). Pure text transform.
- * How: Emit the value as a `| ` block scalar; strip any prior block for the same
- *   key (its line + indented/blank continuation) and append the fresh one before
- *   the closing fence.
- */
-export function embedBlockInFrontmatter(
-  source: string,
-  key: string,
-  value: string,
-): string {
-  const block = [`${key}: |`, `  ${value}`];
-
-  if (!FENCE_RE.test(source)) {
-    return ['---', ...block, '---', '', source].join('\n');
-  }
-  const lines = source.split(/\r?\n/);
-  let end = -1;
-  for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i]?.trim() === '---') {
-      end = i;
-      break;
-    }
-  }
-  if (end < 0) return ['---', ...block, '---', '', source].join('\n');
-
-  const kept: string[] = [];
-  for (let i = 1; i < end; i += 1) {
-    const m = /^([A-Za-z_][\w-]*)\s*:/.exec(lines[i] ?? '');
-    if (m && m[1] === key) {
-      // Skip the key line and its indented / blank continuation lines.
-      let j = i + 1;
-      while (j < end && (lines[j] === '' || /^\s/.test(lines[j] ?? ''))) j += 1;
-      i = j - 1;
-      continue;
-    }
-    kept.push(lines[i] ?? '');
-  }
-  return ['---', ...kept, ...block, '---', ...lines.slice(end + 1)].join('\n');
 }
 
 /**

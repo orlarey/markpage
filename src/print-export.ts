@@ -15,18 +15,8 @@
 // Chrome can't touch them — at the cost of requiring "Margins: Aucune"
 // in the print dialog.
 
-import {
-  applyPreviewMetadata,
-  renderPreview,
-} from './preview';
-import {
-  renderMathBlocks,
-  renderMathInlines,
-  renderMermaidBlocks,
-  layoutMosaicBlocks,
-} from '@orlarey/markpage-render';
-import { parseFrontmatter } from '@orlarey/markpage-render';
-import { paginateOnce, pageContentGeomPx, pageSizeMm } from './preview-paginated';
+import { applyPageFills, buildDocumentDom } from './document-render';
+import { paginateOnce, pageSizeMm } from './preview-paginated';
 import { withBakedGeometry } from './geometry-producer';
 import type { PdfSettings } from './settings';
 import { t } from './i18n/strings';
@@ -83,10 +73,8 @@ export async function exportViaPrint(
 
   // Carry the derived page / cover fills onto the print target — the same CSS
   // vars the preview uses (style.css paints both targets). Set after the
-  // cssText reset above so they survive it; empty string falls back
-  // (page → white, cover → page).
-  target.style.setProperty('--mp-page-bg', effectiveSettings.pageBackground ?? '');
-  target.style.setProperty('--mp-cover-bg', effectiveSettings.coverBackground ?? '');
+  // cssText reset above so they survive it.
+  applyPageFills(target, effectiveSettings);
 
   // Apply the screen/print toggle. Note we install this AFTER paginate
   // so the on-screen `display: none` doesn't fight paged.js's
@@ -158,28 +146,16 @@ function beginPrintProgress(countIn: HTMLElement): { stop: () => void } {
 
 /**
  * Purpose: Build the rendered HTML element to be fed to the engine.
- * How: marked.parse, then apply metadata, then resolve mermaid / math placeholders.
+ * How: The shared document build (document-render.ts) — the same DOM the
+ *   preview paginates, mosaic rows included.
  */
 async function buildPrintContent(
   source: string,
   settings: PdfSettings,
 ): Promise<{ el: HTMLElement; effectiveSettings: PdfSettings }> {
-  const el = document.createElement('div');
-  const { meta } = parseFrontmatter(source);
   const effectiveSettings = withBakedGeometry(settings, pageSizeMm(settings));
-  renderPreview(el, source, effectiveSettings.numbering);
-  applyPreviewMetadata(el, effectiveSettings, meta);
-  const preamble = meta['mathjax-preamble'] ?? '';
-  await Promise.all([
-    renderMermaidBlocks(el),
-    renderMathBlocks(el, effectiveSettings.mathFontSet, preamble),
-    renderMathInlines(el, effectiveSettings.mathFontSet, preamble),
-    // Justify mosaic rows like the preview does — otherwise the images keep
-    // their flat un-laid-out form and stack at print time (geometry from the
-    // print page, computed deterministically from settings).
-    layoutMosaicBlocks(el, pageContentGeomPx(effectiveSettings)),
-  ]);
-  return { el, effectiveSettings };
+  const { built } = await buildDocumentDom(source, effectiveSettings);
+  return { el: built, effectiveSettings };
 }
 
 /**

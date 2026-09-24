@@ -1,154 +1,39 @@
-/* preview.css — the markpage preview is a preview of a printed PDF page, so it
- * shows a white "sheet" on a neutral backdrop, with fixed paper colours,
- * regardless of the editor's (possibly dark) theme.
- *
- * Loaded AFTER dist/webview.css (the hljs colour theme + @orlarey/blocks styles)
- * so it wins overrides. Content rules are scoped under #markpage-preview so they
- * beat any element-level styles VS Code injects into the webview. */
+/* preview.css — webview chrome only. The page itself (sheet, pages, shadows,
+ * per-element typography) comes from the markpage app's own style.css, bundled
+ * into dist/webview.css, exactly as the app renders it. What's left here:
+ * the webview body, the floating toolbar, and resets against the styles VS Code
+ * injects into a dark-theme webview. Loaded AFTER dist/webview.css. */
 
 :root { color-scheme: light; }
 
-html, body {
+/* The app's style.css sizes html/body for its split layout (height: 100%). The
+   webview scrolls the whole window instead — scroll-sync reads window.scrollY. */
+html, body.mp-webview {
+  height: auto;
+  min-height: 100%;
   margin: 0;
-  background: #e9e9ec; /* neutral backdrop around the page */
-}
-
-body {
-  padding: 1.6rem 1rem;
-}
-
-/* The page sheet — also defines the CSS variables @orlarey/blocks/styles.css uses. */
-#markpage-preview {
-  --bg: #ffffff;
-  --text: #1c1c1e;
-  --text-muted: #666666;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-sans: var(--font-body);
-  --font-heading: var(--font-body);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* Extra tokens the shared @orlarey/markpage-render/constructs.css references
-     without a fallback (admonitions, ebnf rects, borders). */
-  --border: #d0d7de;
-  --bg-alt: #f6f8fa;
-  --accent: #0969da;
-
-  /* A4 page: 210 × 297 mm with markpage's default margins (25 mm top/bottom,
-     35 mm left/right). These are fallbacks for first paint — the webview sets
-     width / min-height / padding inline from the document's effective layout
-     (page-size + margins frontmatter). Continuous scroll (no page breaks); the
-     paginated mode + PDF export do the real pagination. min-height keeps a
-     full-page shape for short docs; max-width scales down in a narrow split. */
-  width: 210mm;
-  max-width: 100%;
-  min-height: 297mm;
-  box-sizing: border-box;
-  margin: 0 auto;
-  background: #fff;
-  color: #1c1c1e;
-  font-family: var(--font-body);
-  font-size: 11pt;
-  line-height: 1.5;
-  padding: 25mm 35mm;
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
-}
-
-#markpage-preview h1,
-#markpage-preview h2,
-#markpage-preview h3,
-#markpage-preview h4,
-#markpage-preview h5,
-#markpage-preview h6 { font-family: var(--font-heading); line-height: 1.25; font-weight: 600; color: #14223a; }
-#markpage-preview h1 { font-size: 1.9em; }
-#markpage-preview h2 { font-size: 1.45em; border-bottom: 1px solid #e3e3e6; padding-bottom: 0.2em; }
-#markpage-preview h1.doc-title { text-align: center; }
-
-#markpage-preview a { color: #0b5cad; }
-
-#markpage-preview pre {
-  background: #f5f5f7;
-  color: #1c1c1e;
-  padding: 0.8em 1em;
-  border-radius: 6px;
-  overflow: auto;
-  font-size: 0.9em;
-  font-family: var(--font-mono);
-}
-#markpage-preview :not(pre) > code {
-  background: #f0f0f3;
-  color: #1c1c1e;
-  padding: 0.12em 0.35em;
-  border-radius: 4px;
-  font-size: 0.92em;
-  font-family: var(--font-mono);
-}
-/* Code inside a <pre> for a language highlight.js doesn't know gets no .hljs
-   class (e.g. ```text), so VS Code's dark default code styling bleeds through —
-   dark bars under the text. Reset it; highlighted (.hljs) blocks keep their
-   atom-one-light theme. */
-#markpage-preview pre code:not(.hljs) {
-  background: transparent;
-  color: #1c1c1e;
-}
-
-#markpage-preview blockquote {
-  background: transparent;
-  border-left: 3px solid #d4d4d8;
-  margin: 0;
-  padding: 0.2em 1em;
-  color: #555;
-}
-
-#markpage-preview img,
-#markpage-preview svg { max-width: 100%; height: auto; }
-
-/* The .sidenote Tufte footnote variant stays hidden (foot-of-document mode).
-   Every other render construct (tables, admonitions, math, mermaid, figures,
-   footnotes, definition lists, mosaic, ebnf, demo, …) now comes from the shared
-   @orlarey/markpage-render/constructs.css. */
-#markpage-preview .sidenote { display: none; }
-
-/* ---- Paginated mode (paged.js) ----------------------------------------
-   The container stops being a single A4 sheet; paged.js fills it with real
-   A4 page boxes (sized via @page), each styled as its own white sheet. */
-#markpage-preview.paginated {
-  width: auto;
-  max-width: none;
-  min-height: 0;
   padding: 0;
-  background: transparent;
-  box-shadow: none;
-}
-#markpage-preview.paginated .pagedjs_pages {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-#markpage-preview.paginated .pagedjs_page {
-  background: #fff;
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
+  background: #e9eaee;
 }
 
-/* ---- ::: background — per-page backdrop layer (BACKGROUND-SPEC) ---------- */
-/* applyBackgrounds() clones a .mp-bg-layer into each page box, behind content.
-   Full bleed by default (covers the whole page box). */
-#markpage-preview .pagedjs_pagebox { position: relative; }
-#markpage-preview .pagedjs_page_content { position: relative; z-index: 1; }
-#markpage-preview .mp-bg-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
+body.mp-webview #preview-pane {
+  overflow: visible;
+  min-height: 100vh;
 }
-#markpage-preview .mp-bg-item { position: absolute; }
-#markpage-preview .mp-bg-item.mp-bg-full { inset: 0; }
-/* Collapse the minipage's edge margins (a `![](logo)` is <p><img>, whose
-   paragraph margin would push it off the anchor corner) + drop the inline
-   baseline gap under images. */
-#markpage-preview .mp-bg-item > :first-child { margin-top: 0; }
-#markpage-preview .mp-bg-item > :last-child { margin-bottom: 0; }
-#markpage-preview .mp-bg-item img { display: block; }
+
+/* The continuous sheet zooms (like the pages) instead of shrinking to the panel:
+   a narrower column would re-break every line, unlike the printed page. */
+body.mp-webview #preview-pane.continuous .mp-continuous-sheet {
+  max-width: none;
+}
+
+/* VS Code's dark default webview styles colour bare <code> — reset them where
+   the app's stylesheet leaves the property unset. Highlighted (.hljs) blocks
+   keep their atom-one-light theme. */
+body.mp-webview #preview-pane pre code:not(.hljs) {
+  background: transparent;
+  color: inherit;
+}
 
 /* ---- Floating widget (top-right of the preview viewport) ---------------- */
 .mp-toolbar {

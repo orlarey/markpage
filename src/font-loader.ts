@@ -65,6 +65,15 @@ export function findFont(name: string): FontEntry | null {
 }
 
 /**
+ * Purpose: The weight of inline bold (`strong`, `b`) in a body family: real
+ *   Bold (700) when the family ships it, else Medium (500) — families without a
+ *   bold face (e.g. Roboto Condensed) would otherwise get a muddy faux-bold.
+ */
+export function inlineBoldWeight(bodyFamily: string): 500 | 700 {
+  return findFont(bodyFamily)?.weights.includes(700) ? 700 : 500;
+}
+
+/**
  * Purpose: Quote a family name for use inside a CSS `font-family` declaration.
  * How: Wrap in double quotes when the name contains whitespace; bare otherwise.
  */

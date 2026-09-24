@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   groupLetterheads,
   renderLetterhead,
-  keepLabelsWithNext,
 } from '@orlarey/markpage-render';
 
 describe('renderLetterhead', () => {
@@ -236,117 +235,6 @@ describe('groupLetterheads — DOM grouping', () => {
     groupLetterheads(root);
     const group = root.querySelector('.letterhead-group');
     expect(group?.classList.contains('letterhead-group--window')).toBe(false);
-  });
-
-  it('keepLabelsWithNext does NOT wrap h2 + next sibling when in slides mode', () => {
-    // In slides mode, h2 carries `break-before: page` (slidesBreakCss);
-    // a `break-inside: avoid` wrapper would conflict and make paged.js
-    // fragment the wrapper into stub + h2-alone + sibling-alone fragments
-    // across three slides. The print-export bug from the bugpdfexport.md
-    // repro: a slide title + mermaid pair got split into 3 slides instead
-    // of staying together on slide 2.
-    const doc = makeDoc(
-      '<div>' +
-        '<h2>MCP in One Picture</h2>' +
-        '<div class="mermaid-block"><svg/></div>' +
-        '</div>',
-    );
-    const root = doc.body.firstElementChild as HTMLElement;
-    keepLabelsWithNext(root, /*inSlidesMode=*/ true);
-    expect(root.querySelector('.keep-with-next')).toBeNull();
-    expect(root.children[0]?.tagName.toLowerCase()).toBe('h2');
-    expect(root.children[1]?.classList.contains('mermaid-block')).toBe(true);
-  });
-
-  it('keepLabelsWithNext wraps a heading + a breakable block (default mode)', () => {
-    const doc = makeDoc(
-      '<div>' + '<h2>Section</h2>' + '<p>Some prose that can break.</p>' + '</div>',
-    );
-    const root = doc.body.firstElementChild as HTMLElement;
-    keepLabelsWithNext(root);
-    expect(root.querySelector('.keep-with-next')).not.toBeNull();
-  });
-
-  it('flattens a heading chain into one keep-with-next wrapper', () => {
-    const doc = makeDoc(
-      '<div>' +
-        '<h2>Dependency graph</h2>' +
-        '<h3>Orientation</h3>' +
-        '<p>The first paragraph must not disappear.</p>' +
-        '<p>The second paragraph remains outside the pair.</p>' +
-        '</div>',
-    );
-    const root = doc.body.firstElementChild as HTMLElement;
-    keepLabelsWithNext(root);
-    const wrappers = root.querySelectorAll('.keep-with-next');
-    expect(wrappers).toHaveLength(1);
-    expect([...wrappers[0].children].map((el) => el.tagName.toLowerCase())).toEqual([
-      'h2',
-      'h3',
-      'p',
-    ]);
-    expect(root.children[1]?.textContent).toContain('second paragraph');
-  });
-
-  it('keepLabelsWithNext does NOT wrap a heading + an already-atomic block', () => {
-    // The next block receives the semantic `.mp-atomic` boundary. Nesting it in a
-    // second break-inside:avoid wrapper makes paged.js drop the tail of the
-    // inner block. We keep the heading with it via break-after:avoid instead.
-    for (const nextHtml of [
-      '<div class="mermaid-block block-rigid"><svg/></div>',
-      '<div class="math-block block-rigid"></div>',
-      '<figure class="captioned captioned-figure"><div class="block-rigid"><svg/></div></figure>',
-      '<div class="demo-block"></div>',
-    ]) {
-      const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
-      const root = doc.body.firstElementChild as HTMLElement;
-      keepLabelsWithNext(root);
-      expect(root.querySelector('.keep-with-next')).toBeNull();
-    }
-  });
-
-  it('keepLabelsWithNext leaves internally breakable rich blocks breakable', () => {
-    for (const nextHtml of [
-      '<figure class="captioned captioned-algorithm">' +
-        '<div class="algorithm"><table><tr><td>x</td></tr></table></div>' +
-        '<figcaption>Algorithm 1</figcaption></figure>',
-      '<div class="admonition"><div class="admonition-title">Caution</div>' +
-        '<div class="admonition-body"><p>Body</p></div></div>',
-      '<figure class="captioned captioned-table"><table><tr><td>x</td></tr></table></figure>',
-      '<div class="columns-block"><div class="column"><p>Body</p></div></div>',
-      '<div class="mosaic-block"><div class="mosaic-row"></div></div>',
-    ]) {
-      const doc = makeDoc('<div><h2>Section</h2>' + nextHtml + '</div>');
-      const root = doc.body.firstElementChild as HTMLElement;
-      keepLabelsWithNext(root);
-      expect(root.querySelector('.keep-with-next')).toBeNull();
-      expect(root.children[0]?.tagName.toLowerCase()).toBe('h2');
-      expect(root.children[1]).toBeDefined();
-    }
-  });
-
-  it('keepLabelsWithNext does NOT wrap an h1 + letterhead-group pair', () => {
-    // The wrapper would become a fragmentation context that captures the
-    // absolutely-positioned recipient, breaking the envelope-window
-    // coordinates. The letterhead-group already reserves its own
-    // vertical space via min-height, so skipping the wrap is safe.
-    const doc = makeDoc(
-      '<div>' +
-        '<h1>Facture N° 2026-042</h1>' +
-        '<div class="letterhead-group letterhead-group--window">' +
-          '<div class="letterhead letterhead-sender">A</div>' +
-          '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
-        '</div>' +
-        '<p>Date d\'émission: …</p>' +
-        '</div>',
-    );
-    const root = doc.body.firstElementChild as HTMLElement;
-    keepLabelsWithNext(root);
-    // The h1 and the letterhead-group remain as direct siblings, NOT
-    // wrapped in a keep-with-next div.
-    expect(root.querySelector('.keep-with-next')).toBeNull();
-    expect(root.children[0]?.tagName.toLowerCase()).toBe('h1');
-    expect(root.children[1]?.classList.contains('letterhead-group')).toBe(true);
   });
 
   it('handles a triplet (sender + recipient + recipient) in one group', () => {

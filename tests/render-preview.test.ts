@@ -4,7 +4,11 @@ import { join } from 'node:path';
 
 import '@orlarey/markpage-render';
 import { parseFrontmatter } from '@orlarey/markpage-render';
-import { renderPreview, applyPreviewMetadata } from '../src/preview';
+import {
+  renderPreview,
+  applyPreviewMetadata,
+  annotateSourceLines,
+} from '../src/preview';
 import { TEST_SETTINGS } from './fixtures/settings';
 
 const CORPUS_DIR = join(process.cwd(), 'tests/corpus');
@@ -78,5 +82,27 @@ describe('cover identity block order', () => {
     expect(classes.indexOf('preview-metadata')).toBe(
       classes.indexOf('doc-title') + 1,
     );
+  });
+});
+
+describe('annotateSourceLines', () => {
+  const lines = (src: string): string[] => {
+    const el = document.createElement('div');
+    renderPreview(el, src);
+    annotateSourceLines(el, src);
+    return [...el.children].map(
+      (c) => `${c.tagName}@${(c as HTMLElement).dataset.line ?? '-'}`,
+    );
+  };
+
+  it('offsets by the front-matter and skips the title it synthesises', () => {
+    const src =
+      '---\ntitle: T\nsubtitle: S\n---\n\n# H1\n\nPara one.\n\n## H2\n\nPara two.\n';
+    // doc-title + subtitle come from the front-matter: no source line.
+    expect(lines(src)).toEqual(['H1@-', 'DIV@-', 'H1@5', 'P@7', 'H2@9', 'P@11']);
+  });
+
+  it('keeps the line of a title promoted from the body', () => {
+    expect(lines('# Title\n\nBody.\n')).toEqual(['H1@0', 'P@2']);
   });
 });

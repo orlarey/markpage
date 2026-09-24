@@ -2,10 +2,10 @@
 //
 // Registers `markpage.openPreview`, opens a WebviewPanel as a tab in the same
 // editor group as the active Markdown file (full width — you switch between the
-// `.md` tab and the preview tab), and streams the document text to the webview
-// (which renders
-// it with @orlarey/markpage-render). Live-updates on edit. Images are resolved
-// against the document's folder as webview URIs.
+// `.md` tab and the preview tab), and streams the document text to the webview,
+// which renders it with the markpage app's own pipeline (named style, Vivliostyle
+// pages). Live-updates on edit. Images are resolved against the document's
+// folder as webview URIs.
 
 import * as vscode from 'vscode';
 import * as os from 'os';
@@ -14,7 +14,9 @@ import * as path from 'path';
 let panel: vscode.WebviewPanel | undefined;
 let trackedDoc: vscode.TextDocument | undefined;
 let suppressEditorScrollUntil = 0; // ignore the visible-range echo after a webview-driven reveal
-let paginated = false; // continuous (fast, live) vs paged.js A4 pages
+let paginated = false; // continuous (fast, live) vs Vivliostyle pages
+// Unknown `document-style:` names already reported (warn once per name).
+const reportedStyles = new Set<string>();
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -23,11 +25,11 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('markpage.openPreview', (uri?: vscode.Uri) =>
       openPreview(context, uri),
     ),
-    // Toggle continuous ↔ paged.js A4 pages (the latter mirrors the PDF).
+    // Toggle continuous ↔ pages (the latter mirrors the PDF).
     vscode.commands.registerCommand('markpage.togglePagination', () => {
       paginated = !paginated;
       void vscode.window.showInformationMessage(
-        `markpage preview: ${paginated ? 'paginated (A4 pages)' : 'continuous'}`,
+        `markpage preview: ${paginated ? 'paginated (pages)' : 'continuous'}`,
       );
       update();
     }),
@@ -142,13 +144,15 @@ async function openPreview(context: vscode.ExtensionContext, uri?: vscode.Uri): 
     panel = undefined;
   });
   panel.webview.onDidReceiveMessage(
-    (m: { type?: string; line?: number; html?: string }) => {
+    (m: { type?: string; line?: number; html?: string; name?: string }) => {
       if (m?.type === 'revealLine' && typeof m.line === 'number') revealEditorLine(m.line);
       else if (m?.type === 'togglePagination') {
         paginated = !paginated;
         update();
       } else if (m?.type === 'exportHtml' && typeof m.html === 'string') {
         void exportHtmlToBrowser(m.html);
+      } else if (m?.type === 'unknownStyle' && typeof m.name === 'string') {
+        warnUnknownStyle(m.name);
       }
     },
     undefined,
@@ -156,6 +160,18 @@ async function openPreview(context: vscode.ExtensionContext, uri?: vscode.Uri): 
   );
   panel.webview.html = htmlShell(context, panel.webview);
   update();
+}
+
+/** A `document-style:` the preview doesn't know renders with the default style.
+ *  Say so once per name: styles imported into the markpage app live in its
+ *  browser storage, out of the extension's reach — only built-ins resolve here. */
+function warnUnknownStyle(name: string): void {
+  if (reportedStyles.has(name)) return;
+  reportedStyles.add(name);
+  void vscode.window.showWarningMessage(
+    `markpage: unknown style "${name}" — previewing with the default style. ` +
+      'Only the built-in styles are available in VS Code.',
+  );
 }
 
 /** Allow loading the extension's bundle + the document's folder (for images). */
@@ -189,6 +205,7 @@ function update(): void {
     md: trackedDoc.getText(),
     baseUri,
     paginated,
+    uiLanguage: vscode.env.language,
   });
 }
 
@@ -204,7 +221,8 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.js'),
   );
-  // Bundled CSS (hljs theme + @orlarey/blocks styles), then the paper theme.
+  // Bundled CSS (the app's style.css + fonts + construct styles), then the
+  // webview chrome (desk, toolbar, VS Code dark-theme resets).
   const bundledCssUri = webview.asWebviewUri(
     vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.css'),
   );
@@ -214,11 +232,16 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
   const csp = [
     `default-src 'none'`,
     `img-src ${webview.cspSource} https: data:`,
-    `style-src ${webview.cspSource} 'unsafe-inline'`,
-    `font-src ${webview.cspSource} data:`,
+    // Google Fonts: a style may name a family the font loader fetches on demand.
+    `style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com`,
+    `font-src ${webview.cspSource} data: https://fonts.gstatic.com`,
     // The webview bundle is an ES module that lazy-imports MathJax/Mermaid
     // chunks; 'strict-dynamic' lets the nonced root module load them.
     `script-src 'nonce-${n}' 'strict-dynamic'`,
+    // Vivliostyle loads its internal shadow templates (footnotes, table cells)
+    // from a data: URL; the HTML export fetches the webview's own fonts and
+    // images to inline them. No other network access.
+    `connect-src ${webview.cspSource} data:`,
   ].join('; ');
   return `<!DOCTYPE html>
 <html lang="en">
@@ -229,8 +252,8 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
   <link rel="stylesheet" href="${bundledCssUri}?v=${n}">
   <link rel="stylesheet" href="${styleUri}?v=${n}">
 </head>
-<body>
-  <div id="markpage-preview" class="markpage"></div>
+<body class="mp-webview">
+  <section id="preview-pane" class="markpage"></section>
   <script type="module" nonce="${n}" src="${scriptUri}?v=${n}"></script>
 </body>
 </html>`;

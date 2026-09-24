@@ -48,21 +48,8 @@ import { t } from './i18n/strings';
 import { registerFallbackFonts } from './fonts';
 import { loadSettingsFonts, registerCustomFonts } from './font-loader';
 import { createEditor, type EditorShortcuts } from './editor';
-import {
-  renderPreview,
-  debounce,
-  applyPreviewStyles,
-  applyPreviewMetadata,
-  annotateSourceLines,
-} from './preview';
-import {
-  renderMermaidBlocks,
-  renderMathBlocks,
-  renderMathInlines,
-} from '@orlarey/markpage-render';
+import { debounce, applyPreviewStyles, annotateSourceLines } from './preview';
 import { parseFrontmatter } from '@orlarey/markpage-render';
-import { fitWideTables } from '@orlarey/markpage-render';
-import { layoutMosaicBlocks } from '@orlarey/markpage-render';
 import {
   applyAnchorToEditor,
   applyAnchorToPreview,
@@ -108,7 +95,6 @@ import {
   findStyle,
   loadUserStyles,
   parseStyleFile,
-  resolveDocumentSettings,
   saveUserStyle,
   serializeStyleFile,
   slugify,
@@ -207,12 +193,12 @@ import {
 import { serializeFundamentalStyle, DEFAULT_SETTINGS, type PdfSettings } from './settings';
 import { setFrontmatterKeys } from './frontmatter-edit';
 import {
-  pageContentGeomPx,
-  pageSizeMm,
-  paginate,
-  geometryFor,
-} from './preview-paginated';
-import { withBakedGeometry } from './geometry-producer';
+  applyPageFills,
+  buildDocumentDom,
+  documentSettings,
+  renderContinuousSheet,
+} from './document-render';
+import { paginate } from './preview-paginated';
 import { exportViaPrint } from './print-export';
 import { exportLatex } from './export-latex';
 import { initMcp } from './mcp';
@@ -410,7 +396,7 @@ async function bootstrap(): Promise<void> {
   // default style when absent); only language and author come from its
   // front-matter (resolveDocumentSettings).
   const deriveDocSettings = (src: string): PdfSettings => {
-    const r = resolveDocumentSettings(parseFrontmatter(src).meta, baseSettings);
+    const r = documentSettings(parseFrontmatter(src).meta, baseSettings);
     if (r.unknownStyle)
       console.warn(`[markpage] unknown document-style: "${r.unknownStyle}"`);
     return r.settings;
@@ -747,74 +733,22 @@ async function bootstrap(): Promise<void> {
       source,
       makeFolderImageResolver(currentDoc),
     );
-    const { meta } = parseFrontmatter(resolved);
     // Resolved from the source being rendered, not the debounced state.settings,
     // so a `document-style:` edit shows in the very render it triggers.
-    let effectiveSettings = deriveDocSettings(source);
-    // Bake the terminal page geometry LAST — after every setting that feeds the
-    // canon (fonts, pageSize, duplex, canon inputs) is final — so the render
-    // reads a resolved `pageGeometry` and never the production inputs. A named
-    // style already carries pageGeometry (authoring dropped) → no-op.
-    effectiveSettings = withBakedGeometry(
-      effectiveSettings,
-      pageSizeMm(effectiveSettings),
-    );
-    const built = document.createElement('div');
-    renderPreview(built, resolved, effectiveSettings.numbering);
-    applyPreviewMetadata(built, effectiveSettings, meta);
-    annotateSourceLines(built, source);
-    const preamble = meta['mathjax-preamble'] ?? '';
-    // Mosaic packing needs the text-block size. Compute it deterministically
-    // from settings (NOT by measuring a prior render) so the row count is the
-    // same on a cold/first render as on subsequent ones.
-    const mosaicGeom = pageContentGeomPx(effectiveSettings);
-    await Promise.all([
-      renderMermaidBlocks(built),
-      renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
-      renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
-      layoutMosaicBlocks(built, mosaicGeom),
-    ]);
+    const effectiveSettings = deriveDocSettings(source);
+    const { built } = await buildDocumentDom(resolved, effectiveSettings, {
+      beforeHydrate: (b) => annotateSourceLines(b, source),
+    });
     if (myReq !== previewReqId) return null;
     return { built, effectiveSettings, myReq };
   };
 
-  // Continuous (non-paginated) render: drop the built content into a single
-  // white sheet of page width — no paged.js, so it re-renders fast on every
-  // keystroke. The page geometry is taken from the document's settings.
+  // Continuous (non-paginated) render: the built content in a single white
+  // sheet of page width — no pagination, so it re-renders on every keystroke.
   const renderContinuous = (
     built: HTMLElement,
     effectiveSettings: PdfSettings,
-  ): void => {
-    // paged.js never removes the <style> blocks it injects; drop them so a
-    // prior A4 render's page-only rules — notably the `position: absolute`
-    // letterhead-window positioning — don't leak into the continuous sheet
-    // (where, with no positioned containing block, the recipient escaped onto
-    // the editor pane).
-    document
-      .querySelectorAll('style[data-pagedjs-inserted-styles]')
-      .forEach((s) => s.remove());
-    const sheet = document.createElement('div');
-    sheet.className = 'mp-continuous-sheet';
-    const sizeMm = pageSizeMm(effectiveSettings);
-    const t = geometryFor(effectiveSettings, sizeMm).text;
-    sheet.style.width = `${sizeMm.w}mm`;
-    // padding = top right bottom left (right = outer, left = inner). In manual
-    // mode text.* equals the four sliders; in derived mode the continuous sheet
-    // now matches the paginated text block instead of ignoring the canon.
-    sheet.style.padding = `${t.top}mm ${t.outer}mm ${t.bottom}mm ${t.inner}mm`;
-    while (built.firstChild) sheet.appendChild(built.firstChild);
-    previewEl.classList.add('continuous');
-    previewEl.replaceChildren(sheet);
-    // Zoom over-dense tables down to the sheet's text column, same as the
-    // paginated path — measured now that the sheet is in the document (its
-    // content box = sheet width minus the mm margins above).
-    const cs = getComputedStyle(sheet);
-    const contentW =
-      sheet.clientWidth -
-      Number.parseFloat(cs.paddingLeft) -
-      Number.parseFloat(cs.paddingRight);
-    fitWideTables(sheet, contentW);
-  };
+  ): void => renderContinuousSheet(built, effectiveSettings, previewEl);
 
   // Render `source` into the preview pane, paginated (paged.js A4 pages) or
   // continuous, per `previewPaginated`. Called when entering preview, on a
@@ -902,18 +836,9 @@ async function bootstrap(): Promise<void> {
     const r = await buildPreviewDom(source);
     if (!r) return;
     lastEffectiveSettings = r.effectiveSettings;
-    // Style-editor page fill (STYLE-EDITOR-SPEC §4): drive the CSS vars that
-    // style.css reads on the pages; empty string falls back (page → white,
-    // cover → page). The cover carries its own fill so the format×colour
-    // coupling (a tinted title page over plain body pages) is visible.
-    previewEl.style.setProperty(
-      '--mp-page-bg',
-      r.effectiveSettings.pageBackground ?? '',
-    );
-    previewEl.style.setProperty(
-      '--mp-cover-bg',
-      r.effectiveSettings.coverBackground ?? '',
-    );
+    // Style-editor page fill (STYLE-EDITOR-SPEC §4): a tinted title page can
+    // sit over plain body pages.
+    applyPageFills(previewEl, r.effectiveSettings);
     if (activePaginated() || opts.forcePaginated) {
       // Show a CLEAR "rendering" state: clear the stale pages now (so you never
       // wonder whether you're looking at the current render) and let the progress

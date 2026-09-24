@@ -142,6 +142,9 @@ function linearizePages(
     el.style.height = 'auto';
     el.style.overflow = 'visible';
     el.style.position = 'static';
+    // CoreViewer paints its viewport grey (#aaa, its own UA-ish sheet): the
+    // pages sit on the host's desk instead.
+    el.style.background = 'transparent';
     // The spread container is display:flex (pages side by side, viewer-style).
     // Simplex wants the vertical stack the preview pane scrolls; duplex wants
     // facing pairs, laid out below.

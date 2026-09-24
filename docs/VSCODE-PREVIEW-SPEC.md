@@ -5,7 +5,11 @@ version: 0.1 (brouillon)
 date: 2026-06-25
 ---
 
-> **Statut :** design (v0.1) — non encore livré. Spec d'une **extension VS Code**
+> **Statut (2026-09-24) :** livré — extension 0.2.0, **portée sur le rendu de
+> l'appli** (§11). Le design v0.1 ci-dessous reste la référence historique ; là
+> où il diffère, §11 fait foi.
+>
+> **Design initial (v0.1) :** spec d'une **extension VS Code**
 > qui prévisualise un fichier Markdown avec **toutes les extensions markpage**
 > (fences DSL, callouts, math, mermaid, mosaïque, en-têtes…), en **réutilisant le
 > moteur de rendu** de markpage plutôt qu'en le réécrivant. S'appuie sur le
@@ -259,3 +263,36 @@ en direct, mode sombre, math avec la bonne fonte.
 - **Réutilisation par package** (`@orlarey/markpage-render`), pas de duplication.
 - **Aperçu seul en v1** ; l'édition reste à l'éditeur texte natif de VS Code.
 - **Une seule couture** d'environnement : `resolveImageSrc`.
+
+## 11. Portage sur le rendu de l'appli (0.2.0)
+
+L'extension ne garde plus de chaîne de rendu propre (thème papier,
+`profile-css.ts`, paged.js) : la webview **importe le rendu de l'appli** et suit
+donc son modèle de style et son moteur de pagination.
+
+- **Module partagé** [document-render.ts](../src/document-render.ts) — utilisé par
+  l'appli, la démo de la vitrine, l'export PDF et la webview : résolution des
+  réglages (`documentSettings` : style nommé, sinon `note-a4`), construction du DOM
+  (`buildDocumentDom`, avec la couture images `resolveImageSrc`), feuille continue
+  (`renderContinuousSheet`), fonds de page (`applyPageFills`). La pagination est
+  celle de l'appli (`paginate` → Vivliostyle).
+- **Styles** : seuls les styles **intégrés** existent dans VS Code — les styles
+  importés dans l'appli vivent dans le stockage du navigateur. Un
+  `document-style:` inconnu rend avec le style par défaut et l'hôte l'annonce
+  une fois.
+- **CSS** : la webview charge le `style.css` de l'appli et rend dans un
+  `#preview-pane` (la portée CSS de l'appli) ; `media/preview.css` ne garde que
+  le chrome (bureau, barre flottante, garde-fous contre le thème sombre).
+- **CSP** : `connect-src data:` (Vivliostyle charge ses gabarits internes par une
+  URL `data:`) + la source de la webview (l'export relit ses polices et images) ;
+  Google Fonts autorisé en `style-src` / `font-src`.
+- **Bundle** : esbuild comprend les requêtes Vite `?inline` (texte) et `?url`
+  (asset résolu contre le script du bundle) ; polices MathJax `newcm`, `stix2`,
+  `fira` (celles des styles intégrés).
+- **Export PDF** : HTML autonome ouvert dans le navigateur — polices utilisées et
+  images inlinées en `data:`, Google Fonts lié.
+- **Vérification** : `npm run test:render` (dossier `vscode/`) rend tout le
+  corpus en mode paginé **sous la CSP de l'extension**, contrôle
+  `document-style:` et l'export (même nombre de pages, aucune ressource hors
+  fichier, polices embarquées).
+

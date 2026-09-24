@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <!-- Dev harness: load the built webview bundle and feed it a sample document,
      to verify the markpage render pipeline (incl. phase-B MathJax/Mermaid) runs
-     in a real browser. Not shipped. Open via a static server. -->
+     in a real browser. Not shipped. Open via a static server. The CSP mirrors
+     the extension's htmlShell ('self' standing in for webview.cspSource), so a
+     resource the webview would block fails here too (test/render-corpus.mjs). -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="dist/webview.css?v=2">
-  <link rel="stylesheet" href="media/preview.css?v=hljs">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; script-src 'nonce-harness' 'strict-dynamic'; connect-src 'self' data:">
+  <link rel="stylesheet" href="dist/webview.css">
+  <link rel="stylesheet" href="media/preview.css">
 </head>
-<body>
-  <div id="markpage-preview" class="markpage"></div>
+<body class="mp-webview">
+  <section id="preview-pane" class="markpage"></section>
   <!-- ESM module: attaches the message listener. -->
-  <script type="module" src="dist/webview.js"></script>
+  <script type="module" nonce="harness" src="dist/webview.js"></script>
   <!-- Runs after the module above (modules execute in order), then posts. -->
-  <script type="module">
+  <script type="module" nonce="harness">
     const md = [
       '# markpage preview',
       '',

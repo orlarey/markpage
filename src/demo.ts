@@ -40,22 +40,10 @@ import '@orlarey/markpage-render'; // side-effect: registers admonitions / math 
 import { registerFallbackFonts } from './fonts';
 import { loadSettingsFonts } from './font-loader';
 import { initLocale } from './i18n/locale';
-import {
-  annotateSourceLines,
-  applyPreviewMetadata,
-  applyPreviewStyles,
-  renderPreview,
-} from './preview';
-import {
-  renderMathBlocks,
-  renderMathInlines,
-  renderMermaidBlocks,
-} from '@orlarey/markpage-render';
+import { annotateSourceLines, applyPreviewStyles } from './preview';
 import { parseFrontmatter } from '@orlarey/markpage-render';
-import { layoutMosaicBlocks } from '@orlarey/markpage-render';
-import { pageContentGeomPx, pageSizeMm, paginate } from './preview-paginated';
-import { withBakedGeometry } from './geometry-producer';
-import { resolveDocumentSettings } from './style-library';
+import { paginate } from './preview-paginated';
+import { buildDocumentDom, documentSettings } from './document-render';
 import {
   findShowcaseEntry,
   HERO_DEMO_ENTRY,
@@ -98,13 +86,9 @@ async function run(): Promise<void> {
   // is a feature sample, not someone's document.
   const { meta } = parseFrontmatter(entry.source);
   const styleParam = params.get('style');
-  const resolvedSettings = resolveDocumentSettings(
+  const effectiveSettings = documentSettings(
     styleParam ? { ...meta, 'document-style': styleParam } : meta,
   ).settings;
-  const effectiveSettings = withBakedGeometry(
-    resolvedSettings,
-    pageSizeMm(resolvedSettings),
-  );
 
   applyPreviewStyles(effectiveSettings);
 
@@ -116,19 +100,10 @@ async function run(): Promise<void> {
 
   const previewEl = document.getElementById('preview-pane') as HTMLElement;
 
-  // Build the same DOM subtree as the main preview pipeline, then
-  // hand it to paged.js.
-  const built = document.createElement('div');
-  renderPreview(built, entry.source, effectiveSettings.numbering);
-  applyPreviewMetadata(built, effectiveSettings, meta);
-  annotateSourceLines(built, entry.source);
-  const preamble = meta['mathjax-preamble'] ?? '';
-  await Promise.all([
-    renderMermaidBlocks(built),
-    renderMathBlocks(built, effectiveSettings.mathFontSet, preamble),
-    renderMathInlines(built, effectiveSettings.mathFontSet, preamble),
-    layoutMosaicBlocks(built, pageContentGeomPx(effectiveSettings)),
-  ]);
+  // Build the same DOM subtree as the main preview pipeline, then paginate.
+  const { built } = await buildDocumentDom(entry.source, effectiveSettings, {
+    beforeHydrate: (b) => annotateSourceLines(b, entry.source),
+  });
   await paginate(built, effectiveSettings, previewEl);
 }
 

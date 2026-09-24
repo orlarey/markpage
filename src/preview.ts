@@ -18,7 +18,7 @@ import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
 import { numberForRender } from './numbering';
 import { wrapHeadingNumbers } from './preview-paginated';
 import { blockBoxCss, capsCss, filetCss, headingNumberCss, inlineCss } from './style-emit';
-import { quoteFontFamily, fontFamilyStack } from './font-loader';
+import { quoteFontFamily, fontFamilyStack, inlineBoldWeight } from './font-loader';
 
 /**
  * Purpose: Heading "filet" (rule) CSS fragment for the fluid editor preview.
@@ -171,19 +171,28 @@ export function applyPreviewMetadata(
 
 /**
  * Purpose: Stamp each top-level preview block with `data-line="N"` for scroll-sync.
- * How: Tokenise the source and pair each rendering token with a top-level child.
+ * How: Tokenise the BODY (the front-matter renders no block of its own) and pair
+ *   each rendering token with a top-level child, offsetting by the front-matter's
+ *   line count so N is the editor's 0-based line. Blocks synthesised from the
+ *   front-matter — a `title:` heading, the subtitle, the metadata — have no
+ *   token and are skipped; a title PROMOTED from the body keeps its token.
  */
 export function annotateSourceLines(
   target: HTMLElement,
   source: string,
 ): void {
-  const tokens = marked.lexer(source);
+  const { meta, body } = parseFrontmatter(source);
+  const offset = countNewlines(source.slice(0, source.length - body.length));
+  const tokens = marked.lexer(body);
   const elements = Array.from(target.children).filter(
     (el): el is HTMLElement =>
-      el instanceof HTMLElement && !el.classList.contains('preview-metadata'),
+      el instanceof HTMLElement &&
+      !el.classList.contains('preview-metadata') &&
+      !el.classList.contains('doc-subtitle') &&
+      !(meta.title && el.matches('h1.doc-title')),
   );
   let elementIndex = 0;
-  let line = 0;
+  let line = offset;
   for (const tok of tokens) {
     // Skip token types that don't render to a DOM element of their own.
     // - 'space' / 'html' were already excluded.
@@ -252,6 +261,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
   ).toFixed(3);
   el.textContent = `
     #preview-pane { font-family: ${bodyFam}; font-size: ${s.body.fontSize}pt; color: ${s.body.color}; line-height: ${s.body.lineHeight ?? 1.25}; }
+    #preview-pane :is(strong, b) { font-weight: ${inlineBoldWeight(bodyName)}; }
     #preview-pane :is(h1, h2, h3, h4, h5, h6) { font-family: ${headFam}; }
     #preview-pane h1 { font-size: ${s.h1.fontSize}pt; color: ${s.h1.color}; ${underlineRule(s.h1)} ${headingExtras(s.h1)} ${headingMargin(s.h1)} }
     #preview-pane h1.doc-title { font-size: ${s.title.fontSize}pt; color: ${s.title.color}; ${underlineRule(s.title)} ${headingExtras(s.title)} ${headingMargin(s.title)} }

@@ -2,9 +2,11 @@
  * render-corpus.mjs — automated render check for the VS Code preview webview.
  *
  * Drives the extension's real webview bundle (dist/webview.{js,css} +
- * media/preview.css, in #markpage-preview.markpage — exactly what test-harness.html
- * loads) over every tests/corpus/*.md, in PAGINATED mode, and asserts that the
- * render is healthy. It also injects a simulation of VS Code's dark default
+ * media/preview.css, in #preview-pane.markpage — exactly what test-harness.html
+ * loads) over every tests/corpus/*.md, in PAGINATED mode (Vivliostyle), and asserts that the
+ * render is healthy (pages actually produced, no console error — CSP
+ * violations included, the harness carries the extension's CSP). It also
+ * injects a simulation of VS Code's dark default
  * webview styles, so theme-bleed regressions (e.g. the ```text dark-bar bug) are
  * caught too. Screenshots land in vscode/test/__shots__/ for manual review.
  *
@@ -81,6 +83,13 @@ page.on('console', (m) => {
   }
 });
 
+// A bundle asset (font, chunk, stylesheet) that fails to load is a packaging
+// bug — unlike a corpus image missing on purpose, which only 404s under tests/.
+const assetErrors = [];
+page.on('response', (r) => {
+  if (r.status() >= 400 && r.url().includes('/vscode/')) assetErrors.push(`${r.status()} ${r.url()}`);
+});
+
 await page.goto(`${BASE}/vscode/test-harness.html`);
 
 for (const file of docs) {
@@ -89,24 +98,29 @@ for (const file of docs) {
   consoleErrors.length = 0;
 
   await page.evaluate(
-    ({ md, baseUri }) =>
+    ({ md, baseUri }) => {
+      // Drop the previous doc's pages so the wait below sees THIS render's.
+      document.getElementById('preview-pane').replaceChildren();
       window.dispatchEvent(
         new MessageEvent('message', { data: { type: 'render', md, baseUri, paginated: true } }),
-      ),
+      );
+    },
     { md, baseUri: `${BASE}/tests/corpus/` },
   );
-  // Wait for paged.js + hydrate.
-  await page
-    .locator('#markpage-preview .pagedjs_page')
+  // Wait for hydrate + Vivliostyle: pages are swapped into the pane (out of the
+  // hidden render buffer) only once pagination has finished.
+  const paged = await page
+    .locator('#preview-pane .pagedjs_page')
     .first()
-    .waitFor({ state: 'attached', timeout: 20_000 })
-    .catch(() => {});
-  await page.waitForTimeout(800);
+    .waitFor({ state: 'visible', timeout: 60_000 })
+    .then(() => true)
+    .catch(() => false);
+  await page.waitForTimeout(500);
 
   // ---- assertions (only fire when the construct is present) ----------------
   const issues = await page.evaluate(() => {
     const out = [];
-    const pv = document.getElementById('markpage-preview');
+    const pv = document.getElementById('preview-pane');
     const fill = (el) => (el ? getComputedStyle(el).fill : '');
     const isBlack = (c) => c === 'rgb(0, 0, 0)' || c === '#000' || c === 'black';
 
@@ -118,10 +132,13 @@ for (const file of docs) {
     pv.querySelectorAll('svg.railroad-diagram rect').forEach((r) => {
       if (isBlack(fill(r))) out.push('railroad rect has black fill (missing ebnf CSS)');
     });
-    // Admonitions must carry their coloured left border (not unstyled).
+    // Admonitions must be styled — the style decides how (a coloured rule, a
+    // tinted box, or both); neither border nor background means unstyled.
     pv.querySelectorAll('.admonition').forEach((a) => {
       const cs = getComputedStyle(a);
-      if (parseFloat(cs.borderLeftWidth) < 2) out.push('admonition has no left border (unstyled)');
+      const bordered = parseFloat(cs.borderLeftWidth) > 0;
+      const filled = !['rgba(0, 0, 0, 0)', 'transparent'].includes(cs.backgroundColor);
+      if (!bordered && !filled) out.push('admonition has neither border nor background (unstyled)');
     });
     // ```text / unknown-language code must not inherit VS Code's dark code bg.
     pv.querySelectorAll('pre code:not(.hljs)').forEach((c) => {
@@ -129,15 +146,21 @@ for (const file of docs) {
       if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent')
         out.push(`unknown-language code has a background (${bg}) — VS Code dark bleed`);
     });
+    // `::: background` sentinels must be realised as a per-page layer.
+    if (pv.querySelector('.mp-bg') && !pv.querySelector('.mp-bg-layer'))
+      out.push('::: background present but no backdrop layer (applyBackgrounds not run)');
     // Nothing should render with the dark page background bleeding through.
     if (getComputedStyle(pv).backgroundColor === 'rgb(30, 30, 30)')
       out.push('preview background is the VS Code dark canvas (paper theme not applied)');
     return out;
   });
 
+  if (!paged) issues.push('no page rendered (pagination failed or timed out)');
+  if (assetErrors.length) issues.push(`bundle asset failed: ${assetErrors.join(', ')}`);
+  assetErrors.length = 0; // after reporting, so load-time failures land on the first doc
   if (consoleErrors.length) issues.push(`console error: ${consoleErrors[0]}`);
 
-  await page.locator('#markpage-preview').screenshot({ path: join(SHOTS, `${name}.png`) }).catch(() => {});
+  await page.locator('#preview-pane').screenshot({ path: join(SHOTS, `${name}.png`) }).catch(() => {});
 
   if (issues.length) {
     failures.push({ name, issues });
@@ -148,27 +171,80 @@ for (const file of docs) {
   }
 }
 
-// ---- document-stack check: a var(--token) + dotted styles.* key must apply --
+// ---- named style: `document-style:` picks the style (ET Book = livre) ------
 {
-  const md = ['---', '--brand: "#0b3d91"', 'styles.h2.color: var(--brand)', '---', '## Sub', '', 'Body.'].join('\n');
-  await page.evaluate(
-    (m) =>
-      window.dispatchEvent(
-        new MessageEvent('message', { data: { type: 'render', md: m, baseUri: '', paginated: false } }),
-      ),
-    md,
-  );
-  await page.waitForTimeout(800);
-  const color = await page.evaluate(() => {
-    const h2 = document.querySelector('#markpage-preview h2');
-    return h2 ? getComputedStyle(h2).color : null;
-  });
-  if (color === 'rgb(11, 61, 145)') {
-    console.log('  ✓ stack-tokens (var(--brand) → #0b3d91)');
+  const probe = async (md) => {
+    await page.evaluate(
+      (m) =>
+        window.dispatchEvent(
+          new MessageEvent('message', { data: { type: 'render', md: m, baseUri: '', paginated: false } }),
+        ),
+      md,
+    );
+    await page.waitForTimeout(800);
+    return page.evaluate(() => {
+      const p = document.querySelector('#preview-pane p');
+      return p ? getComputedStyle(p).fontFamily : null;
+    });
+  };
+  const dflt = await probe('# T\n\nBody.');
+  const livre = await probe('---\ndocument-style: livre-a4\n---\n# T\n\nBody.');
+  if (livre && /ET Book/.test(livre) && dflt && !/ET Book/.test(dflt)) {
+    console.log(`  ✓ document-style (default: ${dflt.split(',')[0]} · livre-a4: ${livre.split(',')[0]})`);
   } else {
-    failures.push({ name: 'stack-tokens', issues: [`h2 colour is ${color}, expected rgb(11, 61, 145)`] });
-    console.log(`  ✗ stack-tokens — h2 colour is ${color}`);
+    failures.push({ name: 'document-style', issues: [`default ${dflt} / livre ${livre}`] });
+    console.log(`  ✗ document-style — default ${dflt} / livre ${livre}`);
   }
+}
+
+// ---- HTML export: self-contained, same pages as the preview ----------------
+// The host opens the exported file in the system browser, which can't reach the
+// webview's resources: fonts and images must be inlined. Render under livre-a4
+// (ET Book is a bundled face, not a Google one) and load the export with the
+// local server blocked.
+{
+  const ex = await browser.newPage();
+  await ex.addInitScript(() => {
+    window.__posted = [];
+    window.acquireVsCodeApi = () => ({ postMessage: (m) => window.__posted.push(m) });
+  });
+  await ex.goto(`${BASE}/vscode/test-harness.html`);
+  const md = `---\ndocument-style: livre-a4\n---\n${readFileSync(join(CORPUS, '07-admonitions.md'), 'utf8')}`;
+  await ex.evaluate(
+    ({ md, baseUri }) => {
+      document.getElementById('preview-pane').replaceChildren();
+      window.dispatchEvent(new MessageEvent('message', { data: { type: 'render', md, baseUri, paginated: true } }));
+    },
+    { md, baseUri: `${BASE}/tests/corpus/` },
+  );
+  await ex.locator('#preview-pane .pagedjs_page').first().waitFor({ state: 'visible', timeout: 60_000 });
+  const previewPages = await ex.locator('#preview-pane .pagedjs_page').count();
+  await ex.locator('.mp-toggle', { hasText: 'PDF' }).click();
+  await ex.waitForFunction(() => window.__posted.some((m) => m.type === 'exportHtml'), null, { timeout: 60_000 });
+  const html = await ex.evaluate(() => window.__posted.find((m) => m.type === 'exportHtml').html);
+  const out = await browser.newPage();
+  const reached = [];
+  await out.route(/127\.0\.0\.1/, (r) => {
+    reached.push(r.request().url());
+    return r.abort();
+  });
+  await out.setContent(html, { waitUntil: 'load' });
+  await out.evaluate(() => document.fonts.ready);
+  const etBook = await out.evaluate(() => document.fonts.check('16px "ET Book"'));
+  const pdf = await out.pdf({ preferCSSPageSize: true, printBackground: true });
+  const pdfPages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  const issues = [];
+  if (pdfPages !== previewPages) issues.push(`printed ${pdfPages} page(s), preview shows ${previewPages}`);
+  if (reached.length) issues.push(`export reaches the webview's server: ${reached[0]}`);
+  if (!etBook) issues.push('ET Book not embedded in the export');
+  if (issues.length) {
+    failures.push({ name: 'html-export', issues });
+    console.log(`  ✗ html-export — ${issues.join('; ')}`);
+  } else {
+    console.log(`  ✓ html-export (${pdfPages} page(s), self-contained, fonts embedded)`);
+  }
+  await ex.close();
+  await out.close();
 }
 
 await browser.close();

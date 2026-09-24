@@ -23,42 +23,14 @@ export {
   type RenderOptions,
 } from './render';
 
-// Frontmatter parsing (title / author / date / mathjax-preamble / slides …)
-// + the layout overrides (page-size / margins / page-numbers / fonts).
+// Frontmatter parsing — the document keys only (title / author / organization /
+// date / mathjax-preamble / document-style / language …); a document's look is
+// its named style, never its front-matter.
 export {
   parseFrontmatter,
-  embedProfileInFrontmatter,
-  embedBlockInFrontmatter,
   type Frontmatter,
   type ParseResult,
 } from './frontmatter';
-
-// The document-stack engine (STACK-SPEC): resolve the `extends` chain to the
-// `default.md` fixpoint, then flatten (flat front-matter merge + reset pass +
-// body fold via ```insert). Pure — resolution is supplied as a callback.
-export {
-  ROOT_NAME,
-  resolveChain,
-  resolveChainAsync,
-  mergeFrontmatter,
-  insertInto,
-  foldBodies,
-  flatten,
-  resolveTokens,
-  normalizeProfile,
-  denormalizeProfile,
-  type ProfilePatch,
-  parseStackDoc,
-  serializeStackDoc,
-  extractStyle,
-  StackCycleError,
-  StackMissingRefError,
-  TokenMissingError,
-  TokenCycleError,
-  type StackDoc,
-  type ResolveDoc,
-  type FlatDoc,
-} from './stack';
 
 // Phase B — the DOM hydrate (MathJax + Mermaid) and the underlying renderers.
 export {
@@ -100,7 +72,7 @@ export {
 } from './page-running';
 export { anchorId } from './refs';
 export { applyBackgrounds } from './background';
-export { paginationCss, keepLabelsWithNext } from './pagination';
+export { paginationCss } from './pagination';
 export {
   runningApparatusCss,
   apparatusStringSets,
@@ -129,13 +101,6 @@ export {
   type TableFitOptions,
   type TableFitResult,
 } from './table-fit';
-// Pre-split oversized <pre> code blocks so paged.js never drops a >1-page
-// block. Shared by the host app and the VS Code extension's paginate pass.
-export {
-  splitLongPreBlocks,
-  PRE_SPLIT_TARGET_LINES,
-  PRE_SPLIT_SLACK_LINES,
-} from './pre-split';
 export {
   hsvToHex,
   cranToHex,

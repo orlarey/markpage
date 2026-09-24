@@ -14,11 +14,12 @@ import { blockBoxCss, capsCss, filetCss, headingNumberCss, inlineCss } from './s
 import {
   quoteFontFamily,
   fontFamilyStack,
-  findFont,
+  inlineBoldWeight,
   loadSettingsFonts,
   settingsFontFamilies,
 } from './font-loader';
 import {
+  applyBackgrounds,
   groupLetterheads,
   letterheadCss,
   applyPageRunningRuns,
@@ -164,7 +165,7 @@ export async function paginateWithVivliostyle(
   // declines to hyphenate, and justified text keeps its rivers of white.
   source.lang = settings.language;
   const { renderVivliostylePreview } = await import('./preview-vivliostyle');
-  return renderVivliostylePreview(
+  const pages = await renderVivliostylePreview(
     source,
     `${pagedCss(settings)}\n${runningCss}`,
     renderTo,
@@ -177,6 +178,11 @@ export async function paginateWithVivliostyle(
       hasCover: !!settings.coverBackground,
     },
   );
+  // `::: background` backdrops: the renderer leaves a zero-height `.mp-bg`
+  // sentinel in the flow; once the pages exist, clone each backdrop into every
+  // page of its run, behind the content.
+  applyBackgrounds(renderTo);
+  return pages;
 }
 
 /**
@@ -678,9 +684,6 @@ function figureNaturalWidthPx(el: Element): number {
   return 200;
 }
 
-// keepLabelsWithNext() + its isLabel/isPresentableBlock helpers now live in
-// @orlarey/markpage-render (shared with the VS Code extension); imported above.
-
 const PX_PER_MM = 96 / 25.4;
 const ATOMIC_TRIM_SAFETY_MM = 3;
 
@@ -976,11 +979,8 @@ export function pagedCss(s: PdfSettings): string {
   const headingsFamily = fontFamilyStack(s.fonts.headings);
   const bodyFamily = fontFamilyStack(bodyName);
   const codeFamily = fontFamilyStack(codeName, 'mono');
-  // Inline bold: use real Bold (700) when the body font ships it; fall back to
-  // Medium (500) for families without a bold face (e.g. Roboto Condensed) rather
-  // than letting the browser synthesise a muddy faux-bold.
   const bodySize = styles.body.fontSize ?? 11;
-  const boldWeight = findFont(bodyName)?.weights.includes(700) ? 700 : 500;
+  const boldWeight = inlineBoldWeight(bodyName);
   // Inline code is sized RELATIVE to its context (em), so `code` inside a small
   // footnote/sidenote/caption shrinks with the surrounding text instead of
   // staying at the body's absolute code size. In body text the ratio reproduces
@@ -1315,8 +1315,7 @@ export function pagedCss(s: PdfSettings): string {
        down — paged.js doesn't trim leading margins itself. */
     ${SCOPE} > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
     /* Hug the text-block top edge. paged.js always wraps the page
-       content in an anonymous div (.pagedjs_page_content > div), then
-       our keepLabelsWithNext() may add another (.keep-with-next), and
+       content in an anonymous div (.pagedjs_page_content > div), and
        the actual content (h1, p, blockquote, ...) lives under that.
        Empirically, the inner element's margin-top is NOT absorbed by
        the wrapper chain — it surfaces as a visible gap above the first
@@ -1392,13 +1391,6 @@ export function pagedCss(s: PdfSettings): string {
       hyphens: none;
       -webkit-hyphens: none;
     }
-
-    /* Long-<pre> fragments emitted by splitLongPreBlocks (cf. pre-split.ts).
-       Suppress the box seam between adjacent chunks so the multi-page
-       render reads as a single continuous block. */
-    ${SCOPE} pre.pre-chunk-first { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 0; }
-    ${SCOPE} pre.pre-chunk-middle { margin-top: 0; margin-bottom: 0; border-radius: 0; padding-top: 0; padding-bottom: 0; }
-    ${SCOPE} pre.pre-chunk-last { margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; padding-top: 0; }
 
     ${SCOPE} blockquote {
       ${inlineCss(styles.quote)}
@@ -1553,17 +1545,8 @@ export function pagedCss(s: PdfSettings): string {
  *   its own slide. The first h2 in the doc still gets a forced break
  *   too — that pushes it to page 2, leaving the title/metadata block
  *   alone on page 1 (a Beamer-style title slide).
- * How: Bare `h2 { break-before: page }`. Targeting the h2 directly
- *   matters because `keepLabelsWithNext` wraps each label with its
- *   next sibling, so the h2 is no longer a direct sibling of the
- *   previous element (a more specific `* + h2` rule wouldn't match
- *   anymore). The break-before fires at the h2's position; the
- *   wrapper effectively starts on the new page (h2 is its first
- *   child), and the wrapper's own `break-inside: avoid` keeps the
- *   slide title with its first paragraph from there.
- *   Left unscoped because paged.js can't parse `:where(...)` in
- *   break-rule selectors, and break-* is inert outside a paginated
- *   context.
+ * How: Bare `h2 { break-before: page }`, unscoped: break-* is inert
+ *   outside a paginated context.
  */
 function slidesBreakCss(s: PdfSettings): string {
   if (s.pageSize !== 'SLIDES_16_9') return '';

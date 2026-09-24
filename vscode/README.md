@@ -1,11 +1,12 @@
 # markpage preview
 
 Preview your Markdown the way **[markpage](https://markpage.org)** renders it —
-math, diagrams, callouts, and print-ready A4 pages — right inside VS Code.
+math, diagrams, callouts, and print-ready pages — right inside VS Code.
 
-Open the preview beside your editor and it updates live as you type: a clean
-white “paper” page that stays readable whatever your editor theme, using
-markpage’s full rendering pipeline.
+Open the preview and it updates live as you type: a white “paper” page that
+stays readable whatever your editor theme. The extension runs the markpage web
+app’s own renderer — same styles, same page layout engine — so what you see
+here is what markpage prints.
 
 ## Features
 
@@ -16,12 +17,19 @@ markpage’s full rendering pipeline.
 - **Math** — inline `$…$` and display `$$…$$`, rendered with MathJax.
 - **Diagrams** — Mermaid, plus markpage’s own fenced DSLs: `chart`, `bda`,
   `category`, `adt`, `tree`, `diff`, `mosaic`, …
-- **Layout & typography** — YAML frontmatter (title/author/date, page size,
-  margins, fonts), local styling with `::: style`, page backdrops with
-  `::: background`, and multi-column blocks.
+- **Named styles** — pick the look with one front-matter line,
+  `document-style: rapport-a4` (Note, Article, Rapport, Livre, Lettre — A4 or
+  Letter — and a 16:9 Présentation). Without it, the default Note style
+  applies. Page size, margins, fonts, colours, running headers and footers all
+  come from the style.
+- **Document metadata** — `title`, `subtitle`, `author`, `organization`,
+  `date` and `language` in the front-matter; local styling with `::: style`,
+  page backdrops with `::: background`, multi-column blocks, and
+  ` ```header ` / ` ```footer ` fences that override the style’s bands.
 - **Two preview modes** — a fast continuous view for writing, and a paginated
-  **A4 page** view (real page breaks) to check the final layout.
-- **Export to PDF** — print the paginated preview straight to a PDF.
+  view (real page breaks) to check the final layout.
+- **Export to PDF** — opens a self-contained copy of the preview in your browser,
+  ready to print as PDF.
 - **Paper theme** — a white sheet on a neutral backdrop, independent of your
   light or dark editor theme.
 
@@ -29,7 +37,7 @@ markpage’s full rendering pipeline.
 
 1. Install the extension.
 2. Open any Markdown (`.md`) file.
-3. Run **markpage: Open Preview to the Side** — from the Command Palette
+3. Run **markpage: Open markpage Preview** — from the Command Palette
    (`⇧⌘P` / `Ctrl+Shift+P`), the **preview icon** in the editor’s title bar, or
    the shortcut `⌘K V` / `Ctrl+K V`.
 
@@ -40,16 +48,20 @@ preview to toggle pagination, or drag the page edge to zoom.
 
 | Command | Shortcut | What it does |
 | :-- | :-- | :-- |
-| **markpage: Open Preview to the Side** | `⌘K V` / `Ctrl+K V` | Opens the live preview next to your document. |
-| **markpage: Toggle Pagination** | — | Switches between the continuous view (best for writing) and real **A4 pages** with page breaks (best for checking layout). |
-| **markpage: Print / Export PDF** | — | Prints the preview — choose “Save as PDF”. Use it in paginated mode for proper A4 pages. |
+| **markpage: Open markpage Preview** | `⌘K V` / `Ctrl+K V` | Opens the live preview of your document. |
+| **markpage: Toggle Pagination** | — | Switches between the continuous view (best for writing) and real **pages** with page breaks (best for checking layout). |
+| **markpage: Print / Export PDF** | — | Opens the preview in your browser — print it and choose “Save as PDF”. Use it in paginated mode for proper pages. |
 
 ## Tips
 
 - **Writing vs. layout.** Stay in the continuous view while drafting; switch to
   paginated when you want to see exactly where pages break.
 - **Best PDFs.** Toggle pagination **on**, then run **Print / Export PDF** so the
-  output matches the on-screen A4 pages.
+  output matches the on-screen pages. In the browser’s print dialog, set the
+  margins to *None*: the page margins are already part of the pages.
+- **Styles.** Only markpage’s built-in styles are available in VS Code: a style
+  you imported into the web app lives in that browser, so a document naming it
+  previews with the default style (the extension tells you so).
 
 ## About markpage
 
@@ -62,7 +74,8 @@ renderer into VS Code so you can preview your files without leaving your editor.
 
 ## Requirements
 
-VS Code **1.85** or newer. No other setup — math, diagrams and fonts are bundled.
+VS Code **1.85** or newer. No other setup — math, diagrams and fonts are bundled
+(fonts a style takes from Google Fonts load from the network).
 
 ## License
 

@@ -1,14 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // Resolve @orlarey/* to their TypeScript sources, as the app does — the
+    // webview bundles them from source too (esbuild `development` condition).
+    "customConditions": ["development"],
+    "resolveJsonModule": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["node", "vscode"]
   },
-  "include": ["src"]
+  // The webview imports the app's render pipeline (../src); its ambient types
+  // (Vite `?inline` / `?url` imports, untyped deps) come along.
+  "include": ["src", "../src/vite-env.d.ts"]
 }
