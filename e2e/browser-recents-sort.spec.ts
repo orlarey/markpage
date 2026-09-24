@@ -11,11 +11,20 @@ async function openBrowser(page: Page): Promise<void> {
   await page.locator('.vb-panel').waitFor();
 }
 
-async function newDoc(page: Page, text: string): Promise<void> {
-  await page.getByRole('button', { name: 'Fichier ▾' }).click();
-  await page.getByRole('button', { name: 'Nouveau document' }).click();
-  await page.locator('.cm-content').click();
-  await page.keyboard.type(text);
+/** New document (it opens in its own tab — the current one holds text), typed
+ *  into; returns that tab. */
+async function newDoc(page: Page, text: string): Promise<Page> {
+  const [tab] = await Promise.all([
+    page.context().waitForEvent('page'),
+    (async () => {
+      await page.getByRole('button', { name: 'Fichier ▾' }).click();
+      await page.getByRole('button', { name: 'Nouveau document' }).click();
+    })(),
+  ]);
+  await tab.waitForURL(/\?doc=/);
+  await tab.locator('.cm-content').click();
+  await tab.keyboard.type(text);
+  return tab;
 }
 
 const fileNames = (page: Page) =>
@@ -23,47 +32,51 @@ const fileNames = (page: Page) =>
 
 test('Récents lists the documents opened last, current one excluded', async ({ page }) => {
   await page.goto('/');
-  await newDoc(page, 'Premier');
-  await newDoc(page, 'Second');
+  const first = await newDoc(page, 'Premier');
+  const second = await newDoc(first, 'Second');
+  // Close the first document's tab: it can then be reopened from Récents.
+  await first.close();
 
-  await openBrowser(page);
-  await page.locator('.vb-vol-row', { hasText: 'Récents' }).locator('.vb-row-name-btn').click();
-  // Current doc (the second "Sans titre") is excluded; the other two remain,
+  await openBrowser(second);
+  await second.locator('.vb-vol-row', { hasText: 'Récents' }).locator('.vb-row-name-btn').click();
+  // The current doc (Second) is excluded; the first one and the help remain,
   // most recent first, each with its origin and a date.
-  const rows = page.locator('.vb-row[data-type="file"]');
+  const rows = second.locator('.vb-row[data-type="file"]');
   await expect(rows).toHaveCount(2);
   await expect(rows.first().locator('.vb-row-detail')).toHaveText('Bibliothèque');
   await expect(rows.first().locator('.vb-row-date')).not.toBeEmpty();
   // Récents keep their order: no Name / Date toggle there.
-  await expect(page.locator('.vb-sort')).toBeHidden();
+  await expect(second.locator('.vb-sort')).toBeHidden();
 
-  // Opening one switches to it.
-  await rows.first().locator('.vb-row-name-btn').click();
-  await expect(page.locator('.vb-panel')).toHaveCount(0);
-  await expect(page.locator('.cm-content')).toContainText('Premier');
+  // Opening it gives it its own tab (the current one holds text).
+  const [reopened] = await Promise.all([
+    second.context().waitForEvent('page'),
+    rows.first().locator('.vb-row-name-btn').click(),
+  ]);
+  await reopened.waitForURL(/\?doc=/);
+  await expect(reopened.locator('.cm-content')).toContainText('Premier');
 });
 
 test('the Name / Date toggle orders the library and is remembered', async ({ page }) => {
   await page.goto('/');
-  // Rename-free setup: three docs, created in order → distinct mtimes.
-  await newDoc(page, 'a');
-  await newDoc(page, 'b');
-  await openBrowser(page);
-  await page.locator('.vb-vol-row', { hasText: 'Bibliothèque' }).locator('.vb-row-name-btn').click();
+  // Two more documents, created in order → distinct mtimes.
+  const tab = await newDoc(await newDoc(page, 'a'), 'b');
+  await openBrowser(tab);
+  await tab.locator('.vb-vol-row', { hasText: 'Bibliothèque' }).locator('.vb-row-name-btn').click();
 
-  const toggle = page.locator('.vb-sort');
+  const toggle = tab.locator('.vb-sort');
   await expect(toggle).toBeVisible();
   await toggle.getByRole('button', { name: 'Date' }).click();
   await expect(toggle.locator('.vb-sort-btn.active')).toHaveText('Date');
-  const byDate = await fileNames(page);
+  const byDate = await fileNames(tab);
   await toggle.getByRole('button', { name: 'Nom' }).click();
-  const byName = await fileNames(page);
+  const byName = await fileNames(tab);
   expect([...byName].sort((x, y) => x.localeCompare(y, 'fr'))).toEqual(byName);
   expect(byDate.length).toBe(byName.length);
 
   // Remembered across reopenings.
   await toggle.getByRole('button', { name: 'Date' }).click();
-  await page.keyboard.press('Escape');
-  await openBrowser(page);
-  await expect(page.locator('.vb-sort .vb-sort-btn.active')).toHaveText('Date');
+  await tab.keyboard.press('Escape');
+  await openBrowser(tab);
+  await expect(tab.locator('.vb-sort .vb-sort-btn.active')).toHaveText('Date');
 });

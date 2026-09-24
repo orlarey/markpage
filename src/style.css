@@ -1508,3 +1508,39 @@ body.demo-frame-body #preview-pane {
 @media (prefers-reduced-motion: reduce) {
   .mp-pagination-progress .mp-pp-spinner { animation-duration: 2s; }
 }
+
+/* Non-blocking notice (ui/notice.ts): a passing message, or a sticky banner
+   with one action — e.g. a document open read-only because another tab edits it. */
+.mp-notice {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  max-width: min(640px, calc(100vw - 24px));
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #e0b23c;
+  border-radius: 8px;
+  background: #fff8e6;
+  color: #5c3d00;
+  font-size: 0.88rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+.mp-notice button {
+  font: inherit;
+  font-weight: 500;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid #c9982a;
+  border-radius: 5px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mp-notice button:hover {
+  background: #fdefc8;
+}
+

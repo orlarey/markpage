@@ -277,6 +277,12 @@ export function mountToolbar(
 
   parent.append(left, center, right);
 
+  // The browser tab shows the document's name — several documents, several
+  // tabs: you tell them apart at a glance.
+  const setTabTitle = (name: string): void => {
+    document.title = name.trim() === '' ? 'markpage' : `${name} — markpage`;
+  };
+
   return {
     setViewMode(mode: ViewMode) {
       currentViewMode = mode;
@@ -284,6 +290,7 @@ export function mountToolbar(
     setDocName(name: string) {
       currentName = name;
       if (document.activeElement !== titleInput) titleInput.value = name;
+      if (!titleInput.readOnly) setTabTitle(name);
     },
     setGuidesPressed(pressed: boolean) {
       currentGuides = pressed;
@@ -297,6 +304,7 @@ export function mountToolbar(
         // Linked: the file IS the name → read-only title; chip = volume + folder.
         currentName = origin.fileName; // keep commitTitle a no-op (no rename)
         titleInput.value = origin.fileName;
+        setTabTitle(origin.fileName);
         titleInput.readOnly = true;
         titleInput.classList.add('linked');
         originText = origin.chip;
@@ -306,6 +314,7 @@ export function mountToolbar(
       } else {
         // Bibliothèque: editable nickname (value set via setDocName); no chip.
         titleInput.readOnly = false;
+        setTabTitle(currentName);
         titleInput.classList.remove('linked');
         originText = '';
         originChip.hidden = true;

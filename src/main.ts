@@ -105,6 +105,15 @@ import { openDocumentStyleMenu } from './ui/document-style-menu';
 import { presentLayout, presentStep } from './presentation';
 import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
+import { hideNotice, showNotice } from './ui/notice';
+import {
+  announceCurrentDoc,
+  holdDocLock,
+  initTabPresence,
+  isLockedElsewhere,
+  isOpenElsewhere,
+  requestFocus,
+} from './tab-presence';
 import { openConflictMenu } from './ui/conflict-menu';
 import { openFileMenu } from './ui/file-menu';
 import { redo, undo } from '@codemirror/commands';
@@ -140,6 +149,7 @@ import {
   saveDraft,
   setCurrentDocId,
   listRecentDocs,
+  onCurrentDocChange,
   setDocGithubLink,
   setDocLink,
   setDocOneDriveLink,
@@ -942,6 +952,10 @@ async function bootstrap(): Promise<void> {
   };
   let lastAppliedSettingsFrontmatter = frontmatterSnapshot(initialDoc);
 
+  // Whether this tab owns the current document (holds its edit lock). A tab
+  // that doesn't is read-only and never writes it — see tab-presence.ts.
+  let docEditable = true;
+
   // Also bound inside the editor keymap (filled in below, after the action fns
   // exist) so Cmd/Ctrl shortcuts fire while CodeMirror has focus — Firefox
   // doesn't bubble them to the window listener like Chromium does.
@@ -953,7 +967,9 @@ async function bootstrap(): Promise<void> {
       // Edits mark the preview dirty, live-refresh the split (if shown), and
       // auto-persist the working copy.
       dirty = true;
-      debouncedSaveDraft(currentDoc.uuid, doc);
+      // A tab that doesn't own the document (read-only here, edited in another
+      // tab) never writes it — its copy may be older than the owner's.
+      if (docEditable) debouncedSaveDraft(currentDoc.uuid, doc);
       scheduleLivePreview();
       // Always feed the debouncer: a replace operation is emitted as
       // "delete, then insert". Keeping only the first changed snapshot would
@@ -1472,6 +1488,7 @@ async function bootstrap(): Promise<void> {
   // current doc, so unsaved keystrokes persist as the outgoing doc's draft
   // (never committed).
   const flushSave = async (): Promise<void> => {
+    if (!docEditable) return; // read-only here: another tab owns the document
     try {
       const updated = await saveDraft(currentDoc.uuid, editor.getValue());
       if (currentDoc.uuid === updated.uuid) currentDoc = updated;
@@ -1506,22 +1523,55 @@ async function bootstrap(): Promise<void> {
     void checkSync();
   };
 
+  // ---- one document per tab ---------------------------------------------
+  // Opening a document gives it its own browser tab (its own window once the
+  // app is installed), like a desktop editor; this tab is reused only when it
+  // holds an empty, unmodified document. The new tab is opened INSIDE the click
+  // (an about:blank placeholder, sent to the document once it exists): opened
+  // after async work, a popup blocker would stop it. Blocked anyway → here.
+  const reuseThisTab = (): boolean =>
+    editor.getValue().trim() === '' && !isModified(currentDoc);
+  const prepareDocTab = (): Window | null =>
+    reuseThisTab() ? null : window.open('', '_blank');
+  const docTabUrl = (uuid: string): string => {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('doc', uuid);
+    return url.toString();
+  };
+  // A document already open in another tab: ask that tab to come forward (the
+  // browser may not let it take focus) and say so here.
+  const pointToOtherTab = (uuid: string): void => {
+    requestFocus(uuid);
+    showNotice(t('tabs.open-elsewhere'));
+  };
+  // Show `entry` where it belongs: nowhere (null — cancelled or failed), in the
+  // tab that already has it, in the prepared new tab, or here.
+  const showDocIn = async (entry: DocEntry | null, win: Window | null): Promise<void> => {
+    const placeholder = win && !win.closed ? win : null;
+    if (!entry || entry.uuid === currentDoc.uuid) {
+      placeholder?.close();
+      return;
+    }
+    if (await isLockedElsewhere(entry.uuid)) {
+      placeholder?.close();
+      pointToOtherTab(entry.uuid);
+      return;
+    }
+    if (placeholder) {
+      placeholder.location.href = docTabUrl(entry.uuid);
+      return;
+    }
+    await switchToDoc(entry.uuid);
+  };
+
   const createNewDoc = async (): Promise<void> => {
-    await flushSave();
     // A brand-new doc starts empty — it renders with the default style until
     // one is picked from the Style menu (document-style).
-    const content = '';
-    const entry = await createDoc('Sans titre', content);
-    currentDoc = entry;
-    await setCurrentDocId(entry.uuid);
-    state.settings = deriveDocSettings(content);
-    editor.setValue(content);
-    dirty = true;
-    // Keep the split open — refresh it for the new empty doc.
-    if (viewMode === 'preview') void updatePreview(editor.getValue());
-    toolbarCtrl.setModified(false);
-    toolbarCtrl.setOrigin(null);
-    toolbarCtrl.setDocName(entry.name);
+    const win = prepareDocTab();
+    const entry = await createDoc('Sans titre', '');
+    await showDocIn(entry, win);
   };
 
   const renameCurrentDoc = async (newName: string): Promise<void> => {
@@ -1706,7 +1756,8 @@ async function bootstrap(): Promise<void> {
   // overlapping auto-pulls. Push stays explicit (Save), so it isn't here.
   let syncing = false;
   const checkSync = async (): Promise<void> => {
-    if (syncing || !isLinked(currentDoc)) return;
+    // Only the tab that owns the document syncs it with its origin.
+    if (syncing || !docEditable || !isLinked(currentDoc)) return;
     const handle = await loadHandle(currentDoc.uuid);
     if (!handle || !(await queryRwGranted(handle))) return;
     const [mtime, baseline] = await Promise.all([
@@ -1942,24 +1993,19 @@ async function bootstrap(): Promise<void> {
     );
   };
 
-  // Open a OneDrive app-folder `.md` as a NEW library doc linked to it.
-  const openOneDriveFile = async (path: string): Promise<void> => {
+  // The library entry of a OneDrive app-folder `.md`: the one already linked to
+  // it (reopening never duplicates), else a NEW library doc linked to it.
+  const oneDriveEntry = async (path: string): Promise<DocEntry | null> => {
+    const known = (await listDocs()).find((e) => oneDriveLinkOf(e)?.path === path);
+    if (known) return known;
     try {
       const { text, etag } = await readOneDriveText(path);
-      await flushSave();
       const base = path.slice(path.lastIndexOf('/') + 1).replace(/\.(md|markdown)$/i, '');
       const entry = await createDoc(base === '' ? 'Document' : base, text);
-      currentDoc = entry;
-      await setCurrentDocId(entry.uuid);
-      editor.setValue(text);
-      const linked = await setDocOneDriveLink(entry.uuid, { path, baselineEtag: etag });
-      if (linked) currentDoc = linked;
-      dirty = true;
-      if (viewMode === 'preview') void updatePreview(editor.getValue());
-      toolbarCtrl.setModified(false);
-      refreshLinkBadge();
+      return (await setDocOneDriveLink(entry.uuid, { path, baselineEtag: etag })) ?? entry;
     } catch (err) {
       handleOneDriveError(err);
+      return null;
     }
   };
 
@@ -2007,33 +2053,34 @@ async function bootstrap(): Promise<void> {
     refreshLinkBadge();
   };
 
-  // Import a repo `foo.md` (R2) as a NEW library doc linked to GitHub, then
-  // switch to it. Shared by the volume browser and the legacy prompt flow.
-  const openGithubTarget = async (
+  // The library entry of a repo `foo.md`: the one already linked to it
+  // (reopening never duplicates), else a NEW library doc linked to GitHub (R2).
+  const githubEntry = async (
     token: string,
     target: GithubTarget,
-  ): Promise<void> => {
+  ): Promise<DocEntry | null> => {
+    const known = (await listDocs()).find((e) => {
+      const g = githubLinkOf(e);
+      return (
+        g !== null &&
+        g !== undefined &&
+        g.owner === target.owner &&
+        g.repo === target.repo &&
+        g.branch === target.branch &&
+        g.path === target.path
+      );
+    });
+    if (known) return known;
     const res = await importFromGithub(token, target);
     if (!res) {
       globalThis.alert(t('github.remote-gone', { path: target.path }));
-      return;
+      return null;
     }
-    await flushSave();
     const base = target.path.slice(target.path.lastIndexOf('/') + 1).replace(/\.md$/i, '');
     const entry = await createDoc(base === '' ? 'Document' : base, res.content);
-    currentDoc = entry;
-    await setCurrentDocId(entry.uuid);
-    editor.setValue(res.content);
-    const linked = await setDocGithubLink(entry.uuid, {
-      ...target,
-      baselineSha: res.baselineSha,
-    });
-    if (linked) currentDoc = linked;
-    dirty = true;
-    if (viewMode === 'preview') void updatePreview(editor.getValue());
-    toolbarCtrl.setDocName(currentDoc.name);
-    toolbarCtrl.setModified(false);
-    refreshLinkBadge();
+    return (
+      (await setDocGithubLink(entry.uuid, { ...target, baselineSha: res.baselineSha })) ?? entry
+    );
   };
 
   // Folder portion of a volume-relative path (`''` at the volume root).
@@ -2042,14 +2089,21 @@ async function bootstrap(): Promise<void> {
     return i === -1 ? '' : p.slice(0, i);
   };
 
-  // Import a disk `.md` file handle as a NEW library doc, linked to that file.
+  // The library entry of a disk `.md`: the one already linked to that very file
+  // (reopening never duplicates — compared by handle, whatever the path it was
+  // reached by), else a NEW library doc imported from it and linked to it.
   // `volume`/`path` (from the browser) feed the origin chip its volume + folder.
-  const linkDiskFileHandle = async (
+  const diskFileEntry = async (
     fh: FileSystemFileHandle,
     volume?: string,
     path?: string,
     vol?: DiskVolume,
-  ): Promise<void> => {
+  ): Promise<DocEntry | null> => {
+    for (const e of await listDocs()) {
+      if (!e.link || linkKind(e) !== 'file') continue;
+      const h = await loadHandle(e.uuid);
+      if (h && (await h.isSameEntry(fh))) return e;
+    }
     // When we know the mounted volume, resolve same-folder resources silently
     // (siblings of the `.md`, resolved against its own directory) so the import
     // prompt only appears for files that genuinely aren't in the folder.
@@ -2057,57 +2111,52 @@ async function bootstrap(): Promise<void> {
       vol && path !== undefined
         ? readDiskFile(vol, dirOfPath(path))
         : undefined;
-    const entry = await handleImport(await fh.getFile(), folderResolver);
-    if (!entry) return;
-    if (!(await ensureRwPermission(fh))) return; // imported, just not linked
+    const entry = await importToLibrary(await fh.getFile(), folderResolver);
+    if (!entry) return null;
+    if (!(await ensureRwPermission(fh))) return entry; // imported, just not linked
     await saveHandle(entry.uuid, fh);
-    const updated = await setDocLink(entry.uuid, {
-      name: fh.name,
-      kind: 'file',
-      volume,
-      dir: path === undefined ? undefined : dirOfPath(path),
-    });
-    if (updated) currentDoc = updated;
-    refreshLinkBadge();
-    await markSynced(currentDoc, fh);
+    const linked =
+      (await setDocLink(entry.uuid, {
+        name: fh.name,
+        kind: 'file',
+        volume,
+        dir: path === undefined ? undefined : dirOfPath(path),
+      })) ?? entry;
+    await markSynced(linked, fh);
+    return linked;
   };
 
   // Route an open from the unified browser (V1/V3/V4): a Library entry switches
   // to the existing doc; a markdown file on Disk/Repo is imported + linked in
   // place; a foreign file is imported as a copy into the Bibliothèque (V4).
-  const openFromVolume = async (vol: Volume, entry: VolumeEntry): Promise<void> => {
+  const openFromVolume = async (
+    vol: Volume,
+    entry: VolumeEntry,
+    win: Window | null,
+  ): Promise<void> => {
+    let target: DocEntry | null = null;
     try {
       if (vol.kind === 'library' || vol.kind === 'recents') {
-        await switchToDoc(entry.path); // path = doc uuid
-        return;
-      }
-      if (vol instanceof RepoVolume) {
-        if (!entry.isMarkdown) {
-          globalThis.alert(t('volume.foreign-repo'));
-          return;
+        target = (await listDocs()).find((d) => d.uuid === entry.path) ?? null; // path = uuid
+      } else if (vol instanceof RepoVolume) {
+        if (!entry.isMarkdown) globalThis.alert(t('volume.foreign-repo'));
+        else {
+          const token = await ensureGithubToken();
+          if (token) target = await githubEntry(token, { ...vol.target, path: entry.path });
         }
-        const token = await ensureGithubToken();
-        if (!token) return;
-        await openGithubTarget(token, { ...vol.target, path: entry.path });
-        return;
-      }
-      if (vol instanceof DiskVolume) {
+      } else if (vol instanceof DiskVolume) {
         const fh = await vol.fileHandle(entry.path);
-        if (entry.isMarkdown)
-          await linkDiskFileHandle(fh, vol.label, entry.path, vol);
-        else await handleImport(await fh.getFile());
-        return;
-      }
-      if (vol instanceof OneDriveVolume) {
-        if (!entry.isMarkdown) {
-          globalThis.alert(t('volume.foreign-repo'));
-          return;
-        }
-        await openOneDriveFile(entry.path);
+        target = entry.isMarkdown
+          ? await diskFileEntry(fh, vol.label, entry.path, vol)
+          : await importToLibrary(await fh.getFile());
+      } else if (vol instanceof OneDriveVolume) {
+        if (!entry.isMarkdown) globalThis.alert(t('volume.foreign-repo'));
+        else target = await oneDriveEntry(entry.path);
       }
     } catch (err) {
       handleGithubError(err);
     }
+    await showDocIn(target, win);
   };
 
   // Mount a disk folder as a volume, then reopen the browser on it.
@@ -2254,7 +2303,21 @@ async function bootstrap(): Promise<void> {
       initial: browserStart(volumes),
       onNavigate: rememberBrowserLocation,
       onOpen: (vol, entry) => {
-        void openFromVolume(vol, entry);
+        // A document already known by uuid can be checked right away, inside the
+        // click: this one, or open in another tab → no new tab at all.
+        if (vol.kind === 'library' || vol.kind === 'recents') {
+          if (entry.path === currentDoc.uuid) return;
+          if (isOpenElsewhere(entry.path)) {
+            // Presence can be stale (a tab gone without a word): the lock
+            // decides — if nobody holds it after all, open it (here, since the
+            // click's popup allowance is spent by then).
+            void isLockedElsewhere(entry.path).then((locked) =>
+              locked ? pointToOtherTab(entry.path) : openFromVolume(vol, entry, null),
+            );
+            return;
+          }
+        }
+        void openFromVolume(vol, entry, prepareDocTab());
       },
       // "Ouvrir un fichier…" — a loose file from the device (folds in Import, V4).
       onOpenDeviceFile: () => {
@@ -2405,14 +2468,11 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  // Imports an external file (.md / .docx / .html / .txt) as a *new*
-  // doc in the index, switches to it. Unlike the mono-doc era, this
-  // never overwrites the current doc, so no confirmation is needed.
-  // The new doc's name is derived from the source filename — if the
-  // base name collides with an existing doc, createDoc uniques it.
-  // Import a file as a new library doc; returns the created entry (or null on
-  // cancel/failure) so callers like Open-from-disk can link it afterwards.
-  const handleImport = async (
+  // Imports an external file (.md / .docx / .html / .txt) as a *new* doc in the
+  // index — without opening it (callers decide where: showDocIn). The name is
+  // derived from the source filename; createDoc uniques a colliding one.
+  // Returns the created entry, or null on cancel/failure.
+  const importToLibrary = async (
     file: File,
     // When the `.md` is opened from a mounted disk folder, this reads a sibling
     // resource live from that folder so same-folder images resolve silently —
@@ -2421,9 +2481,6 @@ async function bootstrap(): Promise<void> {
   ): Promise<DocEntry | null> => {
     try {
       const { content, baseName } = await importFile(file);
-      // Persist the outgoing doc before we switch focus — debounce
-      // may not have fired yet.
-      await flushSave();
       // Hoist any inline data URLs into IndexedDB and replace them
       // with short `img://<sha>` refs. Keeps the new doc readable.
       const cleaned = await extractDataUrlsToStore(content);
@@ -2458,18 +2515,7 @@ async function bootstrap(): Promise<void> {
         }
       }
       const desired = baseName.trim() === '' ? 'Document importé' : baseName;
-      const entry = await createDoc(desired, cleaned);
-      currentDoc = entry;
-      await setCurrentDocId(entry.uuid);
-      editor.setValue(cleaned);
-      // Stay in editor mode after import — the user typically wants
-      // to see the markdown they just opened. The preview is dirty
-      // and will repaginate on the next Cmd/Ctrl+Enter.
-      dirty = true;
-      if (viewMode === 'preview') void updatePreview(editor.getValue());
-      toolbarCtrl.setDocName(entry.name);
-      toolbarCtrl.setOrigin(null);
-      return entry;
+      return await createDoc(desired, cleaned);
     } catch (err: unknown) {
       console.error('Import failed', err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -2491,7 +2537,10 @@ async function bootstrap(): Promise<void> {
     input.addEventListener('change', () => {
       const file = input.files?.[0];
       input.remove();
-      if (file) void handleImport(file);
+      if (file) {
+        const win = prepareDocTab();
+        void importToLibrary(file).then((e) => showDocIn(e, win));
+      }
     });
     input.click();
   };
@@ -2508,11 +2557,11 @@ async function bootstrap(): Promise<void> {
     }
     const fh = await pickImportableFileHandle();
     if (!fh) return;
-    if (/\.(md|markdown)$/i.test(fh.name)) {
-      await linkDiskFileHandle(fh); // in-place, no mount needed (V4)
-    } else {
-      await handleImport(await fh.getFile()); // foreign → copy (V4)
-    }
+    const win = prepareDocTab();
+    const target = /\.(md|markdown)$/i.test(fh.name)
+      ? await diskFileEntry(fh) // in place, no mount needed (V4)
+      : await importToLibrary(await fh.getFile()); // foreign → copy (V4)
+    await showDocIn(target, win);
   };
 
   const triggerSave = (): void => {
@@ -2926,6 +2975,72 @@ async function bootstrap(): Promise<void> {
   editorShortcuts.guides = triggerGuides;
 
   renderToolbar();
+
+  // ---- tab presence + edit lock (tab-presence.ts) -----------------------
+  // One tab edits a document; another tab showing it (a duplicated tab, a URL
+  // typed by hand) is read-only until the user takes the document over.
+  const setEditable = (on: boolean): void => {
+    docEditable = on;
+    editor.setReadOnly(!on);
+    if (on) hideNotice('mp-readonly');
+  };
+  const readOnlyNotice = (text: string): void =>
+    showNotice(text, {
+      id: 'mp-readonly',
+      sticky: true,
+      action: { label: t('tabs.take-over'), run: () => void takeOver() },
+    });
+  const claimDoc = async (uuid: string, steal = false): Promise<void> => {
+    const status = await holdDocLock(
+      uuid,
+      () => {
+        if (uuid !== currentDoc.uuid) return;
+        setEditable(false);
+        readOnlyNotice(t('tabs.taken-over'));
+      },
+      { steal },
+    );
+    if (uuid !== currentDoc.uuid) return; // switched meanwhile
+    if (status === 'owner') setEditable(true);
+    else {
+      setEditable(false);
+      readOnlyNotice(t('tabs.read-only'));
+    }
+  };
+  // Reload the document as last saved (by whichever tab owns it) — a read-only
+  // copy stays current, and taking over starts from the owner's latest work.
+  const reloadFromStore = async (): Promise<void> => {
+    const fresh = (await listDocs()).find((d) => d.uuid === currentDoc.uuid);
+    if (!fresh) return;
+    const content = (await loadDocContent(fresh)) ?? '';
+    currentDoc = fresh;
+    toolbarCtrl.setModified(isModified(fresh));
+    if (content === editor.getValue()) return;
+    editor.setValue(content);
+    dirty = true;
+    if (viewMode === 'preview') void updatePreview(editor.getValue());
+  };
+  const takeOver = async (): Promise<void> => {
+    await claimDoc(currentDoc.uuid, true);
+    await reloadFromStore();
+  };
+  initTabPresence(() => {
+    // Another tab asked for this document: come forward (best effort) and
+    // flag the tab title for a moment.
+    window.focus();
+    const title = document.title;
+    document.title = `● ${title}`;
+    setTimeout(() => {
+      document.title = title;
+    }, 3000);
+  });
+  onCurrentDocChange((uuid) => {
+    announceCurrentDoc(uuid);
+    void claimDoc(uuid);
+  });
+  announceCurrentDoc(currentDoc.uuid);
+  void claimDoc(currentDoc.uuid);
+
   // Reflect any resumed working copy (a draft persisted from a previous
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
@@ -2941,7 +3056,10 @@ async function bootstrap(): Promise<void> {
   // on focus / visibility change (immediate when the user returns after editing
   // the file externally) plus a ~2s interval for a near-live feel side-by-side.
   const pollSync = (): void => {
-    if (document.visibilityState === 'visible') void checkSync();
+    if (document.visibilityState !== 'visible') return;
+    // A read-only tab follows the owner's saved work instead of syncing.
+    if (docEditable) void checkSync();
+    else void reloadFromStore();
   };
   globalThis.addEventListener('focus', pollSync);
   document.addEventListener('visibilitychange', pollSync);

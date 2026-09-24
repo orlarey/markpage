@@ -132,12 +132,13 @@ async function patchEntry(
     legacyWriteIndex(index);
     return index[i];
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) return null;
-  lib.docs[i] = patch(lib.docs[i]);
-  await saveLibrary(lib);
-  return lib.docs[i];
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return null;
+    lib.docs[i] = patch(lib.docs[i]);
+    await saveLibrary(lib);
+    return lib.docs[i];
+  });
 }
 
 /** The kind of a doc's disk link ('folder' when unset, for back-compat). */
@@ -356,6 +357,31 @@ async function loadLibrary(): Promise<Library> {
 /** Persist the in-memory library back to `index.json`. */
 async function saveLibrary(lib: Library): Promise<void> {
   await writeTextFile(INDEX_FILE, JSON.stringify(lib));
+  indexChannel?.postMessage('changed');
+}
+
+// Several tabs share one index.json. Each tab caches it (libPromise), so a
+// write from a stale copy would drop what another tab just added. Every change
+// therefore runs under one cross-tab lock and starts from a FRESH read; after a
+// write, the other tabs are told to drop their cached copy.
+const INDEX_LOCK = 'markpage-index';
+const indexChannel =
+  typeof BroadcastChannel === 'function' ? new BroadcastChannel('markpage-index') : null;
+if (indexChannel) {
+  indexChannel.onmessage = () => {
+    libPromise = null; // another tab wrote the index — re-read on next access
+  };
+}
+
+/** Run a read-modify-write of the index exclusively across tabs, on a fresh
+ *  copy (`fn` calls saveLibrary itself when it changes something). */
+async function withLibrary<T>(fn: (lib: Library) => Promise<T>): Promise<T> {
+  const run = async (): Promise<T> => {
+    libPromise = null;
+    return fn(await loadLibrary());
+  };
+  const locks = (globalThis.navigator as Navigator & { locks?: LockManager } | undefined)?.locks;
+  return locks ? locks.request(INDEX_LOCK, run) : run();
 }
 
 /**
@@ -515,13 +541,24 @@ export async function listRecentDocs(): Promise<{ entry: DocEntry; openedAt: num
   return out;
 }
 
+// Listeners told whenever a tab changes its current document (tab presence,
+// edit lock).
+const currentDocListeners = new Set<(uuid: string) => void>();
+
+/** Be told each time this tab's current document changes. */
+export function onCurrentDocChange(cb: (uuid: string) => void): void {
+  currentDocListeners.add(cb);
+}
+
 /** Record the active doc (persisted store + URL bar + Récents). */
 export async function setCurrentDocId(uuid: string): Promise<void> {
   noteRecentDoc(uuid);
+  for (const cb of currentDocListeners) cb(uuid);
   if (opfsAvailable()) {
-    const lib = await loadLibrary();
-    lib.currentDoc = uuid;
-    await saveLibrary(lib);
+    await withLibrary(async (lib) => {
+      lib.currentDoc = uuid;
+      await saveLibrary(lib);
+    });
   } else {
     localStorage.setItem(KEY_CURRENT, uuid);
   }
@@ -601,18 +638,19 @@ export async function saveDraft(
     legacyWriteIndex(index);
     return updated;
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) throw new Error(`saveDraft: unknown uuid ${uuid}`);
-  if (sha === lib.docs[i].contentSha) {
-    await deleteEntry(draftPath(uuid));
-    lib.docs[i] = clearDirty(lib.docs[i]);
-  } else {
-    await writeTextFile(draftPath(uuid), content);
-    lib.docs[i] = { ...lib.docs[i], dirtySha: sha };
-  }
-  await saveLibrary(lib);
-  return lib.docs[i];
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`saveDraft: unknown uuid ${uuid}`);
+    if (sha === lib.docs[i].contentSha) {
+      await deleteEntry(draftPath(uuid));
+      lib.docs[i] = clearDirty(lib.docs[i]);
+    } else {
+      await writeTextFile(draftPath(uuid), content);
+      lib.docs[i] = { ...lib.docs[i], dirtySha: sha };
+    }
+    await saveLibrary(lib);
+    return lib.docs[i];
+  });
 }
 
 /** Commit the working copy: the draft becomes the new committed content (Save). */
@@ -631,22 +669,23 @@ export async function commitDoc(uuid: string): Promise<DocEntry> {
     legacyWriteIndex(index);
     return updated;
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) throw new Error(`commitDoc: unknown uuid ${uuid}`);
-  const entry = lib.docs[i];
-  if (!entry.dirtySha) return entry;
-  const draft = (await readTextFile(draftPath(uuid))) ?? '';
-  await writeTextFile(bundlePath(uuid), draft);
-  await deleteEntry(draftPath(uuid));
-  const updated = clearDirty({
-    ...entry,
-    contentSha: entry.dirtySha,
-    mtime: Date.now(),
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`commitDoc: unknown uuid ${uuid}`);
+    const entry = lib.docs[i];
+    if (!entry.dirtySha) return entry;
+    const draft = (await readTextFile(draftPath(uuid))) ?? '';
+    await writeTextFile(bundlePath(uuid), draft);
+    await deleteEntry(draftPath(uuid));
+    const updated = clearDirty({
+      ...entry,
+      contentSha: entry.dirtySha,
+      mtime: Date.now(),
+    });
+    lib.docs[i] = updated;
+    await saveLibrary(lib);
+    return updated;
   });
-  lib.docs[i] = updated;
-  await saveLibrary(lib);
-  return updated;
 }
 
 /** Discard the working copy, returning to the committed content (Revert). */
@@ -659,13 +698,14 @@ export async function revertDoc(uuid: string): Promise<DocEntry> {
     legacyWriteIndex(index);
     return index[i];
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) throw new Error(`revertDoc: unknown uuid ${uuid}`);
-  await deleteEntry(draftPath(uuid));
-  lib.docs[i] = clearDirty(lib.docs[i]);
-  await saveLibrary(lib);
-  return lib.docs[i];
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`revertDoc: unknown uuid ${uuid}`);
+    await deleteEntry(draftPath(uuid));
+    lib.docs[i] = clearDirty(lib.docs[i]);
+    await saveLibrary(lib);
+    return lib.docs[i];
+  });
 }
 
 /**
@@ -689,15 +729,16 @@ export async function saveDocContent(
     legacyWriteIndex(index);
     return updated;
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) throw new Error(`saveDocContent: unknown uuid ${uuid}`);
-  if (lib.docs[i].contentSha === sha) return lib.docs[i];
-  await writeTextFile(bundlePath(uuid), content);
-  const updated: DocEntry = { ...lib.docs[i], contentSha: sha, mtime: Date.now() };
-  lib.docs[i] = updated;
-  await saveLibrary(lib);
-  return updated;
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) throw new Error(`saveDocContent: unknown uuid ${uuid}`);
+    if (lib.docs[i].contentSha === sha) return lib.docs[i];
+    await writeTextFile(bundlePath(uuid), content);
+    const updated: DocEntry = { ...lib.docs[i], contentSha: sha, mtime: Date.now() };
+    lib.docs[i] = updated;
+    await saveLibrary(lib);
+    return updated;
+  });
 }
 
 /** Create a new doc with initial content. */
@@ -707,21 +748,22 @@ export async function createDoc(
 ): Promise<DocEntry> {
   if (!opfsAvailable()) return legacyCreateDoc(desiredName, initialContent);
   const sha = await hashContent(initialContent);
-  const lib = await loadLibrary();
-  const name = uniqueName(
-    desiredName.trim() || 'Sans titre',
-    new Set(lib.docs.map((e) => e.name)),
-  );
-  const entry: DocEntry = {
-    uuid: crypto.randomUUID(),
-    name,
-    mtime: Date.now(),
-    contentSha: sha,
-  };
-  await writeTextFile(bundlePath(entry.uuid), initialContent);
-  lib.docs.push(entry);
-  await saveLibrary(lib);
-  return entry;
+  return withLibrary(async (lib) => {
+    const name = uniqueName(
+      desiredName.trim() || 'Sans titre',
+      new Set(lib.docs.map((e) => e.name)),
+    );
+    const entry: DocEntry = {
+      uuid: crypto.randomUUID(),
+      name,
+      mtime: Date.now(),
+      contentSha: sha,
+    };
+    await writeTextFile(bundlePath(entry.uuid), initialContent);
+    lib.docs.push(entry);
+    await saveLibrary(lib);
+    return entry;
+  });
 }
 
 /** Rename a doc; reject empty names and unknown uuids. */
@@ -740,13 +782,14 @@ export async function renameDoc(
     legacyWriteIndex(index);
     return updated;
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) return null;
-  const updated: DocEntry = { ...lib.docs[i], name: trimmed };
-  lib.docs[i] = updated;
-  await saveLibrary(lib);
-  return updated;
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return null;
+    const updated: DocEntry = { ...lib.docs[i], name: trimmed };
+    lib.docs[i] = updated;
+    await saveLibrary(lib);
+    return updated;
+  });
 }
 
 /** Remove a doc (and, on OPFS, its bundle). */
@@ -763,12 +806,13 @@ export async function deleteDoc(uuid: string): Promise<void> {
     }
     return;
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) return;
-  lib.docs[i] = { ...lib.docs[i], deletedAt: now };
-  if (lib.currentDoc === uuid) lib.currentDoc = null;
-  await saveLibrary(lib);
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return;
+    lib.docs[i] = { ...lib.docs[i], deletedAt: now };
+    if (lib.currentDoc === uuid) lib.currentDoc = null;
+    await saveLibrary(lib);
+  });
 }
 
 /** Restore a doc out of the Trash. */
@@ -781,12 +825,13 @@ export async function restoreDoc(uuid: string): Promise<DocEntry | null> {
     legacyWriteIndex(index);
     return index[i];
   }
-  const lib = await loadLibrary();
-  const i = lib.docs.findIndex((e) => e.uuid === uuid);
-  if (i < 0) return null;
-  lib.docs[i] = clearDeleted(lib.docs[i]);
-  await saveLibrary(lib);
-  return lib.docs[i];
+  return withLibrary(async (lib) => {
+    const i = lib.docs.findIndex((e) => e.uuid === uuid);
+    if (i < 0) return null;
+    lib.docs[i] = clearDeleted(lib.docs[i]);
+    await saveLibrary(lib);
+    return lib.docs[i];
+  });
 }
 
 /** Permanently delete a doc and its bundle (no undo). */
@@ -798,11 +843,12 @@ export async function purgeDoc(uuid: string): Promise<void> {
     }
     return;
   }
-  const lib = await loadLibrary();
-  lib.docs = lib.docs.filter((e) => e.uuid !== uuid);
-  if (lib.currentDoc === uuid) lib.currentDoc = null;
-  await saveLibrary(lib);
-  await deleteEntry(uuid, true);
+  return withLibrary(async (lib) => {
+    lib.docs = lib.docs.filter((e) => e.uuid !== uuid);
+    if (lib.currentDoc === uuid) lib.currentDoc = null;
+    await saveLibrary(lib);
+    await deleteEntry(uuid, true);
+  });
 }
 
 /** Permanently delete every trashed doc. */

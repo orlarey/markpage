@@ -8,7 +8,7 @@
  *******************************************************************************/
 
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState, Prec } from '@codemirror/state';
+import { Compartment, EditorState, Prec } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { indentLess, indentMore, insertTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -162,6 +162,8 @@ export interface Editor {
   view: EditorView;
   getValue(): string;
   setValue(content: string): void;
+  /** Block (or re-allow) user edits — programmatic setValue still works. */
+  setReadOnly(on: boolean): void;
 }
 
 /**
@@ -217,11 +219,13 @@ export function createEditor(
   onChange: (doc: string) => void,
   shortcuts?: EditorShortcuts,
 ): Editor {
+  const readOnly = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
       doc: initialDoc,
       extensions: [
+        readOnly.of([]),
         basicSetup,
         markdown(),
         EditorView.lineWrapping,
@@ -271,6 +275,13 @@ export function createEditor(
     setValue(content: string) {
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: content },
+      });
+    },
+    setReadOnly(on: boolean) {
+      view.dispatch({
+        effects: readOnly.reconfigure(
+          on ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : [],
+        ),
       });
     },
   };
