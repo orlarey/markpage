@@ -147,6 +147,10 @@ const FR = {
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Ouvrir',
   'volume.save-title': 'Enregistrer sous',
+  'volume.recents': 'Récents',
+  'volume.sort-title': 'Trier les fichiers',
+  'volume.sort-name': 'Nom',
+  'volume.sort-date': 'Date',
   'volume.root': 'markpage',
   'volume.name-placeholder': 'nom-du-fichier.md',
   'volume.save-here': 'Enregistrer ici',
@@ -304,6 +308,10 @@ const EN: Record<keyof typeof FR, string> = {
   // ---- Volumes (docs/VOLUMES-SPEC.md) ------------------------------
   'volume.browser-title': 'Open',
   'volume.save-title': 'Save As',
+  'volume.recents': 'Recent',
+  'volume.sort-title': 'Sort files',
+  'volume.sort-name': 'Name',
+  'volume.sort-date': 'Date',
   'volume.root': 'markpage',
   'volume.name-placeholder': 'file-name.md',
   'volume.save-here': 'Save here',

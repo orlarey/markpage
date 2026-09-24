@@ -56,6 +56,34 @@ describe('sortEntries', () => {
       'zeta.md',
     ]);
   });
+
+  it("'date': folders still first by name, files most recent first, undated last", () => {
+    const f = (name: string, modified?: number): VolumeEntry => ({
+      name,
+      path: name,
+      type: 'file',
+      isMarkdown: true,
+      ...(modified === undefined ? {} : { modified }),
+    });
+    const input: VolumeEntry[] = [
+      f('old.md', 1000),
+      { name: 'zdir', path: 'zdir', type: 'dir', isMarkdown: false, modified: 9999 },
+      f('undated-b.md'),
+      f('new.md', 3000),
+      { name: 'adir', path: 'adir', type: 'dir', isMarkdown: false, modified: 1 },
+      f('undated-a.md'),
+      f('mid.md', 2000),
+    ];
+    expect(sortEntries(input, 'date').map((e) => e.name)).toEqual([
+      'adir',
+      'zdir',
+      'new.md',
+      'mid.md',
+      'old.md',
+      'undated-a.md',
+      'undated-b.md',
+    ]);
+  });
 });
 
 describe('resolveWithinRoot', () => {

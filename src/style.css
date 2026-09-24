@@ -1279,6 +1279,53 @@ body.demo-frame-body #preview-pane {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Secondary line of a row (Récents: the document's origin) and its date,
+   pushed to the right edge, in the muted colour. */
+.vb-row-detail {
+  font-size: 0.75rem;
+  color: var(--text-muted, #57606a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.vb-row-date {
+  margin-left: auto;
+  padding-left: 0.8rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #57606a);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* Name / Date toggle, at the right end of the breadcrumb bar. */
+.vb-sort {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.vb-sort[hidden] {
+  display: none;
+}
+.vb-sort-btn {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #57606a);
+  cursor: pointer;
+}
+.vb-sort-btn + .vb-sort-btn {
+  border-left: 1px solid var(--border, #d0d7de);
+}
+.vb-sort-btn.active {
+  background: var(--bg-alt, #f6f8fa);
+  color: var(--text, #1f2328);
+  font-weight: 500;
+}
 .vb-row-actions {
   display: flex;
   align-items: center;

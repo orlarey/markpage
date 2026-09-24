@@ -462,8 +462,62 @@ export async function getCurrentDocId(): Promise<string | null> {
   return (await loadLibrary()).currentDoc;
 }
 
-/** Record the active doc (persisted store + URL bar). */
+// ---- recently opened documents -------------------------------------------
+// Every opened document — whatever its source — has an entry in the index, so
+// the Récents list is just the last opened uuids with their time. Kept in
+// localStorage (a small per-browser preference, not document data).
+
+const KEY_RECENTS = 'markpage:recent-docs';
+const MAX_RECENTS = 20;
+
+interface RecentMark {
+  uuid: string;
+  at: number;
+}
+
+function readRecents(): RecentMark[] {
+  try {
+    const raw = localStorage.getItem(KEY_RECENTS);
+    const arr: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr)
+      ? arr.filter(
+          (r): r is RecentMark =>
+            typeof r?.uuid === 'string' && typeof r?.at === 'number',
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Mark `uuid` as just opened (most recent first, deduplicated, capped). */
+export function noteRecentDoc(uuid: string): void {
+  const list = [
+    { uuid, at: Date.now() },
+    ...readRecents().filter((r) => r.uuid !== uuid),
+  ].slice(0, MAX_RECENTS);
+  try {
+    localStorage.setItem(KEY_RECENTS, JSON.stringify(list));
+  } catch {
+    /* storage unavailable — no Récents, nothing else breaks */
+  }
+}
+
+/** Recently opened documents still in the library (trashed ones skipped),
+ *  most recent first, with when each was last opened. */
+export async function listRecentDocs(): Promise<{ entry: DocEntry; openedAt: number }[]> {
+  const byId = new Map((await listDocs()).map((d) => [d.uuid, d]));
+  const out: { entry: DocEntry; openedAt: number }[] = [];
+  for (const r of readRecents()) {
+    const entry = byId.get(r.uuid);
+    if (entry) out.push({ entry, openedAt: r.at });
+  }
+  return out;
+}
+
+/** Record the active doc (persisted store + URL bar + Récents). */
 export async function setCurrentDocId(uuid: string): Promise<void> {
+  noteRecentDoc(uuid);
   if (opfsAvailable()) {
     const lib = await loadLibrary();
     lib.currentDoc = uuid;

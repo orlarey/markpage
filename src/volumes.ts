@@ -23,7 +23,7 @@ import {
   readTextFile,
 } from './github';
 
-export type VolumeKind = 'library' | 'disk' | 'repo' | 'onedrive';
+export type VolumeKind = 'library' | 'disk' | 'repo' | 'onedrive' | 'recents';
 
 /** Health of a volume — drives the browser's availability hints. */
 export type VolumeState =
@@ -41,7 +41,15 @@ export interface VolumeEntry {
   type: 'file' | 'dir';
   /** True for a markdown file → opens in place; else import (V4). */
   isMarkdown: boolean;
+  /** Last modification (ms since epoch), when the source provides it cheaply
+   *  — the browser's date sort. Absent on a GitHub repo (not in its listing). */
+  modified?: number;
+  /** A secondary line under the name (the Récents list shows the origin). */
+  detail?: string;
 }
+
+/** How the browser orders files (folders always come first, by name). */
+export type EntrySort = 'name' | 'date';
 
 /** A mounted, browsable tree. Read-side façade over an existing engine. */
 export interface Volume {
@@ -79,11 +87,21 @@ export function childrenFromTree(tree: TreeEntry[], dir: string): VolumeEntry[] 
   return out;
 }
 
-/** Order entries: folders first, then files, each alphabetical (fr locale). */
-export function sortEntries(entries: VolumeEntry[]): VolumeEntry[] {
+/**
+ * Order entries: folders first (alphabetical), then files — alphabetical, or
+ * most recent first for `date` (files without a date after the dated ones,
+ * alphabetical among themselves).
+ */
+export function sortEntries(entries: VolumeEntry[], by: EntrySort = 'name'): VolumeEntry[] {
+  const byName = (a: VolumeEntry, b: VolumeEntry): number => a.name.localeCompare(b.name, 'fr');
   return [...entries].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
-    return a.name.localeCompare(b.name, 'fr');
+    if (by === 'date' && a.type === 'file') {
+      const da = a.modified ?? -Infinity;
+      const db = b.modified ?? -Infinity;
+      if (da !== db) return db - da;
+    }
+    return byName(a, b);
   });
 }
 
@@ -138,7 +156,13 @@ export class LibraryVolume implements Volume {
   }
 
   private entryOf(doc: DocEntry): VolumeEntry {
-    return { name: `${doc.name}.md`, path: doc.uuid, type: 'file', isMarkdown: true };
+    return {
+      name: `${doc.name}.md`,
+      path: doc.uuid,
+      type: 'file',
+      isMarkdown: true,
+      modified: doc.mtime,
+    };
   }
 
   async list(path: string): Promise<VolumeEntry[]> {
@@ -211,15 +235,30 @@ export class DiskVolume implements Volume {
   async list(path: string): Promise<VolumeEntry[]> {
     const dir = (await this.dirAt(path)) as FsDirHandle;
     const out: VolumeEntry[] = [];
+    const reads: Promise<void>[] = [];
     for await (const h of dir.values()) {
       const child = path === '' ? h.name : `${path}/${h.name}`;
-      out.push({
+      const entry: VolumeEntry = {
         name: h.name,
         path: child,
         type: h.kind === 'directory' ? 'dir' : 'file',
         isMarkdown: h.kind === 'file' && isMd(h.name),
-      });
+      };
+      out.push(entry);
+      // A file's date needs a read of its metadata — done in parallel, and a
+      // file that can't be read just goes undated.
+      if (h.kind === 'file') {
+        reads.push(
+          (h as FileSystemFileHandle)
+            .getFile()
+            .then((f) => {
+              entry.modified = f.lastModified;
+            })
+            .catch(() => undefined),
+        );
+      }
     }
+    await Promise.all(reads);
     return sortEntries(out);
   }
 
@@ -330,6 +369,7 @@ export class OneDriveVolume implements Volume {
         path: path === '' ? e.name : `${path}/${e.name}`,
         type: e.isFolder ? 'dir' : 'file',
         isMarkdown: !e.isFolder && isMd(e.name),
+        modified: e.modified,
       })),
     );
   }

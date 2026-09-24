@@ -217,6 +217,8 @@ function approotPath(path: string): string {
 export interface OneDriveEntry {
   name: string;
   isFolder: boolean;
+  /** Last modification (ms since epoch), from Graph's lastModifiedDateTime. */
+  modified?: number;
 }
 
 /** List a folder within the app-folder (`''` = its root). */
@@ -229,8 +231,17 @@ export async function listOneDrive(path: string): Promise<OneDriveEntry[]> {
       : `${GRAPH}/special/approot:/${enc}:/children`;
   const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!resp.ok) throw new Error(`Graph children ${resp.status}`);
-  const j = (await resp.json()) as { value: { name: string; folder?: unknown }[] };
-  return j.value.map((e) => ({ name: e.name, isFolder: e.folder != null }));
+  const j = (await resp.json()) as {
+    value: { name: string; folder?: unknown; lastModifiedDateTime?: string }[];
+  };
+  return j.value.map((e) => {
+    const t = e.lastModifiedDateTime ? Date.parse(e.lastModifiedDateTime) : NaN;
+    return {
+      name: e.name,
+      isFolder: e.folder != null,
+      ...(Number.isFinite(t) ? { modified: t } : {}),
+    };
+  });
 }
 
 /** Read a text file + its eTag (the sync baseline) from the app-folder. */

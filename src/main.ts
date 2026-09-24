@@ -139,6 +139,7 @@ import {
   saveDocContent,
   saveDraft,
   setCurrentDocId,
+  listRecentDocs,
   setDocGithubLink,
   setDocLink,
   setDocOneDriveLink,
@@ -2076,7 +2077,7 @@ async function bootstrap(): Promise<void> {
   // place; a foreign file is imported as a copy into the Bibliothèque (V4).
   const openFromVolume = async (vol: Volume, entry: VolumeEntry): Promise<void> => {
     try {
-      if (vol.kind === 'library') {
+      if (vol.kind === 'library' || vol.kind === 'recents') {
         await switchToDoc(entry.path); // path = doc uuid
         return;
       }
@@ -2210,6 +2211,35 @@ async function bootstrap(): Promise<void> {
       return undefined;
     }
   };
+  // Récents — a virtual volume at the top of the browser's root (open mode):
+  // the documents opened last, whatever their source, most recent first, with
+  // their origin under the name. Every opened document has an index entry, so
+  // opening one is a plain switch (a linked doc re-syncs with its origin).
+  const recentsVolume = (): Volume => ({
+    id: 'recents',
+    kind: 'recents',
+    label: t('volume.recents'),
+    state: () => Promise.resolve('ready'),
+    list: async () =>
+      (await listRecentDocs())
+        .filter(({ entry }) => entry.uuid !== currentDoc.uuid)
+        .map(({ entry, openedAt }) => {
+          const origin = originOf(entry);
+          return {
+            name: origin?.fileName ?? `${entry.name}.md`,
+            path: entry.uuid,
+            type: 'file' as const,
+            isMarkdown: true,
+            modified: openedAt,
+            detail: origin?.chip ?? 'Bibliothèque',
+          };
+        }),
+    readText: async (uuid) => {
+      const entry = (await listDocs()).find((d) => d.uuid === uuid);
+      return (entry && (await loadDocContent(entry))) ?? '';
+    },
+  });
+
   // Where the browser starts: the folder the current document was opened from,
   // else the last folder visited, else the root.
   const browserStart = (volumes: Volume[]): { volumeId: string; path: string } | undefined =>
@@ -2218,7 +2248,7 @@ async function bootstrap(): Promise<void> {
   // The unified browser (V1) — replaces Open / from-disk / from-GitHub / Import.
   const triggerOpen = async (): Promise<void> => {
     browserMode = 'open';
-    const volumes = await listVolumes();
+    const volumes = [recentsVolume(), ...(await listVolumes())];
     openVolumeBrowser({
       volumes,
       initial: browserStart(volumes),

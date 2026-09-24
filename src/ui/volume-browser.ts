@@ -12,8 +12,16 @@
  *
  *******************************************************************************/
 
+import { getLanguage } from '../i18n/locale';
 import { t } from '../i18n/strings';
-import { TRASH_DIR, type Volume, type VolumeEntry, type VolumeState } from '../volumes';
+import {
+  TRASH_DIR,
+  sortEntries,
+  type EntrySort,
+  type Volume,
+  type VolumeEntry,
+  type VolumeState,
+} from '../volumes';
 import { type IconName, makeIcon } from './icons';
 
 const OVERLAY_ID = 'volume-browser-overlay';
@@ -57,7 +65,39 @@ const KIND_ICON: Record<Volume['kind'], IconName> = {
   disk: 'folder', // a mounted Disk volume IS a folder the user picked
   repo: 'github',
   onedrive: 'cloud',
+  recents: 'clock',
 };
+
+// How files are ordered — a per-browser preference, remembered.
+const SORT_KEY = 'markpage:browser-sort';
+function loadSort(): EntrySort {
+  try {
+    return localStorage.getItem(SORT_KEY) === 'date' ? 'date' : 'name';
+  } catch {
+    return 'name';
+  }
+}
+function saveSort(by: EntrySort): void {
+  try {
+    localStorage.setItem(SORT_KEY, by);
+  } catch {
+    /* not remembered — fine */
+  }
+}
+
+/** A file date, short: the time today, day + month this year, else the date. */
+function formatWhen(ms: number): string {
+  const d = new Date(ms);
+  const now = new Date();
+  const locale = getLanguage() === 'fr' ? 'fr-FR' : 'en-GB';
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  }
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  }
+  return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 /** Open the unified volume browser (single-instance). */
 export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
@@ -197,6 +237,30 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
     void render();
   };
 
+  // Name / Date toggle, at the right end of the breadcrumb bar. Shown only in a
+  // folder whose files carry dates (not at the root, not in Récents — already
+  // in opening order — nor on a repo, whose listing has no dates).
+  let sortMode = loadSort();
+  const sortEl = doc.createElement('span');
+  sortEl.className = 'vb-sort';
+  sortEl.title = t('volume.sort-title');
+  const sortBtn = (by: EntrySort, label: string): HTMLButtonElement => {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = 'vb-sort-btn';
+    b.dataset.sort = by;
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      if (sortMode === by) return;
+      sortMode = by;
+      saveSort(by);
+      void render();
+    });
+    return b;
+  };
+  sortEl.append(sortBtn('name', t('volume.sort-name')), sortBtn('date', t('volume.sort-date')));
+  sortEl.hidden = true;
+
   const renderCrumbs = (): void => {
     crumbs.replaceChildren();
     const crumb = (label: string, go: () => void): HTMLElement => {
@@ -242,6 +306,10 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
         );
       }
     }
+    for (const b of sortEl.querySelectorAll<HTMLButtonElement>('.vb-sort-btn')) {
+      b.classList.toggle('active', b.dataset.sort === sortMode);
+    }
+    crumbs.append(sortEl);
   };
 
   // The root: each mounted volume shown as a top-level folder (SPEC §2).
@@ -269,7 +337,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
 
       const actions = doc.createElement('span');
       actions.className = 'vb-row-actions';
-      if (v.kind !== 'library' && opts.onUnmount) {
+      if (v.kind !== 'library' && v.kind !== 'recents' && opts.onUnmount) {
         const x = doc.createElement('button');
         x.type = 'button';
         x.className = 'vb-row-action vb-vol-unmount';
@@ -306,6 +374,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
 
   const renderList = async (): Promise<void> => {
     const vol = current;
+    sortEl.hidden = true;
     if (!vol) {
       renderRoot();
       return;
@@ -337,6 +406,11 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
       return;
     }
     listEl.replaceChildren();
+    // Récents keep their opening order; everything else follows the toggle.
+    if (vol.kind !== 'recents') {
+      entries = sortEntries(entries, sortMode);
+      sortEl.hidden = !entries.some((e) => e.type === 'file' && e.modified != null);
+    }
 
     // Management context (Bibliothèque only, open mode): delete at the root of
     // the volume, restore/purge in the Corbeille.
@@ -386,6 +460,19 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
       name.className = 'vb-row-name';
       name.textContent = entry.name;
       nameBtn.append(icon, name);
+      if (entry.detail) {
+        const detail = doc.createElement('span');
+        detail.className = 'vb-row-detail';
+        detail.textContent = entry.detail;
+        nameBtn.append(detail);
+      }
+      if (entry.modified != null && entry.type === 'file') {
+        const when = doc.createElement('span');
+        when.className = 'vb-row-date';
+        when.textContent = formatWhen(entry.modified);
+        when.title = new Date(entry.modified).toLocaleString();
+        nameBtn.append(when);
+      }
       nameBtn.addEventListener('click', () => {
         if (entry.type === 'dir') {
           path = entry.path;
