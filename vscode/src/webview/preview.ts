@@ -67,6 +67,13 @@ let currentPaginated = false;
 // Named styles already reported as unknown to the host (warn once per name).
 const reportedStyles = new Set<string>();
 
+// VS Code prepends a default stylesheet to every webview (`#_defaultStyles`)
+// that paints body, links, `code` and `blockquote` with the EDITOR theme's
+// colours — a dark-theme quote got a dark background under grey text. The
+// preview is a printed page, independent of the editor theme: drop it. It is
+// injected once per document load; theme changes only update CSS variables.
+document.getElementById('_defaultStyles')?.remove();
+
 void registerFallbackFonts().catch(() => undefined);
 
 // Floating widget (top-right): toggle pagination + export. In VS Code it drives

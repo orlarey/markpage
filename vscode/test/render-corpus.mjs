@@ -6,9 +6,9 @@
  * loads) over every tests/corpus/*.md, in PAGINATED mode (Vivliostyle), and asserts that the
  * render is healthy (pages actually produced, no console error — CSP
  * violations included, the harness carries the extension's CSP). It also
- * injects a simulation of VS Code's dark default
- * webview styles, so theme-bleed regressions (e.g. the ```text dark-bar bug) are
- * caught too. Screenshots land in vscode/test/__shots__/ for manual review.
+ * injects a simulation of VS Code's dark default webview stylesheet, and checks
+ * the continuous view against it, so theme-bleed regressions (the dark quote,
+ * the ```text dark bar) are caught too. Screenshots land in vscode/test/__shots__/ for manual review.
  *
  * Run:  npm run test:render   (builds first)   — exits non-zero on any failure,
  * so it can gate `vsce publish` in the release workflow.
@@ -52,13 +52,18 @@ await new Promise((r) => server.listen(0, r));
 const PORT = server.address().port;
 const BASE = `http://127.0.0.1:${PORT}`;
 
-// VS Code injects dark default styles into a dark-theme webview; reproduce the
-// bits that have bled into the render before (textPreformat code background,
-// the dark canvas) so our overrides are actually exercised.
+// VS Code prepends a default stylesheet (`<style id="_defaultStyles">`) to every
+// webview, coloured by the editor theme. Reproduce it with dark-theme values —
+// same id, same selectors — so the webview's defence (it removes that sheet) is
+// actually exercised, and a regression shows as theme bleed.
 const VSCODE_DARK = `
   :root { color-scheme: dark; }
-  body { background: #1e1e1e; color: #cccccc; }
-  code { background-color: #2d2d2d; color: #d4d4d4; }
+  body { background-color: transparent; color: #cccccc; margin: 0; padding: 0 20px; }
+  img, video { max-width: 100%; max-height: 100%; }
+  a, a code { color: #3794ff; }
+  code { color: #d7ba7d; background-color: #2d2d2d; padding: 1px 3px; border-radius: 4px; }
+  pre code { padding: 0; }
+  blockquote { background: #222222; border-color: #007acc; }
   pre  { background-color: #1e1e1e; }
 `;
 
@@ -66,12 +71,24 @@ const docs = readdirSync(CORPUS).filter((f) => f.endsWith('.md')).sort();
 const failures = [];
 const browser = await chromium.launch();
 const page = await browser.newPage({ colorScheme: 'dark' });
-// VS Code default-style simulation, injected before the bundle's CSS loads.
+// VS Code default-style simulation, injected into <head> as soon as the parser
+// creates it (before the bundle's CSS), like VS Code does — an element prepended
+// to the document before parsing would be lost.
 await page.addInitScript((css) => {
-  const s = document.createElement('style');
-  s.id = '_vscodeDefaultsSim';
-  s.textContent = css;
-  document.documentElement.prepend(s);
+  const inject = () => {
+    if (!document.head) return false;
+    const s = document.createElement('style');
+    s.id = '_defaultStyles';
+    s.textContent = css;
+    document.head.prepend(s);
+    return true;
+  };
+  if (!inject()) {
+    const mo = new MutationObserver(() => {
+      if (inject()) mo.disconnect();
+    });
+    mo.observe(document, { childList: true, subtree: true });
+  }
 }, VSCODE_DARK);
 
 const consoleErrors = [];
@@ -149,6 +166,11 @@ for (const file of docs) {
     // `::: background` sentinels must be realised as a per-page layer.
     if (pv.querySelector('.mp-bg') && !pv.querySelector('.mp-bg-layer'))
       out.push('::: background present but no backdrop layer (applyBackgrounds not run)');
+    // Quotes carry the style's box, never the editor theme's quote background.
+    pv.querySelectorAll('blockquote').forEach((q) => {
+      if (getComputedStyle(q).backgroundColor === 'rgb(34, 34, 34)')
+        out.push('blockquote has the VS Code theme background (default styles bleed)');
+    });
     // Nothing should render with the dark page background bleeding through.
     if (getComputedStyle(pv).backgroundColor === 'rgb(30, 30, 30)')
       out.push('preview background is the VS Code dark canvas (paper theme not applied)');
@@ -168,6 +190,44 @@ for (const file of docs) {
     issues.forEach((i) => console.log(`      ${i}`));
   } else {
     console.log(`  ✓ ${name}`);
+  }
+}
+
+// ---- continuous mode: the live view keeps the host page's cascade, so VS Code's
+// injected theme styles would reach it (they don't reach Vivliostyle's pages) --
+{
+  await page.evaluate(
+    (m) =>
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { type: 'render', md: m, baseUri: '', paginated: false } }),
+      ),
+    readFileSync(join(CORPUS, '11-help.md'), 'utf8'),
+  );
+  await page.locator('#preview-pane .mp-continuous-sheet blockquote').first().waitFor({ timeout: 30_000 });
+  const bleed = await page.evaluate(() => {
+    const out = [];
+    const q = document.querySelector('#preview-pane blockquote');
+    if (getComputedStyle(q).backgroundColor === 'rgb(34, 34, 34)') out.push('blockquote has the VS Code theme background');
+    const c = document.querySelector('#preview-pane p code');
+    if (c && getComputedStyle(c).color === 'rgb(215, 186, 125)') out.push('inline code has the VS Code theme colour');
+    if (getComputedStyle(document.body).paddingLeft === '20px') out.push('body has the VS Code default padding');
+    // Mermaid HTML labels must fit their foreignObject — a body-paragraph
+    // margin leaking into the label's <p> pushes the text out (clipped).
+    for (const fo of document.querySelectorAll('#preview-pane svg foreignObject')) {
+      const box = fo.getBoundingClientRect();
+      const inner = fo.firstElementChild?.getBoundingClientRect();
+      if (box.height > 0 && inner && inner.height > box.height + 2) {
+        out.push(`mermaid label overflows its box (${Math.round(inner.height)}px in ${Math.round(box.height)}px)`);
+        break;
+      }
+    }
+    return out;
+  });
+  if (bleed.length) {
+    failures.push({ name: 'continuous', issues: bleed });
+    console.log(`  ✗ continuous — ${bleed.join('; ')}`);
+  } else {
+    console.log('  ✓ continuous (no VS Code default-style bleed, mermaid labels fit)');
   }
 }
 

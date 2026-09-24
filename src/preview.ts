@@ -275,11 +275,15 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     /* Suppress the first heading's top margin so the document doesn't
        start with empty space above the title. */
     #preview-pane > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
-    #preview-pane.continuous p {
+    /* Body paragraphs only — never a <p> inside an SVG: Mermaid's HTML labels
+       are <p>s in a foreignObject sized for their own "p { margin: 0 }", and
+       a body margin (this rule outranks Mermaid's) pushes the label out of
+       its box. */
+    #preview-pane.continuous p:not(svg p) {
       margin: ${s.body.marginAbove ?? 1}em 0 ${s.body.marginBelow ?? 1}em;
       text-indent: 0;
     }
-    #preview-pane.continuous p + p,
+    #preview-pane.continuous p:not(svg p) + p,
     #preview-pane.continuous p.mp-paragraph-continuation {
       text-indent: ${s.body.firstLineIndent ?? 0}em;
     }
@@ -323,7 +327,7 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .mermaid-block { ${blockBoxCss(s.mermaid)} ${inlineCss(s.mermaid)} }
     #preview-pane .admonition { ${blockBoxCss(s.callout)} ${inlineCss(s.callout)} }
     #preview-pane table { border-collapse: collapse; ${inlineCss(s.table)} ${blockBoxCss(s.table)} }
-    #preview-pane p,
+    #preview-pane p:not(svg p),
     #preview-pane li {
       text-align: ${align};
       /* Justified text without hyphenation opens rivers of white, and French

@@ -1336,7 +1336,8 @@ export function pagedCss(s: PdfSettings): string {
     :is(#preview-pane, #markpage-print-target) .pagedjs_page_content > :first-child > :first-child > :first-child > :first-child {
       margin-top: 0;
     }
-    ${SCOPE} p {
+    /* Body paragraphs only — not Mermaid's HTML labels (a <p> inside the SVG). */
+    ${SCOPE} p:not(svg p) {
       margin: ${styles.body.marginAbove ?? 1}em 0 ${styles.body.marginBelow ?? 1}em;
       text-indent: 0;
     }
@@ -1350,7 +1351,7 @@ export function pagedCss(s: PdfSettings): string {
        Vivliostyle fragments a text-indent paragraph correctly — the indent
        applies to the block's first formatted line only, so a continuation
        fragment at the top of a page is NOT re-indented. */
-    ${SCOPE} p + p,
+    ${SCOPE} p:not(svg p) + p,
     ${SCOPE} p.mp-paragraph-continuation {
       text-indent: ${styles.body.firstLineIndent ?? 0}em;
     }

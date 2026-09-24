@@ -59,7 +59,8 @@ describe('pagedCss — simplex (default)', () => {
     // the PDF. Vivliostyle fragments a text-indent paragraph correctly, so the
     // rule belongs in the stylesheet again, as it always has in the continuous
     // preview.
-    expect(css).toContain('p + p');
+    // Body paragraphs only (Mermaid's HTML labels are <p>s inside an SVG).
+    expect(css).toContain('p:not(svg p) + p');
     expect(css).toContain('p.mp-paragraph-continuation');
     expect(css).toMatch(/text-indent: [\d.]+em/);
   });

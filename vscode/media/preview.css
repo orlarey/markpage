@@ -27,9 +27,9 @@ body.mp-webview #preview-pane.continuous .mp-continuous-sheet {
   max-width: none;
 }
 
-/* VS Code's dark default webview styles colour bare <code> — reset them where
-   the app's stylesheet leaves the property unset. Highlighted (.hljs) blocks
-   keep their atom-one-light theme. */
+/* Belt and braces — the webview removes VS Code's default stylesheet at load
+   (preview.ts), which colours bare <code> with the editor theme. Highlighted
+   (.hljs) blocks keep their atom-one-light theme. */
 body.mp-webview #preview-pane pre code:not(.hljs) {
   background: transparent;
   color: inherit;
