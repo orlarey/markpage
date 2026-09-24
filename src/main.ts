@@ -107,6 +107,14 @@ import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
 import { hideNotice, showNotice } from './ui/notice';
 import {
+  UrlFetchError,
+  decodeSrcParam,
+  fetchDocText,
+  normalizeDocUrl,
+  resolveAgainstDoc,
+  urlChip,
+} from './url-origin';
+import {
   announceCurrentDoc,
   holdDocLock,
   initTabPresence,
@@ -147,9 +155,16 @@ import {
   revertDoc,
   saveDocContent,
   saveDraft,
+  journalDraft,
+  clearDraftJournal,
+  replayDraftJournal,
   setCurrentDocId,
   listRecentDocs,
   onCurrentDocChange,
+  adoptUrlDoc,
+  clearDocUrlLink,
+  markUrlFetched,
+  urlLinkOf,
   setDocGithubLink,
   setDocLink,
   setDocOneDriveLink,
@@ -338,6 +353,21 @@ async function bootstrap(): Promise<void> {
     }
   }
 
+  // One-shot rebranding migration: rename every `md2pdf:` localStorage
+  // key and the legacy IndexedDB database into the `markpage` namespace.
+  // Idempotent, runs before any other storage module is touched.
+  migrateLocalStorageBranding();
+  await migrateIDBBranding().catch((err: unknown) => {
+    console.error('IDB branding migration failed', err);
+  });
+
+  // Resolve the UI locale before any component reads `t(...)` at
+  // construction time. First-launch detection via navigator.language;
+  // subsequent runs read the persisted value (locale.ts, setLanguage).
+  const uiLocale = initLocale();
+
+  // Documents named by the URL — after the storage migrations (they write the
+  // library) and the locale (their messages are translated).
   // `?import=<encoded>` is a self-contained share link: gunzip the
   // payload, create a new local doc from it, then rewrite the URL to
   // `?doc=<uuid>` so a refresh won't re-import. We do this BEFORE the
@@ -366,18 +396,40 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  // One-shot rebranding migration: rename every `md2pdf:` localStorage
-  // key and the legacy IndexedDB database into the `markpage` namespace.
-  // Idempotent, runs before any other storage module is touched.
-  migrateLocalStorageBranding();
-  await migrateIDBBranding().catch((err: unknown) => {
-    console.error('IDB branding migration failed', err);
-  });
-
-  // Resolve the UI locale before any component reads `t(...)` at
-  // construction time. First-launch detection via navigator.language;
-  // subsequent runs read the persisted value (locale.ts, setLanguage).
-  const uiLocale = initLocale();
+  // `?url=<https://…>` (alias `?src=`) — a document whose origin is a URL
+  // (url-origin.ts): the browser fetches it (no server in between), the library
+  // keeps one copy per URL, and `?doc=` pins that copy for this tab. The param
+  // stays in the address bar, so a bookmark reopens the latest version. Done
+  // before the doc cascade below so the document opens straight away. (`src`
+  // exists because Vite's dev server reserves a `?url` query: 403 in dev.)
+  const openParams = new URL(window.location.href).searchParams;
+  const rawUrlParam = openParams.get('url') ?? openParams.get('src');
+  const urlParam = rawUrlParam === null ? null : decodeSrcParam(rawUrlParam);
+  if (urlParam) {
+    const sayUrl = (text: string): void =>
+      showNotice(text, {
+        id: 'mp-url',
+        sticky: true,
+        action: { label: 'OK', run: () => hideNotice('mp-url') },
+      });
+    try {
+      const target = normalizeDocUrl(urlParam);
+      const text = await fetchDocText(target);
+      const { entry, remoteChanged } = await adoptUrlDoc(target, text);
+      const url = new URL(window.location.href);
+      url.searchParams.set('doc', entry.uuid);
+      window.history.replaceState({}, '', url.toString());
+      if (remoteChanged) sayUrl(t('url.kept-local'));
+    } catch (err) {
+      sayUrl(
+        err instanceof UrlFetchError
+          ? err.kind === 'http'
+            ? t('url.http', { url: err.url, status: String(err.status) })
+            : t('url.blocked', { url: err.url })
+          : t('url.invalid', { url: urlParam }),
+      );
+    }
+  }
 
   // Apply the editor-pane font + colour preferences before the
   // editor mounts — each writes a CSS custom property on :root which
@@ -455,6 +507,9 @@ async function bootstrap(): Promise<void> {
   } catch (err) {
     console.error('Image store migration failed', err);
   }
+
+  // Edits a tab typed just before being closed (journaled, not yet written).
+  await replayDraftJournal(isLockedElsewhere);
 
   // Doc selection cascade at boot:
   //   1. `?doc=<uuid>` in the URL — lets bookmarks, shared links, and
@@ -697,6 +752,9 @@ async function bootstrap(): Promise<void> {
   const makeFolderImageResolver = (
     doc: DocEntry,
   ): ((relPath: string) => Promise<string | null>) | undefined => {
+    // A URL document's relative images live next to it, at its URL.
+    const ul = urlLinkOf(doc);
+    if (ul) return (relPath) => Promise.resolve(resolveAgainstDoc(ul.url, relPath));
     const read = readFolderFile(doc);
     if (!read) return undefined;
     const volume = doc.link?.volume ?? '';
@@ -716,6 +774,8 @@ async function bootstrap(): Promise<void> {
   const makeFolderImageDataResolver = (
     doc: DocEntry,
   ): ((relPath: string) => Promise<string | null>) | undefined => {
+    const ul = urlLinkOf(doc);
+    if (ul) return (relPath) => Promise.resolve(resolveAgainstDoc(ul.url, relPath));
     const read = readFolderFile(doc);
     if (!read) return undefined;
     return async (relPath: string): Promise<string | null> => {
@@ -896,10 +956,20 @@ async function bootstrap(): Promise<void> {
   // — the committed version stays the "version de départ" until an explicit
   // Save (Phase 2 working-copy model, SPEC §6). The uuid is captured at edit
   // time so a debounced save can't land on a doc switched-to meanwhile.
+  // Edits made vs edits known written: while they differ, a closing tab
+  // journals its text synchronously (see onTabHidden below).
+  let editSeq = 0;
+  let savedSeq = 0;
+  const draftWritten = (uuid: string, seq: number): void => {
+    savedSeq = Math.max(savedSeq, seq);
+    if (savedSeq === editSeq) clearDraftJournal(uuid);
+  };
   const debouncedSaveDraft = debounce((uuid: string, source: string) => {
+    const seq = editSeq;
     void (async () => {
       try {
         const updated = await saveDraft(uuid, source);
+        draftWritten(uuid, seq);
         // No image-GC here: a cut-paste cycle would otherwise drop the blob
         // between the cut and the paste; orphans are reaped by runGC at boot.
         if (currentDoc.uuid === uuid) {
@@ -969,7 +1039,10 @@ async function bootstrap(): Promise<void> {
       dirty = true;
       // A tab that doesn't own the document (read-only here, edited in another
       // tab) never writes it — its copy may be older than the owner's.
-      if (docEditable) debouncedSaveDraft(currentDoc.uuid, doc);
+      if (docEditable) {
+        editSeq++;
+        debouncedSaveDraft(currentDoc.uuid, doc);
+      }
       scheduleLivePreview();
       // Always feed the debouncer: a replace operation is emitted as
       // "delete, then insert". Keeping only the first changed snapshot would
@@ -1489,8 +1562,10 @@ async function bootstrap(): Promise<void> {
   // (never committed).
   const flushSave = async (): Promise<void> => {
     if (!docEditable) return; // read-only here: another tab owns the document
+    const seq = editSeq;
     try {
       const updated = await saveDraft(currentDoc.uuid, editor.getValue());
+      draftWritten(updated.uuid, seq);
       if (currentDoc.uuid === updated.uuid) currentDoc = updated;
     } catch (err) {
       console.error('Flush save failed', err);
@@ -1504,6 +1579,7 @@ async function bootstrap(): Promise<void> {
   const switchToDoc = async (uuid: string): Promise<void> => {
     if (uuid === currentDoc.uuid) return;
     await flushSave();
+    await replayDraftJournal(isLockedElsewhere, uuid);
     const target = (await listDocs()).find((e) => e.uuid === uuid);
     if (!target) return;
     currentDoc = target;
@@ -1804,7 +1880,7 @@ async function bootstrap(): Promise<void> {
 
   // Whether the doc has an origin volume (disk / GitHub / OneDrive).
   const linkedAny = (e: DocEntry): boolean =>
-    isLinked(e) || isGithubLinked(e) || isOneDriveLinked(e);
+    isLinked(e) || isGithubLinked(e) || isOneDriveLinked(e) || urlLinkOf(e) !== undefined;
 
   // The doc's origin for the toolbar (file name as read-only title + a chip of
   // volume + folder), or null for a pure Bibliothèque doc (VOLUMES-SPEC §7).
@@ -1837,6 +1913,12 @@ async function bootstrap(): Promise<void> {
         chip: `☁️ OneDrive${dir === '' ? '' : ` ▸ ${dir}/`}`,
       };
     }
+    const ul = urlLinkOf(e);
+    if (ul) {
+      const u = new URL(ul.url);
+      const file = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() ?? '');
+      return { fileName: file !== '' ? file : `${e.name}.md`, chip: urlChip(u) };
+    }
     return null;
   };
 
@@ -1850,6 +1932,26 @@ async function bootstrap(): Promise<void> {
     if (isGithubLinked(currentDoc)) await reloadFromGithub();
     else if (isOneDriveLinked(currentDoc)) await reloadFromOneDrive();
     else if (isLinked(currentDoc)) await reloadFromDisk();
+    else if (urlLinkOf(currentDoc)) await reloadFromUrl();
+  };
+
+  // Fetch the URL document again, replacing the local copy (asked first when
+  // it has unsaved edits). Nothing is ever written back to the URL.
+  const reloadFromUrl = async (): Promise<void> => {
+    const link = urlLinkOf(currentDoc);
+    if (!link) return;
+    if (isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) return;
+    try {
+      const text = await fetchDocText(new URL(link.url));
+      await applyDiskContent(text);
+      currentDoc = (await markUrlFetched(currentDoc.uuid, text)) ?? currentDoc;
+    } catch (err) {
+      showNotice(
+        err instanceof UrlFetchError && err.kind === 'http'
+          ? t('url.http', { url: link.url, status: String(err.status) })
+          : t('url.blocked', { url: link.url }),
+      );
+    }
   };
 
   // One *Délier* (V3): drop whatever origin link(s) the doc carries.
@@ -1857,6 +1959,10 @@ async function bootstrap(): Promise<void> {
     if (isGithubLinked(currentDoc)) await unlinkGithub();
     if (isOneDriveLinked(currentDoc)) await unlinkOneDrive();
     if (isLinked(currentDoc)) await unlinkDoc();
+    if (urlLinkOf(currentDoc)) {
+      currentDoc = (await clearDocUrlLink(currentDoc.uuid)) ?? currentDoc;
+      refreshLinkBadge();
+    }
   };
 
   // For a GitHub-linked doc, route new images through R3 placement (natural
@@ -2134,6 +2240,15 @@ async function bootstrap(): Promise<void> {
     entry: VolumeEntry,
     win: Window | null,
   ): Promise<void> => {
+    await showDocIn(await materializeFromVolume(vol, entry), win);
+  };
+
+  // The library entry for a volume entry (reusing the one already linked to the
+  // same file) — or null when cancelled / not openable (said so to the user).
+  const materializeFromVolume = async (
+    vol: Volume,
+    entry: VolumeEntry,
+  ): Promise<DocEntry | null> => {
     let target: DocEntry | null = null;
     try {
       if (vol.kind === 'library' || vol.kind === 'recents') {
@@ -2156,7 +2271,55 @@ async function bootstrap(): Promise<void> {
     } catch (err) {
       handleGithubError(err);
     }
-    await showDocIn(target, win);
+    return target;
+  };
+
+  // `?open=<volume>/<path>` — a file in an already-mounted volume (a disk
+  // folder by its name, `owner/repo@branch`, or `OneDrive`), opened in this tab.
+  // A disk folder whose permission lapsed needs a click (the browser requires a
+  // user gesture): a banner offers it. The param stays in the address bar, so a
+  // bookmark reopens the file.
+  const openFromParam = async (spec: string): Promise<void> => {
+    const volumes = (await listVolumes()).filter((v) => v.kind !== 'library');
+    const vol = volumes
+      .filter((v) => spec === v.label || spec.startsWith(`${v.label}/`))
+      .sort((a, b) => b.label.length - a.label.length)[0];
+    if (!vol) {
+      showNotice(t('open.unknown-volume', { spec }));
+      return;
+    }
+    const path = spec.slice(vol.label.length + 1);
+    const go = async (): Promise<void> => {
+      hideNotice('mp-open');
+      const name = path.split('/').pop() ?? path;
+      const target = await materializeFromVolume(vol, {
+        name,
+        path,
+        type: 'file',
+        isMarkdown: /\.(md|markdown)$/i.test(name),
+      });
+      if (!target) return;
+      // Pin the document BEFORE switching, so `?open=` survives in the URL.
+      const url = new URL(window.location.href);
+      url.searchParams.set('doc', target.uuid);
+      window.history.replaceState({}, '', url.toString());
+      if (target.uuid === currentDoc.uuid) return;
+      if (await isLockedElsewhere(target.uuid)) pointToOtherTab(target.uuid);
+      else await switchToDoc(target.uuid);
+    };
+    if ((await vol.state()) === 'needs-permission' && vol instanceof DiskVolume) {
+      showNotice(t('open.needs-permission', { name: vol.label }), {
+        id: 'mp-open',
+        sticky: true,
+        action: {
+          label: t('open.authorize'),
+          run: () =>
+            void vol.requestPermission().then((ok) => (ok ? go() : undefined)),
+        },
+      });
+      return;
+    }
+    await go();
   };
 
   // Mount a disk folder as a volume, then reopen the browser on it.
@@ -2323,6 +2486,7 @@ async function bootstrap(): Promise<void> {
       onOpenDeviceFile: () => {
         void openDeviceFile();
       },
+      onOpenUrl: openUrlPrompt,
       // Bibliothèque management (replaces «Fichiers…»): entry.path = doc uuid.
       onDelete: (entry) => deleteAndAdjust(entry.path),
       onRestore: async (entry) => {
@@ -2562,6 +2726,25 @@ async function bootstrap(): Promise<void> {
       ? await diskFileEntry(fh) // in place, no mount needed (V4)
       : await importToLibrary(await fh.getFile()); // foreign → copy (V4)
     await showDocIn(target, win);
+  };
+
+  // *Ouvrir une URL…*: the document opens in a tab of its own, through the
+  // `?url=` entry point (so it's bookmarkable). A blocked popup → this tab.
+  const openUrlPrompt = (): void => {
+    const input = globalThis.prompt(t('url.prompt'), 'https://');
+    if (!input || input.trim() === '' || input.trim() === 'https://') return;
+    let target: URL;
+    try {
+      target = normalizeDocUrl(input);
+    } catch {
+      showNotice(t('url.invalid', { url: input }));
+      return;
+    }
+    const app = new URL(window.location.href);
+    app.search = '';
+    app.hash = '';
+    app.searchParams.set('src', target.href);
+    if (!window.open(app.toString(), '_blank')) window.location.assign(app.toString());
   };
 
   const triggerSave = (): void => {
@@ -3041,6 +3224,11 @@ async function bootstrap(): Promise<void> {
   announceCurrentDoc(currentDoc.uuid);
   void claimDoc(currentDoc.uuid);
 
+  // `?open=<volume>/<path>` — needs the volumes and possibly a click, so it runs
+  // once the app is up (see openFromParam).
+  const openParam = new URL(window.location.href).searchParams.get('open');
+  if (openParam) void openFromParam(openParam);
+
   // Reflect any resumed working copy (a draft persisted from a previous
   // session) in the "modified" indicator straight away.
   toolbarCtrl.setModified(isModified(currentDoc));
@@ -3063,6 +3251,19 @@ async function bootstrap(): Promise<void> {
   };
   globalThis.addEventListener('focus', pollSync);
   document.addEventListener('visibilitychange', pollSync);
+
+  // Leaving the tab (hidden, closed, discarded): the async draft write may
+  // never finish, so pending edits are first journaled synchronously — the
+  // next tab to open the document writes them (replayDraftJournal).
+  const onTabHidden = (): void => {
+    if (!docEditable || savedSeq === editSeq) return;
+    journalDraft(currentDoc.uuid, editor.getValue());
+    void flushSave();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') onTabHidden();
+  });
+  globalThis.addEventListener('pagehide', onTabHidden);
   globalThis.setInterval(pollSync, 2000);
 
   // When the UI language changes, rebuild the toolbar so its labels

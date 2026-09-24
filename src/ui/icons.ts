@@ -17,7 +17,8 @@ export type IconName =
   | 'folder'
   | 'file-text'
   | 'file'
-  | 'clock';
+  | 'clock'
+  | 'link';
 
 const ICONS: Record<IconName, string> = {
   library:
@@ -34,6 +35,8 @@ const ICONS: Record<IconName, string> = {
   file:
     '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  link:
+    '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

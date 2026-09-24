@@ -13,6 +13,7 @@
  *
  *******************************************************************************/
 
+import { docNameFromUrl, urlDocKey } from './url-origin';
 import { sha256Hex } from './image-store';
 import {
   deleteEntry,
@@ -59,6 +60,21 @@ export interface DocEntry {
   // OneDrive app-folder; `path` is its app-folder-relative path, `baselineEtag`
   // the eTag we last synced with (V1: overwrite + conflict, no fork).
   oneDriveLink?: OneDriveLink;
+  // URL origin (url-origin.ts). Present ⇒ the doc is a library copy of a
+  // document fetched from a URL: reopening that URL reuses this entry,
+  // *Recharger* fetches it again; nothing is ever written back.
+  urlLink?: UrlLink;
+}
+
+/** A URL origin — where the document was fetched from, and what it was. */
+export interface UrlLink {
+  /** The URL last fetched (for a loopback one, this session's port + token). */
+  url: string;
+  /** Its identity across reopenings (url-origin.ts, urlDocKey). */
+  key: string;
+  /** Content hash of what was last fetched: equal to the committed content ⇒
+   *  the local copy is untouched and a reopen may refresh it silently. */
+  fetchedSha: string;
 }
 
 /** A OneDrive-sync link target — a file in the app-folder + its sync baseline. */
@@ -242,6 +258,64 @@ export async function clearDocOneDriveLink(uuid: string): Promise<DocEntry | nul
   return patchEntry(uuid, clearOneDrive);
 }
 
+/** The doc's URL origin, or undefined. */
+export function urlLinkOf(entry: DocEntry): UrlLink | undefined {
+  return entry.urlLink;
+}
+
+/** Set / replace a doc's URL origin. */
+export async function setDocUrlLink(uuid: string, link: UrlLink): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => ({ ...e, urlLink: link }));
+}
+
+/**
+ * Purpose: Bring a document fetched from `url` into the library — the one
+ *   entry for that URL (urlDocKey), created on first open.
+ * How: an untouched local copy (no draft, committed = last fetched) takes the
+ *   fetched text silently; a locally edited one is kept as is — `remoteChanged`
+ *   tells the caller the URL moved on meanwhile. The link always records this
+ *   session's URL (a loopback port/token changes between sessions).
+ */
+export async function adoptUrlDoc(
+  url: URL,
+  text: string,
+): Promise<{ entry: DocEntry; remoteChanged: boolean }> {
+  const key = urlDocKey(url);
+  const fetchedSha = await hashContent(text);
+  const known = (await listDocs()).find((e) => e.urlLink?.key === key);
+  if (!known) {
+    const created = await createDoc(docNameFromUrl(url), text);
+    const entry =
+      (await setDocUrlLink(created.uuid, { url: url.href, key, fetchedSha })) ?? created;
+    return { entry, remoteChanged: false };
+  }
+  const link = known.urlLink as UrlLink;
+  const untouched = !known.dirtySha && known.contentSha === link.fetchedSha;
+  if (untouched) {
+    if (known.contentSha !== fetchedSha) await saveDocContent(known.uuid, text);
+    const entry =
+      (await setDocUrlLink(known.uuid, { url: url.href, key, fetchedSha })) ?? known;
+    return { entry, remoteChanged: false };
+  }
+  const entry = (await setDocUrlLink(known.uuid, { ...link, url: url.href })) ?? known;
+  return { entry, remoteChanged: fetchedSha !== link.fetchedSha };
+}
+
+/** Record that the local copy now matches what `url` served (after a reload). */
+export async function markUrlFetched(uuid: string, text: string): Promise<DocEntry | null> {
+  const fetchedSha = await hashContent(text);
+  return patchEntry(uuid, (e) => (e.urlLink ? { ...e, urlLink: { ...e.urlLink, fetchedSha } } : e));
+}
+
+/** Drop a doc's URL origin (it becomes a plain library document). */
+export async function clearDocUrlLink(uuid: string): Promise<DocEntry | null> {
+  return patchEntry(uuid, (e) => {
+    const copy = { ...e };
+    delete copy.urlLink;
+    return copy;
+  });
+}
+
 /**
  * Purpose: Runtime guard checking that an unknown value is a `DocEntry`.
  */
@@ -263,8 +337,16 @@ function isDocEntry(x: unknown): x is DocEntry {
           (e.link as { kind?: unknown }).kind === 'file' ||
           (e.link as { kind?: unknown }).kind === 'folder'))) &&
     (e.githubLink === undefined || isGithubLink(e.githubLink)) &&
-    (e.oneDriveLink === undefined || isOneDriveLink(e.oneDriveLink))
+    (e.oneDriveLink === undefined || isOneDriveLink(e.oneDriveLink)) &&
+    (e.urlLink === undefined || isUrlLink(e.urlLink))
   );
+}
+
+/** Runtime guard for a `UrlLink` shape (used by `isDocEntry`). */
+function isUrlLink(x: unknown): x is UrlLink {
+  if (!x || typeof x !== 'object') return false;
+  const u = x as Partial<UrlLink>;
+  return typeof u.url === 'string' && typeof u.key === 'string' && typeof u.fetchedSha === 'string';
 }
 
 /** Runtime guard for a `GithubLink` shape (used by `isDocEntry`). */
@@ -309,8 +391,17 @@ function mirrorDocInUrl(uuid: string): void {
     return;
   }
   const url = new URL(globalThis.location.href);
-  if (url.searchParams.get(URL_PARAM) !== uuid) {
+  const previous = url.searchParams.get(URL_PARAM);
+  if (previous !== uuid) {
     url.searchParams.set(URL_PARAM, uuid);
+    // `?url=` / `?open=` named the document this tab opened with; once the tab
+    // switches to another one, drop them — a reload must reopen what's on
+    // screen. (Not on the first pinning at boot: they are still to be honoured.)
+    if (previous !== null) {
+      url.searchParams.delete('url');
+      url.searchParams.delete('src');
+      url.searchParams.delete('open');
+    }
     globalThis.history.replaceState({}, '', url);
   }
 }
@@ -651,6 +742,65 @@ export async function saveDraft(
     await saveLibrary(lib);
     return lib.docs[i];
   });
+}
+
+// Unsaved-edits journal: a tab being closed can't be trusted to finish an
+// async draft write, so it first records its pending text synchronously here;
+// the next tab that boots (or opens that document) writes it as the draft.
+const JOURNAL_PREFIX = 'markpage:unsaved:';
+
+/** Record `content` as `uuid`'s not-yet-written draft (synchronous). */
+export function journalDraft(uuid: string, content: string): void {
+  try {
+    localStorage.setItem(JOURNAL_PREFIX + uuid, content);
+  } catch {
+    /* quota / storage disabled: the async flush is all we have */
+  }
+}
+
+/** The draft for `uuid` reached the store: forget its journal entry. */
+export function clearDraftJournal(uuid: string): void {
+  try {
+    localStorage.removeItem(JOURNAL_PREFIX + uuid);
+  } catch {
+    /* storage disabled */
+  }
+}
+
+/**
+ * Write the journaled drafts (all, or `uuid`'s) to the store. `skip` names the
+ * documents still owned by a live tab — that tab is the authority, and its
+ * own write will clear the entry.
+ */
+export async function replayDraftJournal(
+  skip: (uuid: string) => Promise<boolean>,
+  uuid?: string,
+): Promise<void> {
+  let keys: string[];
+  try {
+    keys = uuid
+      ? [JOURNAL_PREFIX + uuid]
+      : Object.keys(localStorage).filter((k) => k.startsWith(JOURNAL_PREFIX));
+  } catch {
+    return;
+  }
+  const known = new Set((await listDocs()).map((e) => e.uuid));
+  for (const key of keys) {
+    const id = key.slice(JOURNAL_PREFIX.length);
+    const content = localStorage.getItem(key);
+    if (content === null) continue;
+    if (!known.has(id)) {
+      localStorage.removeItem(key); // deleted since
+      continue;
+    }
+    if (await skip(id)) continue;
+    try {
+      await saveDraft(id, content);
+      localStorage.removeItem(key);
+    } catch (err) {
+      console.error('Replaying an unsaved draft failed', err);
+    }
+  }
 }
 
 /** Commit the working copy: the draft becomes the new committed content (Save). */

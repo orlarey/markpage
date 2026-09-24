@@ -153,6 +153,18 @@ const FR = {
     'Ce document est ouvert dans un autre onglet : il est en lecture seule ici.',
   'tabs.taken-over': 'Ce document a été repris dans un autre onglet : lecture seule ici.',
   'tabs.take-over': 'Le modifier ici',
+  'url.blocked':
+    'Impossible de lire {url} : le site n’autorise pas sa lecture depuis markpage (CORS), ou il est injoignable.',
+  'url.http': 'Impossible de lire {url} (erreur HTTP {status}).',
+  'url.invalid': 'Adresse invalide : {url} (seules les adresses http(s) sont acceptées).',
+  'url.kept-local':
+    'Votre copie locale de ce document a été modifiée : elle est conservée. Fichier ▸ Recharger pour reprendre la version en ligne.',
+  'url.prompt': 'Adresse (URL) du document Markdown à ouvrir :',
+  'volume.open-url': 'Ouvrir une URL…',
+  'open.unknown-volume':
+    '« {spec} » : aucun dossier, dépôt ou OneDrive monté ne porte ce nom. Montez-le d’abord (Fichier ▸ Ouvrir…).',
+  'open.needs-permission': 'Pour ouvrir ce fichier, autorisez l’accès au dossier « {name} ».',
+  'open.authorize': 'Autoriser',
   'volume.sort-title': 'Trier les fichiers',
   'volume.sort-name': 'Nom',
   'volume.sort-date': 'Date',
@@ -318,6 +330,18 @@ const EN: Record<keyof typeof FR, string> = {
   'tabs.read-only': 'This document is open in another tab: read-only here.',
   'tabs.taken-over': 'This document was taken over in another tab: read-only here.',
   'tabs.take-over': 'Edit it here',
+  'url.blocked':
+    'Cannot read {url}: the site does not allow markpage to read it (CORS), or it is unreachable.',
+  'url.http': 'Cannot read {url} (HTTP error {status}).',
+  'url.invalid': 'Invalid address: {url} (only http(s) addresses are accepted).',
+  'url.kept-local':
+    'Your local copy of this document was edited: it is kept. File ▸ Reload to take the online version.',
+  'url.prompt': 'Address (URL) of the Markdown document to open:',
+  'volume.open-url': 'Open a URL…',
+  'open.unknown-volume':
+    '“{spec}”: no mounted folder, repo or OneDrive has that name. Mount it first (File ▸ Open…).',
+  'open.needs-permission': 'To open this file, allow access to the folder “{name}”.',
+  'open.authorize': 'Allow',
   'volume.sort-title': 'Sort files',
   'volume.sort-name': 'Name',
   'volume.sort-date': 'Date',

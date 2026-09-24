@@ -453,6 +453,11 @@ A new document (*File ▸ New*) is born in the **Library**. Opening a
 `.md` from another volume edits it **in place**: every Save re-publishes
 it there.
 
+The browser opens **where you were**: in the folder the current document
+comes from, else the last folder you visited. The **Name / Date** button
+sorts the files (by date: newest first), and the **Recent** entry lists
+the documents you opened last, across all volumes.
+
 > **Keep in mind.** markpage **publishes and resumes** files — it is
 > **not** real-time multi-user editing (like Google Docs). Each *Save*
 > syncs **one file**; if two versions diverge, the conflict is handled
@@ -467,6 +472,41 @@ The title, centred in the bar, is **editable** for a Library document.
 For a document **linked** to a volume, the title shows its **file name**
 (read-only) and a **chip** recalls its origin: `🐙 repo ▸ folder/`, the
 folder on disk, or `☁️ OneDrive`.
+
+#### One document per tab
+
+Each document you open (or create) gets **its own tab** — open several
+side by side. Only an empty, untouched tab is reused. If the document is
+**already open** in another tab, markpage tells you so instead of opening
+it twice.
+
+The same document open in a second tab (a duplicated tab, a copied link)
+is **read-only** there: it follows what the other tab saves and never
+writes anything. **Edit it here** takes it over: it becomes editable here
+and read-only in the other tab.
+
+#### Opening a document from a URL
+
+In **Open**, the **Open a URL…** button reads a `.md` published on the
+web — a raw GitHub file (a `github.com/…/blob/…` page is converted for
+you), a gist, GitHub Pages… You can also give the address directly:
+`markpage.org/?url=https://…/doc.md`.
+
+The document becomes a **copy in the Library** that remembers its origin
+(chip `🌐 site ▸ folder/`); its relative images are read next to it.
+Reopening the same URL **finds that copy again**: refreshed if you
+haven't touched it, **kept** as is if you edited it (markpage tells you).
+**Reload** fetches the latest online version; **Save** only writes the
+local copy.
+
+> **Browser limit.** A web page can read an address only if the site
+> allows it (CORS). Raw GitHub files, gists and most static hosting do;
+> otherwise markpage says so.
+
+A `markpage.org/?open=<volume>/<path>` link opens a file from a **volume
+already mounted** (for instance `?open=My notes/2026/report.md`). For a
+folder on disk, the browser asks for access again once: one click on
+**Allow**.
 
 #### Saving and publishing
 

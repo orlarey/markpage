@@ -96,7 +96,13 @@ function makeToolbar(): HTMLButtonElement {
   print.title = 'Open in browser to Save as PDF (best in Pages mode)';
   print.textContent = '⎙ PDF';
   print.addEventListener('click', requestExport);
-  bar.append(toggle, print);
+  const web = document.createElement('button');
+  web.className = 'mp-toggle';
+  web.title = 'Open this document in the markpage web app';
+  web.textContent = '↗ markpage.org';
+  web.addEventListener('click', () => vscode?.postMessage({ type: 'openInMarkpage' }));
+  web.hidden = !vscode;
+  bar.append(toggle, print, web);
   document.body.append(bar);
   return toggle;
 }

@@ -114,3 +114,14 @@ test('a write from another tab never drops what this tab created (shared index)'
   await page.locator('.vb-vol-row', { hasText: 'Bibliothèque' }).locator('.vb-row-name-btn').click();
   await expect(page.locator('.vb-row', { hasText: 'Sans titre' })).toHaveCount(2);
 });
+
+test('edits typed just before closing the tab are not lost', async ({ page }) => {
+  await page.goto('/');
+  const tab = await opensTab(page, () => newDocument(page));
+  const docId = docParam(tab);
+  await typeIn(tab, 'Tapé puis fermé');
+  await tab.close(); // well within the autosave debounce
+  const again = await page.context().newPage();
+  await again.goto(`/?doc=${docId}`);
+  await expect(editorText(again)).toContainText('Tapé puis fermé');
+});

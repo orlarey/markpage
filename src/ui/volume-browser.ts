@@ -42,6 +42,8 @@ export interface VolumeBrowserOptions {
   onOpen?(volume: Volume, entry: VolumeEntry): void;
   /** Open a loose file from the device (folds in the old *Import*, V4). */
   onOpenDeviceFile?(): void;
+  /** Open a document from its URL (url-origin.ts). */
+  onOpenUrl?(): void;
   /** Save target chosen: a volume, the current folder, and a file name (V5). */
   onSave?(volume: Volume, folderPath: string, name: string): void;
   /** Mount actions, shown in the footer when provided. */
@@ -156,6 +158,18 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
     b.addEventListener('click', () => {
       close();
       opts.onOpenDeviceFile?.();
+    });
+    footer.append(b);
+  }
+  if (mode === 'open' && opts.onOpenUrl) {
+    const b = doc.createElement('button');
+    b.type = 'button';
+    b.className = 'vb-open-device';
+    b.append(makeIcon('link'));
+    b.append(doc.createTextNode(` ${t('volume.open-url')}`));
+    b.addEventListener('click', () => {
+      close();
+      opts.onOpenUrl?.();
     });
     footer.append(b);
   }

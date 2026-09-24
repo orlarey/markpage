@@ -42,6 +42,12 @@
         "title": "Print / Export PDF",
         "category": "markpage",
         "icon": "$(file-pdf)"
+      },
+      {
+        "command": "markpage.openInMarkpage",
+        "title": "Open in markpage.org",
+        "category": "markpage",
+        "icon": "$(link-external)"
       }
     ],
     "menus": {
@@ -50,11 +56,21 @@
           "command": "markpage.openPreview",
           "when": "editorLangId == markdown",
           "group": "navigation"
+        },
+        {
+          "command": "markpage.openInMarkpage",
+          "when": "editorLangId == markdown && resourceScheme == file",
+          "group": "navigation@2"
         }
       ],
       "explorer/context": [
         {
           "command": "markpage.openPreview",
+          "when": "resourceExtname == .md || resourceExtname == .markdown",
+          "group": "navigation"
+        },
+        {
+          "command": "markpage.openInMarkpage",
           "when": "resourceExtname == .md || resourceExtname == .markdown",
           "group": "navigation"
         }
@@ -65,6 +81,9 @@
         },
         {
           "command": "markpage.print"
+        },
+        {
+          "command": "markpage.openInMarkpage"
         }
       ]
     },
@@ -75,7 +94,17 @@
         "mac": "cmd+k v",
         "when": "editorLangId == markdown"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "markpage",
+      "properties": {
+        "markpage.appUrl": {
+          "type": "string",
+          "default": "https://markpage.org",
+          "description": "The markpage web app that \"Open in markpage.org\" opens documents in (e.g. http://localhost:5173 for a local dev server)."
+        }
+      }
+    }
   },
   "activationEvents": [
     "onLanguage:markdown"

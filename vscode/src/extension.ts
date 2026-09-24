@@ -10,6 +10,7 @@
 import * as vscode from 'vscode';
 import * as os from 'os';
 import * as path from 'path';
+import { markpageUrlFor, shareFile, stopServer } from './local-server';
 
 let panel: vscode.WebviewPanel | undefined;
 let trackedDoc: vscode.TextDocument | undefined;
@@ -38,6 +39,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!panel) return;
       void panel.webview.postMessage({ type: 'print' });
     }),
+    // Open the document in the markpage web app (local-server.ts): served over
+    // loopback, fetched by markpage.org as a URL document.
+    vscode.commands.registerCommand('markpage.openInMarkpage', (uri?: vscode.Uri) =>
+      openInMarkpage(uri),
+    ),
   );
 
   // Live update: re-render when the tracked document changes (debounced).
@@ -70,6 +76,28 @@ export function activate(context: vscode.ExtensionContext): void {
       void panel.webview.postMessage({ type: 'scrollToLine', line: top });
     }),
   );
+}
+
+/** The document to hand to markpage.org: the clicked file, else the active
+ *  editor's, else the one the preview shows. */
+async function openInMarkpage(uri?: vscode.Uri): Promise<void> {
+  const target =
+    uri ??
+    (vscode.window.activeTextEditor?.document.languageId === 'markdown'
+      ? vscode.window.activeTextEditor.document.uri
+      : trackedDoc?.uri);
+  if (!target || target.scheme !== 'file') {
+    void vscode.window.showInformationMessage(
+      'markpage: open a Markdown file saved on disk first.',
+    );
+    return;
+  }
+  try {
+    const docUrl = await shareFile(target.fsPath);
+    await vscode.env.openExternal(vscode.Uri.parse(markpageUrlFor(docUrl)));
+  } catch (err) {
+    void vscode.window.showErrorMessage(`markpage: cannot open in markpage.org — ${String(err)}`);
+  }
 }
 
 /** Preview → editor: reveal `line` in the tracked editor (guarded against echo). */
@@ -153,6 +181,8 @@ async function openPreview(context: vscode.ExtensionContext, uri?: vscode.Uri): 
         void exportHtmlToBrowser(m.html);
       } else if (m?.type === 'unknownStyle' && typeof m.name === 'string') {
         warnUnknownStyle(m.name);
+      } else if (m?.type === 'openInMarkpage') {
+        void openInMarkpage();
       }
     },
     undefined,
@@ -260,5 +290,5 @@ function htmlShell(context: vscode.ExtensionContext, webview: vscode.Webview): s
 }
 
 export function deactivate(): void {
-  /* nothing to clean up */
+  stopServer();
 }

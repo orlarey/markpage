@@ -468,6 +468,12 @@ Un nouveau document (*Fichier ▸ Nouveau*) naît dans la **Bibliothèque**.
 Ouvrir un `.md` depuis un autre volume l'édite **en place** : à chaque
 Save, il y est republié.
 
+Le navigateur s'ouvre **là où vous étiez** : dans le dossier d'où vient
+le document en cours, sinon dans le dernier dossier visité. Le bouton
+**Nom / Date** trie les fichiers (par date : les plus récents d'abord),
+et l'entrée **Récents** liste les derniers documents ouverts, tous
+volumes confondus.
+
 > **À garder en tête.** markpage **publie et reprend** des fichiers — ce
 > n'est **pas** de l'édition à plusieurs en temps réel (type Google Docs).
 > Chaque *Save* synchronise **un fichier** ; si deux versions divergent,
@@ -483,6 +489,41 @@ la Bibliothèque. Pour un document **lié** à un volume, le titre montre
 son **nom de fichier** (non modifiable) et une **pastille** rappelle son
 origine : `🐙 dépôt ▸ dossier/`, le dossier sur le disque, ou
 `☁️ OneDrive`.
+
+#### Un document par onglet
+
+Chaque document ouvert (ou créé) a **son propre onglet** — ouvrez-en
+plusieurs côte à côte. Seul un onglet vide et encore intact est
+réutilisé. Si le document est **déjà ouvert** dans un autre onglet,
+markpage vous le signale au lieu de l'ouvrir deux fois.
+
+Un même document ouvert dans un second onglet (onglet dupliqué, lien
+recopié) y est en **lecture seule** : il suit ce que l'autre onglet
+enregistre, sans jamais rien écrire. Le bouton **Le modifier ici** le
+reprend : il devient modifiable ici et passe en lecture seule là-bas.
+
+#### Ouvrir un document depuis une URL
+
+Dans **Ouvrir**, le bouton **Ouvrir une URL…** lit un `.md` publié sur
+le web — un fichier brut GitHub (une page `github.com/…/blob/…` est
+convertie toute seule), un gist, GitHub Pages… On peut aussi donner
+l'adresse directement : `markpage.org/?url=https://…/doc.md`.
+
+Le document devient une **copie dans la Bibliothèque** qui se souvient
+de son origine (pastille `🌐 site ▸ dossier/`) ; ses images relatives
+sont lues à côté de lui. Rouvrir la même URL **retrouve cette copie** :
+mise à jour si vous n'y avez pas touché, **gardée** telle quelle si vous
+l'avez modifiée (markpage vous le dit). **Recharger** récupère la
+dernière version en ligne ; **Enregistrer** n'écrit que la copie locale.
+
+> **Limite du navigateur.** Une page web ne peut lire une adresse que si
+> le site l'y autorise (CORS). Les fichiers bruts GitHub, les gists et la
+> plupart des hébergements statiques le font ; sinon markpage le dit.
+
+Un lien `markpage.org/?open=<volume>/<chemin>` ouvre un fichier d'un
+**volume déjà monté** (par exemple `?open=Mes notes/2026/rapport.md`).
+Pour un dossier du disque, le navigateur redemande l'accès une fois :
+un clic sur **Autoriser**.
 
 #### Enregistrer et publier
 
