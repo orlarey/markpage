@@ -10,9 +10,7 @@
  *******************************************************************************/
 
 import type { MathFontSet, RunningApparatus } from '@orlarey/markpage-render';
-import type { PageGeometry } from './typography';
 export type { MathFontSet };
-export type { PageGeometry };
 
 export type PageSize =
   | 'A3'
@@ -132,40 +130,38 @@ export const ELEMENT_KEYS: ElementKey[] = [
 ];
 
 /**
- * Purpose: Page margins in millimetres.
+ * Purpose: The prose rectangle of a page, in mm. Margins are spine-aware:
+ *   `inner` is the binding side (left on a recto, right on a verso), `outer`
+ *   the trim side; in a single-sided document inner = left, outer = right.
+ *   `width` / `height` are the rectangle's own size.
  */
-export interface Margins {
-  top: number; // mm
-  bottom: number; // mm
-  left: number; // mm
-  right: number; // mm
+export interface TextBlock {
+  top: number;
+  bottom: number;
+  inner: number;
+  outer: number;
+  width: number;
+  height: number;
 }
 
 /**
- * Purpose: The geometry PRODUCTION inputs — a distinct *authoring* object, NOT a
- *   fundamental setting (docs/FUNDAMENTAL-SETTINGS.md "Résolution 2d"). The canon
- *   producer (`src/geometry-producer.ts`) reads it to bake the terminal
- *   `PageGeometry`; the render never sees it, and it is excluded from the
- *   fundamental-style export.
- * How:
- *   - 'manual':  the four `margins.*` mm sliders are the terminal geometry.
- *   - 'derived': the page area is computed via the Van de Graaf canon from the
- *                two character measures — two nested similar rectangles (text
- *                block ⊂ live area). Centred in simplex; classical inner:outer
- *                asymmetry mirrored only in duplex.
- * A document that carries a fundamental style with NO authoring object (e.g. a
- * pure imported `markpage-style`) is rendered from its baked `pageGeometry`
- * verbatim — the producer does not re-bake and clobber it.
+ * Purpose: The resolved page geometry — a fundamental setting, in mm, produced
+ *   by the style editor and rendered verbatim (markpage computes no margins).
+ *   text     — the prose rectangle
+ *   running  — horizontal anchors of the header/footer band
+ *   header   — distance from the page TOP to the header band
+ *   footer   — distance from the page BOTTOM to the footer band
+ *   sidenote — outer-margin note geometry (gap to the text + column width)
+ * The render reads the rest off the geometry itself: header/footer bands apply
+ * iff `header.top < text.top`; the sidenote column exists iff the outer gutter
+ * (`text.outer − running.outer`) is positive.
  */
-export interface GeometryAuthoring {
-  marginMode: 'manual' | 'derived';
-  margins: Margins;
-  // Characters per line of the text block (§9.6.2). Bringhurst band 45–75, 66
-  // canonical. Drives the text-block width via canvas-measured char width.
-  measureChars: number;
-  // Characters per line at the LIVE AREA scale (§9.6.3); strictly greater than
-  // measureChars — the space between the two becomes header / footer / gutters.
-  liveAreaChars: number;
+export interface PageGeometry {
+  text: TextBlock;
+  running: { inner: number; outer: number };
+  header: { top: number };
+  footer: { bottom: number };
+  sidenote: { gap: number; width: number };
 }
 
 /**
@@ -296,12 +292,6 @@ export interface PdfSettings {
   //                   blank verso inserted if needed. Degenerates to 'next-page'
   //                   in simplex (all pages are :right).
   chapterBreak: 'none' | 'next-page' | 'next-recto';
-  // Geometry production inputs — a DISTINCT authoring object, NOT fundamental
-  // (see GeometryAuthoring). Read only by the canon producer to bake
-  // `pageGeometry`; excluded from the fundamental-style export. Optional: a pure
-  // imported fundamental style has NO authoring — the producer then honours its
-  // baked `pageGeometry` verbatim instead of re-baking (withBakedGeometry).
-  authoring?: GeometryAuthoring;
   // Footnote placement (§9.7.2). The same `[^id]` Markdown syntax compiles to
   // a different rendering depending on this setting:
   //   - 'foot': classical numbered footnote section at the page bottom (§17).
@@ -310,13 +300,9 @@ export interface PdfSettings {
   //             carries the reference).
   //   - 'end':  endnotes — single section at the document tail (§17 variant).
   notes: { position: 'foot' | 'side' | 'end' };
-  // The terminal, resolved page geometry (docs/FUNDAMENTAL-SETTINGS.md
-  // "Résolution 2d"). Baked by the canon producer (src/geometry-producer.ts,
-  // `withBakedGeometry`) at the end of settings resolution and consumed verbatim
-  // by the render — which never reads marginMode / measureChars / liveAreaChars
-  // / margins. Optional so direct callers (tests, ad-hoc renders) still work:
-  // the render bakes on the fly when it's absent.
-  pageGeometry?: PageGeometry;
+  // The resolved page geometry (see PageGeometry) — always present: the named
+  // style supplies it, DEFAULT_SETTINGS carries a plain one.
+  pageGeometry: PageGeometry;
   // Chapter opening (docs/FUNDAMENTAL-SETTINGS.md §1): the vertical DROP (mm) of a
   // chapter title below the text-block top on the first page of a chapter — the
   // classic book "sink" that starts each chapter lower down the page. Only
@@ -334,15 +320,16 @@ export interface PdfSettings {
 }
 
 /**
- * Purpose: Default geometry authoring inputs — manual mode with the historical
- *   four mm margins, plus the two canon measures kept ready for a switch to
- *   'derived'. Used as the seed and as the producer's fallback.
+ * Purpose: The base page geometry (A4): 25 mm top/bottom, 35 mm left/right, the
+ *   header/footer on the text block's edges, no sidenote column. Every named
+ *   style replaces it with its own.
  */
-export const DEFAULT_GEOMETRY_AUTHORING: GeometryAuthoring = {
-  marginMode: 'manual',
-  margins: { top: 25, bottom: 25, left: 35, right: 35 },
-  measureChars: 66,
-  liveAreaChars: 85,
+export const DEFAULT_PAGE_GEOMETRY: PageGeometry = {
+  text: { top: 25, bottom: 25, inner: 35, outer: 35, width: 140, height: 247 },
+  running: { inner: 35, outer: 35 },
+  header: { top: 25 },
+  footer: { bottom: 25 },
+  sidenote: { gap: 1.5, width: 5 },
 };
 
 /**
@@ -474,16 +461,10 @@ export const DEFAULT_SETTINGS: PdfSettings = {
   language: 'fr',
   mathScale: 1.0,
   mathFontSet: 'newcm',
-  // Layout / typography defaults — chosen so opening any pre-§9.6 profile
-  // renders byte-identical to before: `marginMode: 'manual'` keeps the four
-  // sliders authoritative, `duplex: false` keeps the page symmetric,
-  // `chapterBreak: 'none'` keeps h1 in flow, `notes.position: 'foot'`
-  // preserves the §17 footnote rendering. The two measures are stored even
-  // in manual mode so toggling to 'derived' does not immediately need a
-  // round of inputs from the user.
+  // Layout defaults: single-sided, h1 in flow, classical footnotes.
   duplex: false,
   chapterBreak: 'none',
-  authoring: DEFAULT_GEOMETRY_AUTHORING,
+  pageGeometry: DEFAULT_PAGE_GEOMETRY,
   notes: { position: 'foot' },
 };
 
@@ -526,8 +507,7 @@ export interface MetadataLine {
  * look on any engine, with nothing derivable left out.
  */
 export const FUNDAMENTAL_STYLE_KEYS = [
-  // page frame + RESOLVED geometry (the canon inputs are authoring, not
-  // fundamental — they never appear here; pageGeometry is the terminal result).
+  // page frame + resolved geometry
   'pageSize', 'pageGeometry', 'duplex', 'chapterBreak', 'chapter', 'notes',
   // heading auto-numbering directive (resolved by the style editor)
   'numbering',
@@ -586,12 +566,10 @@ export function applyFundamentalStyle(
       continue;
     }
     if (fs[k] !== undefined) out[k] = fs[k];
-    else delete out[k];
+    // The render needs a page geometry: a style without one (incomplete — the
+    // style editor always emits it) keeps the base's instead of none.
+    else if (k !== 'pageGeometry') delete out[k];
   }
-  // A fundamental style carrying a resolved geometry supersedes the base's canon
-  // producer: drop the authoring object so `withBakedGeometry` honours the
-  // imported `pageGeometry` verbatim instead of re-baking over it.
-  if (fs.pageGeometry !== undefined) delete out.authoring;
   return out as unknown as PdfSettings;
 }
 

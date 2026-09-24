@@ -16,8 +16,7 @@
 // in the print dialog.
 
 import { applyPageFills, buildDocumentDom } from './document-render';
-import { paginateOnce, pageSizeMm } from './preview-paginated';
-import { withBakedGeometry } from './geometry-producer';
+import { paginateOnce } from './preview-paginated';
 import type { PdfSettings } from './settings';
 import { t } from './i18n/strings';
 
@@ -153,9 +152,8 @@ async function buildPrintContent(
   source: string,
   settings: PdfSettings,
 ): Promise<{ el: HTMLElement; effectiveSettings: PdfSettings }> {
-  const effectiveSettings = withBakedGeometry(settings, pageSizeMm(settings));
-  const { built } = await buildDocumentDom(source, effectiveSettings);
-  return { el: built, effectiveSettings };
+  const { built } = await buildDocumentDom(source, settings);
+  return { el: built, effectiveSettings: settings };
 }
 
 /**

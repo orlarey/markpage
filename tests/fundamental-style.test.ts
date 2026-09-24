@@ -6,24 +6,17 @@ import {
   applyFundamentalStyle,
   type PdfSettings,
 } from '../src/settings';
-import { bakePageGeometry } from '../src/geometry-producer';
+import { BANDED_DUPLEX } from './fixtures/geometry';
 
 const clone = (s: PdfSettings): PdfSettings => JSON.parse(JSON.stringify(s));
 
 // A style that touches every corner: fonts, per-element, resolved geometry,
 // notes, running content, math, surfaces, language, metadata, figure caps,
-// custom fonts. Geometry is fundamental as the RESOLVED pageGeometry — the canon
-// inputs (authoring) are deliberately NOT part of the fundamental style.
+// custom fonts. Geometry is fundamental as the resolved pageGeometry.
 const distinctive = (): PdfSettings => {
   const s = clone(DEFAULT_SETTINGS);
   s.pageSize = 'B5';
-  s.authoring = {
-    marginMode: 'derived',
-    margins: { top: 18, right: 22, bottom: 30, left: 14 },
-    measureChars: 60,
-    liveAreaChars: 80,
-  };
-  s.pageGeometry = bakePageGeometry(s, { w: 176, h: 250 });
+  s.pageGeometry = JSON.parse(JSON.stringify(BANDED_DUPLEX));
   s.duplex = true;
   s.chapterBreak = 'next-recto';
   s.notes = { position: 'side' };
@@ -46,12 +39,9 @@ const distinctive = (): PdfSettings => {
 describe('fundamental style export/import', () => {
   it('is COMPLETE — every fundamental PdfSettings field is a fundamental key', () => {
     // Guards against a new settings field being forgotten in the export.
-    // `authoring` is the geometry PRODUCTION object — excluded from the style
-    // (its resolved result is carried by `pageGeometry`). author/organization/
-    // date/language are DOCUMENT-level — they live in the doc front-matter, not
+    // author/organization/date/language are DOCUMENT-level — they live in the doc front-matter, not
     // the style (document-style model; language is the one content override).
     const NON_FUNDAMENTAL = new Set([
-      'authoring',
       'author',
       'organization',
       'date',

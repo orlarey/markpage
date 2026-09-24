@@ -1,19 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { pagedCss } from '../src/preview-paginated';
-import {
-  DEFAULT_SETTINGS,
-  DEFAULT_GEOMETRY_AUTHORING,
-  type PdfSettings,
-} from '../src/settings';
-
-/** Override the geometry authoring inputs on top of DEFAULT_SETTINGS. */
-function withAuthoring(over: Partial<typeof DEFAULT_GEOMETRY_AUTHORING>): PdfSettings {
-  return {
-    ...DEFAULT_SETTINGS,
-    authoring: { ...DEFAULT_GEOMETRY_AUTHORING, ...over },
-  };
-}
+import { DEFAULT_SETTINGS } from '../src/settings';
+import { BANDED_DUPLEX, BANDED_SIMPLEX, withGeometry } from './fixtures/geometry';
 
 /**
  * Purpose: Lock in the §9.7 sidenote CSS branching emitted by
@@ -50,9 +39,9 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
     expect(css).not.toMatch(/\.footnote-ref \{ display: none/);
   });
 
-  it("'side' in derived mode emits absolute positioning, keeps the body sup visible, adds the in-sidenote number prefix", () => {
+  it("'side' with an outer gutter emits absolute positioning, keeps the body sup visible, adds the in-sidenote number prefix", () => {
     const css = pagedCss({
-      ...withAuthoring({ marginMode: 'derived' }),
+      ...withGeometry(BANDED_SIMPLEX),
       notes: { position: 'side' },
     });
     // The body sup STAYS visible in side mode (Tufte: number appears
@@ -63,7 +52,7 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
     // Sidenotes AND margin figures share the outer-gutter positioning
     // via an :is(.sidenote, img.margin) group selector (§9.7.5).
     expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*position: absolute;/);
-    expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*right: -\d+\.\d+mm;/);
+    expect(css).toMatch(/:is\(\.sidenote, img\.margin\) \{[\s\S]*right: -\d+(\.\d+)?mm;/);
     // Numeric prefix inside the sidenote is styled as a small sup.
     expect(css).toMatch(/\.sidenote \.sidenote-num \{[\s\S]*vertical-align: super/);
     // Paragraphs (and friends) need position: relative as containing block.
@@ -74,32 +63,29 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
 
   it("'side' in duplex emits an additional left override for the verso", () => {
     const css = pagedCss({
-      ...withAuthoring({ marginMode: 'derived' }),
+      ...withGeometry(BANDED_DUPLEX),
       duplex: true,
       notes: { position: 'side' },
     });
     // Verso flip targets the same :is() group on verso pages.
     expect(css).toMatch(
-      /\.pagedjs_left_page :is\(\.sidenote, img\.margin\) \{[\s\S]*left: -\d+\.\d+mm;[\s\S]*right: auto;/,
+      /\.pagedjs_left_page :is\(\.sidenote, img\.margin\) \{[\s\S]*left: -\d+(\.\d+)?mm;[\s\S]*right: auto;/,
     );
   });
 
   it("'side' caps img.margin width to the sidenote area (no overflow)", () => {
     const css = pagedCss({
-      ...withAuthoring({ marginMode: 'derived' }),
+      ...withGeometry(BANDED_SIMPLEX),
       notes: { position: 'side' },
     });
     expect(css).toMatch(/img\.margin \{[\s\S]*max-width: \d+\.?\d*mm;[\s\S]*height: auto;/);
   });
 
-  it("'side' in manual mode degrades to hide-sidenote (no geometry to anchor it)", () => {
-    // marginMode 'manual' means we don't know the outer gutter — the
-    // sidenote can't be positioned safely. We hide it; the visible
-    // path is whatever section.footnotes already provides.
-    const css = pagedCss({
-      ...withAuthoring({ marginMode: 'manual' }),
-      notes: { position: 'side' },
-    });
+  it("'side' without an outer gutter degrades to hide-sidenote (no column to anchor it)", () => {
+    // The default geometry has no gutter (band anchors = text block): the
+    // sidenote can't be positioned safely. We hide it; the visible path is
+    // whatever section.footnotes already provides.
+    const css = pagedCss({ ...A4, notes: { position: 'side' } });
     expect(css).toContain('.sidenote { display: none;');
     // The .sidenote rule itself must NOT carry the absolute layout
     // CSS — match against the block scope only (no greedy `*`).
@@ -107,33 +93,15 @@ describe('pagedCss — sidenote rendering branch on notes.position', () => {
   });
 });
 
-describe('pagedCss — sidenote width derives from outer gutter (§9.7.1)', () => {
-  it('sidenote width ≈ outerGutter − gap, with gap = innerGutter / 4', () => {
-    // Use the "Édition critique" preset values: measure 52, liveArea 85.
-    const s: PdfSettings = {
-      ...withAuthoring({
-        marginMode: 'derived',
-        measureChars: 52,
-        liveAreaChars: 85,
-      }),
+describe('pagedCss — sidenote column from the geometry', () => {
+  it('takes its width from the geometry and sits across the outer gutter', () => {
+    const css = pagedCss({
+      ...withGeometry(BANDED_DUPLEX),
       duplex: true,
       notes: { position: 'side' },
-    };
-    const css = pagedCss(s);
-    // happy-dom fallback charWidth ≈ 1.94 mm:
-    //   textWidth = 52 × 1.94 ≈ 100.9
-    //   textHeight = 100.9 × 297/210 ≈ 142.7
-    //   liveAreaWidth = 85 × 1.94 ≈ 164.9
-    //   liveAreaHeight = 164.9 × 297/210 ≈ 233.3
-    //   inner_TB = (210 − 100.9)/3 ≈ 36.4
-    //   outer_TB = 2 × 36.4 ≈ 72.7
-    //   inner_LA = (210 − 164.9)/3 ≈ 15.05
-    //   outer_LA = 2 × 15.05 ≈ 30.05
-    //   outer gutter = outer_TB − outer_LA ≈ 42.7 mm
-    //   inner gutter = inner_TB − inner_LA ≈ 21.3 mm
-    //   gap = 21.3 / 4 ≈ 5.33 mm
-    //   sidenote width = 42.7 − 5.33 ≈ 37.3 mm
-    expect(css).toMatch(/width: 37\.\d+mm/);
-    expect(css).toMatch(/right: -42\.\d+mm/);
+    });
+    // width = sidenote.width; offset = the outer gutter (56 − 32 = 24 mm).
+    expect(css).toMatch(/width: 21mm/);
+    expect(css).toMatch(/right: -24mm/);
   });
 });

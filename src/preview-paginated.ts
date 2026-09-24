@@ -9,7 +9,7 @@
  *
  *******************************************************************************/
 
-import type { PdfSettings, Style } from './settings';
+import type { PageGeometry, PdfSettings, Style } from './settings';
 import { blockBoxCss, capsCss, filetCss, headingNumberCss, inlineCss } from './style-emit';
 import {
   quoteFontFamily,
@@ -31,8 +31,6 @@ import {
   runningApparatusCss,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
-import type { PageGeometry } from './typography';
-import { bakePageGeometry } from './geometry-producer';
 
 /**
  * Purpose: Heading "filet" (rule) CSS fragment for paged.js / print output.
@@ -133,10 +131,9 @@ export async function paginateWithVivliostyle(
   renderTo: HTMLElement,
   opts: { spread?: boolean } = {},
 ): Promise<number> {
-  // The derived (Van de Graaf) margins are computed from a DOM measurement of
-  // the body font's average character width — with fallback metrics the
-  // measure runs ~16% wide and every derived margin shrinks. Wait for the real
-  // fonts BEFORE pagedCss() measures (the paged.js pipeline did this too).
+  // The engine measures glyphs as it breaks lines: paginating with fallback
+  // metrics would put the page breaks where the real fonts won't. Wait for the
+  // style's fonts first.
   await ensureSettingsFontsLoaded(settings);
   if (settings.numbering?.on) wrapHeadingNumbers(source);
   linkTocPlus(source);
@@ -264,9 +261,8 @@ export function groupAdjacentFiguresForSlides(
   settings: PdfSettings,
 ): void {
   if (settings.pageSize !== 'SLIDES_16_9') return;
-  const sizeMm = pageSizeMm(settings);
   const PX_PER_MM = 96 / 25.4;
-  const slideContentPx = geometryFor(settings, sizeMm).text.width * PX_PER_MM;
+  const slideContentPx = settings.pageGeometry.text.width * PX_PER_MM;
   const WIDTH_TOLERANCE = 1.1; // tolerate ~10% overflow (small scale-down)
   const COL_GAP_PX = 32; // matches the 2em column-gap in .figure-row CSS
   const children = Array.from(root.children);
@@ -471,8 +467,7 @@ export async function applyAutoZoomForDemos(
   );
   if (demos.length === 0) return;
   const doc = root.ownerDocument;
-  const sizeMm = pageSizeMm(settings);
-  const text = geometryFor(settings, sizeMm).text;
+  const text = settings.pageGeometry.text;
   const PX_PER_MM = 96 / 25.4;
   const MAX_FIG_HEIGHT_RATIO = 0.55;
   const widthMm = text.width;
@@ -687,22 +682,8 @@ function figureNaturalWidthPx(el: Element): number {
 const PX_PER_MM = 96 / 25.4;
 const ATOMIC_TRIM_SAFETY_MM = 3;
 
-/**
- * The resolved geometry the render consumes: the baked `pageGeometry` fundamental
- * setting when present (the normal path — the prep layer bakes it via
- * `withBakedGeometry`), or a fresh bake for direct callers that skip the prep
- * layer (tests, ad-hoc renders). Either way the render never touches the canon
- * production inputs.
- */
-export function geometryFor(
-  s: PdfSettings,
-  sizeMm: { w: number; h: number },
-): PageGeometry {
-  return s.pageGeometry ?? bakePageGeometry(s, sizeMm);
-}
-
-/** The inner/outer gutter (blank strip between the text block and the live
- *  area), derived from the resolved geometry. Positive only in derived mode. */
+/** The inner/outer gutter — the blank strip between the text block and the
+ *  header/footer band's anchors (`running`). Zero when they coincide. */
 function guttersOf(geo: PageGeometry): { inner: number; outer: number } {
   return {
     inner: Math.max(0, geo.text.inner - geo.running.inner),
@@ -713,7 +694,7 @@ function guttersOf(geo: PageGeometry): { inner: number; outer: number } {
 /** Geometry of the normal text rectangle and the physical page, in CSS px. */
 function atomicPageGeometryPx(settings: PdfSettings): AtomicPageGeometryPx {
   const page = pageSizeMm(settings);
-  const text = geometryFor(settings, page).text;
+  const text = settings.pageGeometry.text;
   const leftRecto = text.inner;
   const leftVerso = settings.duplex ? text.outer : leftRecto;
   const top = text.top;
@@ -1004,33 +985,20 @@ export function pagedCss(s: PdfSettings): string {
   // :is()/:where(): paged.js's TargetCounters handler splits the selector
   // on ":", which corrupts those functions — it uses a bare id list.
   const TOC = ':is(#preview-pane, #markpage-print-target)';
-  // §9.6 — when `marginMode === 'derived'`, the four margins come from
-  // the Van de Graaf canon: text block similar to the page, corners on
-  // the construction diagonals, ratios inner:outer = 1:2 and top:bottom
-  // = 1:2. Otherwise (manual mode) the user's `margins.*` sliders are
-  // authoritative.
-  //
-  // The canonical model expresses margins in {top, bottom, inner, outer}
-  // (spine-aware) rather than CSS-absolute {top, right, bottom, left}.
-  // In manual mode we re-label `margins.left` as inner and
-  // `margins.right` as outer — same convention as §9.5.2 for duplex.
-  // This is purely cosmetic in simplex (no spine, no swap), and it lets
-  // the rest of the code branch on a single shape regardless of mode.
-  // The render reads ONLY the resolved geometry (baked pageGeometry, or an
-  // on-the-fly bake for direct callers) — never marginMode / measureChars /
-  // liveAreaChars / margins. The canonical banding is deduced from the geometry
-  // itself: `banding` (header/footer bands + body padding) applies iff the live
-  // area strictly encloses the text block vertically; the sidenote column iff
-  // the outer gutter is positive. In manual mode geometry collapses (running =
-  // text, zero gutters) so both are false — exactly the pre-2d behaviour.
-  const geo = geometryFor(s, sizeMm);
+  // The page is drawn from the style's resolved geometry (settings.pageGeometry)
+  // alone, in spine-aware {top, bottom, inner, outer} mm (inner = left on a
+  // recto and in simplex). Everything else is read off it: `banding` (header /
+  // footer bands above / below the text block) applies iff the header sits
+  // above the text top; the sidenote column iff the outer gutter is positive.
+  // A geometry whose band anchors coincide with the text block has neither.
+  const geo = s.pageGeometry;
   const gutter = guttersOf(geo);
   const banding = geo.header.top < geo.text.top;
   // Vertical margins (top / bottom) come from the text block; horizontal margins
-  // from the live area (= text in manual). This puts the @top-* / @bottom-*
-  // boxes inside the header / footer BANDS of the canon (§9.6.6); the
-  // author-supplied text is pushed to the inside edge (align-items below).
-  // The live-area gutter (text ⊂ live area) only carries content for margin notes.
+  // from the band anchors (`running`). This puts the @top-* / @bottom-* boxes
+  // inside the header / footer bands; the running content is pushed to their
+  // outer edge (align-items below).
+  // The gutter (between text block and anchors) only carries margin notes.
   // When notes aren't 'side', that gutter is empty — and applying it as body
   // padding on the SINGLE Vivliostyle flow body (`#mp-viv-root`, which can't vary
   // per page parity) leaves verso text un-mirrored. So fold the gutter into the
@@ -1072,16 +1040,10 @@ export function pagedCss(s: PdfSettings): string {
       ${rectoMargin}
     }`;
 
-  // §9.6.4 — body padding inside the live area to recover the
-  // text-block dimensions. Each side's padding equals the canonical
-  // band height between the two nested rectangles:
-  //   header band   = textBlock.top   − liveArea.top
-  //   footer band   = textBlock.bottom − liveArea.bottom
-  //   inner gutter  = textBlock.inner  − liveArea.inner  (recto: left)
-  //   outer gutter  = textBlock.outer  − liveArea.outer  (recto: right)
-  // The body padding is applied on `.pagedjs_page_content`, scoped
-  // to the page parity classes paged.js sets. In duplex on a verso
-  // the inner/outer paddings swap, mirroring the margin swap above.
+  // Body padding recovers the text-block width inside the band anchors: the
+  // inner / outer gutters (text.inner − running.inner, text.outer −
+  // running.outer), applied on `.pagedjs_page_content` per page parity — on a
+  // duplex verso they swap, mirroring the margin swap above.
   const bodyPaddingRule =
     !foldGutter && (gutter.inner > 0 || gutter.outer > 0)
       ? buildBodyPaddingCss(SCOPE, gutter, s.duplex)
@@ -1095,25 +1057,15 @@ export function pagedCss(s: PdfSettings): string {
   //     at the document tail keeps the conventional rendering.
   //   - side: hide section.footnotes AND the .footnote-ref superscript;
   //     position .sidenote absolutely in the outer gutter so it sits at
-  //     the line of its anchor. Requires derived mode to know the outer
-  //     gutter width — degrades silently in manual mode (sidenotes
-  //     still hidden, footnote section visible).
+  //     the line of its anchor. Needs an outer gutter to live in — with
+  //     none, sidenotes stay hidden and the footnote section shows.
   const sidenoteRule = buildSidenoteCss(SCOPE, s.notes.position, geo, s.duplex);
-  // §9.6.6 — in derived mode the @top-* / @bottom-* margin boxes are
-  // taller than the canonical-blank zone (the @page margin is set to
-  // the TEXT BLOCK top / bottom, not the live area). We want the
-  // running content to sit at the LIVE AREA edge:
-  //   - header: at the TOP of the live area (just inside its top edge)
-  //   - footer: at the BOTTOM of the live area (just inside its
-  //     bottom edge)
-  // The canonical blank zones (live_LA.top above the header / live_LA.
-  // bottom below the footer) become symmetric breathing room toward
-  // the page edges, and the header / footer BANDS become breathing
-  // room toward the body text. paged.js uses flex inside each margin
-  // box, so we combine `align-items` with `padding` to place the inner
-  // `.pagedjs_margin-content` precisely:
-  //   - @top-*    : align-items: flex-start; padding-top:    live_LA.top
-  //   - @bottom-* : align-items: flex-end;   padding-bottom: live_LA.bottom
+  // With header/footer bands, the @top-* / @bottom-* margin boxes span the
+  // whole text-block top / bottom margin; the running content must sit at the
+  // geometry's header / footer lines, the rest being breathing room. Margin
+  // boxes lay out as flex, so `align-items` + `padding` place the content:
+  //   - @top-*    : align-items: flex-start; padding-top:    header.top
+  //   - @bottom-* : align-items: flex-end;   padding-bottom: footer.bottom
   // NOTE on specificity: paged.js's polisher base.js ships
   //   `.pagedjs_pagebox .pagedjs_margin-bottom-center { align-items: center; }`
   // with specificity (0,2,0). To override `align-items` (centred by
@@ -1136,21 +1088,18 @@ export function pagedCss(s: PdfSettings): string {
       padding-bottom: ${geo.footer.bottom}mm;
     }`
     : '';
-  // CSS custom properties exposing the canonical geometry so the
-  // debug-guides overlay (style.css, gated on `.debug-layout`) can
-  // draw the live-area and text-block outlines as pseudo-elements on
-  // `.pagedjs_page` / `.pagedjs_page_content` without re-deriving the
-  // values. Set on both the on-screen pane and the print target so the
-  // same rules light up in either container. In manual mode there is
-  // no canonical decomposition: live area = text block = user margins,
-  // and the gutters collapse to zero.
+  // CSS custom properties exposing the page geometry so the debug-guides
+  // overlay (style.css, gated on `.debug-layout`) can draw the band and
+  // text-block outlines as pseudo-elements on `.pagedjs_page` /
+  // `.pagedjs_page_content` without re-deriving the values. Set on both the
+  // on-screen pane and the print target. With no bands, the gutters are zero.
   const gutInner = gutter.inner;
   const gutOuter = gutter.outer;
   const liveTop = geo.header.top;
   const liveBottom = geo.footer.bottom;
   const liveInner = geo.running.inner;
   const liveOuter = geo.running.outer;
-  const canonVarsRule = `
+  const geometryVarsRule = `
     ${SCOPE} {
       --mp-live-top: ${liveTop}mm;
       --mp-live-bottom: ${liveBottom}mm;
@@ -1256,7 +1205,7 @@ export function pagedCss(s: PdfSettings): string {
     ${pageRule}
     ${bodyPaddingRule}
     ${marginBoxAlignRule}
-    ${canonVarsRule}
+    ${geometryVarsRule}
     ${runningContentRule}
     ${sidenoteRule}
     ${chapterBreakRule}
@@ -1567,9 +1516,8 @@ function slidesBreakCss(s: PdfSettings): string {
  */
 function slidesFigureCss(s: PdfSettings): string {
   if (s.pageSize !== 'SLIDES_16_9') return '';
-  const sizeMm = pageSizeMm(s);
   const MAX_FIG_HEIGHT_RATIO = 0.55;
-  const maxH = geometryFor(s, sizeMm).text.height * MAX_FIG_HEIGHT_RATIO;
+  const maxH = s.pageGeometry.text.height * MAX_FIG_HEIGHT_RATIO;
   const SCOPE = ':where(#preview-pane, #markpage-print-target)';
   return `
     ${SCOPE} .bda-svg,
@@ -1662,7 +1610,7 @@ function slidesFigureCss(s: PdfSettings): string {
  */
 function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
   const SAFETY_MM = 5;
-  const text = geometryFor(s, pageSizeMm(s)).text;
+  const text = s.pageGeometry.text;
   return {
     left: Math.max(0, text.inner - SAFETY_MM),
     right: Math.max(0, text.outer - SAFETY_MM),
@@ -1670,64 +1618,22 @@ function slidesDemoBleedMm(s: PdfSettings): { left: number; right: number } {
 }
 
 /**
- * Purpose: Build the body-content padding rule that recovers the
- *   §9.6 text block dimensions from the live-area-sized page content
- *   area. Targets `.pagedjs_page_content` (paged.js's wrapper around
- *   the actual flow content) and respects duplex by swapping the
- *   inner / outer paddings on `.pagedjs_left_page` (verso).
- * How: Compute each side's padding as the difference between the
- *   text-block canonical margin and the live-area canonical margin —
- *   that difference equals the band height per §9.6.4. Emit one rule
- *   for the recto/default and, in duplex, a second swapped rule for
- *   the verso. Center-of-page positioning is automatic because the
- *   live area is itself centred on the page.
- */
-/**
- * Purpose: Inject a small SVG overlay into every `.pagedjs_pagebox` so
- *   the debug-guides view (toggled via `.debug-layout` on the render
- *   container) shows the Van de Graaf construction diagonals.
- * How: One SVG per page with `viewBox="0 0 100 100"` (page-relative).
- *   The diagonal set depends on the page's role:
- *
- *     - Simplex (no duplex) OR the cover page (first page, recto
- *       alone with no facing verso): the full page X — both page
- *       diagonals TL↔BR and TR↔BL.
- *     - Duplex verso (left page in a real spread, NOT the cover):
- *       three lines that, joined to the recto facing it, draw the
- *       four canonical spread diagonals:
- *         · internal page diagonal: TR (100,0) → BL (0,100)
- *         · half of the ↘ spread diagonal: TL (0,0) → spine bottom
- *           middle (100,50) — continues into the recto's left half
- *         · half of the ↙ spread diagonal: spine top middle (100,50)
- *           → BL (0,100) — continues from the recto's right half
- *     - Duplex recto (right page in a real spread): mirror of the
- *       verso. Lines:
- *         · internal page diagonal: TL (0,0) → BR (100,100)
- *         · half ↘: spine top middle (0,50) → BR (100,100)
- *         · half ↙: TR (100,0) → spine bottom middle (0,50)
- *
- *   When the verso and recto of a spread sit edge-to-edge (the CSS
- *   grid does this via `justify-self: end/start`), the four half-
- *   lines join at the spine to form the two full spread diagonals
- *   plus the two page-internal ones — visually identical to the
- *   SVG diagrams in docs/img/recto-verso-layout.svg.
- *
- *   `pointer-events: none` and `position: absolute` (with `inset: 0`)
- *   keep the SVG out of the layout flow. Visibility is gated by CSS
- *   (`display: none` until `.debug-layout` is set on the container).
- *   Idempotent: re-injects safely if a previous overlay already
- *   exists on the page (no duplicates).
+ * Purpose: Build the body-content padding rule that recovers the text-block
+ *   width inside the band anchors. Targets `.pagedjs_page_content` (the
+ *   wrapper around the flow content) and swaps the inner / outer paddings on
+ *   `.pagedjs_left_page` (verso) in duplex.
+ * How: Each side's padding is its gutter (text-block margin − band-anchor
+ *   margin). One rule for the recto/default and, in duplex, a swapped one for
+ *   the verso.
  */
 function buildBodyPaddingCss(
   scope: string,
   gutter: { inner: number; outer: number },
   duplex: boolean,
 ): string {
-  // Vertical padding is ZERO: the @page margin (in derived mode) is
-  // already set to the TEXT BLOCK top / bottom so the body content
-  // area has the text-block height natively. Only the horizontal
-  // gutters (inner / outer) need to be subtracted from the live area
-  // to recover the text-block width.
+  // Vertical padding is ZERO: the @page margin is already the text block's
+  // top / bottom, so the content area has the text-block height natively.
+  // Only the horizontal gutters need subtracting.
   const padInner = gutter.inner;
   const padOuter = gutter.outer;
   // CSS padding shorthand is `top right bottom left`. On recto:
@@ -1772,12 +1678,9 @@ function buildBodyPaddingCss(
  *       class="footnote-ref">` superscript, then positions the
  *       `.sidenote` span absolutely in the outer gutter so it sits at
  *       the line of its anchor.
- * How: Side mode requires knowing the outer-gutter geometry; if we
- *   don't have it (i.e. `marginMode === 'manual'`), fall back to the
- *   default `display: none` to avoid sidenotes spilling over the body
- *   text. The width is computed as `outerGutter - GAP` where
- *   `GAP = innerGutter / 4` per §9.7.1, leaving a visual breathing
- *   space between the text block and the sidenote area.
+ * How: Side mode needs an outer gutter to hold the notes; with none, fall
+ *   back to the default `display: none` so sidenotes never spill over the
+ *   body text. Gap and column width come from the geometry's `sidenote`.
  *
  *   Paragraphs (and other block containers that may host an anchor)
  *   get `position: relative` so the absolutely-positioned sidenote
@@ -1834,11 +1737,8 @@ function buildSidenoteCss(
   }
   // === 'side' mode ===========================================
   // Tufte-CSS approach: position the inline `.sidenote` span absolutely
-  // in the outer gutter at the height of its anchor. Requires the
-  // canonical margins so we know the gutter width; degrades silently
-  // to plain hide if `marginMode === 'manual'`.
-  // The note sits in the outer gutter; a non-positive gutter (manual mode, or a
-  // live area no wider than the text block) means there is no column for it.
+  // in the outer gutter at the height of its anchor. A non-positive gutter
+  // (band anchors no wider than the text block) leaves no column for it.
   const outerGutter = Math.max(0, geo.text.outer - geo.running.outer);
   if (outerGutter <= 0) {
     return `${scope} .sidenote { display: none; }`;
@@ -1924,8 +1824,7 @@ export function pageSizeMm(s: PdfSettings): { w: number; h: number } {
 
 /**
  * Purpose: The body text-block size in px, computed *deterministically* from
- *   settings — same geometry the @page CSS uses (derived canon vs manual
- *   margins). Used by the mosaic packer so its row count doesn't depend on a
+ *   settings — the same geometry the @page CSS uses. Used by the mosaic packer so its row count doesn't depend on a
  *   prior render being measured (which made the first/cold render flip between
  *   one and two rows).
  */
@@ -1934,10 +1833,8 @@ export function pageContentGeomPx(s: PdfSettings): {
   height: number;
 } {
   const PX_PER_MM = 96 / 25.4;
-  const sizeMm = pageSizeMm(s);
-  // Mosaic content sits in the text block; its size comes straight from the
-  // resolved geometry (baked pageGeometry or an on-the-fly bake).
-  const text = geometryFor(s, sizeMm).text;
+  // Mosaic content sits in the text block, read off the page geometry.
+  const text = s.pageGeometry.text;
   return { width: text.width * PX_PER_MM, height: text.height * PX_PER_MM };
 }
 

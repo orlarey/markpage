@@ -11,9 +11,6 @@ import {
   parseStyleFile,
   serializeStyleFile,
 } from '../src/style-library';
-import { withBakedGeometry } from '../src/geometry-producer';
-
-const A4 = { w: 210, h: 297 };
 
 /**
  * The compiled style file is the PIVOT: we want a bijection between the file and
@@ -102,34 +99,21 @@ describe('round-trip — the bijection contract', () => {
   });
 });
 
-describe('round-trip — the REAL app path bakes geometry', () => {
-  // The app exports a POST-bake snapshot (serializeFundamentalStyle of
-  // lastEffectiveSettings, which ran through withBakedGeometry). So the fixed
-  // point must survive the bake step, not just apply∘serialize.
-
-  it('a style CARRYING pageGeometry is a true fixed point through the bake', () => {
-    // exactly what the editor's compileStyle now emits: a resolved pageGeometry.
-    const withGeo = serializeFundamentalStyle(
-      withBakedGeometry(DEFAULT_SETTINGS, A4),
-    );
+describe('round-trip — page geometry', () => {
+  it('a style carrying pageGeometry imports it verbatim (fixed point)', () => {
+    const withGeo = serializeFundamentalStyle(DEFAULT_SETTINGS);
     expect('pageGeometry' in withGeo).toBe(true);
-    // import → the style carries pageGeometry, so applyFundamentalStyle drops
-    // `authoring` → withBakedGeometry is a no-op → export is identical.
-    const applied = applyFundamentalStyle(DEFAULT_SETTINGS, withGeo);
-    const round = serializeFundamentalStyle(withBakedGeometry(applied, A4));
-    expect(round).toEqual(withGeo);
+    const round = serializeFundamentalStyle(applyFundamentalStyle(DEFAULT_SETTINGS, withGeo));
     expect(JSON.stringify(round)).toBe(JSON.stringify(withGeo));
   });
 
-  it('a style OMITTING pageGeometry is NOT a fixed point — the bake adds one', () => {
-    // documents WHY the editor must emit pageGeometry (Explore finding): a
-    // geometry-less file retains the base `authoring`, so the render bakes a
-    // pageGeometry the file never had.
+  it('a style OMITTING pageGeometry keeps the base geometry (never none)', () => {
+    // markpage computes no geometry: an incomplete style falls back to the
+    // base's resolved geometry rather than leaving the render without one.
     const noGeo = serializeFundamentalStyle(DEFAULT_SETTINGS);
-    expect('pageGeometry' in noGeo).toBe(false);
+    delete noGeo.pageGeometry;
     const applied = applyFundamentalStyle(DEFAULT_SETTINGS, noGeo);
-    const round = serializeFundamentalStyle(withBakedGeometry(applied, A4));
-    expect('pageGeometry' in round).toBe(true); // gained a baked geometry
+    expect(applied.pageGeometry).toEqual(DEFAULT_SETTINGS.pageGeometry);
   });
 });
 

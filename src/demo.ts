@@ -43,7 +43,8 @@ import { initLocale } from './i18n/locale';
 import { annotateSourceLines, applyPreviewStyles } from './preview';
 import { parseFrontmatter } from '@orlarey/markpage-render';
 import { paginate } from './preview-paginated';
-import { buildDocumentDom, documentSettings } from './document-render';
+import { buildDocumentDom } from './document-render';
+import { resolveDocumentSettings } from './style-library';
 import {
   findShowcaseEntry,
   HERO_DEMO_ENTRY,
@@ -86,7 +87,7 @@ async function run(): Promise<void> {
   // is a feature sample, not someone's document.
   const { meta } = parseFrontmatter(entry.source);
   const styleParam = params.get('style');
-  const effectiveSettings = documentSettings(
+  const effectiveSettings = resolveDocumentSettings(
     styleParam ? { ...meta, 'document-style': styleParam } : meta,
   ).settings;
 

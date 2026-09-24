@@ -115,8 +115,8 @@ function installHostFixes(): void {
  *  one vocabulary for both engines instead of forking every stylesheet. */
 const BOX_COMPAT: ReadonlyArray<readonly [string, string]> = [
   ['[data-vivliostyle-page-box]', 'pagedjs_pagebox'],
-  // The area CONTAINER is the real content box (513x564 for A4 with derived
-  // margins); page-area/column are the full-bleed wrappers around it.
+  // The area CONTAINER is the real content box (the text block); page-area /
+  // column are the full-bleed wrappers around it.
   ['[data-vivliostyle-page-area-container]', 'pagedjs_page_content'],
 ];
 
@@ -205,12 +205,10 @@ function linearizePages(
 }
 
 /**
- * Purpose: Re-inject the debug-guides diagonals, one SVG per page box. They
- *   pair with the derived (Van de Graaf) margins and the duplex spread: the
- *   canon IS a diagonal construction, so seeing the diagonals is how you judge
- *   whether the text block sits where the canon puts it. The outlines
- *   themselves live in style.css, gated on `.debug-layout`; only this injector
- *   was lost with paged.js.
+ * Purpose: Re-inject the debug-guides diagonals, one SVG per page box — the
+ *   page and spread diagonals the text block is laid out against, to judge its
+ *   placement by eye. The outlines themselves live in style.css, gated on
+ *   `.debug-layout`.
  * How: A viewBox="0 0 100 100" overlay stretched over the page box, so the
  *   segments are expressed in percentages and need no measuring. Simplex and
  *   the cover get the full page X; a real duplex spread gets the internal

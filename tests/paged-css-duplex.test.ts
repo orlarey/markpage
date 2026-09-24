@@ -4,22 +4,8 @@ import {
   markConsecutiveParagraphs,
   pagedCss,
 } from '../src/preview-paginated';
-import {
-  DEFAULT_SETTINGS,
-  DEFAULT_GEOMETRY_AUTHORING,
-  type PdfSettings,
-} from '../src/settings';
-
-/** Build settings whose geometry authoring inputs override the defaults. */
-function withAuthoring(
-  base: PdfSettings,
-  over: Partial<typeof DEFAULT_GEOMETRY_AUTHORING>,
-): PdfSettings {
-  return {
-    ...base,
-    authoring: { ...(base.authoring ?? DEFAULT_GEOMETRY_AUTHORING), ...over },
-  };
-}
+import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
+import { BANDED_DUPLEX, BANDED_SIMPLEX, withGeometry } from './fixtures/geometry';
 
 /**
  * Purpose: Lock in the CSS shape emitted by `pagedCss` for the §9.5
@@ -28,8 +14,9 @@ function withAuthoring(
  *   stylesheet can evolve without forcing a rewrite here.
  */
 
-const A4 = DEFAULT_SETTINGS; // marginMode: 'manual', duplex: false, chapterBreak: 'none'
-const m = DEFAULT_GEOMETRY_AUTHORING.margins;
+const A4 = DEFAULT_SETTINGS; // plain A4 geometry, duplex: false, chapterBreak: 'none'
+// The default geometry's four margins (text block = band anchors, no gutter).
+const m = { top: 25, right: 35, bottom: 25, left: 35 };
 
 describe('pagedCss — simplex (default)', () => {
   it('emits a single @page rule with the nominal margins', () => {
@@ -122,58 +109,37 @@ describe('pagedCss — duplex (mirror margins on @page :left)', () => {
   });
 });
 
-describe('pagedCss — derived margins (marginMode: derived)', () => {
-  // §9.6 / §9.6.6 — in derived mode, vertical @page margins come from
-  // the TEXT BLOCK and horizontal margins from the LIVE AREA. A simplex
-  // document centres both rectangles horizontally; duplex retains the
-  // inner/outer canon and mirrors it. This places the @top-* /
-  // @bottom-* boxes inside the canonical header / footer BANDS rather
-  // than in the canonical blank zone above / below them. The narrower
-  // text-block width is recovered via horizontal-only body padding on
-  // .pagedjs_page_content (vertical padding is 0; the body height
-  // already equals the text-block height by virtue of the @page
-  // margin).
-  // happy-dom has no canvas, so measureAverageCharWidth falls back to
-  // the 0.5 em heuristic; body fontSize = 11pt gives charWidth ≈
-  // 1.9404 mm.
-  //   liveAreaWidth  = 85 × 1.9404 ≈ 164.93 mm
-  //   liveAreaHeight = 164.93 × 297/210 ≈ 233.27 mm
-  //   inner_LA ≈ 15.02 mm, outer_LA ≈ 30.05 mm
-  //   top_LA   ≈ 21.24 mm, bottom_LA ≈ 42.49 mm
-  //   textBlockWidth  = 66 × 1.9404 ≈ 128.07 mm
-  //   inner_TB ≈ 27.31 mm, outer_TB ≈ 54.62 mm
-  //   top_TB   ≈ 38.61 mm, bottom_TB ≈ 77.22 mm
-  //   inner gutter = inner_TB − inner_LA ≈ 12.29 mm
-  //   outer gutter = outer_TB − outer_LA ≈ 24.58 mm
-  const derivedSimplex: PdfSettings = withAuthoring(A4, { marginMode: 'derived' });
-  const derivedDuplex: PdfSettings = { ...derivedSimplex, duplex: true };
+describe('pagedCss — banded geometry (header/footer bands + gutters)', () => {
+  // Vertical @page margins come from the TEXT BLOCK, horizontal ones from the
+  // band anchors (`running`), which puts the @top-* / @bottom-* boxes in the
+  // header / footer bands. The text-block width is recovered by horizontal-only
+  // body padding (the gutters) on .pagedjs_page_content.
+  const bandedSimplex: PdfSettings = withGeometry(BANDED_SIMPLEX);
+  const bandedDuplex: PdfSettings = withGeometry(BANDED_DUPLEX, { duplex: true });
 
-  it('centres the derived live area horizontally in simplex', () => {
-    const css = pagedCss(derivedSimplex);
-    // top right bottom left — top/bottom retain the vertical canon;
-    // right/left each receive half of the live-area horizontal blank.
-    expect(css).toMatch(/margin:\s+38\.\d+mm\s+22\.\d+mm\s+77\.\d+mm\s+22\.\d+mm;/);
-    // Manual margins must not leak.
+  it('takes vertical margins from the text block, horizontal from the anchors (simplex)', () => {
+    const css = pagedCss(bandedSimplex);
+    expect(css).toContain('margin: 40mm 24mm 76mm 24mm;');
     expect(css).not.toContain(`margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`);
   });
 
   it('folds the gutter into the mirrored @page margins in duplex (notes ≠ side)', () => {
-    // The live-area gutter carries no content without margin notes, and the single
+    // The gutter carries no content without margin notes, and the single
     // Vivliostyle flow body can't mirror per parity — so the gutter is folded into
     // the @page margin (text-block inner/outer, mirrored) and NO body padding is
     // emitted. This is what makes the verso text block mirror correctly.
-    const css = pagedCss(derivedDuplex);
-    expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 54\.\d+mm 77\.\d+mm 27\.\d+mm; \}/);
-    expect(css).toMatch(/@page :left  \{ margin: 38\.\d+mm 27\.\d+mm 77\.\d+mm 54\.\d+mm; \}/);
+    const css = pagedCss(bandedDuplex);
+    expect(css).toContain('@page :right { margin: 40mm 56mm 76mm 28mm; }');
+    expect(css).toContain('@page :left  { margin: 40mm 28mm 76mm 56mm; }');
   });
 
   it('centres the cover on the page (@page :first symmetric) when a cover exists', () => {
-    const s: PdfSettings = { ...derivedDuplex, coverBackground: '#223e61' };
+    const s: PdfSettings = { ...bandedDuplex, coverBackground: '#223e61' };
     const css = pagedCss(s);
     // symmetric horizontal margins on the first page = the two mirrored margins averaged
-    expect(css).toMatch(/@page :first \{ margin-left: 40\.\d+mm; margin-right: 40\.\d+mm; \}/);
+    expect(css).toContain('@page :first { margin-left: 42mm; margin-right: 42mm; }');
     // no such rule without a cover
-    expect(pagedCss(derivedDuplex)).not.toContain('@page :first');
+    expect(pagedCss(bandedDuplex)).not.toContain('@page :first');
   });
 
   it('keeps the subtitle + metadata ON the cover — only the first content breaks', () => {
@@ -182,7 +148,7 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
     // their own pages — two blank pages + a subtitle stranded off the cover.
     // The rule must break only the FIRST block after the whole identity stack
     // (title → optional subtitle → optional metadata).
-    const s: PdfSettings = { ...derivedDuplex, coverBackground: '#223e61' };
+    const s: PdfSettings = { ...bandedDuplex, coverBackground: '#223e61' };
     const css = pagedCss(s);
     // subtitle after title must NOT be a break target
     expect(css).toContain(':not(.doc-subtitle)');
@@ -196,7 +162,7 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
   it('re-inks the title filet on the cover, not just the text', () => {
     // Regression: the filet is a border-bottom carrying the title's own (dark)
     // colour. Recolouring only the text leaves the rule dark on the fill.
-    const s: PdfSettings = { ...derivedDuplex, coverBackground: '#223e61' };
+    const s: PdfSettings = { ...bandedDuplex, coverBackground: '#223e61' };
     const css = pagedCss(s);
     expect(css).toMatch(
       /h1\.doc-title,[^{]*\.doc-subtitle \{ border-bottom-color: #[0-9a-f]{6}; \}/,
@@ -204,61 +170,53 @@ describe('pagedCss — derived margins (marginMode: derived)', () => {
   });
 
   it('does NOT fold when notes are in the margin (side) — the gutter stays', () => {
-    const sideDuplex: PdfSettings = {
-      ...derivedDuplex,
-      notes: { position: 'side' },
-    };
+    const sideDuplex: PdfSettings = { ...bandedDuplex, notes: { position: 'side' } };
     const css = pagedCss(sideDuplex);
-    // live-area @page margins + per-parity body padding (the gutter feeds the
+    // anchor @page margins + per-parity body padding (the gutter feeds the
     // sidenote column, so it must remain a real inset).
-    expect(css).toMatch(/@page :right \{ margin: 38\.\d+mm 30\.\d+mm 77\.\d+mm 15\.\d+mm; \}/);
-    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 0 12\.\d+mm 0 24\.\d+mm; \}/);
+    expect(css).toContain('@page :right { margin: 40mm 32mm 76mm 16mm; }');
+    expect(css).toMatch(/\.pagedjs_left_page\s+\.pagedjs_page_content \{ padding: 0 12mm 0 24mm; \}/);
   });
 
   it('emits horizontal-only body padding on .pagedjs_page_content (simplex)', () => {
-    const css = pagedCss(derivedSimplex);
+    const css = pagedCss(bandedSimplex);
     // Equal left/right gutters recover the centred text-block width.
-    expect(css).toMatch(/\.pagedjs_page_content \{ padding: 0 18\.\d+mm 0 18\.\d+mm; \}/);
+    expect(css).toContain('.pagedjs_page_content { padding: 0 18mm 0 18mm; }');
   });
 
   it('emits NO body-padding rules in duplex (the gutter is folded into @page)', () => {
-    const css = pagedCss(derivedDuplex);
+    const css = pagedCss(bandedDuplex);
     expect(css).not.toContain('.pagedjs_page_content { padding:');
     expect(css).not.toContain('#mp-viv-root {');
   });
 
   it('emits CSS variables --mp-live-* and --mp-gutter-* for the debug overlay', () => {
-    const css = pagedCss(derivedSimplex);
-    expect(css).toMatch(/--mp-live-top:\s+21\.\d+mm/);
-    expect(css).toMatch(/--mp-live-bottom:\s+42\.\d+mm/);
-    expect(css).toMatch(/--mp-live-inner:\s+22\.\d+mm/);
-    expect(css).toMatch(/--mp-live-outer:\s+22\.\d+mm/);
-    expect(css).toMatch(/--mp-gutter-inner:\s+18\.\d+mm/);
-    expect(css).toMatch(/--mp-gutter-outer:\s+18\.\d+mm/);
+    const css = pagedCss(bandedSimplex);
+    expect(css).toMatch(/--mp-live-top:\s+22mm/);
+    expect(css).toMatch(/--mp-live-bottom:\s+44mm/);
+    expect(css).toMatch(/--mp-live-inner:\s+24mm/);
+    expect(css).toMatch(/--mp-live-outer:\s+24mm/);
+    expect(css).toMatch(/--mp-gutter-inner:\s+18mm/);
+    expect(css).toMatch(/--mp-gutter-outer:\s+18mm/);
   });
 
-  it('places header / footer at the live-area edges via align-items + padding', () => {
-    const css = pagedCss(derivedSimplex);
-    // Header: align-items: flex-start + padding-top = live_LA.top (≈ 21mm)
-    //         → text top sits at the live area top edge.
+  it('places header / footer on the geometry lines via align-items + padding', () => {
+    const css = pagedCss(bandedSimplex);
     expect(css).toMatch(
-      /\.pagedjs_margin-top-center[\s\S]*?align-items:\s+flex-start;\s*padding-top:\s+21\.\d+mm/,
+      /\.pagedjs_margin-top-center[\s\S]*?align-items:\s+flex-start;\s*padding-top:\s+22mm/,
     );
-    // Footer: align-items: flex-end + padding-bottom = live_LA.bottom (≈ 42mm)
-    //         → text bottom sits at the live area bottom edge.
     expect(css).toMatch(
-      /\.pagedjs_margin-bottom-center[\s\S]*?align-items:\s+flex-end;\s*padding-bottom:\s+42\.\d+mm/,
+      /\.pagedjs_margin-bottom-center[\s\S]*?align-items:\s+flex-end;\s*padding-bottom:\s+44mm/,
     );
   });
 
-  it('falls back to the manual margins when marginMode === "manual" (unchanged)', () => {
-    const css = pagedCss(withAuthoring(A4, { marginMode: 'manual' }));
+  it('a geometry without bands keeps the plain margins and no body padding', () => {
+    const css = pagedCss(A4);
     expect(css).toContain(
       `margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;`,
     );
-    // No body-padding rule emitted in manual mode (the string
-    // `.pagedjs_page_content` may appear in unrelated comments —
-    // assert the absence of the actual padding RULE shape).
+    // No body-padding rule (the string `.pagedjs_page_content` may appear in
+    // unrelated rules — assert the absence of the padding RULE shape).
     expect(css).not.toMatch(/\.pagedjs_page_content \{ padding:/);
     expect(css).not.toMatch(/\.pagedjs_right_page \.pagedjs_page_content/);
   });
@@ -304,7 +262,7 @@ describe('pagedCss — running-content typography', () => {
 });
 
 describe('pagedCss — letterhead signature alignment', () => {
-  it('manual mode: signature margin-left = 110 mm − page left margin (matches FR DL window recipient)', () => {
+  it('plain geometry: signature margin-left = 110 mm − page left margin (matches FR DL window recipient)', () => {
     // Default A4 has margins.left = 35 mm → signature should be at
     // 110 − 35 = 75 mm from the .pagedjs_page_content content edge,
     // which equals 110 mm from the page edge — i.e. the same x as
@@ -313,15 +271,13 @@ describe('pagedCss — letterhead signature alignment', () => {
     expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*75mm/);
   });
 
-  it('derived mode: signature margin-left subtracts the inner gutter too (in-flow under page-content padding)', () => {
-    // In derived mode, .pagedjs_page_content carries a padding-left
-    // equal to the inner gutter (text-block.inner − live-area.inner).
-    // The signature, in flow inside the wrapper, must subtract that gutter
-    // plus the effective live-area margin to land at 110 mm from the physical
-    // page edge. In simplex the centred text margin is ≈ 40.97 mm, hence
-    // 110 − 40.97 ≈ 69.0 mm.
-    const css = pagedCss(withAuthoring(A4, { marginMode: 'derived' }));
-    expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*69\.\d+mm/);
+  it('with a gutter: signature margin-left subtracts the inner gutter too (in-flow under page-content padding)', () => {
+    // .pagedjs_page_content carries a padding-left equal to the inner gutter
+    // (text.inner − running.inner = 18 mm). The signature, in flow inside the
+    // wrapper, must subtract that gutter plus the anchor margin (24 mm) to land
+    // at 110 mm from the physical page edge: 110 − 24 − 18 = 68 mm.
+    const css = pagedCss(withGeometry(BANDED_SIMPLEX));
+    expect(css).toMatch(/\.letterhead-signature \{[\s\S]*?margin-left:\s*68mm/);
   });
 });
 

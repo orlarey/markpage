@@ -515,16 +515,15 @@ body,
    by the `.debug-layout` class on #preview-pane. Shows three nested
    rectangles + the page diagonals:
      - PAGE outline (dashed grey) on .pagedjs_pagebox (= live-area
-       width × text-block height, post-asymmetric-@page-margins). It
-       isn't a canonical rectangle per se, but it's the host paged.js
-       box; useful as a sanity outline.
+       width × text-block height, after the @page margins). The host
+       page box; useful as a sanity outline.
      - LIVE AREA outline (dashed green) drawn as a pseudo-element on
        .pagedjs_page using the --mp-live-* CSS vars emitted by
        pagedCss(). On verso (in duplex) the inner / outer sides swap.
      - TEXT BLOCK outline (dashed orange) drawn as a pseudo-element on
        .pagedjs_page_content's content box. The body has zero vertical
-       padding (top/bottom = 0); horizontal padding = the canonical
-       gutters (--mp-gutter-*) so the inset rectangle = text block.
+       padding (top/bottom = 0); horizontal padding = the gutters
+       (--mp-gutter-*) so the inset rectangle = text block.
      - Two page diagonals (TL↔BR + TR↔BL, role-aware in duplex) drawn
        by the SVG overlay `paginate()` injects on every .pagedjs_pagebox;
        the SVG is `display: none` by default and `block` under

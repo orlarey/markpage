@@ -2,8 +2,8 @@
  *
  * Purpose: The document render shared by every host — the app's preview, the
  *   showcase demo frame and the VS Code preview webview — so they cannot drift:
- *   same settings resolution, same DOM build, same continuous sheet, same
- *   paginated pages.
+ *   same DOM build, same continuous sheet, same paginated pages. (Settings come
+ *   from resolveDocumentSettings, style-library.ts.)
  * How: Pure orchestration over preview.ts / preview-paginated.ts. The host
  *   keeps what is genuinely its own: where image refs point (a resolver), the
  *   pane it renders into, zoom and scroll-sync.
@@ -19,29 +19,9 @@ import {
   renderMermaidBlocks,
   type Frontmatter,
 } from '@orlarey/markpage-render';
-import { withBakedGeometry } from './geometry-producer';
 import { applyPreviewMetadata, renderPreview } from './preview';
-import { geometryFor, pageContentGeomPx, pageSizeMm } from './preview-paginated';
-import { DEFAULT_SETTINGS, type PdfSettings } from './settings';
-import { resolveDocumentSettings } from './style-library';
-
-/**
- * Purpose: A document's render-ready settings — its named style (or the default
- *   style) resolved over `base`, with the terminal page geometry baked.
- * How: resolveDocumentSettings, then withBakedGeometry (a no-op for a style
- *   that already carries its pageGeometry). `unknownStyle` is passed through
- *   so the host can warn.
- */
-export function documentSettings(
-  meta: Frontmatter,
-  base: PdfSettings = DEFAULT_SETTINGS,
-): { settings: PdfSettings; unknownStyle?: string } {
-  const r = resolveDocumentSettings(meta, base);
-  return {
-    settings: withBakedGeometry(r.settings, pageSizeMm(r.settings)),
-    unknownStyle: r.unknownStyle,
-  };
-}
+import { pageContentGeomPx, pageSizeMm } from './preview-paginated';
+import type { PdfSettings } from './settings';
 
 /**
  * Purpose: Build the hydrated DOM subtree of a document: Markdown → HTML, title
@@ -103,7 +83,7 @@ export function renderContinuousSheet(
   const sheet = document.createElement('div');
   sheet.className = 'mp-continuous-sheet';
   const sizeMm = pageSizeMm(settings);
-  const t = geometryFor(settings, sizeMm).text;
+  const t = settings.pageGeometry.text;
   sheet.style.width = `${sizeMm.w}mm`;
   // padding = top right bottom left (right = outer, left = inner).
   sheet.style.padding = `${t.top}mm ${t.outer}mm ${t.bottom}mm ${t.inner}mm`;

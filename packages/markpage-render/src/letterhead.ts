@@ -81,9 +81,10 @@ const IMAGE_LINE_RE = /^!\[[^\]\n]*\]\([^)\n]+\)$/;
 
 /**
  * Page geometry the letterhead layout needs, in millimetres. `textBlockInner` /
- * `liveAreaInner` are the Van de Graaf canon inner-margin widths used in
- * derived margin mode to shift the signature / window recipient by the body's
- * inner-gutter padding; pass `null`/omit in manual mode (no shift).
+ * `liveAreaInner` are the text block's and the header/footer band's inner
+ * margins: when they differ, the body carries an inner-gutter padding and the
+ * signature / window recipient shift by it; omit them (or pass `null`) for no
+ * shift.
  */
 export interface LetterheadGeom {
   margins: { top: number; right: number; bottom: number; left: number };
@@ -109,8 +110,8 @@ export interface LetterheadGeom {
  */
 export function letterheadCss(g: LetterheadGeom): string {
   const m = g.margins;
-  // Derived-mode inner-gutter compensation: how far the body's text block is
-  // pushed in past the live area. 0 in manual mode (canons absent).
+  // Inner-gutter compensation: how far the body's text block is pushed in past
+  // the band anchors. 0 when they coincide (or are not given).
   const gutter =
     g.textBlockInner != null && g.liveAreaInner != null
       ? Math.max(0, g.textBlockInner - g.liveAreaInner)

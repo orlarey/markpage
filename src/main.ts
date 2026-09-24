@@ -95,6 +95,7 @@ import {
   findStyle,
   loadUserStyles,
   parseStyleFile,
+  resolveDocumentSettings,
   saveUserStyle,
   serializeStyleFile,
   slugify,
@@ -195,7 +196,6 @@ import { setFrontmatterKeys } from './frontmatter-edit';
 import {
   applyPageFills,
   buildDocumentDom,
-  documentSettings,
   renderContinuousSheet,
 } from './document-render';
 import { paginate } from './preview-paginated';
@@ -396,7 +396,7 @@ async function bootstrap(): Promise<void> {
   // default style when absent); only language and author come from its
   // front-matter (resolveDocumentSettings).
   const deriveDocSettings = (src: string): PdfSettings => {
-    const r = documentSettings(parseFrontmatter(src).meta, baseSettings);
+    const r = resolveDocumentSettings(parseFrontmatter(src).meta, baseSettings);
     if (r.unknownStyle)
       console.warn(`[markpage] unknown document-style: "${r.unknownStyle}"`);
     return r.settings;
@@ -810,8 +810,8 @@ async function bootstrap(): Promise<void> {
     };
   };
 
-  // The settings of the last render — the resolved style with its page geometry
-  // baked — read by the presentation layout and the style export.
+  // The settings of the last render — the resolved style — read by the
+  // presentation layout and the style export.
   let lastEffectiveSettings: PdfSettings = state.settings;
 
   // Cached (source line → preview Y) map for the live scroll-follow. Y is

@@ -3,7 +3,7 @@
   "meta": {
     "name": "Note",
     "author": "markpage",
-    "version": "0.42.0",
+    "version": "0.43.0",
     "date": ""
   },
   "state": {
@@ -11,7 +11,7 @@
     "meta": {
       "name": "Note",
       "author": "markpage",
-      "version": "0.42.0",
+      "version": "0.43.0",
       "date": ""
     },
     "hue1": 213,
@@ -169,10 +169,10 @@
     "geo": {
       "textTop": 33,
       "textBottom": 66,
-      "textInner": 23.333333333333332,
-      "textOuter": 46.666666666666664,
-      "runInner": 11.666666666666666,
-      "runOuter": 23.333333333333332,
+      "textInner": 35,
+      "textOuter": 35,
+      "runInner": 17.5,
+      "runOuter": 17.5,
       "headerTop": 16.5,
       "footerBottom": 33,
       "noteGap": 3,

@@ -8,14 +8,14 @@
         "text": {
           "top": 33,
           "bottom": 66,
-          "inner": 23.333333333333332,
-          "outer": 46.666666666666664,
+          "inner": 35,
+          "outer": 35,
           "width": 140,
           "height": 198
         },
         "running": {
-          "inner": 11.666666666666666,
-          "outer": 23.333333333333332
+          "inner": 17.5,
+          "outer": 17.5
         },
         "header": {
           "top": 16.5
@@ -191,7 +191,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -203,14 +203,14 @@
         "text": {
           "top": 31.04444444444444,
           "bottom": 62.08888888888888,
-          "inner": 23.98888888888889,
-          "outer": 47.97777777777778,
+          "inner": 35.983333333333334,
+          "outer": 35.983333333333334,
           "width": 143.93333333333334,
           "height": 186.26666666666665
         },
         "running": {
-          "inner": 11.994444444444445,
-          "outer": 23.98888888888889
+          "inner": 17.991666666666667,
+          "outer": 17.991666666666667
         },
         "header": {
           "top": 15.52222222222222
@@ -386,7 +386,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -572,7 +572,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -758,7 +758,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -955,7 +955,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -1152,7 +1152,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -1350,7 +1350,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -1548,7 +1548,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -1748,7 +1748,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -1948,7 +1948,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   },
   {
@@ -1960,14 +1960,14 @@
         "text": {
           "top": 18.56222222222222,
           "bottom": 37.12444444444444,
-          "inner": 33,
-          "outer": 66,
+          "inner": 49.5,
+          "outer": 49.5,
           "width": 198,
           "height": 111.37333333333333
         },
         "running": {
-          "inner": 16.5,
-          "outer": 33
+          "inner": 24.75,
+          "outer": 24.75
         },
         "header": {
           "top": 9.28111111111111
@@ -2140,7 +2140,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.42.0"
+      "version": "0.43.0"
     }
   }
 ]

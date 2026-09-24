@@ -31,7 +31,6 @@ import { parseFrontmatter } from '@orlarey/markpage-render';
 import {
   applyPageFills,
   buildDocumentDom,
-  documentSettings,
   renderContinuousSheet,
 } from '../../../src/document-render';
 import { loadSettingsFonts, registerCustomFonts } from '../../../src/font-loader';
@@ -39,6 +38,7 @@ import { registerFallbackFonts } from '../../../src/fonts';
 import { annotateSourceLines, applyPreviewStyles } from '../../../src/preview';
 import { pageSizeMm, paginate } from '../../../src/preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../../../src/settings';
+import { resolveDocumentSettings } from '../../../src/style-library';
 
 interface RenderMessage {
   type: 'render';
@@ -121,7 +121,7 @@ async function render(msg: RenderMessage): Promise<void> {
   const token = (renderToken += 1);
   const base = msg.baseUri ? msg.baseUri.replace(/\/?$/, '/') : '';
   const { meta } = parseFrontmatter(msg.md);
-  const { settings, unknownStyle } = documentSettings(meta, baseSettings(msg.uiLanguage));
+  const { settings, unknownStyle } = resolveDocumentSettings(meta, baseSettings(msg.uiLanguage));
   if (unknownStyle && !reportedStyles.has(unknownStyle)) {
     reportedStyles.add(unknownStyle);
     console.warn(`[markpage] unknown document-style: "${unknownStyle}"`);

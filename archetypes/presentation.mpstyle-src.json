@@ -3,7 +3,7 @@
   "meta": {
     "name": "Présentation",
     "author": "markpage",
-    "version": "0.42.0",
+    "version": "0.43.0",
     "date": ""
   },
   "state": {
@@ -11,7 +11,7 @@
     "meta": {
       "name": "Présentation",
       "author": "markpage",
-      "version": "0.42.0",
+      "version": "0.43.0",
       "date": ""
     },
     "hue1": 265,
@@ -169,10 +169,10 @@
     "geo": {
       "textTop": 18.56222222222222,
       "textBottom": 37.12444444444444,
-      "textInner": 33,
-      "textOuter": 66,
-      "runInner": 16.5,
-      "runOuter": 33,
+      "textInner": 49.5,
+      "textOuter": 49.5,
+      "runInner": 24.75,
+      "runOuter": 24.75,
       "headerTop": 9.28111111111111,
       "footerBottom": 18.56222222222222,
       "noteGap": 3,

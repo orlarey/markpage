@@ -275,9 +275,15 @@ LADDER.forEach(k=>{ const c=(ROSTER.find(e=>e.key===k)||{}).ctrls||[];
 // pages geometry (mm), Van de Graaf canon default
 const FORMATS={A4:{w:210,h:297},A5:{w:148,h:210},B5:{w:176,h:250},Letter:{w:215.9,h:279.4},'16:9':{w:297,h:167.06,land:true}};
 function pageMm(){const f=FORMATS[S.pageFormat]; if(f.land)return{w:f.w,h:f.h}; return S.landscape?{w:f.h,h:f.w}:{w:f.w,h:f.h};}
-function canon1_9(){const p=pageMm(), w=p.w, h=p.h; return {
-  textTop:h/9, textBottom:2*h/9, textInner:w/9, textOuter:2*w/9,
-  runInner:w/18, runOuter:w/9, headerTop:h/18, footerBottom:h/9,
+// The 1/9 – 2/9 inner/outer split is a FACING-PAGES rule (narrow at the spine,
+// mirrored verso/recto). A single-sided page has no spine: the same horizontal
+// blank is shared equally, so left = right on every page.
+function canon1_9(){const p=pageMm(), w=p.w, h=p.h, facing=S.duplex!==false;
+  const tIn=facing?w/9:1.5*w/9, tOut=facing?2*w/9:1.5*w/9;
+  const rIn=facing?w/18:0.75*w/9, rOut=facing?w/9:0.75*w/9;
+  return {
+  textTop:h/9, textBottom:2*h/9, textInner:tIn, textOuter:tOut,
+  runInner:rIn, runOuter:rOut, headerTop:h/18, footerBottom:h/9,
   noteGap:3, noteWidth:Math.max(5,w/9-3), titleY:h/9+(2*h/3)*0.22 };}
 S.geo=canon1_9();
 // typo catalogues (mirror the polices prototype)
@@ -740,7 +746,8 @@ function wirePages(){
   document.getElementById('orient').onclick=()=>{S.landscape=!S.landscape;S.geo=canon1_9();renderPanel();repaintPages();};
   const map={lgDiag:'diag',lgBands:'bands',lgNotes:'notes',lgTitle:'title'};
   Object.keys(map).forEach(id=>{document.getElementById(id).onchange=(e)=>{S.pgLayers[map[id]]=e.target.checked;renderPagesInstrument();};});
-  document.getElementById('pgDuplex').onchange=(e)=>{S.duplex=e.target.checked; renderArtefact();};
+  // Recto-verso changes which canon applies (mirrored vs centred): re-bake it.
+  document.getElementById('pgDuplex').onchange=(e)=>{S.duplex=e.target.checked; S.geo=canon1_9(); renderPanel(); repaintPages(); renderArtefact();};
   document.getElementById('pgCover').onchange=(e)=>{S.hasCover=e.target.checked; renderArtefact();};
   document.getElementById('pgChap').onchange=(e)=>{S.chapterBreak=e.target.value; renderArtefact();};
   document.getElementById('pgNotes').onchange=(e)=>{S.notesPos=e.target.value; renderArtefact();};
