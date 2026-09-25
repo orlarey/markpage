@@ -58,7 +58,10 @@ export function renderLetterhead(
         textLines.length > 0
           ? `<div class="letterhead-signature-caption">${textLines.map(formatInline).join('<br>')}</div>`
           : '';
-      return `<div class="letterhead letterhead-signature">${imgHtml}${captionHtml}</div>\n`;
+      // The caption overlays the signature image; with no image, it is the
+      // signature itself and stays in the flow.
+      const textOnly = imageLines.length === 0 ? ' letterhead-signature--text' : '';
+      return `<div class="letterhead letterhead-signature${textOnly}">${imgHtml}${captionHtml}</div>\n`;
     }
   }
 
@@ -182,6 +185,10 @@ export function letterheadCss(
       white-space: nowrap;
       line-height: 1.2;
     }
+    ${S} .letterhead-signature--text .letterhead-signature-caption {
+      position: static;
+      line-height: 1.4;
+    }
     /* Default recipient: absolute at the FR DL envelope window (left edge at
        110 mm, top at 40 mm from the A4 edge; coords resolve against
        .pagedjs_page_content, so subtract the profile margins). */
@@ -229,9 +236,17 @@ export function groupLetterheads(root: HTMLElement): void {
       cursor = cursor.nextElementSibling;
       continue;
     }
+    // A signature closes the letter: it never joins the head's run (it would
+    // land inside the space kept for the envelope window) — its own group.
+    const isSignature = (el: Element): boolean => el.classList.contains('letterhead-signature');
     const run: Element[] = [cursor];
     let next: Element | null = cursor.nextElementSibling;
-    while (next !== null && next.classList?.contains('letterhead')) {
+    while (
+      !isSignature(cursor) &&
+      next !== null &&
+      next.classList?.contains('letterhead') &&
+      !isSignature(next)
+    ) {
       run.push(next);
       next = next.nextElementSibling;
     }

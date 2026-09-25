@@ -81,3 +81,20 @@ for (const paginated of [false, true]) {
   });
 }
 
+// The signature right after the recipient (no text yet): it closes the letter,
+// below the head — never inside the space kept for the envelope window.
+const NO_BODY = `${LETTER.replace('Madame, Monsieur,\n', '')}\n\`\`\`signature\n**Prénom Nom**\n*Fonction*\n\`\`\`\n`;
+
+for (const paginated of [false, true]) {
+  test(`${paginated ? 'pages' : 'continuous'}: a signature right after the recipient goes below it`, async ({
+    page,
+  }) => {
+    await openLetter(page, paginated, NO_BODY);
+    const sheet = paginated ? '.pagedjs_page' : '.mp-continuous-sheet';
+    await expect(page.locator('#preview-pane .letterhead-signature')).toBeVisible();
+    const recipient = await mmOnSheet(page, '.letterhead-recipient', sheet);
+    const signature = await mmOnSheet(page, '.letterhead-signature', sheet);
+    expect(signature.top).toBeGreaterThan(recipient.bottom);
+    expect(signature.left).toBeCloseTo(110, 0);
+  });
+}

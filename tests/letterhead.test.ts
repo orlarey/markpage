@@ -175,6 +175,23 @@ describe('groupLetterheads — DOM grouping', () => {
     expect(root.lastElementChild?.tagName.toLowerCase()).toBe('h2');
   });
 
+  it('gives a signature its own group, even right after the head', () => {
+    const doc = makeDoc(
+      '<div>' +
+        '<div class="letterhead letterhead-sender">A</div>' +
+        '<div class="letterhead letterhead-recipient letterhead-window">B</div>' +
+        '<div class="letterhead letterhead-signature">S</div>' +
+        '</div>',
+    );
+    const root = doc.body.firstElementChild as HTMLElement;
+    groupLetterheads(root);
+    const groups = root.querySelectorAll('.letterhead-group');
+    expect(groups).toHaveLength(2);
+    expect(groups[0].children).toHaveLength(2);
+    expect(groups[1].firstElementChild?.classList.contains('letterhead-signature')).toBe(true);
+    expect(groups[1].classList.contains('letterhead-group--window')).toBe(false);
+  });
+
   it('wraps a lone letterhead in its own group', () => {
     const doc = makeDoc(
       '<div>' +
