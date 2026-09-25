@@ -99,6 +99,15 @@ export function findStyle(name: string): NamedStyle | null {
 }
 
 /**
+ * The style a document is actually rendered with: the one its
+ * `document-style` names, else — none named, or an unknown one — the default.
+ * What the Style menu shows as checked (see resolveDocumentSettings).
+ */
+export function appliedStyle(name: string | undefined): NamedStyle | null {
+  return (name?.trim() ? findStyle(name) : null) ?? findStyle(DEFAULT_STYLE_KEY);
+}
+
+/**
  * Apply the named style over `base`, returning resolved settings. Unknown name →
  * `base` unchanged and `{ found: false }` so the caller can warn. An empty/absent
  * name is not an error (found: false, base unchanged).

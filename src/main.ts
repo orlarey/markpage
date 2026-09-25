@@ -92,7 +92,7 @@ import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import {
   allStyles,
   deleteUserStyle,
-  findStyle,
+  appliedStyle,
   loadUserStyles,
   parseStyleFile,
   resolveDocumentSettings,
@@ -3137,13 +3137,13 @@ async function bootstrap(): Promise<void> {
           );
         };
         openDocumentStyleMenu(anchor, {
-          current: parseFrontmatter(editor.getValue()).meta['document-style'],
+          // The style rendered — the default when the document names none.
+          current: appliedStyle(parseFrontmatter(editor.getValue()).meta['document-style'])?.key,
           styles: allStyles(),
           userKeys: new Set(loadUserStyles().map((s) => s.key)),
           onPick: (style) => setDocStyle(style.key),
           onExport: () => {
-            const cur = parseFrontmatter(editor.getValue()).meta['document-style'];
-            const src = cur ? findStyle(cur) : null;
+            const src = appliedStyle(parseFrontmatter(editor.getValue()).meta['document-style']);
             const suggested = src?.name || 'Mon style';
             const name = (globalThis.prompt(t('docstyle.export'), suggested) ?? '').trim();
             if (!name) return;

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  appliedStyle,
+  DEFAULT_STYLE_KEY,
   BUILTIN_STYLES,
   applyNamedStyle,
   findStyle,
@@ -57,6 +59,15 @@ describe('style library — built-ins', () => {
     expect(findStyle('Livre A4')?.name).toBe('Livre A4');
     expect(findStyle('note-a4')?.key).toBe('note-a4');
     expect(findStyle('nope')).toBeNull();
+  });
+});
+
+describe('appliedStyle — what the Style menu checks', () => {
+  it('is the named style, else the default (none named, or unknown)', () => {
+    expect(appliedStyle('rapport-a4')?.key).toBe('rapport-a4');
+    expect(appliedStyle(undefined)?.key).toBe(DEFAULT_STYLE_KEY);
+    expect(appliedStyle('  ')?.key).toBe(DEFAULT_STYLE_KEY);
+    expect(appliedStyle('no-such-style')?.key).toBe(DEFAULT_STYLE_KEY);
   });
 });
 
