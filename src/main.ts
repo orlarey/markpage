@@ -1272,11 +1272,41 @@ async function bootstrap(): Promise<void> {
         easeRAF = 0;
         return;
       }
+      const prev = easeEl.scrollTop;
       easeEl.scrollTop += d * 0.34;
+      // No progress (a sub-pixel step rounded away, a target out of reach):
+      // stop — a glide that never ends would pin the pane and mask its own
+      // user scrolls as echoes.
+      if (easeEl.scrollTop === prev) {
+        easeEl = null;
+        easeRAF = 0;
+        return;
+      }
       easeRAF = requestAnimationFrame(step);
     };
     easeRAF = requestAnimationFrame(step);
   };
+  // The user's hand on a pane (wheel, touch, press) makes it the driver at
+  // once: cancel a glide still moving it, and stop masking its scroll events.
+  const takeScrollControl = (el: HTMLElement, clearMark: () => void): void => {
+    const handler = (): void => {
+      if (easeEl === el) {
+        cancelAnimationFrame(easeRAF);
+        easeEl = null;
+        easeRAF = 0;
+      }
+      clearMark();
+    };
+    for (const type of ['wheel', 'touchstart', 'pointerdown'] as const) {
+      el.addEventListener(type, handler, { passive: true });
+    }
+  };
+  takeScrollControl(previewEl, () => {
+    lastProgPreviewScroll = 0;
+  });
+  takeScrollControl(editor.view.scrollDOM, () => {
+    lastProgEditorScroll = 0;
+  });
   const easePreviewTo = (target: number): void =>
     easeScrollTo(previewEl, clampScroll(previewEl, target), () => {
       lastProgPreviewScroll = performance.now();
