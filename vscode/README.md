@@ -30,10 +30,12 @@ here is what markpage prints.
   view (real page breaks) to check the final layout.
 - **Export to PDF** — opens a self-contained copy of the preview in your browser,
   ready to print as PDF.
-- **Open in markpage.org** — hands the file to the markpage web app, to edit
-  it there with the full toolbar and export it. The extension serves the file
-  (and the images next to it) to markpage only, over a private local address;
-  reopening the same file finds the same markpage document.
+- **Open in markpage.org** — edits the file in the markpage web app, in
+  place: **Save** in markpage writes the file (through VS Code — an open
+  editor takes the text as one undoable edit and is saved), and edits made in
+  VS Code show up in markpage. If both sides changed, nothing is overwritten
+  until you choose. The extension serves the file (and the images next to it)
+  to markpage only, over a private local address, while VS Code is running.
 - **Paper theme** — a white sheet on a neutral backdrop, independent of your
   light or dark editor theme.
 
@@ -55,7 +57,7 @@ preview to toggle pagination, or drag the page edge to zoom.
 | **markpage: Open markpage Preview** | `⌘K V` / `Ctrl+K V` | Opens the live preview of your document. |
 | **markpage: Toggle Pagination** | — | Switches between the continuous view (best for writing) and real **pages** with page breaks (best for checking layout). |
 | **markpage: Print / Export PDF** | — | Opens the preview in your browser — print it and choose “Save as PDF”. Use it in paginated mode for proper pages. |
-| **markpage: Open in markpage.org** | — | Opens the file in the markpage web app, with its unsaved edits (also from the editor title bar, the Explorer’s context menu, and the preview’s **↗ markpage.org** button). |
+| **markpage: Open in markpage.org** | — | Opens the file in the markpage web app, unsaved edits included, to edit it there in place (also from the editor title bar, the Explorer’s context menu, and the preview’s **↗ markpage.org** button). |
 
 ## Settings
 

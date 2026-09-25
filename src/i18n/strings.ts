@@ -160,6 +160,12 @@ const FR = {
   'url.kept-local':
     'Votre copie locale de ce document a été modifiée : elle est conservée. Fichier ▸ Recharger pour reprendre la version en ligne.',
   'url.prompt': 'Adresse (URL) du document Markdown à ouvrir :',
+  'vscode.conflict':
+    'Ce fichier a changé dans VS Code depuis la dernière synchronisation : rien n’est écrasé. Cliquez la pastille ⛓️‍💥 pour choisir la version à garder.',
+  'vscode.kept-local':
+    'Ce fichier a changé dans VS Code, et votre version dans markpage aussi : rien n’est écrasé. Cliquez la pastille ⛓️‍💥 pour choisir.',
+  'vscode.unreachable':
+    'VS Code ne répond pas (fermé ?) : enregistré dans markpage seulement. Rouvrez le fichier depuis VS Code (Open in markpage.org), puis enregistrez.',
   'volume.open-url': 'Ouvrir une URL…',
   'open.unknown-volume':
     '« {spec} » : aucun dossier, dépôt ou OneDrive monté ne porte ce nom. Montez-le d’abord (Fichier ▸ Ouvrir…).',
@@ -337,6 +343,12 @@ const EN: Record<keyof typeof FR, string> = {
   'url.kept-local':
     'Your local copy of this document was edited: it is kept. File ▸ Reload to take the online version.',
   'url.prompt': 'Address (URL) of the Markdown document to open:',
+  'vscode.conflict':
+    'This file changed in VS Code since the last sync: nothing is overwritten. Click the ⛓️‍💥 chip to choose which version to keep.',
+  'vscode.kept-local':
+    'This file changed in VS Code, and your version in markpage too: nothing is overwritten. Click the ⛓️‍💥 chip to choose.',
+  'vscode.unreachable':
+    'VS Code does not answer (closed?): saved in markpage only. Reopen the file from VS Code (Open in markpage.org), then save.',
   'volume.open-url': 'Open a URL…',
   'open.unknown-volume':
     '“{spec}”: no mounted folder, repo or OneDrive has that name. Mount it first (File ▸ Open…).',

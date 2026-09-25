@@ -503,6 +503,13 @@ local copy.
 > allows it (CORS). Raw GitHub files, gists and most static hosting do;
 > otherwise markpage says so.
 
+**From VS Code.** With the markpage extension, the **Open in
+markpage.org** command opens the file you are working on, unsaved edits
+included, and edits it **in place** (chip `🔗 VS Code ▸ folder/`). **Save**
+writes the file, through VS Code; what you change in VS Code shows up in
+markpage. If the file changed on both sides, nothing is overwritten: the
+⛓️‍💥 chip lets you choose. It works as long as VS Code is running.
+
 A `markpage.org/?open=<volume>/<path>` link opens a file from a **volume
 already mounted** (for instance `?open=My notes/2026/report.md`). For a
 folder on disk, the browser asks for access again once: one click on

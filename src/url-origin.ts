@@ -8,7 +8,8 @@
  *   one fetch. The page can only read a URL whose server allows it (CORS):
  *   raw GitHub files, gists, GitHub Pages and most static hosting do; a
  *   failure says so plainly. Loopback URLs are the VS Code extension serving
- *   a local file (vscode/src/local-server.ts).
+ *   a local file (vscode/src/local-server.ts): that one is edited in place —
+ *   *Enregistrer* writes it back through VS Code (putDocText).
  *
  *******************************************************************************/
 
@@ -82,12 +83,15 @@ export function resolveAgainstDoc(docUrl: string, rel: string): string | null {
   }
 }
 
-/** The origin shown on the toolbar chip: host (or "local") + folder. */
+/** A document markpage can save back to its URL: a local file VS Code serves. */
+export const isWritableUrl = isLoopbackUrl;
+
+/** The origin shown on the toolbar chip: host (or VS Code) + folder. */
 export function urlChip(url: URL): string {
   const dir = decodeURIComponent(url.pathname.replace(/[^/]*$/, ''));
   if (isLoopbackUrl(url)) {
     const path = dir.split('/').slice(2).join('/');
-    return `🔗 /${path}`;
+    return `🔗 VS Code ▸ /${path}`;
   }
   return `🌐 ${url.hostname}${dir === '/' ? '' : ` ▸ ${dir.replace(/^\//, '')}`}`;
 }
@@ -102,6 +106,31 @@ export class UrlFetchError extends Error {
   ) {
     super(kind === 'http' ? `${url} — HTTP ${status}` : `${url} — blocked or unreachable`);
   }
+}
+
+/**
+ * Save the document back to its URL (a local file VS Code serves). `base` is
+ * the SHA-256 of the text last read from it: VS Code refuses the write when
+ * the file changed since — `'conflict'` — unless `force` (the user's choice).
+ * Unreachable (VS Code closed) → UrlFetchError 'blocked'.
+ */
+export async function putDocText(
+  url: URL,
+  text: string,
+  opts: { base?: string; force?: boolean },
+): Promise<'ok' | 'conflict'> {
+  const headers: Record<string, string> = { 'Content-Type': 'text/markdown; charset=utf-8' };
+  if (opts.base) headers['X-Markpage-Base'] = opts.base;
+  if (opts.force) headers['X-Markpage-Force'] = '1';
+  let res: Response;
+  try {
+    res = await fetch(url.href, { method: 'PUT', body: text, headers, credentials: 'omit' });
+  } catch {
+    throw new UrlFetchError(url.href, 'blocked');
+  }
+  if (res.status === 409) return 'conflict';
+  if (!res.ok) throw new UrlFetchError(url.href, 'http', res.status);
+  return 'ok';
 }
 
 /**

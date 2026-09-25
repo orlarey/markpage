@@ -520,6 +520,14 @@ dernière version en ligne ; **Enregistrer** n'écrit que la copie locale.
 > le site l'y autorise (CORS). Les fichiers bruts GitHub, les gists et la
 > plupart des hébergements statiques le font ; sinon markpage le dit.
 
+**Depuis VS Code.** Avec l'extension markpage, la commande **Open in
+markpage.org** ouvre le fichier sur lequel vous travaillez, avec ses
+modifications non enregistrées, et l'édite **en place** (pastille
+`🔗 VS Code ▸ dossier/`). **Enregistrer** écrit le fichier, via VS Code ;
+ce que vous modifiez dans VS Code apparaît dans markpage. Si le fichier a
+changé des deux côtés, rien n'est écrasé : la pastille ⛓️‍💥 vous laisse
+choisir. Cela marche tant que VS Code est ouvert.
+
 Un lien `markpage.org/?open=<volume>/<chemin>` ouvre un fichier d'un
 **volume déjà monté** (par exemple `?open=Mes notes/2026/rapport.md`).
 Pour un dossier du disque, le navigateur redemande l'accès une fois :

@@ -62,7 +62,8 @@ export interface DocEntry {
   oneDriveLink?: OneDriveLink;
   // URL origin (url-origin.ts). Present ⇒ the doc is a library copy of a
   // document fetched from a URL: reopening that URL reuses this entry,
-  // *Recharger* fetches it again; nothing is ever written back.
+  // *Recharger* fetches it again. Written back only when VS Code serves it
+  // (a local file: url-origin.ts, putDocText).
   urlLink?: UrlLink;
 }
 
@@ -305,6 +306,21 @@ export async function adoptUrlDoc(
 export async function markUrlFetched(uuid: string, text: string): Promise<DocEntry | null> {
   const fetchedSha = await hashContent(text);
   return patchEntry(uuid, (e) => (e.urlLink ? { ...e, urlLink: { ...e.urlLink, fetchedSha } } : e));
+}
+
+/**
+ * How a URL document stands against its URL's current text: unchanged
+ * (`same`), changed there only — safe to take (`pull`) — or changed on both
+ * sides since the last sync (`conflict`).
+ */
+export async function urlSyncState(
+  entry: DocEntry,
+  remoteText: string,
+): Promise<'same' | 'pull' | 'conflict'> {
+  const link = entry.urlLink;
+  if (!link || (await hashContent(remoteText)) === link.fetchedSha) return 'same';
+  const localChanged = isModified(entry) || entry.contentSha !== link.fetchedSha;
+  return localChanged ? 'conflict' : 'pull';
 }
 
 /** Drop a doc's URL origin (it becomes a plain library document). */

@@ -110,7 +110,9 @@ import {
   UrlFetchError,
   decodeSrcParam,
   fetchDocText,
+  isWritableUrl,
   normalizeDocUrl,
+  putDocText,
   resolveAgainstDoc,
   urlChip,
 } from './url-origin';
@@ -165,6 +167,7 @@ import {
   clearDocUrlLink,
   markUrlFetched,
   urlLinkOf,
+  urlSyncState,
   setDocGithubLink,
   setDocLink,
   setDocOneDriveLink,
@@ -419,7 +422,9 @@ async function bootstrap(): Promise<void> {
       const url = new URL(window.location.href);
       url.searchParams.set('doc', entry.uuid);
       window.history.replaceState({}, '', url.toString());
-      if (remoteChanged) sayUrl(t('url.kept-local'));
+      if (remoteChanged) {
+        sayUrl(t(isWritableUrl(target) ? 'vscode.kept-local' : 'url.kept-local'));
+      }
     } catch (err) {
       sayUrl(
         err instanceof UrlFetchError
@@ -1736,14 +1741,16 @@ async function bootstrap(): Promise<void> {
   // ---- working-copy commands (Phase 2, SPEC §6) -------------------------
 
   // Save: commit the working copy (draft → committed version). If the doc is
-  // linked to a disk folder, also push the committed bundle there.
-  const saveCurrentDoc = async (): Promise<void> => {
+  // linked to a disk folder, also push the committed bundle there. `force`:
+  // the user chose to overwrite a file VS Code reports changed (conflict).
+  const saveCurrentDoc = async (force = false): Promise<void> => {
     await flushSave(); // ensure the latest keystrokes are in the draft first
     currentDoc = await commitDoc(currentDoc.uuid);
     toolbarCtrl.setModified(false);
     if (isLinked(currentDoc)) await pushToDisk();
     if (isGithubLinked(currentDoc)) await pushToGithub();
     if (isOneDriveLinked(currentDoc)) await pushToOneDrive();
+    if (vscodeLinked(currentDoc)) await pushToVsCode(force);
   };
 
   // Revert: discard the working copy and reload the committed content.
@@ -1910,7 +1917,76 @@ async function bootstrap(): Promise<void> {
   // Conflict resolution — "take the disk" = a forced pull (discard local edits).
   // "Keep mine" is just Save (commit + push), wired at the call site.
   const takeDiskVersion = (): void => {
-    void reloadFromDisk(true);
+    if (vscodeLinked(currentDoc)) void reloadFromUrl(true);
+    else void reloadFromDisk(true);
+  };
+
+  // ---- a local file VS Code serves ("Open in markpage.org") -------------
+  // Edited in place: Save writes it back through VS Code (over the version
+  // last read — else a conflict, never an overwrite), and edits made in VS
+  // Code come in by the same poll as a disk file's.
+
+  const vscodeLinked = (e: DocEntry): boolean => {
+    const link = urlLinkOf(e);
+    return link !== undefined && isWritableUrl(new URL(link.url));
+  };
+
+  const sayVsCode = (text: string): void =>
+    showNotice(text, {
+      id: 'mp-url',
+      sticky: true,
+      action: { label: 'OK', run: () => hideNotice('mp-url') },
+    });
+
+  const pushToVsCode = async (force: boolean): Promise<void> => {
+    const link = urlLinkOf(currentDoc);
+    if (!link) return;
+    const content = (await loadCommittedContent(currentDoc)) ?? '';
+    syncing = true; // no poll between the write and its baseline
+    try {
+      const r = await putDocText(new URL(link.url), content, { base: link.fetchedSha, force });
+      if (r === 'conflict') {
+        toolbarCtrl.setConflict(true);
+        sayVsCode(t('vscode.conflict'));
+        return;
+      }
+      currentDoc = (await markUrlFetched(currentDoc.uuid, content)) ?? currentDoc;
+      toolbarCtrl.setConflict(false);
+      hideNotice('mp-url');
+    } catch {
+      sayVsCode(t('vscode.unreachable'));
+    } finally {
+      syncing = false;
+    }
+  };
+
+  // The poll: take VS Code's edits when markpage has none since the last
+  // sync, flag a conflict when both sides changed. VS Code closed → quiet
+  // for a while (no request storm on a dead port).
+  let vscodeRetryAt = 0;
+  const checkVsCodeSync = async (): Promise<void> => {
+    const link = urlLinkOf(currentDoc);
+    if (syncing || !docEditable || !link || !vscodeLinked(currentDoc)) return;
+    if (performance.now() < vscodeRetryAt) return;
+    syncing = true;
+    const uuid = currentDoc.uuid;
+    try {
+      const text = await fetchDocText(new URL(link.url));
+      if (currentDoc.uuid !== uuid) return;
+      const state = await urlSyncState(currentDoc, text);
+      if (state === 'same') return;
+      // Typing during the fetch counts as a local change.
+      if (state === 'conflict' || editSeq !== savedSeq) {
+        toolbarCtrl.setConflict(true);
+        return;
+      }
+      await applyDiskContent(text);
+      currentDoc = (await markUrlFetched(currentDoc.uuid, text)) ?? currentDoc;
+    } catch {
+      vscodeRetryAt = performance.now() + 30_000;
+    } finally {
+      syncing = false;
+    }
   };
 
   // Drop the disk link (the folder on disk is left untouched).
@@ -1981,15 +2057,18 @@ async function bootstrap(): Promise<void> {
   };
 
   // Fetch the URL document again, replacing the local copy (asked first when
-  // it has unsaved edits). Nothing is ever written back to the URL.
-  const reloadFromUrl = async (): Promise<void> => {
+  // it has unsaved edits). `force`: the user already chose (conflict).
+  const reloadFromUrl = async (force = false): Promise<void> => {
     const link = urlLinkOf(currentDoc);
     if (!link) return;
-    if (isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) return;
+    if (!force && isModified(currentDoc) && !globalThis.confirm(t('disk.reload-confirm'))) {
+      return;
+    }
     try {
       const text = await fetchDocText(new URL(link.url));
       await applyDiskContent(text);
       currentDoc = (await markUrlFetched(currentDoc.uuid, text)) ?? currentDoc;
+      toolbarCtrl.setConflict(false);
     } catch (err) {
       showNotice(
         err instanceof UrlFetchError && err.kind === 'http'
@@ -3127,9 +3206,10 @@ async function bootstrap(): Promise<void> {
       },
       onToggleGuides: triggerGuides,
       onResolveConflict: (anchor) => {
+        hideNotice('mp-url'); // it pointed here; it would cover the menu
         openConflictMenu(anchor, {
           onKeepMine: () => {
-            void saveCurrentDoc(); // commit + push my version, clears conflict
+            void saveCurrentDoc(true); // commit + push my version, clears conflict
           },
           onTakeDisk: takeDiskVersion,
         });
@@ -3291,8 +3371,10 @@ async function bootstrap(): Promise<void> {
   const pollSync = (): void => {
     if (document.visibilityState !== 'visible') return;
     // A read-only tab follows the owner's saved work instead of syncing.
-    if (docEditable) void checkSync();
-    else void reloadFromStore();
+    if (docEditable) {
+      void checkSync();
+      void checkVsCodeSync();
+    } else void reloadFromStore();
   };
   globalThis.addEventListener('focus', pollSync);
   document.addEventListener('visibilitychange', pollSync);

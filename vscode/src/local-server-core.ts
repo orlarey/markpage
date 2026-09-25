@@ -5,12 +5,16 @@
 // A web page cannot read a local file by its path — the browser forbids it.
 // The extension can: it serves the document over loopback HTTP and opens
 // `markpage.org/?src=<that URL>`; markpage fetches it like any URL document
-// (src/url-origin.ts), relative images included.
+// (src/url-origin.ts), relative images included. Saving in markpage writes
+// the document back (PUT), so the local file is edited in place.
 //
 // Safety: bound to 127.0.0.1 only; every URL carries a random per-session
 // token; only files inside the folder of a document explicitly shared by the
 // command are served (no `..` escape); reads are allowed (CORS) only from the
-// markpage app's origin (and the local dev server); GET only.
+// markpage app's origin (and the local dev server). Writes: only the shared
+// documents themselves, only from those origins, and only over the version
+// markpage last read (X-Markpage-Base, its SHA-256) — else 409, nothing is
+// overwritten — unless markpage says to (X-Markpage-Force, the user's choice).
 
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
@@ -37,7 +41,15 @@ export interface LocalServerOptions {
   /** The text of `file` when it is open in the editor (unsaved edits
    *  included); undefined → read from disk. */
   bufferText(file: string): string | undefined;
+  /** Write a shared document (default: to disk). */
+  writeText?(file: string, text: string): Promise<void>;
 }
+
+/** Largest document markpage may write back. */
+const MAX_WRITE = 20 * 1024 * 1024;
+
+const sha256 = (text: string): string =>
+  crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 
 export class LocalDocServer {
   private server: http.Server | undefined;
@@ -45,6 +57,8 @@ export class LocalDocServer {
   private readonly token = crypto.randomBytes(16).toString('hex');
   /** Folders of the documents shared so far (a request must fall inside one). */
   private readonly sharedDirs = new Set<string>();
+  /** The documents shared so far — the only files markpage may write. */
+  private readonly sharedFiles = new Set<string>();
 
   constructor(private readonly opts: LocalServerOptions) {}
 
@@ -53,6 +67,7 @@ export class LocalDocServer {
     await this.ensureServer();
     const abs = path.resolve(file);
     this.sharedDirs.add(path.dirname(abs));
+    this.sharedFiles.add(abs);
     const segments = abs.split(path.sep).filter((s) => s !== '').map(encodeURIComponent);
     return `http://127.0.0.1:${this.port}/${this.token}/${segments.join('/')}`;
   }
@@ -61,6 +76,7 @@ export class LocalDocServer {
     this.server?.close();
     this.server = undefined;
     this.sharedDirs.clear();
+    this.sharedFiles.clear();
   }
 
   /** The absolute file path a request names, or null when it isn't one we serve. */
@@ -82,7 +98,8 @@ export class LocalDocServer {
 
   private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const origin = req.headers.origin;
-    if (origin && this.opts.allowedOrigins().has(origin)) {
+    const allowed = origin !== undefined && this.opts.allowedOrigins().has(origin);
+    if (allowed) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
     }
@@ -92,17 +109,25 @@ export class LocalDocServer {
       if (req.headers['access-control-request-private-network'] === 'true') {
         res.setHeader('Access-Control-Allow-Private-Network', 'true');
       }
-      res.setHeader('Access-Control-Allow-Methods', 'GET');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, PUT');
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Content-Type, X-Markpage-Base, X-Markpage-Force',
+      );
       res.writeHead(204).end();
       return;
     }
-    if (req.method !== 'GET') {
+    if (req.method !== 'GET' && req.method !== 'PUT') {
       res.writeHead(405).end();
       return;
     }
     const file = this.requestedPath(new URL(req.url ?? '/', 'http://127.0.0.1').pathname);
     if (!file) {
       res.writeHead(404).end();
+      return;
+    }
+    if (req.method === 'PUT') {
+      await this.write(req, res, file, allowed);
       return;
     }
     try {
@@ -117,6 +142,49 @@ export class LocalDocServer {
     } catch {
       res.writeHead(404).end();
     }
+  }
+
+  /** The file's current text: the editor's buffer when open, else the disk. */
+  private async currentText(file: string): Promise<string> {
+    return this.opts.bufferText(file) ?? (await fs.readFile(file, 'utf8'));
+  }
+
+  private async write(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    file: string,
+    allowed: boolean,
+  ): Promise<void> {
+    if (!allowed) {
+      res.writeHead(403).end();
+      return;
+    }
+    if (!this.sharedFiles.has(file)) {
+      res.writeHead(405).end(); // an image or another file of the folder
+      return;
+    }
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > MAX_WRITE) {
+        res.writeHead(413).end();
+        return;
+      }
+      chunks.push(chunk as Buffer);
+    }
+    const text = Buffer.concat(chunks).toString('utf8');
+    if (req.headers['x-markpage-force'] !== '1') {
+      const current = await this.currentText(file).catch(() => undefined);
+      // Changed since markpage read it (or gone): don't overwrite.
+      if (current === undefined || sha256(current) !== req.headers['x-markpage-base']) {
+        res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+        res.writeHead(409).end(current ?? '');
+        return;
+      }
+    }
+    await (this.opts.writeText ?? ((f, t) => fs.writeFile(f, t, 'utf8')))(file, text);
+    res.writeHead(204).end();
   }
 
   private async ensureServer(): Promise<void> {

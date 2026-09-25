@@ -44,7 +44,7 @@ describe('url-origin', () => {
   it('shows the host and folder on the origin chip', () => {
     expect(urlChip(new URL('https://example.org/notes/a.md'))).toBe('🌐 example.org ▸ notes/');
     expect(urlChip(new URL('https://example.org/a.md'))).toBe('🌐 example.org');
-    expect(urlChip(new URL('http://127.0.0.1:5/tok/Users/y/p/a.md'))).toBe('🔗 /Users/y/p/');
+    expect(urlChip(new URL('http://127.0.0.1:5/tok/Users/y/p/a.md'))).toBe('🔗 VS Code ▸ /Users/y/p/');
   });
 
   it('reads a document URL given plainly or in base64url (the VS Code form)', () => {
