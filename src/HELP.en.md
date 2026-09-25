@@ -775,7 +775,7 @@ markpage can produce a **Beamer-like presentation PDF**: a 16:9
 landscape page, and **each `## section heading` starts a new slide**.
 Just pick the **Présentation 16:9** style:
 
-```markdown
+````markdown
 ---
 title: Block-diagram algebras
 document-style: presentation-16x9
@@ -794,10 +794,10 @@ The Faust language rests on 5 binary operators…
 - `:>` merge
 
 ## Demo
-\`\`\`bda
+```bda
 1 : +~_
-\`\`\`
 ```
+````
 
 Four slides: the title, then Motivation, The operators, Demo.
 
@@ -807,17 +807,18 @@ cross-references, MathJax formulas, `mermaid`, `category`, `bda`,
 The **View ▾ → Present** menu shows the result full screen, one slide at
 a time.
 
-**`demo` block**: for teaching slides, the ` ```demo` fence shows the
+**`demo` block**: for teaching slides, the `demo` fence shows the
 markdown source and its render side by side. The automatic zoom fits
-both panels on the slide.
+both panels on the slide. When the example itself holds a code block
+(three backticks), open and close the `demo` with **four** backticks:
 
-```markdown
-\`\`\`demo
-\`\`\`bda "Accumulator"
+`````markdown
+````demo
+```bda "Accumulator"
 1 : +~_
-\`\`\`
-\`\`\`
 ```
+````
+`````
 
 *Caveat*: avoid starting a `demo` block with a sentence of prose
 followed by a rigid block (code, diagram, displayed equation). The

@@ -806,7 +806,7 @@ au format paysage 16:9, et **chaque `## titre de section` démarre une
 nouvelle diapositive**. Il suffit de choisir le style **Présentation
 16:9** :
 
-```markdown
+````markdown
 ---
 title: Algèbres de blocs-diagrammes
 document-style: presentation-16x9
@@ -825,10 +825,10 @@ Le langage Faust repose sur 5 opérateurs binaires…
 - `:>` merge
 
 ## Démo
-\`\`\`bda
+```bda
 1 : +~_
-\`\`\`
 ```
+````
 
 Quatre diapositives : le titre, puis Motivation, Les opérateurs, Démo.
 
@@ -839,17 +839,19 @@ typographique sur les diapositives. Le menu **Vue ▾ → Présenter**
 affiche le résultat en plein écran, une diapositive à la fois.
 
 **Bloc `demo`** : pour des diapositives pédagogiques, le fence
-` ```demo` affiche côte à côte la source markdown et son rendu.
-Le zoom automatique adapte les deux panneaux pour qu'ils tiennent
-dans la diapositive.
+`demo` affiche côte à côte la source markdown et son rendu. Le zoom
+automatique adapte les deux panneaux pour qu'ils tiennent dans la
+diapositive. Quand l'exemple contient lui-même un bloc de code (trois
+accents graves), ouvrez et fermez le `demo` avec **quatre** accents
+graves :
 
-```markdown
-\`\`\`demo
-\`\`\`bda "Accumulateur"
+`````markdown
+````demo
+```bda "Accumulateur"
 1 : +~_
-\`\`\`
-\`\`\`
 ```
+````
+`````
 
 *Caveat* : évitez qu'un bloc `demo` commence par une phrase de
 prose suivie d'un bloc rigide (code, diagramme, équation
