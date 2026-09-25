@@ -721,6 +721,32 @@ body,
   margin: 0.25rem 0;
 }
 
+/* Menus built by ui/menu.ts: submenu arrow, category caption, unavailable row. */
+.mp-menu-parent .cm-context-hint {
+  opacity: 0.55;
+}
+.mp-menu-parent[aria-expanded='true'],
+.cm-context-item:focus-visible {
+  background: var(--bg-alt);
+  outline: none;
+}
+.mp-menu-heading {
+  padding: 0.45rem 0.7rem 0.15rem calc(0.7rem + 0.9em + 0.5rem);
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted, #57606a);
+}
+.cm-context-item.disabled {
+  cursor: default;
+  color: var(--text-muted, #57606a);
+  font-style: italic;
+}
+.cm-context-item.disabled:hover {
+  background: transparent;
+}
+
 /* ---- File menu (file-menu.ts) ----------------------------------------- */
 .file-menu {
   position: fixed;

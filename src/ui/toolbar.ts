@@ -1,7 +1,7 @@
 /********************************* toolbar.ts **********************************
  *
- * Purpose: Build the app toolbar — brand, the Fichier / Format / Vue menus,
- *   editable doc title, the Style menu, and a Help (?) icon — and return a small
+ * Purpose: Build the app toolbar — brand, the Fichier / Format / Insérer /
+ *   Style / Vue menus, the editable doc title, and a Help (?) icon — and return a small
  *   control surface for live label / view-mode / modified updates.
  * How: Static DOM via `document.createElement`, each control wired to one of
  *   the caller's handlers. Below ~600px the menu triggers collapse into a
@@ -30,6 +30,8 @@ export interface ToolbarHandlers {
   onStyle(anchor: { x: number; y: number }): void;
   // Open the document-style menu (named-style library), anchored on its trigger.
   onDocStyle(anchor: HTMLElement): void;
+  // Open the Insérer menu (everything that can be added to a document).
+  onInsert(anchor: HTMLElement): void;
   onHelp(): void;
   onTogglePreview(): void;
   // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
@@ -97,6 +99,12 @@ export function mountToolbar(
     const r = styleBtn.getBoundingClientRect();
     handlers.onStyle({ x: r.left, y: r.bottom + 4 });
   });
+
+  // [Insérer ▾] — add an element (image, table, callout, formula, diagram…).
+  // Like Format, it must not steal focus from the editor.
+  const insertBtn = trigger(t('toolbar.insert'), t('toolbar.insert-title'));
+  insertBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  insertBtn.addEventListener('click', () => handlers.onInsert(insertBtn));
 
   // [Style ▾] — pick the document's named style from the library.
   const docStyleBtn = trigger(t('toolbar.docstyle'), t('toolbar.docstyle-title'));
@@ -176,6 +184,7 @@ export function mountToolbar(
         const r = hamburger.getBoundingClientRect();
         handlers.onStyle({ x: Math.max(4, r.right - 220), y: r.bottom + 4 });
       }),
+      entry(t('toolbar.insert'), () => handlers.onInsert(hamburger)),
       entry(t('toolbar.docstyle'), () => handlers.onDocStyle(hamburger)),
       entry(t('toolbar.view'), () => openView(hamburger)),
       entry(t('toolbar.help'), () => handlers.onHelp()),
@@ -257,7 +266,7 @@ export function mountToolbar(
   // ---- assemble -----------------------------------------------------------
   const menusLeft = document.createElement('div');
   menusLeft.className = 'toolbar-menus-left';
-  menusLeft.append(fileBtn, styleBtn, docStyleBtn, viewBtn);
+  menusLeft.append(fileBtn, styleBtn, insertBtn, docStyleBtn, viewBtn);
 
   const left = document.createElement('div');
   left.className = 'toolbar-left';

@@ -8,6 +8,7 @@
  *
  *******************************************************************************/
 
+import { keyHint } from './menu';
 import { t } from '../i18n/strings';
 
 const MENU_ID = 'view-menu';
@@ -75,9 +76,9 @@ export function openViewMenu(anchor: HTMLElement, opts: ViewMenuOptions): void {
   };
 
   menu.append(
-    item(t('toolbar.preview'), 'Cmd/Ctrl + ↵', opts.onTogglePreview, opts.viewMode === 'preview'),
-    item(t('toolbar.present'), 'Cmd/Ctrl + ⇧ + ↵', opts.onPresent),
-    item(t('toolbar.guides'), 'Cmd/Ctrl + ⇧ + G', opts.onToggleGuides, opts.guides),
+    item(t('toolbar.preview'), keyHint('Mod-Enter'), opts.onTogglePreview, opts.viewMode === 'preview'),
+    item(t('toolbar.present'), keyHint('Mod-Shift-Enter'), opts.onPresent),
+    item(t('toolbar.guides'), keyHint('Mod-Shift-g'), opts.onToggleGuides, opts.guides),
   );
 
   document.body.appendChild(menu);

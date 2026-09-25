@@ -21,6 +21,8 @@ import {
   loadMapping,
   rewriteExternalRefs,
 } from './resource-mapping';
+import { getLanguage } from './i18n/locale';
+import { applyPlan, planBlock } from './insert';
 
 const MAX_DIMENSION = 2000;
 const JPEG_QUALITY = 0.85;
@@ -159,16 +161,7 @@ async function insertImageAtCursor(
   blob: Blob,
   originalName: string | null = null,
 ): Promise<void> {
-  // GitHub-linked docs place the image at a natural relative path (R3) and
-  // register it in the resource mapping; everything else uses the internal
-  // content-addressed `assets/<sha>` scheme.
-  let ref = imagePlacer
-    ? await imagePlacer({ blob, originalName, view })
-    : null;
-  if (ref === null) {
-    const id = await putBlobBySha(blob);
-    ref = `assets/${id}.${extForMime(blob.type)}`;
-  }
+  const ref = await storeImage(view, blob, originalName);
 
   const { state } = view;
   const range = state.selection.main;
@@ -186,6 +179,19 @@ async function insertImageAtCursor(
     selection: EditorSelection.cursor(altPos),
   });
   view.focus();
+}
+
+/**
+ * Store an image for the document and return the reference to write in it.
+ * GitHub-linked docs place the image at a natural relative path (R3) and
+ * register it in the resource mapping; everything else uses the internal
+ * content-addressed `assets/<sha>` scheme.
+ */
+async function storeImage(view: EditorView, blob: Blob, originalName: string | null): Promise<string> {
+  const placed = imagePlacer ? await imagePlacer({ blob, originalName, view }) : null;
+  if (placed !== null) return placed;
+  const id = await putBlobBySha(blob);
+  return `assets/${id}.${extForMime(blob.type)}`;
 }
 
 /**
@@ -334,6 +340,42 @@ export function pickAndInsertImage(view: EditorView): void {
     const file = input.files?.[0];
     input.remove();
     if (file) void handleImageFile(file, view);
+  });
+  input.click();
+}
+
+/**
+ * Pick several images and insert them as an image wall (`mosaic` block), its
+ * caption selected. Each image is stored like a single inserted one.
+ */
+export function pickAndInsertMosaic(view: EditorView): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.style.display = 'none';
+  document.body.appendChild(input);
+  input.addEventListener('change', () => {
+    const files = [...(input.files ?? [])];
+    input.remove();
+    if (files.length === 0) return;
+    void (async () => {
+      try {
+        const refs: string[] = [];
+        for (const file of files) {
+          refs.push(await storeImage(view, await processImageToBlob(file), file.name || null));
+        }
+        const caption = getLanguage() === 'fr' ? 'Légende' : 'Caption';
+        const tpl = `\`\`\`mosaic "⟦${caption}⟧"\n${refs.map((r) => `![](${r})`).join('\n')}\n\`\`\``;
+        const { from, to } = view.state.selection.main;
+        applyPlan(view, planBlock(view.state.doc.toString(), from, to, tpl));
+      } catch (err) {
+        console.error('Image wall insertion failed', err);
+        globalThis.alert(
+          `Impossible d'insérer les images : ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    })();
   });
   input.click();
 }

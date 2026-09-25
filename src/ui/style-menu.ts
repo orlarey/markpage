@@ -1,16 +1,18 @@
 /********************************* style-menu.ts *******************************
  *
- * Purpose: Editor formatting menu — heading / bold / italic / list / quote /
- *   link / image / renumber / reformat — opened by toolbar click or right-click.
- * How: Snapshot the selection state once on open, render checkmarks based on it,
- *   then dispatch one of the `editor-commands` mutations on click.
+ * Purpose: The `Format ▾` menu — the look of the text only: paragraph type
+ *   (normal / headings), bold / italic / code, lists and quote, each with its
+ *   shortcut — and the editor's right-click menu (cut / copy / paste, then
+ *   Format ▸ and Insérer ▸). What is ADDED to a document lives in the
+ *   Insérer menu (insert-menu.ts).
+ * How: Snapshot the selection state on open for the checkmarks, then build
+ *   the menu data (menu.ts).
  *
  *******************************************************************************/
 
 import type { EditorView } from '@codemirror/view';
 import {
   getSelectionState,
-  insertLink,
   reformatTables,
   renumberHeadings,
   setHeading,
@@ -22,144 +24,115 @@ import {
   toggleNumberedList,
 } from '../editor-commands';
 import { t } from '../i18n/strings';
-import { pickAndInsertImage } from '../image';
+import { insertMenuEntries } from './insert-menu';
+import { keyHint, openMenu, SEP, type MenuEntry } from './menu';
+import { showNotice } from './notice';
 
 const MENU_ID = 'style-menu';
 
+/** The Format menu's entries (checkmarks from the current selection). */
+function formatEntries(view: EditorView): MenuEntry[] {
+  const sel = getSelectionState(view);
+  const heading = (n: 0 | 1 | 2 | 3 | 4, label: Parameters<typeof t>[0]): MenuEntry => ({
+    label: t(label),
+    hint: keyHint(`Mod-${n}`),
+    checked: sel.heading === n,
+    action: () => setHeading(view, n),
+  });
+  return [
+    heading(0, 'style-menu.normal'),
+    heading(1, 'style-menu.h1'),
+    heading(2, 'style-menu.h2'),
+    heading(3, 'style-menu.h3'),
+    heading(4, 'style-menu.h4'),
+    SEP,
+    { label: t('style-menu.bold'), hint: keyHint('Mod-b'), checked: sel.bold, action: () => toggleBold(view) },
+    { label: t('style-menu.italic'), hint: keyHint('Mod-i'), checked: sel.italic, action: () => toggleItalic(view) },
+    { label: t('style-menu.code'), hint: keyHint('Mod-e'), checked: sel.code, action: () => toggleInlineCode(view) },
+    SEP,
+    { label: t('style-menu.bullet'), hint: keyHint('Mod-Shift-l'), checked: sel.bullet, action: () => toggleBulletList(view) },
+    { label: t('style-menu.numbered'), hint: keyHint('Mod-Shift-o'), checked: sel.numbered, action: () => toggleNumberedList(view) },
+    { label: t('style-menu.quote'), hint: keyHint('Mod-Shift-q'), checked: sel.quote, action: () => toggleBlockquote(view) },
+    SEP,
+    {
+      kind: 'submenu',
+      label: t('format.group.document'),
+      items: [
+        { label: t('style-menu.numbering'), hint: keyHint('Mod-Shift-n'), action: () => renumberHeadings(view) },
+        { label: t('style-menu.format-tables'), hint: keyHint('Mod-Shift-t'), action: () => reformatTables(view) },
+      ],
+    },
+  ];
+}
+
+/** Open the Format menu at `(x, y)`. */
+export function openStyleMenu(view: EditorView, x: number, y: number): void {
+  openMenu(MENU_ID, { x, y }, formatEntries(view));
+}
+
 /**
- * Purpose: Wire right-click in the editor pane to open the style menu at the click.
- * How: Reposition the cursor (unless the click is inside an existing selection),
- *   then call `openStyleMenu` with the click's screen coords.
+ * Right-click in the editor: the clipboard, then Format ▸ and Insérer ▸. The
+ * caret moves to the click unless it falls inside the selection (asking for
+ * the menu must not lose what was selected).
  */
-// Right-click anywhere in the editor pane to open the same menu, anchored at
-// the click position. We reposition the cursor so the menu reflects the
-// click's context — but only if the click falls *outside* any existing
-// non-empty selection, otherwise the user's selection would be lost just by
-// asking for the menu (e.g. selecting a line via the gutter then right
-// clicking on it to format).
-export function attachStyleContextMenu(
-  editorEl: HTMLElement,
-  view: EditorView,
-): void {
+export function attachStyleContextMenu(editorEl: HTMLElement, view: EditorView): void {
   editorEl.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
     const sel = view.state.selection.main;
     const insideSelection = !sel.empty && pos !== null && pos >= sel.from && pos <= sel.to;
-    if (pos !== null && !insideSelection) {
-      view.dispatch({ selection: { anchor: pos } });
-    }
-    openStyleMenu(view, e.clientX, e.clientY);
+    if (pos !== null && !insideSelection) view.dispatch({ selection: { anchor: pos } });
+    openMenu(MENU_ID, { x: e.clientX, y: e.clientY }, contextEntries(view));
   });
 }
 
-/**
- * Purpose: Mount the style menu at `(x, y)`, with checkmarks reflecting selection state.
- * How: Snapshot `getSelectionState(view)` once, build the item list, defer dismiss listeners.
- */
-// Opens the style menu anchored at the given screen coordinates. Reflects the
-// current selection's format state via checkmarks; commands operate on the
-// editor's saved selection (so it works whether or not the editor has focus).
-export function openStyleMenu(
-  view: EditorView,
-  x: number,
-  y: number,
-): void {
-  document.getElementById(MENU_ID)?.remove();
-
-  // Snapshot the selection state once when the menu opens; the menu is
-  // ephemeral, so we don't need to react to live edits.
-  const sel = getSelectionState(view);
-
-  const menu = document.createElement('div');
-  menu.id = MENU_ID;
-  menu.className = 'editor-context-menu';
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
-
-  const close = (): void => {
-    menu.remove();
-    document.removeEventListener('mousedown', onDocDown, true);
-    document.removeEventListener('keydown', onKey);
-    globalThis.removeEventListener('resize', close);
+function contextEntries(view: EditorView): MenuEntry[] {
+  const selected = (): string => {
+    const { from, to } = view.state.selection.main;
+    return view.state.sliceDoc(from, to);
   };
-  const onDocDown = (e: MouseEvent): void => {
-    if (!menu.contains(e.target as Node)) close();
-  };
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape') close();
-  };
-
-  const item = (
-    label: string,
-    action: () => void,
-    active = false,
-  ): HTMLButtonElement => {
-    const it = document.createElement('button');
-    it.type = 'button';
-    it.className = 'cm-context-item' + (active ? ' active' : '');
-
-    const check = document.createElement('span');
-    check.className = 'cm-context-check';
-    check.textContent = '✓';
-
-    const text = document.createElement('span');
-    text.className = 'cm-context-label';
-    text.textContent = label;
-
-    it.append(check, text);
-    it.addEventListener('mousedown', (e) => e.preventDefault());
-    it.addEventListener('click', () => {
-      close();
-      action();
-    });
-    return it;
-  };
-
-  const sep = (): HTMLElement => {
-    const s = document.createElement('div');
-    s.className = 'cm-context-sep';
-    return s;
-  };
-
-  menu.append(
-    item(t('style-menu.normal'), () => setHeading(view, 0), sel.heading === 0),
-    item(t('style-menu.h1'), () => setHeading(view, 1), sel.heading === 1),
-    item(t('style-menu.h2'), () => setHeading(view, 2), sel.heading === 2),
-    item(t('style-menu.h3'), () => setHeading(view, 3), sel.heading === 3),
-    item(t('style-menu.h4'), () => setHeading(view, 4), sel.heading === 4),
-    sep(),
-    item(t('style-menu.bold'), () => toggleBold(view), sel.bold),
-    item(t('style-menu.italic'), () => toggleItalic(view), sel.italic),
-    item(t('style-menu.code'), () => toggleInlineCode(view), sel.code),
-    sep(),
-    item(t('style-menu.bullet'), () => toggleBulletList(view), sel.bullet),
-    item(t('style-menu.numbered'), () => toggleNumberedList(view), sel.numbered),
-    item(t('style-menu.quote'), () => toggleBlockquote(view), sel.quote),
-    sep(),
-    item(t('style-menu.link'), () => insertLink(view)),
-    item(t('style-menu.image'), () => pickAndInsertImage(view)),
-    sep(),
-    item(t('style-menu.numbering'), () => renumberHeadings(view)),
-    item(t('style-menu.format-tables'), () => reformatTables(view)),
-  );
-
-  document.body.appendChild(menu);
-
-  // Clamp to viewport.
-  const rect = menu.getBoundingClientRect();
-  if (rect.right > globalThis.innerWidth) {
-    menu.style.left = `${Math.max(4, globalThis.innerWidth - rect.width - 4)}px`;
-  }
-  if (rect.bottom > globalThis.innerHeight) {
-    menu.style.top = `${Math.max(4, globalThis.innerHeight - rect.height - 4)}px`;
-  }
-
-  // Defer the dismissal listeners by one tick so the contextmenu event
-  // that opened the menu doesn't immediately close it.
-  setTimeout(() => {
-    document.addEventListener('mousedown', onDocDown, true);
-    document.addEventListener('keydown', onKey);
-    globalThis.addEventListener('resize', close);
-  }, 0);
+  const empty = view.state.selection.main.empty;
+  return [
+    {
+      label: t('edit.cut'),
+      hint: keyHint('Mod-x'),
+      disabled: empty,
+      action: () => {
+        void navigator.clipboard.writeText(selected()).then(() => {
+          view.dispatch(view.state.replaceSelection(''));
+          view.focus();
+        });
+      },
+    },
+    {
+      label: t('edit.copy'),
+      hint: keyHint('Mod-c'),
+      disabled: empty,
+      action: () => {
+        void navigator.clipboard.writeText(selected());
+        view.focus();
+      },
+    },
+    {
+      label: t('edit.paste'),
+      hint: keyHint('Mod-v'),
+      action: () => {
+        navigator.clipboard
+          .readText()
+          .then((text) => {
+            view.dispatch(view.state.replaceSelection(text));
+            view.focus();
+          })
+          .catch(() => {
+            // Reading the clipboard needs the browser's permission; the
+            // keyboard shortcut never does.
+            showNotice(t('edit.paste-denied', { key: keyHint('Mod-v') }));
+            view.focus();
+          });
+      },
+    },
+    SEP,
+    { kind: 'submenu', label: t('toolbar.style'), items: formatEntries(view) },
+    { kind: 'submenu', label: t('toolbar.insert'), items: insertMenuEntries(view) },
+  ];
 }

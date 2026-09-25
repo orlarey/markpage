@@ -106,7 +106,8 @@ Three options:
 1. **Drag-and-drop** an image from your desktop straight into the
    editor.
 2. **Paste** a screenshot (`Cmd/Ctrl + V` after capturing it).
-3. **Format** button in the toolbar → *"Insert image…"*.
+3. **Insert** menu → *Image…* (or *Image wall…* for several photos at
+   once).
 
 The image is automatically resized and compressed (2000 px max on
 each side), and gets inserted at the cursor position.
@@ -149,8 +150,18 @@ At the top of the screen, a handful of buttons:
 - **The document name** (centred) — editable for a Library document;
   for a document linked to a volume, it shows its file name and an
   origin chip.
-- **Format ▾** — a formatting menu (headings, bold, lists, insert
-  image…). **Right-clicking** in the editor opens the same menu.
+- **Format ▾** — the look of the text: headings, bold, italic, code,
+  lists, quote. Each entry shows its keyboard shortcut.
+- **Insert ▾** — everything you can add to the document, by category:
+  image, table, callout, formula, diagram, code, footnote, table of
+  contents, columns, page header, letter parts… Each element arrives
+  **ready to fill in**: the text to replace is already selected, just
+  type. If you selected text first, it goes inside (for instance, a
+  selection + *Callout ▸ Note* puts it in a callout). No need to know
+  the syntax: look at what the menu writes, and you will pick it up
+  along the way.
+- **Right-click** in the editor — *Cut*, *Copy*, *Paste*, then the
+  *Format* and *Insert* menus.
 - **Style ▾** — the document's look: pick a style from the library
   (Note, Article, Rapport, Livre, Lettre, Présentation), import or
   export one (see \ref{sec:settings}).
@@ -824,7 +835,7 @@ symbols (★, ♥, ✓) are handled correctly, on screen as in the PDF.
 To number the headings of a long document without configuring a
 menu, just **show the example on the first heading of each level**:
 the **Number sections** command (`Cmd/Ctrl + Shift + N`, or the
-**Format** menu → *Number sections*) detects the numbering style you
+**Format** ▸ *Whole document* ▸ *Number sections*) detects the numbering style you
 wrote, then applies it to all other headings of the same level.
 
 Example. You write:
@@ -1797,17 +1808,20 @@ format.
 
 ````markdown
 ```ebnf
-identifier ::= letter (letter | digit | "_")*
-letter ::= [a-zA-Z]
-digit ::= [0-9]
+expression = term, { ("+" | "-"), term };
+term = number | "(", expression, ")";
+number = digit, { digit };
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 ```
 ````
 
 A parse error produces a red block with the message — not a blocking
 export. Under the hood,
 [ebnf2railroad](https://github.com/matthijsgroen/ebnf2railroad)
-handles the rendering; the syntax accepts `?` (optional), `*`
-(repetition), `|` (alternative), `()` (grouping) operators.
+handles the rendering. Each production reads `name = … ;`; a comma
+`,` chains, `|` offers an alternative, `{ … }` repeats (zero or more
+times), `[ … ]` makes optional, `( … )` groups; the language's words go
+between quotes.
 
 ### Algebraic data types (ADT) \label{sec:adt}
 
@@ -1973,7 +1987,7 @@ Numbered lines, bolded keywords. See *Algorithms (pseudocode)*.
 
 ````markdown
 ```bda
-(_ , _) : + : *(0.5)
+1 : +~_
 ```
 ````
 
@@ -1986,7 +2000,9 @@ Faust-style block algebra: operators `:`, `,`, `<:`, `:>`, `~`. See
 ```category
 f : A -> B
 g : B -> C
-gof = g . f : A -> C
+h : A -> C
+
+h = g . f
 ```
 ````
 
@@ -2048,7 +2064,8 @@ Green / red coloration of `+` / `-`. See *Diffs*.
 
 ````markdown
 ```ebnf
-identifier ::= letter (letter | digit | "_")*
+number = digit, { digit };
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 ```
 ````
 

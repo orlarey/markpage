@@ -111,7 +111,8 @@ Trois moyens, au choix :
    l'éditeur.
 2. **Coller** une capture d'écran (`Cmd/Ctrl + V` après l'avoir
    capturée).
-3. Bouton **Format** dans la toolbar → *« Insérer une image… »*.
+3. Menu **Insérer** → *Image…* (ou *Mur d'images…* pour plusieurs
+   photos d'un coup).
 
 L'image est automatiquement redimensionnée et compressée (max 2000 px
 de côté), et s'insère à la position du curseur.
@@ -157,9 +158,19 @@ En haut de l'écran, quelques boutons :
 - **Le nom du document** (au centre) — modifiable pour un document de la
   Bibliothèque ; pour un document lié à un volume, il affiche son nom de
   fichier et une pastille d'origine.
-- **Format ▾** — un menu de mise en forme (titres, gras, listes,
-  insérer une image…). Le **clic-droit** dans l'éditeur ouvre le
-  même menu.
+- **Format ▾** — l'apparence du texte : titres, gras, italique, code,
+  listes, citation. Chaque entrée affiche son raccourci clavier.
+- **Insérer ▾** — tout ce qu'on peut ajouter au document, rangé par
+  catégories : image, tableau, encadré, formule, diagramme, code, note
+  de bas de page, table des matières, colonnes, en-tête, éléments de
+  courrier… Chaque élément arrive **prêt à remplir** : le texte à
+  remplacer est déjà sélectionné, il suffit de taper. Si vous avez
+  sélectionné du texte avant, il est placé dedans (par exemple, une
+  sélection + *Encadré ▸ Note* la met dans un encadré). Pas besoin de
+  connaître la syntaxe : regardez ce que le menu écrit, vous
+  l'apprendrez en passant.
+- **Clic droit** dans l'éditeur — *Couper*, *Copier*, *Coller*, puis
+  les menus *Format* et *Insérer*.
 - **Style ▾** — l'apparence du document : choisissez un style dans la
   bibliothèque (Note, Article, Rapport, Livre, Lettre, Présentation),
   importez-en ou exportez-en (voir \ref{sec:settings}).
@@ -858,8 +869,8 @@ dans le PDF.
 Pour numéroter les titres d'un long document sans configurer de menu,
 il suffit de **donner l'exemple sur le premier titre de chaque
 niveau** : la commande **Numéroter les sections**
-(`Cmd/Ctrl + Maj + N`, ou bien menu **Format** → *Numéroter les
-sections*) détecte le style de numérotation que vous avez écrit, puis
+(`Cmd/Ctrl + Maj + N`, ou bien **Format** ▸ *Tout le document* ▸
+*Numéroter les sections*) détecte le style de numérotation que vous avez écrit, puis
 l'applique à tous les autres titres du même niveau.
 
 Exemple. Vous écrivez :
@@ -1865,17 +1876,20 @@ format de fichier.
 
 ````markdown
 ```ebnf
-identifier ::= letter (letter | digit | "_")*
-letter ::= [a-zA-Z]
-digit ::= [0-9]
+expression = terme, { ("+" | "-"), terme };
+terme = nombre | "(", expression, ")";
+nombre = chiffre, { chiffre };
+chiffre = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 ```
 ````
 
 Une erreur de parse produit un bloc rouge avec le message — pas
 d'export bloquant. Sous le capot,
 [ebnf2railroad](https://github.com/matthijsgroen/ebnf2railroad) fait
-le rendu ; la syntaxe accepte les opérateurs `?` (optionnel), `*`
-(répétition), `|` (alternative), `()` (groupement).
+le rendu. Chaque production s'écrit `nom = … ;` ; la virgule `,`
+enchaîne, `|` offre une alternative, `{ … }` répète (zéro fois ou
+plus), `[ … ]` rend optionnel, `( … )` groupe ; les mots du langage
+s'écrivent entre guillemets.
 
 ### Types algébriques (ADT) \label{sec:adt}
 
@@ -2044,7 +2058,7 @@ Numéros de ligne, mots-clés en gras. Voir *Algorithmes
 
 ````markdown
 ```bda
-(_ , _) : + : *(0.5)
+1 : +~_
 ```
 ````
 
@@ -2057,7 +2071,9 @@ Voir *Diagrammes en blocs à la Faust (BDA)*.
 ```category
 f : A -> B
 g : B -> C
-gof = g . f : A -> C
+h : A -> C
+
+h = g . f
 ```
 ````
 
@@ -2120,7 +2136,8 @@ Coloration vert / rouge des `+` / `-`. Voir *Diffs*.
 
 ````markdown
 ```ebnf
-identifier ::= letter (letter | digit | "_")*
+nombre = chiffre, { chiffre };
+chiffre = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 ```
 ````
 

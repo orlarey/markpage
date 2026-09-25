@@ -89,6 +89,7 @@ import { migrateImagesToOpfs } from './image-store';
 import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
+import { openInsertMenu } from './ui/insert-menu';
 import {
   allStyles,
   deleteUserStyle,
@@ -3124,6 +3125,9 @@ async function bootstrap(): Promise<void> {
       },
       onStyle(anchor) {
         openStyleMenu(editor.view, anchor.x, anchor.y);
+      },
+      onInsert(anchor) {
+        openInsertMenu(editor.view, anchor);
       },
       onDocStyle(anchor) {
         // Set `document-style: <key>` in the doc front-matter; the change handler
