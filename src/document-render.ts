@@ -12,6 +12,8 @@
 
 import {
   fitWideTables,
+  groupLetterheads,
+  letterheadCss,
   layoutMosaicBlocks,
   parseFrontmatter,
   renderMathBlocks,
@@ -88,6 +90,12 @@ export function renderContinuousSheet(
   // padding = top right bottom left (right = outer, left = inner).
   sheet.style.padding = `${t.top}mm ${t.outer}mm ${t.bottom}mm ${t.inner}mm`;
   while (built.firstChild) sheet.appendChild(built.firstChild);
+  // A letter's head as on the printed page: sender and recipient grouped, the
+  // recipient at the envelope window — the sheet is page-wide, so the window
+  // is placed from its edges (paged mode: from the text block's).
+  groupLetterheads(sheet);
+  sheet.style.position = 'relative';
+  setContinuousLetterheadCss(settings, t);
   pane.classList.add('continuous');
   pane.replaceChildren(sheet);
   const cs = getComputedStyle(sheet);
@@ -96,6 +104,29 @@ export function renderContinuousSheet(
     Number.parseFloat(cs.paddingLeft) -
     Number.parseFloat(cs.paddingRight);
   fitWideTables(sheet, contentW);
+}
+
+/** The letterhead layout for the continuous sheet (one <style>, replaced). */
+function setContinuousLetterheadCss(
+  settings: PdfSettings,
+  t: PdfSettings['pageGeometry']['text'],
+): void {
+  const id = 'mp-continuous-letterhead';
+  let style = document.getElementById(id) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement('style');
+    style.id = id;
+    document.head.append(style);
+  }
+  const size = pageSizeMm(settings);
+  style.textContent = letterheadCss(
+    {
+      margins: { top: t.top, right: t.outer, bottom: t.bottom, left: t.inner },
+      pageW: size.w,
+      pageH: size.h,
+    },
+    { scope: '.mp-continuous-sheet', windowOrigin: 'sheet' },
+  );
 }
 
 /**

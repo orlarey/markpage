@@ -108,8 +108,19 @@ export interface LetterheadGeom {
  *   containers of both consumers; `break-*` props inside are best-effort
  *   (paged.js honours them inconsistently — the real keep is the group wrap).
  */
-export function letterheadCss(g: LetterheadGeom): string {
+export function letterheadCss(
+  g: LetterheadGeom,
+  opts: {
+    /** The containers the rules apply in (default: the paged containers). */
+    scope?: string;
+    /** What the window's coordinates are relative to: the page's text block
+     *  (paged.js: `.pagedjs_page_content`) or the whole sheet (the continuous
+     *  preview's page-wide `.mp-continuous-sheet`). */
+    windowOrigin?: 'content' | 'sheet';
+  } = {},
+): string {
   const m = g.margins;
+  const fromSheet = opts.windowOrigin === 'sheet';
   // Inner-gutter compensation: how far the body's text block is pushed in past
   // the band anchors. 0 when they coincide (or are not given).
   const gutter =
@@ -117,10 +128,18 @@ export function letterheadCss(g: LetterheadGeom): string {
       ? Math.max(0, g.textBlockInner - g.liveAreaInner)
       : 0;
   const sigLeft = Math.max(0, 110 - m.left - gutter);
+  // The continuous sheet shrinks to its pane (its text reflows): horizontal
+  // positions are then fractions of the sheet's width, not millimetres.
+  const frac = (mm: number): string => `${((mm / g.pageW) * 100).toFixed(4)}%`;
+  // An in-flow margin resolves against the content width C = sheet − margins.
+  const sheetX = (mm: number): string =>
+    `calc(${(mm / g.pageW).toFixed(6)} * (100% + ${m.left + m.right}mm) - ${m.left}mm)`;
   const sigImgMaxW = (g.pageW - m.left - m.right) / 4;
-  const winLeft = Math.max(0, 110 - m.left);
-  const winTop = Math.max(0, 40 - m.top);
-  const S = ':where(#preview-pane, #markpage-print-target, #markpage-preview)';
+  const winLeft = fromSheet ? frac(110) : `${Math.max(0, 110 - m.left)}mm`;
+  const winWidth = fromSheet ? frac(85) : '85mm';
+  const sigMargin = fromSheet ? sheetX(110) : `${sigLeft}mm`;
+  const winTop = fromSheet ? 40 : Math.max(0, 40 - m.top);
+  const S = opts.scope ?? ':where(#preview-pane, #markpage-print-target, #markpage-preview)';
   return `
     /* Letterhead — sender / recipient blocks for invoices, devis, courriers.
        Adjacent siblings are wrapped in a .letterhead-group by groupLetterheads()
@@ -148,7 +167,7 @@ export function letterheadCss(g: LetterheadGeom): string {
     ${S} .letterhead-signature {
       position: relative;
       flex: 0 0 auto;
-      margin-left: ${sigLeft}mm;
+      margin-left: ${sigMargin};
       margin-top: 2em;
       break-inside: avoid;
     }
@@ -168,9 +187,9 @@ export function letterheadCss(g: LetterheadGeom): string {
        .pagedjs_page_content, so subtract the profile margins). */
     ${S} .letterhead-recipient.letterhead-window {
       position: absolute;
-      left: ${winLeft}mm;
+      left: ${winLeft};
       top: ${winTop}mm;
-      width: 85mm;
+      width: ${winWidth};
       margin: 0;
       flex: none;
     }
