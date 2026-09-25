@@ -197,9 +197,28 @@ export function applyAnchorToEditor(
 // content-relative, so it survives scrolling and is invalidated only on
 // re-render / resize) and otherwise queries CodeMirror's own cached layout.
 
-/** Build the (source line → content-relative Y) table for the preview. */
-export function buildPreviewLineMap(previewEl: HTMLElement): LineEntry[] {
-  return readLineMap(previewEl);
+/**
+ * Build the (source line → content-relative Y) table for the preview. The
+ * `[data-line]` anchors only mark where blocks START: past the last one, every
+ * line would sit at the top of the last block — so `docLines` (the source's
+ * line count) adds an end point at the bottom of the rendered content, and the
+ * lines of a long last block spread down to it.
+ */
+export function buildPreviewLineMap(
+  previewEl: HTMLElement,
+  docLines?: number,
+): LineEntry[] {
+  const map = readLineMap(previewEl);
+  const last = map.at(-1);
+  if (docLines === undefined || !last || docLines <= last.line) return map;
+  const previewRect = previewEl.getBoundingClientRect();
+  let bottom = last.previewY;
+  for (const el of previewEl.querySelectorAll<HTMLElement>('[data-line]')) {
+    const b = el.getBoundingClientRect().bottom - previewRect.top + previewEl.scrollTop;
+    if (b > bottom) bottom = b;
+  }
+  map.push({ line: docLines, previewY: bottom });
+  return map;
 }
 
 /** Content-relative Y of a source line in the preview (interpolated). */

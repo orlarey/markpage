@@ -1236,7 +1236,12 @@ async function bootstrap(): Promise<void> {
     viewMode === 'preview' && !presenting;
   const getPreviewLineMap = (): LineEntry[] => {
     if (!previewLineMap || previewLineMap.length === 0) {
-      previewLineMap = buildPreviewLineMap(previewEl);
+      // The source ends at its last non-blank line (trailing blank lines
+      // render nothing): that is where the preview's content ends.
+      const doc = editor.view.state.doc;
+      let end = doc.lines;
+      while (end > 1 && doc.line(end).text.trim() === '') end--;
+      previewLineMap = buildPreviewLineMap(previewEl, end);
     }
     return previewLineMap;
   };
@@ -1372,7 +1377,17 @@ async function bootstrap(): Promise<void> {
     if (pos == null) return;
     const line = editor.view.state.doc.lineAt(pos).number - 1;
     const y = e.clientY - previewEl.getBoundingClientRect().top;
-    easePreviewTo(previewYForLine(line, getPreviewLineMap()) - y);
+    const map = getPreviewLineMap();
+    const top = previewYForLine(line, map);
+    // …but the whole rendered line must show: a click low in the editor would
+    // otherwise leave its end (a wrapped line, the document's end) under the
+    // bottom edge. Its top wins if it can't fit.
+    const margin = 16;
+    const bottom = previewYForLine(line + 1, map);
+    let target = top - y;
+    target = Math.max(target, bottom - (previewEl.clientHeight - margin));
+    target = Math.min(target, top - margin);
+    easePreviewTo(target);
   });
 
   // Resizing the split (or the window) re-wraps the preview WITHOUT a re-render,
