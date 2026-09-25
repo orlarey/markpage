@@ -85,37 +85,37 @@
           "weight": 400
         },
         "title": {
-          "color": "#223e61",
+          "color": "#000000",
           "fontSize": 47,
           "weight": 600,
           "align": "center"
         },
         "subtitle": {
-          "color": "#48658a",
+          "color": "#383838",
           "fontSize": 21.5,
           "weight": 600,
           "align": "center"
         },
         "h1": {
-          "color": "#30588a",
+          "color": "#000000",
           "fontSize": 27,
           "weight": 600,
           "align": "left"
         },
         "h2": {
-          "color": "#b3615d",
+          "color": "#000000",
           "fontSize": 21.5,
           "weight": 600,
           "align": "left"
         },
         "h3": {
-          "color": "#5d83b3",
+          "color": "#000000",
           "fontSize": 17,
           "weight": 600,
           "align": "left"
         },
         "h4": {
-          "color": "#93b3d9",
+          "color": "#383838",
           "fontSize": 14,
           "weight": 600,
           "align": "left"
@@ -137,18 +137,18 @@
           "color": "#383838",
           "fontSize": 10,
           "padding": 0.55,
-          "borderRadius": 6,
-          "background": "#f4f6f9"
+          "borderRadius": 4,
+          "background": "#f5f5f4"
         },
         "quote": {
-          "padding": 0.5,
-          "borderRadius": 3,
-          "borderTop": true,
-          "borderRight": true,
-          "borderBottom": true,
+          "padding": 0.2,
+          "borderRadius": 0,
+          "borderTop": false,
+          "borderRight": false,
+          "borderBottom": false,
           "borderLeft": true,
-          "borderColor": "#3f9d78",
-          "borderWidth": 3
+          "borderColor": "#c4c4c0",
+          "borderWidth": 2
         },
         "math-block": {
           "color": "#000000",
@@ -159,13 +159,13 @@
         },
         "callout": {
           "padding": 0.7,
-          "borderRadius": 8,
-          "background": "#eef4ff",
+          "borderRadius": 4,
+          "background": "#f5f5f4",
           "borderTop": true,
           "borderRight": true,
           "borderBottom": true,
           "borderLeft": true,
-          "borderColor": "#4a8cf0",
+          "borderColor": "#d6d6d3",
           "borderWidth": 1
         },
         "table": {
@@ -191,7 +191,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -280,37 +280,37 @@
           "weight": 400
         },
         "title": {
-          "color": "#223e61",
+          "color": "#000000",
           "fontSize": 47,
           "weight": 600,
           "align": "center"
         },
         "subtitle": {
-          "color": "#48658a",
+          "color": "#383838",
           "fontSize": 21.5,
           "weight": 600,
           "align": "center"
         },
         "h1": {
-          "color": "#30588a",
+          "color": "#000000",
           "fontSize": 27,
           "weight": 600,
           "align": "left"
         },
         "h2": {
-          "color": "#b3615d",
+          "color": "#000000",
           "fontSize": 21.5,
           "weight": 600,
           "align": "left"
         },
         "h3": {
-          "color": "#5d83b3",
+          "color": "#000000",
           "fontSize": 17,
           "weight": 600,
           "align": "left"
         },
         "h4": {
-          "color": "#93b3d9",
+          "color": "#383838",
           "fontSize": 14,
           "weight": 600,
           "align": "left"
@@ -332,18 +332,18 @@
           "color": "#383838",
           "fontSize": 10,
           "padding": 0.55,
-          "borderRadius": 6,
-          "background": "#f4f6f9"
+          "borderRadius": 4,
+          "background": "#f5f5f4"
         },
         "quote": {
-          "padding": 0.5,
-          "borderRadius": 3,
-          "borderTop": true,
-          "borderRight": true,
-          "borderBottom": true,
+          "padding": 0.2,
+          "borderRadius": 0,
+          "borderTop": false,
+          "borderRight": false,
+          "borderBottom": false,
           "borderLeft": true,
-          "borderColor": "#3f9d78",
-          "borderWidth": 3
+          "borderColor": "#c4c4c0",
+          "borderWidth": 2
         },
         "math-block": {
           "color": "#000000",
@@ -354,13 +354,13 @@
         },
         "callout": {
           "padding": 0.7,
-          "borderRadius": 8,
-          "background": "#eef4ff",
+          "borderRadius": 4,
+          "background": "#f5f5f4",
           "borderTop": true,
           "borderRight": true,
           "borderBottom": true,
           "borderLeft": true,
-          "borderColor": "#4a8cf0",
+          "borderColor": "#d6d6d3",
           "borderWidth": 1
         },
         "table": {
@@ -386,7 +386,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -572,7 +572,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -758,7 +758,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -955,7 +955,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -1152,7 +1152,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -1350,7 +1350,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -1548,7 +1548,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -1748,7 +1748,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -1948,7 +1948,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   },
   {
@@ -2140,7 +2140,7 @@
     },
     "meta": {
       "author": "markpage",
-      "version": "0.43.0"
+      "version": "0.44.0"
     }
   }
 ]

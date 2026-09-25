@@ -43,11 +43,27 @@ const FMT = {
 
 // One compact spec per archetype: structure + visual identity. Everything else
 // falls back to the editor's sensible defaults (crans, scale steps, cover zoom…).
+// Note's sober ink: every heading black (subtitle / h4 dark grey), no second
+// hue; blocks in neutral greys; a quote is a thin bar on its left edge. Links
+// keep a dark blue — the editor derives them from h1, which would make them
+// black like the text.
+const INK = (g) => ({ kind: 'neutral', g });
+const NOTE_CRANS = {
+  cover: INK(5), title: INK(5), subtitle: INK(4),
+  h1: INK(5), h2: INK(5), h3: INK(5), h4: INK(4),
+};
+const NOTE_BLOCKS = {
+  'code-block': { bgOn: true, bg: '#f5f5f4', bd: { on: false, color: '#d6d6d3', width: 1 }, pad: 0.55, radius: 4 },
+  quote: { bgOn: false, bg: '#f5f5f4', bd: { on: true, color: '#c4c4c0', width: 2 }, pad: 0.5, radius: 0 },
+  callout: { bgOn: true, bg: '#f5f5f4', bd: { on: true, color: '#d6d6d3', width: 1 }, pad: 0.7, radius: 4 },
+};
+
 const ARCHETYPES = [
   {
     base: 'Note', pageFormat: 'A4', formats: ['A4', 'Letter'],
     pairing: 'classique', hue: 213, hasCover: false, duplex: false,
     chapterBreak: 'none', notesPos: 'foot', numberingOn: true, apparatus: 2, // Folio en pied
+    crans: NOTE_CRANS, blocks: NOTE_BLOCKS, quoteBar: true, linkColor: '#30588a',
   },
   {
     // Lettre ships a hand-tuned full state (ET Book, centred title/heading,
@@ -108,11 +124,19 @@ const inPage = ([spec, pageFormat, meta, want]) => {
     if (spec.apparatus != null) S.running = JSON.parse(JSON.stringify(APPAREIL_PRESETS[spec.apparatus].running));
     S.pageFormat = pageFormat;
     S.geo = canon1_9(); // re-bake the canon for THIS format
+    if (spec.crans) Object.assign(S.crans, JSON.parse(JSON.stringify(spec.crans)));
+    if (spec.blocks) Object.assign(S.blocks, JSON.parse(JSON.stringify(spec.blocks)));
   }
   S.meta = { ...S.meta, ...meta };
-  return want === 'source'
-    ? { 'markpage-style-src': 1, meta: { ...S.meta }, state: S }
-    : compileStyle();
+  if (want === 'source') return { 'markpage-style-src': 1, meta: { ...S.meta }, state: S };
+  const style = compileStyle();
+  // The editor always borders a block on its 4 sides; a quote bar keeps the
+  // left one only (compiled output — the editor source can't express it).
+  if (spec.quoteBar && style.styles.quote) {
+    Object.assign(style.styles.quote, { borderTop: false, borderRight: false, borderBottom: false, padding: 0.2 });
+  }
+  if (spec.linkColor && style.styles['inline-link']) style.styles['inline-link'].color = spec.linkColor;
+  return style;
 };
 
 const url = pathToFileURL(join(root, 'prototypes', 'editeur-style.html')).href;
