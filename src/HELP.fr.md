@@ -1237,8 +1237,13 @@ Rapport annuel
 ::::
 ```
 
-Les fonds apparaissent dans l'**aperçu paginé** et le PDF (pas dans la
-vue d'édition continue).
+Dans l'**aperçu paginé** et le PDF, chaque fond se place sur ses pages.
+L'**aperçu continu** (sans pages) montre le document comme **une seule
+longue page** : les fonds s'y appliquent à toute la feuille, `at` et
+`size` allant de 0 à 1 sur toute sa largeur et toute sa hauteur ;
+l'en-tête s'affiche en haut de la feuille et le pied de page en bas.
+C'est une approximation (un `at=0.5,0.5` tombe au milieu du document,
+pas d'une page), mais rien n'y reste invisible.
 
 ### Graphiques \label{sec:charts}
 

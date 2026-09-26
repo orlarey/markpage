@@ -46,10 +46,8 @@ function styleItem(item: HTMLElement, spec: BackgroundSpec): void {
   item.style.transform = `translate(${-ax * 100}%, ${-ay * 100}%)`;
 }
 
-/** Inject the active backdrop items into a page's box, behind the content. */
-function injectLayer(page: HTMLElement, items: Sentinel[]): void {
-  const pagebox = page.querySelector<HTMLElement>('.pagedjs_pagebox');
-  if (!pagebox || pagebox.querySelector(':scope > .mp-bg-layer')) return;
+/** The backdrop layer holding `items` (positioned against its container). */
+function buildLayer(items: Sentinel[]): HTMLElement {
   const anyMargins = items.some((s) => s.spec.margins);
   const layer = document.createElement('div');
   layer.className = anyMargins ? 'mp-bg-layer mp-bg-inset' : 'mp-bg-layer';
@@ -60,7 +58,58 @@ function injectLayer(page: HTMLElement, items: Sentinel[]): void {
     item.innerHTML = s.body;
     layer.appendChild(item);
   }
-  pagebox.insertBefore(layer, pagebox.firstChild);
+  return layer;
+}
+
+/** Inject the active backdrop items into a page's box, behind the content. */
+function injectLayer(page: HTMLElement, items: Sentinel[]): void {
+  const pagebox = page.querySelector<HTMLElement>('.pagedjs_pagebox');
+  if (!pagebox || pagebox.querySelector(':scope > .mp-bg-layer')) return;
+  pagebox.insertBefore(buildLayer(items), pagebox.firstChild);
+}
+
+/** Read one `.mp-bg` sentinel (null when its payload is unreadable). */
+function readSentinel(el: HTMLElement, page: number): Sentinel | null {
+  let spec: BackgroundSpec;
+  try {
+    spec = JSON.parse(el.getAttribute('data-bg') ?? '{}') as BackgroundSpec;
+  } catch {
+    return null;
+  }
+  const body = el.innerHTML.trim();
+  const reset = body === '' && !spec.fill && spec.at == null && spec.size == null;
+  return { page, spec, body, reset };
+}
+
+/** The backdrops active on a page, from the ones persisting into it and the
+ *  sentinels that landed on it (in order). Updates `persistent`. */
+function activeOn(here: Sentinel[], persistent: Sentinel[]): Sentinel[] {
+  const firstOnly: Sentinel[] = [];
+  for (const s of here) {
+    if (s.reset) persistent.length = 0;
+    else if (s.spec.first) firstOnly.push(s);
+    else persistent.push(s);
+  }
+  return [...persistent, ...firstOnly];
+}
+
+/**
+ * The continuous (unpaginated) preview is ONE long page: every backdrop
+ * applies to the whole sheet — `at` / `size` from 0 to 1 over its full width
+ * and height — with the cascade as if every sentinel were on that page.
+ * The layer sits behind the content (the sheet isolates the stacking).
+ */
+export function applySheetBackgrounds(sheet: HTMLElement): void {
+  sheet.querySelector(':scope > .mp-bg-layer')?.remove();
+  const here = Array.from(sheet.querySelectorAll<HTMLElement>('.mp-bg'))
+    .map((el) => readSentinel(el, 0))
+    .filter((s): s is Sentinel => s !== null);
+  const active = activeOn(here, []);
+  if (active.length === 0) return;
+  const layer = buildLayer(active);
+  layer.style.zIndex = '-1';
+  sheet.style.isolation = 'isolate';
+  sheet.insertBefore(layer, sheet.firstChild);
 }
 
 /**
@@ -78,15 +127,8 @@ export function applyBackgrounds(renderTo: HTMLElement): void {
     const page = el.closest<HTMLElement>('.pagedjs_page');
     const idx = page ? pageOf.get(page) : undefined;
     if (idx == null) continue;
-    let spec: BackgroundSpec;
-    try {
-      spec = JSON.parse(el.getAttribute('data-bg') ?? '{}') as BackgroundSpec;
-    } catch {
-      continue;
-    }
-    const body = el.innerHTML.trim();
-    const reset = body === '' && !spec.fill && spec.at == null && spec.size == null;
-    sentinels.push({ page: idx, spec, body, reset });
+    const s = readSentinel(el, idx);
+    if (s) sentinels.push(s);
   }
   if (sentinels.length === 0) return;
 
@@ -98,16 +140,9 @@ export function applyBackgrounds(renderTo: HTMLElement): void {
     else byPage.set(s.page, [s]);
   }
 
-  let persistent: Sentinel[] = [];
+  const persistent: Sentinel[] = [];
   for (let p = 0; p < pages.length; p += 1) {
-    const here = byPage.get(p) ?? [];
-    const firstOnly: Sentinel[] = [];
-    for (const s of here) {
-      if (s.reset) persistent = [];
-      else if (s.spec.first) firstOnly.push(s);
-      else persistent.push(s);
-    }
-    const active = [...persistent, ...firstOnly];
+    const active = activeOn(byPage.get(p) ?? [], persistent);
     if (active.length > 0) injectLayer(pages[p]!, active);
   }
 }

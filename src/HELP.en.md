@@ -1189,8 +1189,13 @@ Annual report
 ::::
 ```
 
-Backdrops appear in the **paginated preview** and the PDF (not the
-continuous editing view).
+In the **paginated preview** and the PDF, each backdrop lands on its
+pages. The **continuous preview** (no pages) shows the document as **one
+long page**: backdrops apply to the whole sheet, `at` and `size` running
+from 0 to 1 over its full width and height; the header shows at the top
+of the sheet and the footer at its bottom. It is an approximation (an
+`at=0.5,0.5` lands mid-document, not mid-page), but nothing stays
+invisible.
 
 ### Charts \label{sec:charts}
 

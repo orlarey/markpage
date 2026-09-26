@@ -79,6 +79,54 @@ export function materialToCss(m: ApparatusMaterial, author = ''): string {
   }
 }
 
+/** What the running-head materials say on a given page (text renderers). */
+export interface ApparatusContext {
+  folio: number;
+  chapter: string;
+  section: string;
+  doctitle: string;
+  author: string;
+}
+
+const roman = (n: number): string => {
+  const table: [number, string][] = [
+    [1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'],
+    [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i'],
+  ];
+  let out = '';
+  for (const [v, s] of table) while (n >= v) { out += s; n -= v; }
+  return out;
+};
+
+/** A zone's stack as plain text on a recto page (the continuous preview's
+ *  single page) — the same materials and separator as the CSS path. */
+export function zoneToText(stack: ApparatusMaterial[], ctx: ApparatusContext): string {
+  return stack
+    .map((m) => {
+      if (typeof m === 'object') return m.text;
+      switch (m) {
+        case 'folio':
+          return String(ctx.folio);
+        case 'folioRoman':
+          return roman(ctx.folio);
+        case 'chapter':
+          return ctx.chapter;
+        case 'section':
+          return ctx.section;
+        case 'doctitle':
+          return ctx.doctitle;
+        case 'author':
+          return ctx.author;
+        case 'date':
+          return formatDate();
+        default:
+          return '';
+      }
+    })
+    .filter((s) => s !== '')
+    .join(SEP);
+}
+
 /** A zone's stack → an inline CSS `content` value; reversed on verso. */
 export function zoneToCss(
   stack: ApparatusMaterial[],

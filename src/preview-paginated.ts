@@ -1860,7 +1860,7 @@ export function pageContentGeomPx(s: PdfSettings): {
 // caps) as a bare CSS fragment — shared by the host-class rule (legacy) and the
 // @page margin boxes (the apparatus path, where Vivliostyle actually styles the
 // running content, NOT via `.pagedjs_margin-*` host classes).
-function runningContentDecls(style: Style): string {
+export function runningContentDecls(style: Style): string {
   const decls: string[] = [];
   if (style.family !== undefined && style.family.trim() !== '') {
     decls.push(`font-family: ${quoteFontFamily(style.family)};`);

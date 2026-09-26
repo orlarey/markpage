@@ -11,9 +11,15 @@
  *******************************************************************************/
 
 import {
+  applySheetBackgrounds,
+  firstPageBands,
   fitWideTables,
   groupLetterheads,
   letterheadCss,
+  runningDate,
+  slotToHtml,
+  zoneToText,
+  type Slots,
   layoutMosaicBlocks,
   parseFrontmatter,
   renderMathBlocks,
@@ -22,7 +28,7 @@ import {
   type Frontmatter,
 } from '@orlarey/markpage-render';
 import { applyPreviewMetadata, renderPreview } from './preview';
-import { pageContentGeomPx, pageSizeMm } from './preview-paginated';
+import { pageContentGeomPx, pageSizeMm, runningContentDecls } from './preview-paginated';
 import type { PdfSettings } from './settings';
 
 /**
@@ -96,6 +102,10 @@ export function renderContinuousSheet(
   groupLetterheads(sheet);
   sheet.style.position = 'relative';
   setContinuousLetterheadCss(settings, t);
+  // Without pages the sheet is ONE long page: its backdrops over the whole
+  // sheet, its header at the top and its footer at the bottom.
+  applySheetBackgrounds(sheet);
+  addSheetRunning(sheet, settings);
   pane.classList.add('continuous');
   pane.replaceChildren(sheet);
   const cs = getComputedStyle(sheet);
@@ -104,6 +114,81 @@ export function renderContinuousSheet(
     Number.parseFloat(cs.paddingLeft) -
     Number.parseFloat(cs.paddingRight);
   fitWideTables(sheet, contentW);
+}
+
+/**
+ * The header and footer of the continuous sheet, drawn as the first page's:
+ * an in-document fence band wins over the style's running apparatus, band by
+ * band (as in paged mode); {page} and {pages} are 1. Across, the bands keep
+ * the page's running margins as fractions of the sheet (it shrinks to its
+ * pane); down, the header / footer distances in millimetres.
+ */
+function addSheetRunning(sheet: HTMLElement, settings: PdfSettings): void {
+  const geo = settings.pageGeometry;
+  const pageW = pageSizeMm(settings).w;
+  const text = (sel: string): string => {
+    const el = sheet.querySelector(sel)?.cloneNode(true) as HTMLElement | undefined;
+    el?.querySelectorAll('.heading-num').forEach((n) => n.remove());
+    return el?.textContent?.trim() ?? '';
+  };
+  const doctitle = text('h1.doc-title');
+  const chapter = text('h1:not(.doc-title)');
+  const vars: Record<string, string> = {
+    page: '1',
+    pages: '1',
+    date: runningDate(),
+    title: text('h1'),
+  };
+  const ctx = { folio: 1, chapter, section: text('h2'), doctitle, author: settings.author?.text ?? '' };
+  const fences = firstPageBands(sheet);
+  const legacy = (s?: string): Slots | undefined =>
+    !settings.runningApparatus && s?.trim() ? parseLegacyBand(s) : undefined;
+  const bands: [('header' | 'footer'), Slots | undefined, string[] | undefined][] = [
+    ['header', fences.header ?? legacy(settings.header), apparatusZones(settings, 'header', ctx)],
+    ['footer', fences.footer ?? legacy(settings.footer), apparatusZones(settings, 'footer', ctx)],
+  ];
+  const decls = runningContentDecls(settings.styles['running-content']);
+  for (const [kind, fence, zones] of bands) {
+    const cells = fence
+      ? [fence.left, fence.center, fence.right].map((c) => slotToHtml(c, vars))
+      : zones?.map(escapeHtml);
+    if (!cells || cells.every((c) => c === '')) continue;
+    const band = document.createElement('div');
+    band.className = `mp-sheet-running mp-sheet-${kind}`;
+    band.style.cssText =
+      `${decls} position: absolute; display: grid; grid-template-columns: 1fr auto 1fr;` +
+      ` gap: 1em; align-items: baseline;` +
+      ` left: ${(geo.running.inner / pageW) * 100}%; right: ${(geo.running.outer / pageW) * 100}%;` +
+      (kind === 'header' ? ` top: ${geo.header.top}mm;` : ` bottom: ${geo.footer.bottom}mm;`);
+    cells.forEach((html, i) => {
+      const cell = document.createElement('div');
+      cell.style.textAlign = ['left', 'center', 'right'][i] ?? 'left';
+      cell.innerHTML = html;
+      band.append(cell);
+    });
+    sheet.append(band);
+  }
+}
+
+/** The style's running apparatus for one band, as text (recto: inner = left). */
+function apparatusZones(
+  settings: PdfSettings,
+  kind: 'header' | 'footer',
+  ctx: Parameters<typeof zoneToText>[1],
+): string[] | undefined {
+  const zones = settings.runningApparatus?.[kind].recto;
+  if (!zones) return undefined;
+  return [zoneToText(zones.inner, ctx), zoneToText(zones.center, ctx), zoneToText(zones.outer, ctx)];
+}
+
+/** A legacy `settings.header` / `footer` string, read like a fence body. */
+function parseLegacyBand(body: string): Slots {
+  const [left = '', center = '', right = ''] = body.split('|').map((s) => s.trim());
+  return { left, center, right };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /** The letterhead layout for the continuous sheet (one <style>, replaced). */

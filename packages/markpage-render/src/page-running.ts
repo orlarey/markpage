@@ -129,7 +129,11 @@ export function renderPageRunning(
     .join('');
   const argKey = pickArg(args);
   const argsAttr = argKey === '' ? '' : ` data-args="${argKey}"`;
-  return `<style class="page-running-fence" data-kind="${kind}"${argsAttr}>${decls}</style>${runningEls}\n`;
+  // The band's line rides along for renderers without margin boxes (the
+  // continuous preview draws the bands itself — firstPageBands / slotToHtml).
+  const line = body.split('\n').find((l) => l.trim() !== '') ?? '';
+  const bodyAttr = ` data-body="${escapeAttr(line)}"`;
+  return `<style class="page-running-fence" data-kind="${kind}"${argsAttr}${bodyAttr}>${decls}</style>${runningEls}\n`;
 }
 
 /**
@@ -360,10 +364,63 @@ function pickArg(args: string[]): RecognizedArg {
   return '';
 }
 
-interface Slots {
+export interface Slots {
   left: string;
   center: string;
   right: string;
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+/**
+ * The header / footer fence bands of the FIRST page — for a renderer that
+ * treats the whole document as one page (the continuous preview). Page 1 is
+ * the section of the first content, so only fences before it count (the
+ * title block doesn't count as content); per band a `first` fence beats the
+ * default one, the last of each kind winning.
+ */
+export function firstPageBands(root: HTMLElement): { header?: Slots; footer?: Slots } {
+  const found: Record<'header' | 'footer', { def?: string; first?: string }> = {
+    header: {},
+    footer: {},
+  };
+  const skip =
+    '.mp-running, .mp-bg, .mp-bg-layer, .mp-sheet-running, h1.doc-title, .doc-subtitle, .preview-metadata';
+  for (const el of Array.from(root.children)) {
+    if (el.matches('style.page-running-fence')) {
+      const kind = el.getAttribute('data-kind');
+      if (kind !== 'header' && kind !== 'footer') continue;
+      const arg = el.getAttribute('data-args') ?? '';
+      const body = el.getAttribute('data-body') ?? '';
+      if (arg === '') found[kind].def = body;
+      else if (arg === 'first') found[kind].first = body;
+      continue;
+    }
+    if (el.matches(skip) || el.tagName === 'STYLE') continue;
+    break;
+  }
+  const band = (k: 'header' | 'footer'): Slots | undefined => {
+    const body = found[k].first ?? found[k].def;
+    return body === undefined ? undefined : parseSlots(body);
+  };
+  return { header: band('header'), footer: band('footer') };
+}
+
+/** A fence slot as HTML: inline emphasis, `{var}`s replaced from `vars`
+ *  (unknown ones kept literally, as the paged path does). */
+export function slotToHtml(slot: string, vars: Record<string, string>): string {
+  const esc = (s: string): string =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return inlineMarkdownToHtml(slot).replace(/\{([\w-]+)\}/g, (m, name: string) =>
+    name in vars ? esc(vars[name] ?? '') : m,
+  );
+}
+
+/** The fence path's `{date}`, for renderers substituting it themselves. */
+export function runningDate(): string {
+  return formatDate();
 }
 
 /**

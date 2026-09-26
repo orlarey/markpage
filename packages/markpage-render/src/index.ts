@@ -69,15 +69,21 @@ export {
   applyPageRunningRuns,
   prependDefaultFences,
   resetPageRunningCounter,
+  firstPageBands,
+  slotToHtml,
+  runningDate,
+  type Slots,
 } from './page-running';
 export { anchorId } from './refs';
-export { applyBackgrounds } from './background';
+export { applyBackgrounds, applySheetBackgrounds } from './background';
 export { paginationCss } from './pagination';
 export {
   runningApparatusCss,
   apparatusStringSets,
   materialToCss,
   zoneToCss,
+  zoneToText,
+  type ApparatusContext,
   type RunningApparatus,
   type ApparatusBand,
   type ApparatusZones,
