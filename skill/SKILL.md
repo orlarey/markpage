@@ -17,3 +17,7 @@ Avant de rédiger :
    listes de définitions, notes de bas de page, etc.
 3. Privilégie un construct du guide chaque fois qu'il colle à l'intention
    plutôt que de retomber sur du texte brut.
+4. Le squelette d'abord (section *Document skeleton* du guide) : le
+   titre va dans le `title:` du front matter, **jamais** dans un `#` ;
+   `#` ouvre une section, sans numéro tapé à la main ; le style se
+   choisit par `document-style:`.

@@ -1,7 +1,6 @@
 ---
 title: Lightweight formal specification method
 author: Yann Orlarey
-language: en
 ---
 
 > **Status:** methodology (normative) — how specifications are written in this
@@ -30,7 +29,7 @@ and **conciseness**. Conciseness is essential in order to keep a global
 view of the system, limit cognitive load, and let the reader — human or
 AI — hold the entire model in mind.
 
-## Reference scenario
+# Reference scenario
 
 Every specification must begin with a reference scenario.
 
@@ -47,7 +46,7 @@ formal sections that follow.
 The specification proper begins after the scenario, with the definition
 of the domain vocabulary.
 
-## Markdown document format
+# Markdown document format
 
 The specification is written in Markdown, meant to be rendered by
 [markpage](https://markpage.org) (paginated PDF via MathJax + paged.js).
@@ -98,7 +97,7 @@ language indication. Two categories:
   info string is preserved as a class on the `<code>` element for
   future styling.
 
-## Characterisation of the approach
+# Characterisation of the approach
 
 The approach combines formal rigour with pragmatism, leaning on a
 restricted set of concepts drawn from formal methods, used in a readable
@@ -136,7 +135,7 @@ This formal framework aims to describe **what the system is** and
 These choices are considered to belong to the implementation phase and
 may evolve without invalidating the specification.
 
-## Notation
+# Notation
 
 Data and expressions are represented as **terms** of an abstract syntax
 defined in BNF notation (`Term ::= Constructor(arg₁, ...) | ...`).
@@ -160,7 +159,7 @@ notation (`∀`, `∃`, `∈`, `⊆`, `∧`, `∨`, `¬`, `⇒`). Sets defined b
 comprehension are written `{x ∈ X | P(x)}`, their cardinality `|E|`.
 Record updates are written `s{field ← value}`.
 
-## Specification status
+# Specification status
 
 The specification has a **normative** status for the domain model,
 invariants, transformation rules, and behaviours explicitly described.
@@ -178,7 +177,7 @@ The specification may evolve over the course of the project. At any
 given time, it constitutes the single reference for evaluating the
 conceptual conformity of the system.
 
-## Code commenting convention
+# Code commenting convention
 
 To keep a homogeneous codebase usable by both humans and AIs, local code
 documentation follows these rules:

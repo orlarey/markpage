@@ -13,6 +13,79 @@ they render cleanly into the PDF and survive copy-paste anywhere
 
 ---
 
+## Document skeleton: front matter, title, headings
+
+Every document opens with a YAML front matter. It carries the
+document's identity and names its style; the body starts after it.
+
+```markdown
+---
+title: Quicksort revisited
+subtitle: A gentle analysis
+author: Alice Dupont
+organization: Université de Lyon
+date: 21 mai 2026
+document-style: article-a4
+language: fr
+---
+
+# Introduction
+
+## Motivation
+```
+
+- **The document title is `title:`, never a `#` heading.** markpage
+  renders it as the title block, with the subtitle, author,
+  organization and date under it. A `#` heading is always a
+  **top-level section** (a chapter in Rapport and Livre): a
+  `# My title` under the front matter adds a numbered section
+  "1 My title" below the real title.
+- **Headings: `#` sections, `##` subsections, `###` below.** Don't
+  skip levels. In the Présentation style, each `##` starts a slide.
+- **Don't number headings by hand.** Numbering belongs to the style:
+  typed numbers (`# 1. Introduction`) are stripped at render, and the
+  style numbers the headings (or doesn't).
+- **The look comes from `document-style:`**, one of the built-in
+  styles below. Without it (or with an unknown name) the document
+  uses `note-a4`. Page size, margins, cover, recto-verso, chapter
+  breaks, note placement, heading numbering, fonts, colours and the
+  running header / footer are all properties of the style — nothing
+  in the document sets them. A document adjusts only three things
+  locally: a header / footer band (the `header` / `footer` fences),
+  the typography of a passage (`::: style`), and page backdrops
+  (`::: background`).
+- **`date:` is printed as written** — in the title block, and in any
+  header / footer that shows the date. Write it the way the document
+  should show it (`21 mai 2026`, `May 21, 2026`).
+
+| `document-style`                  | For                     | Layout                                         | Numbering     | Running header / footer            |
+| :-------------------------------- | :---------------------- | :--------------------------------------------- | :------------ | :--------------------------------- |
+| `note-a4`, `note-letter`          | notes, short docs       | single-sided                                   | 1, 1.1        | folio centred at the foot          |
+| `article-a4`, `article-letter`    | articles                | single-sided                                   | 1, 1.1, 1.1.1 | title at the top, folio at foot    |
+| `rapport-a4`, `rapport-letter`    | reports                 | cover page, recto-verso, each `#` on a recto   | 1, 1.1        | title (recto) or chapter (verso) + folio at the top; date / author at the foot |
+| `livre-a4`, `livre-letter`        | books                   | cover page, recto-verso, each `#` on a recto   | 1, 1.1        | chapter (recto) or title (verso) + folio at the top |
+| `lettre-a4`, `lettre-letter`      | letters                 | single-sided                                   | none          | none                               |
+| `presentation-16x9`               | slides                  | 16:9, each `##` a new slide                    | none          | none                               |
+
+Front-matter keys markpage reads — any other key is ignored:
+
+| Key                | Meaning                                                              |
+| :----------------- | :------------------------------------------------------------------- |
+| `title`            | the document title (title block)                                     |
+| `subtitle`         | shown under the title                                                |
+| `author`           | title block, and the style's running `author`                         |
+| `organization`     | title block                                                          |
+| `date`             | title block, and every running date (`{date}`, the style's `date`)   |
+| `document-style`   | the named style (table above)                                        |
+| `language`         | `fr` or `en`: hyphenation and date format                            |
+| `mathjax-preamble` | TeX macros for every formula (see *YAML frontmatter*)                |
+
+Styles a user imports into the markpage app can be named too, but
+they live in that browser only; a shared document should name a
+built-in style.
+
+---
+
 ## Picking the right block
 
 Quick map from intent to construct. Detailed syntax for each is
@@ -670,7 +743,7 @@ paged document. At LaTeX export the columns degrade to stacked content.
 ## Local typography (`::: style`)
 
 Override the typography of a span of content with `::: style`, a recursive
-fenced div. Use it where the per-element Settings profile can't reach — a big
+fenced div. Use it where the document's style can't reach — a big
 coloured title on a cover, a centred caption.
 
 ```
@@ -768,7 +841,7 @@ is struck through, so the rendered TOC doubles as a consistency check
 between plan and content (write the plan first, then keep them in sync).
 
 Page numbers only differ when sections land on different pages (a long
-document, or `slides: true`).
+document, or the `presentation-16x9` style).
 
 ---
 
@@ -807,7 +880,7 @@ HTML is escaped. **No automatic heading** is added — if you want
 - **`recipient`** — **absolutely positioned** by default at the
   standard French DL envelope window coordinates (left edge 110 mm,
   top edge 40 mm from the A4 edge — auto-adjusted to whatever margins
-  the active profile uses). Folded in Z, an A4 lands the destinataire
+  the style uses). Folded in Z, an A4 lands the destinataire
   inside the window of a standard DL window envelope.
 - The pair is wrapped in a group with `min-height: 70 mm` to reserve
   vertical space — without it, the prose following the group would
@@ -873,7 +946,10 @@ recipient-only).
 **What stays in plain Markdown** around the letterhead pair:
 
 - Document title — frontmatter `title:`
-- Date, invoice number, reference — bold-prefixed paragraphs or a
+- Place and date — a right-aligned `::: style align=right` paragraph
+  (`Paris, le 21 mai 2026`); the `lettre-*` styles print no date of
+  their own
+- Invoice number, reference — bold-prefixed paragraphs or a
   definition list
 - IBAN / BIC — bold-prefixed lines
 - Legal mentions — `::: caution [Mentions légales]` callout
@@ -907,8 +983,8 @@ cleared). Literal pipe in slot text: `\|`.
 | :---------- | :----------------------------------------------- |
 | `{page}`    | current page number                              |
 | `{pages}`   | total page count                                 |
-| `{date}`    | render date (long French form)                   |
-| `{title}`   | text of the most recent `# heading` (top-level)  |
+| `{date}`    | the front-matter `date:`, else today's date      |
+| `{title}`   | the latest title crossed: see below              |
 
 The fence emits **no visible content** in the document body — only
 the running content of every page's margin box. Place it anywhere in
@@ -943,12 +1019,14 @@ Chapter 3 | | Page {page}
 ```
 ````
 
-**About `{title}`**: resolves to the text of the most recent top-level
-heading (`# Title`) the renderer has crossed. Pages BEFORE the first
-`# heading` show an empty `{title}`. Place a `# Document title` at the
-very top of your source if you want every page to carry the title;
-write `# Chapter N` at chapter boundaries to swap the running title
-per chapter. Sub-headings (`## section`) do not update `{title}`.
+**About `{title}`**: resolves to the latest title the renderer has
+crossed — the document's `title:` on the first pages, then the text
+of the most recent `#` heading. Sub-headings (`## section`) do not
+update it. So `{title}` is a *running* title that follows the
+chapters; for the document title on every page, write it literally
+in the slot (`Quicksort revisited | | {page}`). Never add a `#`
+heading to get a title into the header: `#` is a section (see
+*Document skeleton*).
 
 **Inline emphasis inside slots**: `**bold**`, `*italic*`,
 `***both***` work as expected; markpage extracts them at fence-parse
@@ -962,20 +1040,18 @@ limitation: a slot that mixes **both** a `{var}` substitution **and**
 mid-slot emphasis renders the asterisks literally — wrap the whole
 slot if you need a bold counter, or split the line.
 
-**Default header / footer via Settings**: an author who doesn't write
-any fence can still get a header / footer by filling the *En-tête par
-défaut* / *Pied de page par défaut* fields in Réglages → Page. Same
-syntax as a fence body. These act as a "section 0" injected at the
-top of the document — overridden by any in-doc fence per the cascade
-above. The bundled default is ` | {page} | ` (centered page counter).
+**The style's own header / footer**: every style carries a running
+header and footer (see the table in *Document skeleton* — e.g. the
+folio centred at the foot for `note-a4`). A document with no fence
+gets them as they are. A fence replaces the style's band **band by
+band**: a `header` fence replaces the style's header and leaves its
+footer, and vice versa. An empty fence removes that band.
 
-**Recto / verso headers in duplex** (`header :left` / `header :right`
-selectors): not implemented as explicit selectors yet. The auto-swap
-of the three slots between recto and verso (inner ↔ outer) happens
-automatically when `settings.duplex` is on — see *Duplex and chapter
-breaks* below. For different recto / verso *content*, you'd need
-chapter-break sectioning today (one fence per chapter, with the
-right side mapped to the right slot manually).
+**Recto / verso headers**: in a recto-verso style (Rapport, Livre),
+the three slots of a fence swap between recto and verso (inner ↔
+outer) automatically — see *Recto-verso and chapter breaks* below.
+There is no fence selector for different recto / verso *content*;
+the style's own header / footer can differ by side.
 
 **Typical use**: a fixed page header showing the document title at top-
 left and a page counter at top-right; a footer with the date or a
@@ -985,77 +1061,32 @@ the running content per section.
 
 ---
 
-## Page layout, margins, presets
+## Page layout comes from the style
 
-The whole page geometry (margin sizes, body width, header/footer
-placement, gutter for marginalia) is controlled from Réglages →
-Page → *Mise en page*. The author doesn't have to set this from the
-markdown — but knowing which combination of levers maps to which
-output helps explain why a doc looks the way it does.
+Page size, margins, the text block and the header / footer bands
+are properties of the named style — the document never sets them
+(see *Document skeleton*). A style is designed in markpage's style
+editor; a document only names it with `document-style:`.
 
-**Manual mode** (`marginMode: 'manual'`, default): four mm sliders
-(top / bottom / left / right) drive the @page margin directly.
-Predictable, no canon involved.
+## Recto-verso and chapter breaks
 
-**Derived mode** (`marginMode: 'derived'`): the page margins are
-computed from the Van de Graaf book canon. The author sets:
+**Recto-verso** (the Rapport and Livre styles): a two-page layout
+with the cover alone on the right, then verso / recto spreads. Inner
+and outer margins swap between recto and verso. In a recto-verso
+style, the three slots of a header / footer fence read **inner |
+center | outer** rather than left | center | right — the same fence
+flips its left and right slots on the verso. Think in inner / outer
+when placing the page counter (typically outer).
 
-- `measureChars` — width of a single body line, in characters of
-  the body font (Bringhurst's readable range is 45 – 75).
-- `liveAreaChars` — width of the "live area" rectangle that holds
-  the body PLUS the header / footer / margin notes (always strictly
-  wider than `measureChars`).
-
-markpage then derives two nested rectangles (text block ⊂ live area)
-similar to the page, on the same diagonals, with the canonical 1:2
-inner / outer and top / bottom ratios. The @page margins become
-asymmetric (vertical = text-block, horizontal = live-area), so the
-`@top-*` / `@bottom-*` margin boxes naturally land inside the
-live-area bands rather than the canonical blank zone.
-
-**Layout presets** bundle the levers above into one-click choices:
-
-- *Note technique* — derived, ~70 ch measure, simplex, footnotes.
-- *Rapport* — derived, ~66 ch, simplex (sober default).
-- *Article* — derived, ~68 ch, simplex, end-of-doc notes.
-- *Livre* — derived, ~60 ch, **duplex**, chapter on next-recto,
-  footnotes.
-- *Édition critique* — wide derived margins, ~52 ch, duplex,
-  next-recto, **margin notes** (Tufte).
-
-Tweaking any single lever after picking a preset flips the dropdown
-to "Custom" — the preset is just a starting point.
-
-## Duplex and chapter breaks
-
-**Duplex** (`settings.duplex: true`): two-page layout with the cover
-alone on the right of row 1, then verso / recto spreads. Inner /
-outer margins swap automatically between recto (@page :right) and
-verso (@page :left). In the on-screen preview the pages physically
-touch at the spine via CSS grid `justify-self: end/start`.
-
-In duplex, the three slots of a header / footer fence are interpreted
-as **inner | center | outer** rather than left | center | right —
-so the same fence flips its left ↔ right slots on the verso side
-automatically. Authors writing a duplex doc should think in terms of
-inner / outer when placing the page counter (typically outer).
-
-**Chapter break** (`settings.chapterBreak`): three options for the
-behaviour of each `# H1`:
-
-- `'none'` — h1 follows the flow.
-- `'next-page'` — every h1 starts on a new page (`break-before: page`).
-- `'next-recto'` — every h1 starts on a recto (`break-before: right`).
-  In simplex this degenerates to next-page automatically.
-
-Use `next-recto` for printed books, `next-page` for technical reports
-where you want chapters to start on a fresh page regardless of side.
+**Chapter breaks**: in Rapport and Livre, every `#` heading starts
+on a recto (a blank verso is inserted when needed). In the other
+styles, `#` headings follow the flow.
 
 ## Notes placement: foot of page, margin, end of document
 
 The Pandoc footnote syntax (`[^id]` + `[^id]: definition`) is
-unchanged. What CHANGES with the *Notes* setting (Réglages → Page →
-*Mise en page* → Notes) is **where each note actually lands**:
+unchanged. What the style's *notes* placement changes is **where each
+note actually lands** (every built-in style uses `'foot'`):
 
 - `'foot'` (default) — each note is placed at the **foot of the page
   where its anchor lives**. markpage emits `float: footnote` on the
@@ -1067,18 +1098,14 @@ unchanged. What CHANGES with the *Notes* setting (Réglages → Page →
 - `'side'` — each note slides into the **outer gutter** at the height
   of its anchor (Tufte CSS approach). The body anchor stays visible
   as a superscript AND the note body shows the same number as a
-  small superscript prefix. **Requires `marginMode: 'derived'`** —
-  markpage needs to know the gutter width to position the note. In
-  manual mode this setting silently falls back to `'end'`.
+  small superscript prefix. Needs a style whose geometry reserves a
+  margin gutter for notes.
 
 - `'end'` — all notes are gathered at the end of the document in a
   numbered *Notes* section. The classical Markdown rendering.
 
-Author guidance: most documents use `'foot'`. Reserve `'side'` for
-Tufte-style essays or critical editions where prose density is low
-and gutter width is generous (see the *Édition critique* preset).
-`'end'` is for academic articles where journal style mandates
-endnotes.
+Author guidance: the placement is chosen with the style, not in the
+document — write notes the same way whatever the style.
 
 ## Margin figures
 
@@ -1087,9 +1114,9 @@ the image into the **outer gutter** at the height of the paragraph
 that holds it (same anchor as the `notes.position: 'side'`
 sidenotes). Capped to the gutter width so it never overflows.
 
-Like sidenotes, this **requires derived margin mode** to know the
-gutter geometry. In manual mode the `{.margin}` class is inert and
-the image renders inline.
+Like side notes, this needs a style that places its notes in the
+margin (`'side'`); none of the built-in styles does today, and
+elsewhere the `{.margin}` image renders inline.
 
 Use for small figures (diagrams, photo thumbnails, side
 illustrations) that comment on a specific paragraph without
@@ -1102,8 +1129,7 @@ toolbar or the keyboard shortcut `Cmd/Ctrl + Shift + G`. When on,
 every page gets three nested outlines (page = grey, live area =
 green, text block = orange) plus the canon diagonals as SVG. Useful
 to visually inspect where headers, footers, sidenotes and margin
-figures land relative to the canonical geometry — especially when
-debugging a derived-mode layout.
+figures land relative to the style's geometry.
 
 The overlay is purely visual; it doesn't ship in the PDF export.
 
@@ -1428,10 +1454,9 @@ programmatically just write the Unicode directly.
 ## YAML frontmatter
 
 An optional `---` block at the very top of the document, Pandoc
-style, overrides per-document the metadata that would otherwise
-come from the markpage Settings profile. Useful when one document
-needs a different title / author / etc. than its profile, or for
-defining doc-local TeX macros.
+style: the document's title, subtitle, author, organization, date,
+its style (`document-style:`), its language, and doc-local TeX
+macros. The key table is in *Document skeleton*.
 
 ```yaml
 ---
@@ -1439,8 +1464,8 @@ title: My Talk
 subtitle: A gentle introduction
 author: Alice Dupont
 organization: Université de Lyon
-date: 2026-05-21
-slides: true
+date: 21 mai 2026
+document-style: presentation-16x9
 mathjax-preamble: |
   \newcommand{\R}{\mathbb{R}}
   \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
@@ -1457,27 +1482,18 @@ Recognised keys:
   the author/organization/date block.
 - `author`, `organization`, `date` — fill the metadata block
   shown beneath the title.
-- `slides` — `true` to force the document into 16:9 slides mode
-  (see [Slides mode](#slides-mode)) regardless of the profile's
-  page size.
+- `document-style` — the named style; `presentation-16x9` makes
+  slides (see [Slides mode](#slides-mode)).
+- `language` — `fr` or `en`: hyphenation and date format.
 - `mathjax-preamble` — TeX source prepended to every math
   invocation in this document. Define your `\newcommand`s once
   here and use them in every formula. Cached per (preamble,
   source) pair.
 
-Layout / typography keys (make the document self-describing for
-external renderers like the VS Code preview):
-
-- `page-size` — `A4` (default), `A5`, `A3`, `B5`, `LETTER`,
-  `LEGAL`. Use `slides: true` for 16:9.
-- `margins` — millimetres, CSS shorthand: `25` (all), `25 35`
-  (v / h), or `10 20 30 40` (t / r / b / l).
-- `page-numbers` — `true` (default) / `false` to toggle the
-  footer page number.
-- `font-body`, `font-heading`, `font-mono` — font family per slot.
-- `markpage-profile` — a JSON block markpage writes (File →
-  "Embed style profile") carrying the full per-element typography;
-  for external renderers, not authored by hand.
+Page size, margins, fonts, page numbers and the rest of the layout
+are **not** front-matter keys: they come from `document-style:` (see
+*Document skeleton*). Older keys (`page-size`, `margins`,
+`page-numbers`, `font-*`, `slides`, `markpage-profile`) are ignored.
 
 Any other key is preserved in `meta.extra` for inspection but
 isn't wired to a renderer. Subset of YAML: scalar key-value pairs
@@ -1489,10 +1505,10 @@ authoritative reference is [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md).
 
 ## Slides mode
 
-Set the page format to **Slides 16:9** in markpage Settings, or
-add `slides: true` to the frontmatter, to produce a Beamer-style
-presentation PDF. Each `## h2 heading` starts a new slide; `# h1`
-remains the title slide (auto, once).
+Name the `presentation-16x9` style (`document-style:
+presentation-16x9`) to produce a Beamer-style presentation PDF. The
+front-matter `title:` makes the title slide; each `##` heading starts
+a new slide.
 
 The slide is 16:9 landscape sized to A4 width (210 × 118.125 mm)
 so a body font tuned for an A4 portrait page fills the slide
@@ -1522,14 +1538,13 @@ article opening. Use it as a mental template before writing.
 ---
 title: Quicksort revisited
 author: Alice Dupont
-date: 2026-05-21
+date: 21 mai 2026
+document-style: article-a4
 mathjax-preamble: |
   \newcommand{\Oh}{\mathcal{O}}
 ---
 
-# Quicksort revisited
-
-## Average complexity
+# Average complexity
 
 ::: theorem [Average-case bound]
 Randomised quicksort on $n$ distinct keys performs
@@ -1562,6 +1577,8 @@ matches the average bound.
 
 Things to notice:
 
+- The title is the front matter's `title:`; the body starts with its
+  first section, `#`, unnumbered in the source (the style numbers it).
 - Caption + label on the same info-string line: `"Title" \label{key}`.
 - `\ref{key}` expands to the formatted label (`Equation 1`,
   `Figure 1`, …) and links to the target.
@@ -1593,9 +1610,9 @@ Things to notice:
   escaped.
 - **Manual page breaks** — pagination is handled by paged.js
   automatically. The `keep-with-next` style rules try to keep
-  headings attached to the paragraph below. Use
-  `settings.chapterBreak` ('next-page' or 'next-recto') if you need
-  every `# H1` to start on a fresh page.
+  headings attached to the paragraph below. For every `#` to start
+  on a fresh page, name a style that breaks chapters (Rapport,
+  Livre).
 - **Inline styles / classes on Markdown elements** — there is no
   generic `{.classname}` or `{#id}` annotation syntax. (Exceptions:
   captions take a quoted string + `\label{key}`; sections take
@@ -1617,8 +1634,9 @@ Things to notice:
 
 ## Style summary for spec writers
 
-- Lead with `#` H1 for the document title, `##` for sections, `###`
-  for subsections. Don't skip levels.
+- Put the document title in the front matter (`title:`), and name a
+  style (`document-style:`). In the body, `#` for sections, `##` for
+  subsections, `###` below; don't skip levels, don't number them.
 - Wrap definitions in `::: definition [Name]` blocks; theorems /
   lemmas / propositions get their own class.
 - Use `::: note` / `::: warning` sparingly — they're for genuine
