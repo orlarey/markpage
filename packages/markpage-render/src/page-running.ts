@@ -33,6 +33,8 @@
  *
  *******************************************************************************/
 
+import { runningDateText } from './running-date';
+
 export type PageRunningKind = 'header' | 'footer';
 
 /** Args we recognize in Phase 2. Others are silently ignored. */
@@ -654,11 +656,9 @@ function varToCss(name: string): string {
   }
 }
 
-/** Format the current date as the long French form (matches §9.2). */
+/** The running date: the document's `date:`, else today (running-date.ts). */
 function formatDate(): string {
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(
-    new Date(),
-  );
+  return runningDateText();
 }
 
 /**

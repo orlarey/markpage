@@ -185,9 +185,7 @@
         "outer": []
       },
       "recto": {
-        "inner": [
-          "date"
-        ],
+        "inner": [],
         "center": [],
         "outer": []
       }

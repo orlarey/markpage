@@ -17,6 +17,8 @@
  *
  *******************************************************************************/
 
+import { runningDateText } from './running-date';
+
 /** One running material. Objects carry a literal string; strings are tokens. */
 export type ApparatusMaterial =
   | 'folio'
@@ -48,11 +50,9 @@ function cssString(s: string): string {
   return `"${s.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }
 
-/** The current date, long French form (matches the fence path's {date}). */
+/** The running date: the document's `date:`, else today (running-date.ts). */
 function formatDate(): string {
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(
-    new Date(),
-  );
+  return runningDateText();
 }
 
 /** A material → its CSS `content` fragment. `author` resolves to the document's
@@ -177,7 +177,10 @@ export function runningApparatusCss(
   // EACH margin box — Vivliostyle styles the @page-generated running content here,
   // not via the host `.pagedjs_margin-*` classes. opts.author resolves the `author`
   // material to the document's author (a render-time metadata value).
-  opts: { boxDecls?: string; author?: string } = {},
+  // opts.duplex: false for a single-sided document — every page is then a
+  // recto (the engine still alternates :right / :left pages; the verso
+  // composition belongs to facing pages only).
+  opts: { boxDecls?: string; author?: string; duplex?: boolean } = {},
 ): string {
   const rules: string[] = [...apparatusStringSets(app)];
   const d = opts.boxDecls ? ` ${opts.boxDecls}` : '';
@@ -189,10 +192,12 @@ export function runningApparatusCss(
       `@${edge}-center { content: ${zoneToCss(b.recto.center, false, a)};${d} } ` +
       `@${edge}-right { content: ${zoneToCss(b.recto.outer, false, a)};${d} } }`;
     const verso =
-      `@page :left { ` +
-      `@${edge}-left { content: ${zoneToCss(b.verso.outer, true, a)};${d} } ` +
-      `@${edge}-center { content: ${zoneToCss(b.verso.center, true, a)};${d} } ` +
-      `@${edge}-right { content: ${zoneToCss(b.verso.inner, true, a)};${d} } }`;
+      opts.duplex === false
+        ? recto.replace('@page :right', '@page :left')
+        : `@page :left { ` +
+          `@${edge}-left { content: ${zoneToCss(b.verso.outer, true, a)};${d} } ` +
+          `@${edge}-center { content: ${zoneToCss(b.verso.center, true, a)};${d} } ` +
+          `@${edge}-right { content: ${zoneToCss(b.verso.inner, true, a)};${d} } }`;
     return `${recto}\n${verso}`;
   };
   rules.push(band('top', app.header));

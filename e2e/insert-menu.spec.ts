@@ -54,7 +54,7 @@ const PATHS: string[][] = [
     'En-tête de page',
     'Pied de page',
   ].map((l) => ['Mise en page', l]),
-  ...['Expéditeur', 'Destinataire', 'Signature'].map((l) => ['Courrier', l]),
+  ...['Expéditeur', 'Destinataire', 'Lieu et date', 'Signature'].map((l) => ['Courrier', l]),
 ];
 
 const ERRORS =

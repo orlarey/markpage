@@ -3,7 +3,7 @@
   "meta": {
     "name": "Livre",
     "author": "markpage",
-    "version": "0.44.0",
+    "version": "0.45.0",
     "date": ""
   },
   "state": {
@@ -11,7 +11,7 @@
     "meta": {
       "name": "Livre",
       "author": "markpage",
-      "version": "0.44.0",
+      "version": "0.45.0",
       "date": ""
     },
     "hue1": 20,

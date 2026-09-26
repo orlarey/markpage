@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { pagedCss } from '../src/preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../src/settings';
 
+// Facing pages (duplex): a verso composition only applies to those.
 const withApparatus = (): PdfSettings => ({
   ...DEFAULT_SETTINGS,
+  duplex: true,
   runningApparatus: {
     header: {
       verso: { inner: [], center: ['doctitle'], outer: ['folio'] },
@@ -40,6 +42,12 @@ describe('pagedCss — running-apparatus emission (step 6 wiring)', () => {
     expect(css).toContain(
       `@top-center { content: string(mp-title); font-size: ${rc.fontSize}pt; color: ${rc.color};`,
     );
+  });
+
+  it('single-sided: the verso pages repeat the recto composition', () => {
+    const css = pagedCss({ ...withApparatus(), duplex: false });
+    expect(css).toContain('@page :left { @top-left { content: ""');
+    expect(css).not.toContain('string(mp-doctitle);');
   });
 
   it('emits no apparatus rules for a style without one (legacy fence path)', () => {

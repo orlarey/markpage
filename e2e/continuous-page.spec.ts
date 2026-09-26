@@ -90,3 +90,25 @@ test('the header sits at the top of the sheet, the footer at its bottom', async 
   expect(bottom.top).toBeGreaterThan(last.bottom);
 });
 
+const LETTRE = (extra = '') =>
+  `---\ndocument-style: lettre-a4\n${extra}---\n\n\`\`\`sender\nA\n\`\`\`\n\n\`\`\`recipient\nB\n\`\`\`\n\nTexte.\n`;
+
+for (const paginated of [false, true]) {
+  const mode = paginated ? 'pages' : 'continuous';
+
+  test(`${mode}: a Lettre has no date in its footer`, async ({ page }) => {
+    await openContinuous(page, LETTRE(), paginated);
+    const year = String(new Date().getFullYear());
+    await expect(page.locator('#preview-pane')).toContainText('Texte.');
+    await expect(page.locator('#preview-pane .mp-sheet-footer')).toHaveCount(0);
+    expect(await page.locator('#preview-pane').innerText()).not.toContain(year);
+  });
+}
+
+test('{date} prints the document date, not today', async ({ page }) => {
+  await openContinuous(
+    page,
+    `---\ndate: 1er mars 2020\n---\n\n\`\`\`footer\n{date} |  | {page}\n\`\`\`\n\nTexte.\n`
+  );
+  await expect(page.locator('#preview-pane .mp-sheet-footer')).toContainText('1er mars 2020');
+});

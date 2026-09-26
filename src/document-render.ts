@@ -17,6 +17,7 @@ import {
   groupLetterheads,
   letterheadCss,
   runningDate,
+  setDocumentDate,
   slotToHtml,
   zoneToText,
   type Slots,
@@ -50,6 +51,8 @@ export async function buildDocumentDom(
   } = {},
 ): Promise<{ built: HTMLElement; meta: Frontmatter }> {
   const { meta } = parseFrontmatter(source);
+  // Headers / footers print the document's own date, when it has one.
+  setDocumentDate(meta.date);
   const built = document.createElement('div');
   renderPreview(built, source, settings.numbering);
   const resolve = opts.resolveImageSrc;

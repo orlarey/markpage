@@ -76,6 +76,7 @@ export {
 } from './page-running';
 export { anchorId } from './refs';
 export { applyBackgrounds, applySheetBackgrounds } from './background';
+export { setDocumentDate, runningDateText } from './running-date';
 export { paginationCss } from './pagination';
 export {
   runningApparatusCss,

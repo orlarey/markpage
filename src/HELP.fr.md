@@ -746,7 +746,8 @@ page avec la date à gauche et le numéro de page à droite :
 - `{pages}` — nombre total de pages.
 - `{title}` — texte du dernier `# titre` croisé (utile pour rappeler
   le chapitre courant en haut de page).
-- `{date}` — date du jour.
+- `{date}` — la date du document (`date:` du front matter), sinon celle
+  du jour.
 
 **Mise en forme inline** dans les emplacements :
 

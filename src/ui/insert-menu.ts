@@ -51,6 +51,12 @@ export function insertMenuEntries(view: EditorView): MenuEntry[] {
     items,
   });
 
+  const today = new Date().toLocaleDateString(fr ? 'fr-FR' : 'en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
   const labels = labelsIn(doc());
   const refs: MenuEntry[] =
     labels.length > 0
@@ -72,11 +78,7 @@ export function insertMenuEntries(view: EditorView): MenuEntry[] {
           planDocMeta(doc(), {
             title: t('insert.ph.title'),
             author: t('insert.ph.author'),
-            date: new Date().toLocaleDateString(fr ? 'fr-FR' : 'en-US', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            }),
+            date: today,
           }),
         ),
     },
@@ -162,6 +164,17 @@ export function insertMenuEntries(view: EditorView): MenuEntry[] {
     group('insert.group.letter', [
       block('insert.sender', 'sender'),
       block('insert.recipient', 'recipient'),
+      {
+        // "Paris, le 25 septembre 2026", on the right — a letter's date.
+        label: t('insert.place-date'),
+        action: () => {
+          const { from, to } = sel();
+          const line = fr ? `⟦Paris⟧, le ${today}` : `⟦City⟧, ${today}`;
+          applyPlan(view, planBlock(doc(), from, to, `::: style align=right
+${line}
+:::`));
+        },
+      },
       block('insert.signature', 'signature'),
     ]),
   ];

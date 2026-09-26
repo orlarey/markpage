@@ -719,7 +719,7 @@ with the date on the left and the page number on the right:
 - `{pages}` — total number of pages.
 - `{title}` — text of the last `# heading` crossed (handy to recall
   the current chapter at the top of the page).
-- `{date}` — today's date.
+- `{date}` — the document's date (front-matter `date:`), else today's.
 
 **Inline formatting** in the slots:
 

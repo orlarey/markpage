@@ -1171,6 +1171,7 @@ export function pagedCss(s: PdfSettings): string {
     ? runningApparatusCss(s.runningApparatus, {
         boxDecls: runningContentDecls(styles['running-content']),
         author: s.author?.text ?? '',
+        duplex: !!s.duplex,
       })
     : '';
   // Cover page (a title/metadata block on a tinted `coverBackground`): keep the

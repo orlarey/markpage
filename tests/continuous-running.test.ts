@@ -52,3 +52,28 @@ describe('first-page bands for the continuous preview', () => {
   });
 });
 
+import { runningApparatusCss, runningDateText, setDocumentDate } from '@orlarey/markpage-render';
+
+describe('running date and single-sided composition', () => {
+  it('prints the document date when it has one, else today', () => {
+    setDocumentDate('1er mars 2026');
+    expect(runningDateText()).toBe('1er mars 2026');
+    setDocumentDate('  ');
+    expect(runningDateText()).toMatch(/\d{4}/);
+    setDocumentDate(undefined);
+  });
+
+  it('single-sided: the verso pages repeat the recto composition', () => {
+    const zones = (m: 'folio' | 'date') => ({ inner: [m], center: [], outer: [] });
+    const empty = { inner: [], center: [], outer: [] };
+    const app = {
+      header: { verso: empty, recto: empty },
+      footer: { verso: empty, recto: zones('folio') },
+    } as const;
+    const simplex = runningApparatusCss(app as never, { duplex: false });
+    const left = /@page :left \{ @bottom-left \{ content: ([^;]*);/.exec(simplex)?.[1];
+    expect(left).toBe('counter(page)');
+    const duplex = runningApparatusCss(app as never, { duplex: true });
+    expect(/@page :left \{ @bottom-left \{ content: ([^;]*);/.exec(duplex)?.[1]).toBe('""');
+  });
+});
