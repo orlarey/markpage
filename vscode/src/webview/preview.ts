@@ -39,6 +39,7 @@ import { annotateSourceLines, applyPreviewStyles } from '../../../src/preview';
 import { pageSizeMm, paginate } from '../../../src/preview-paginated';
 import { DEFAULT_SETTINGS, type PdfSettings } from '../../../src/settings';
 import { resolveDocumentSettings } from '../../../src/style-library';
+import { makeIcon } from '../../../src/ui/icons';
 
 interface RenderMessage {
   type: 'render';
@@ -76,21 +77,45 @@ document.getElementById('_defaultStyles')?.remove();
 
 void registerFallbackFonts().catch(() => undefined);
 
-// Floating widget (top-right): toggle pagination + export. In VS Code it drives
-// the host (source of truth); in the plain-browser harness it re-renders locally.
-const toggleBtn = makeToolbar();
+// Floating widget (top-right): the rendering switch (continuous / pages, as in
+// the app) + export. In VS Code it drives the host (source of truth); in the
+// plain-browser harness it re-renders locally.
+const renderSwitch = makeToolbar();
 
-function makeToolbar(): HTMLButtonElement {
+function makeToolbar(): { continuous: HTMLButtonElement; pages: HTMLButtonElement } {
   const bar = document.createElement('div');
   bar.className = 'mp-toolbar';
-  const toggle = document.createElement('button');
-  toggle.className = 'mp-toggle';
-  toggle.title = 'Toggle pagination (continuous ↔ pages)';
-  toggle.textContent = '▭ Pages';
-  toggle.addEventListener('click', () => {
-    if (vscode) vscode.postMessage({ type: 'togglePagination' });
-    else if (lastMsg) void render({ ...lastMsg, paginated: !lastMsg.paginated });
-  });
+  const group = document.createElement('div');
+  group.className = 'mp-view-switch';
+  group.setAttribute('role', 'group');
+  const side = (
+    icon: 'page-flow' | 'page-stack',
+    label: string,
+    title: string,
+    paginated: boolean,
+  ): HTMLButtonElement => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mp-preview-toggle mp-view-btn';
+    b.title = title;
+    b.setAttribute('aria-label', label);
+    b.append(makeIcon(icon));
+    b.addEventListener('click', () => {
+      // A switch, not a toggle: the side already on does nothing.
+      if (!lastMsg || lastMsg.paginated === paginated) return;
+      if (vscode) vscode.postMessage({ type: 'togglePagination' });
+      else void render({ ...lastMsg, paginated });
+    });
+    group.append(b);
+    return b;
+  };
+  const continuous = side(
+    'page-flow',
+    'Continuous',
+    'Continuous: the preview in one piece, no page breaks',
+    false,
+  );
+  const pages = side('page-stack', 'Pages', 'Pages: the preview cut into pages, as printed', true);
   const print = document.createElement('button');
   print.className = 'mp-toggle';
   print.title = 'Open in browser to Save as PDF (best in Pages mode)';
@@ -102,9 +127,9 @@ function makeToolbar(): HTMLButtonElement {
   web.textContent = '↗ markpage.org';
   web.addEventListener('click', () => vscode?.postMessage({ type: 'openInMarkpage' }));
   web.hidden = !vscode;
-  bar.append(toggle, print, web);
+  bar.append(group, print, web);
   document.body.append(bar);
-  return toggle;
+  return { continuous, pages };
 }
 
 window.addEventListener('message', (e: MessageEvent) => {
@@ -123,7 +148,13 @@ function baseSettings(uiLanguage: string | undefined): PdfSettings {
 
 async function render(msg: RenderMessage): Promise<void> {
   lastMsg = msg;
-  toggleBtn.classList.toggle('active', msg.paginated);
+  for (const [b, on] of [
+    [renderSwitch.continuous, !msg.paginated],
+    [renderSwitch.pages, msg.paginated],
+  ] as const) {
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
   const token = (renderToken += 1);
   const base = msg.baseUri ? msg.baseUri.replace(/\/?$/, '/') : '';
   const { meta } = parseFrontmatter(msg.md);
