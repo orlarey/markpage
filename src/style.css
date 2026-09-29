@@ -401,12 +401,15 @@ body,
 .mp-preview-toggle[hidden] {
   display: none;
 }
-/* The three-view switch (Écrire / Côte à côte / Lire): icons joined in one
-   segmented control. */
+/* The three-view switch (Écrire / Côte à côte / Lire) and the rendering
+   switch (Continu / Pages): icons joined in one segmented control. */
 .mp-view-switch {
   display: inline-flex;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   border-radius: 6px;
+}
+.mp-view-switch[hidden] {
+  display: none;
 }
 .mp-view-btn {
   display: inline-flex;

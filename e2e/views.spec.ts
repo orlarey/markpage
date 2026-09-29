@@ -86,6 +86,41 @@ test('in Lire, Pages keeps the passage being read, and a tap only reads', async 
   await expect(page.locator('#editor-pane')).toBeHidden();
 });
 
+test('back to Pages with the same text shows the same pages, without paginating', async ({ page }) => {
+  await open(page);
+  await view(page, 'Côte à côte').click();
+  const pagesBtn = page.getByRole('button', { name: 'Pages', exact: true });
+  const continuousBtn = page.getByRole('button', { name: 'Continu', exact: true });
+  const firstPage = page.locator('#preview-pane .pagedjs_page').first();
+  await pagesBtn.click();
+  await expect(firstPage).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('.mp-pagination-progress')).toHaveCount(0);
+  await firstPage.evaluate((el) => el.setAttribute('data-e2e-mark', '1'));
+  // Pages again while in Pages: a switch, not a toggle — nothing happens.
+  await pagesBtn.click();
+  await expect(pagesBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(continuousBtn).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#preview-pane .pagedjs_page[data-e2e-mark]')).toBeVisible();
+  // Out and back in, text unchanged: the very same pages, no spinner.
+  await continuousBtn.click();
+  await expect(page.locator('#preview-pane .mp-continuous-sheet')).toBeVisible();
+  await pagesBtn.click();
+  await expect(page.locator('#preview-pane .pagedjs_page[data-e2e-mark]')).toBeVisible();
+  await expect(page.locator('.mp-pagination-progress')).toHaveCount(0);
+  // Out, an edit, back in: new pages.
+  await continuousBtn.click();
+  await expect(page.locator('#preview-pane .mp-continuous-sheet')).toBeVisible();
+  await page.locator('.cm-line', { hasText: 'Texte 0.' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Ajout.');
+  await expect(page.locator('#preview-pane p', { hasText: 'Texte 0. Ajout.' })).toBeVisible();
+  await pagesBtn.click();
+  await expect(page.locator('#preview-pane .pagedjs_page p', { hasText: 'Texte 0. Ajout.' })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.locator('#preview-pane [data-e2e-mark]')).toHaveCount(0);
+});
+
 test('a phone opens the document to read, with no side-by-side view', async ({ browser }) => {
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 },

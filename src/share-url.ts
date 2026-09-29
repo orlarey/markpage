@@ -40,12 +40,39 @@ export async function decodeShareContent(encoded: string): Promise<string> {
 }
 
 /**
+ * How a shared link first shows the document: in Lire (someone sent a link
+ * to read it), in pages or not as the sender had it. Only the first opening —
+ * the recipient's own choices are neither changed nor remembered.
+ */
+export interface ShareReading {
+  pages: boolean;
+}
+
+function readingParams(reading: ShareReading): string {
+  return `&view=read&pages=${reading.pages ? '1' : '0'}`;
+}
+
+/**
  * Purpose: Build the full share URL from the encoded payload.
  * How: Re-uses the current origin + pathname so a fork hosted at
  *   `example.com/markpage/` keeps the same prefix in shared links.
  */
-export function buildShareUrl(payload: string): string {
-  return `${window.location.origin}${window.location.pathname}?import=${payload}`;
+export function buildShareUrl(payload: string, reading: ShareReading): string {
+  return `${window.location.origin}${window.location.pathname}?import=${payload}${readingParams(reading)}`;
+}
+
+/** A URL as a query value, still readable: only what would break the query is escaped. */
+function readableParam(url: string): string {
+  return encodeURIComponent(url).replace(/%2F/g, '/').replace(/%3A/g, ':');
+}
+
+/**
+ * The share link to a document published at `source` (a public GitHub file, a
+ * public URL): the recipient's browser fetches it there, so the link always
+ * shows the latest published version.
+ */
+export function buildSourceShareUrl(source: string, reading: ShareReading): string {
+  return `${window.location.origin}${window.location.pathname}?src=${readableParam(source)}${readingParams(reading)}`;
 }
 
 /**

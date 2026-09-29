@@ -111,6 +111,7 @@ import {
   UrlFetchError,
   decodeSrcParam,
   fetchDocText,
+  isLoopbackUrl,
   isWritableUrl,
   normalizeDocUrl,
   putDocText,
@@ -177,7 +178,14 @@ import {
   updateOneDriveBaseline,
   type DocEntry,
 } from './docs';
-import { GithubError, getUser, loadToken, saveToken } from './github';
+import {
+  GithubError,
+  getUser,
+  githubFilePage,
+  loadToken,
+  repoIsPublic,
+  saveToken,
+} from './github';
 import {
   type GithubTarget,
   GithubBranchAbsentError,
@@ -561,12 +569,28 @@ async function bootstrap(): Promise<void> {
   // too slow to run on every keystroke, so an edit while paginated SUSPENDS it:
   // the active render drops to the fast continuous flow until the user clicks
   // "Repaginer". `paginatedSuspended` is that transient state (never persisted).
-  let previewPaginated = localStorage.getItem(PREF_PAGINATED) === '1';
+  // A shared link says how it first shows (`&view=read&pages=1`, share-url.ts):
+  // for this opening only — nothing stored, and the params leave the address
+  // bar so a reload resumes the reader's own choices.
+  const linkParams = new URL(window.location.href).searchParams;
+  const linkView = linkParams.get('view');
+  const linkPages = linkParams.get('pages');
+  if (linkView !== null || linkPages !== null) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('view');
+    url.searchParams.delete('pages');
+    window.history.replaceState({}, '', url.toString());
+  }
+  // Until the first view is set up, a link's view is not the reader's choice.
+  let viewFromLink = linkView !== null;
+  let previewPaginated =
+    linkPages !== null ? linkPages === '1' : localStorage.getItem(PREF_PAGINATED) === '1';
   let paginatedSuspended = false;
   // The mode actually rendered right now: paginated only when preferred AND not
   // suspended by an in-progress edit.
   const activePaginated = (): boolean => previewPaginated && !paginatedSuspended;
-  const previewVisiblePref = localStorage.getItem(PREF_VISIBLE) === '1';
+  const previewVisiblePref =
+    linkView !== null ? linkView !== 'edit' : localStorage.getItem(PREF_VISIBLE) === '1';
   // Three views: Écrire (editor alone), Côte à côte (editor + preview), Lire
   // (preview alone). `viewMode` says whether the preview shows; the layout
   // says whether the editor shows beside it. A narrow screen has no side by
@@ -575,7 +599,10 @@ async function bootstrap(): Promise<void> {
   const PREF_LAYOUT = 'markpage:preview-layout';
   const narrowMq = globalThis.matchMedia('(max-width: 600px)');
   let previewLayout: 'split' | 'read' =
-    narrowMq.matches || localStorage.getItem(PREF_LAYOUT) === 'read' ? 'read' : 'split';
+    narrowMq.matches ||
+    (linkView !== null ? linkView === 'read' : localStorage.getItem(PREF_LAYOUT) === 'read')
+      ? 'read'
+      : 'split';
   const currentView = (): 'edit' | 'split' | 'read' =>
     viewMode === 'editor' ? 'edit' : previewLayout;
   // True when the on-screen preview is out of date with the current
@@ -932,6 +959,15 @@ async function bootstrap(): Promise<void> {
   // Switch between the three views, keeping the place (assigned below).
   let setView: (view: 'edit' | 'split' | 'read') => Promise<void> = async () => {};
 
+  // Pages already laid out, kept aside while the preview shows the continuous
+  // flow: going back to Pages with the same text and style shows them again
+  // instead of paginating anew (seconds on a long document). The key is the
+  // source and its effective style — a style imported or edited changes it.
+  let keptPages: { key: string; nodes: Node[]; settings: PdfSettings } | null = null;
+  let shownPages: { key: string; settings: PdfSettings } | null = null;
+  const pagesKey = (source: string): string =>
+    `${currentDoc.uuid}\u0000${source}\u0000${JSON.stringify(deriveDocSettings(source))}`;
+
   const updatePreview = async (
     source: string,
     opts: { forcePaginated?: boolean; keepLine?: number } = {},
@@ -942,6 +978,33 @@ async function bootstrap(): Promise<void> {
       viewMode === 'preview' && previewLayout === 'read' && !presenting
         ? (opts.keepLine ?? previewRefLine())
         : null;
+    const paginated = activePaginated() || opts.forcePaginated === true;
+    const key = paginated ? pagesKey(source) : '';
+    if (paginated && keptPages?.key === key) {
+      // The same pages: put them back, no build, no pagination. The bumped
+      // request id supersedes any render still in flight.
+      const kept = keptPages;
+      keptPages = null;
+      previewReqId += 1;
+      previewRendering += 1;
+      try {
+        lastEffectiveSettings = kept.settings;
+        applyPageFills(previewEl, kept.settings);
+        previewEl.classList.remove('continuous');
+        previewEl.replaceChildren(...kept.nodes);
+        shownPages = { key, settings: kept.settings };
+        dirty = false;
+        fitPreviewWidth();
+        invalidatePreviewLineMap();
+        if (keepLine !== null) placePreviewAtLine(keepLine);
+        else alignPreviewToEditor();
+      } finally {
+        requestAnimationFrame(() => {
+          previewRendering -= 1;
+        });
+      }
+      return;
+    }
     const r = await buildPreviewDom(source);
     if (!r) return;
     lastEffectiveSettings = r.effectiveSettings;
@@ -964,6 +1027,7 @@ async function bootstrap(): Promise<void> {
           'position: absolute; top: 0; left: 0; width: 100%; ' +
           'visibility: hidden; pointer-events: none;';
         previewEl.replaceChildren(buffer); // clears old pages → pane goes blank
+        shownPages = null; // until this render lands, the pane holds no whole pages
         const stopProgress = beginPaginationProgress(previewEl);
         try {
           await paginate(r.built, r.effectiveSettings, buffer);
@@ -976,6 +1040,8 @@ async function bootstrap(): Promise<void> {
         // Reveal the freshly rendered pages where the editor is — not at the
         // top: a reader toggling Pages mid-document stays in place.
         previewEl.replaceChildren(...buffer.childNodes);
+        shownPages = { key, settings: r.effectiveSettings };
+        keptPages = null; // older pages, of another text: never shown again
         dirty = false;
         fitPreviewWidth();
         invalidatePreviewLineMap();
@@ -985,6 +1051,11 @@ async function bootstrap(): Promise<void> {
         // (not pagedCss), so refresh it from the per-doc effective settings —
         // otherwise frontmatter / stack style overrides wouldn't show here.
         applyPreviewStyles(r.effectiveSettings);
+        // Leaving pages for the flow: keep them aside rather than drop them.
+        if (shownPages && previewEl.querySelector('.pagedjs_page')) {
+          keptPages = { ...shownPages, nodes: [...previewEl.childNodes] };
+        }
+        shownPages = null;
         renderContinuous(r.built, r.effectiveSettings);
         dirty = false;
         fitPreviewWidth();
@@ -1136,7 +1207,7 @@ async function bootstrap(): Promise<void> {
     viewMode = mode;
     panesEl.dataset['view'] = mode === 'editor' ? 'editor' : previewLayout === 'read' ? 'read' : 'preview';
     toolbarCtrl.setViewMode(currentView());
-    if (!narrowMq.matches) {
+    if (!narrowMq.matches && !viewFromLink) {
       localStorage.setItem(PREF_VISIBLE, mode === 'preview' ? '1' : '0');
       localStorage.setItem(PREF_LAYOUT, previewLayout);
     }
@@ -1210,10 +1281,9 @@ async function bootstrap(): Promise<void> {
   };
 
   // ---- Floating preview toggles (top-left of the panes) ------------------
-  // "Aperçu" shows/hides the split (= toggleView); "A4" flips the visible
-  // preview between continuous flow and paged A4 pages. The A4 button is
-  // hidden while the preview is off. The widget stays visible so a hidden
-  // preview can be reopened.
+  // The view switch (Écrire / Côte à côte / Lire), then the rendering switch
+  // (Continu / Pages), hidden while the preview is off. The widget stays
+  // visible so a hidden preview can be reopened.
   const previewToolbar = document.createElement('div');
   previewToolbar.className = 'mp-preview-toolbar';
   // The view switch: three icons, the current one lit (the side-by-side one
@@ -1240,11 +1310,42 @@ async function bootstrap(): Promise<void> {
     viewSwitch.append(b);
     return b;
   });
-  const paginateToggleBtn = document.createElement('button');
-  paginateToggleBtn.className = 'mp-preview-toggle';
-  paginateToggleBtn.textContent = t('preview-toggle.paginate');
-  paginateToggleBtn.title = t('preview-toggle.paginate-title');
-  previewToolbar.append(viewSwitch, paginateToggleBtn);
+  // The rendering switch, same make: the continuous flow, or the pages.
+  const renderSwitch = document.createElement('div');
+  renderSwitch.className = 'mp-view-switch';
+  renderSwitch.setAttribute('role', 'group');
+  const renderBtn = (icon: 'page-flow' | 'page-stack', action: () => void): HTMLButtonElement => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mp-preview-toggle mp-view-btn';
+    b.append(makeIcon(icon));
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', action);
+    renderSwitch.append(b);
+    return b;
+  };
+  const continuousBtn = renderBtn('page-flow', () => {
+    if (previewPaginated) setPreviewPaginated(false);
+  });
+  continuousBtn.title = t('preview-toggle.continuous-title');
+  continuousBtn.setAttribute('aria-label', t('preview-toggle.continuous'));
+  const pagesBtn = renderBtn('page-stack', () => {
+    // Suspended by an edit → repaginate; continuous → go to pages.
+    if (!previewPaginated || paginatedSuspended) togglePages();
+  });
+  // Share: copies the document's share link (buildShareUrlForCurrent), in
+  // every view — a link is something to send, whatever one is doing.
+  const shareGroup = document.createElement('div');
+  shareGroup.className = 'mp-view-switch';
+  const shareBtn = document.createElement('button');
+  shareBtn.type = 'button';
+  shareBtn.className = 'mp-preview-toggle mp-view-btn mp-share-btn';
+  shareBtn.title = t('share.button-title');
+  shareBtn.setAttribute('aria-label', t('export-menu.share-link'));
+  shareBtn.append(makeIcon('share'));
+  shareBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  shareGroup.append(shareBtn);
+  previewToolbar.append(viewSwitch, renderSwitch, shareGroup);
   panesEl.append(previewToolbar);
 
   updatePreviewToggleUI = (): void => {
@@ -1255,18 +1356,22 @@ async function bootstrap(): Promise<void> {
       b.classList.toggle('active', active);
       b.setAttribute('aria-pressed', String(active));
     }
-    paginateToggleBtn.hidden = !on;
-    // Three states: continuous (inactive), paginated (active), and
-    // paginated-but-suspended-by-an-edit → the button becomes "Repaginer".
-    const suspended = on && previewPaginated && paginatedSuspended;
-    paginateToggleBtn.classList.toggle('active', on && activePaginated());
-    paginateToggleBtn.classList.toggle('suspended', suspended);
-    paginateToggleBtn.textContent = suspended
-      ? t('preview-toggle.repaginate')
-      : t('preview-toggle.paginate');
-    paginateToggleBtn.title = suspended
-      ? t('preview-toggle.repaginate-title')
-      : t('preview-toggle.paginate-title');
+    renderSwitch.hidden = !on;
+    // Three states: continuous, pages, and pages suspended by an edit — the
+    // pages side then turns amber and offers to repaginate.
+    const suspended = previewPaginated && paginatedSuspended;
+    continuousBtn.classList.toggle('active', !previewPaginated);
+    continuousBtn.setAttribute('aria-pressed', String(!previewPaginated));
+    pagesBtn.classList.toggle('active', previewPaginated && !suspended);
+    pagesBtn.classList.toggle('suspended', suspended);
+    pagesBtn.setAttribute('aria-pressed', String(previewPaginated));
+    pagesBtn.setAttribute(
+      'aria-label',
+      t(suspended ? 'preview-toggle.repaginate' : 'preview-toggle.paginate'),
+    );
+    pagesBtn.title = t(
+      suspended ? 'preview-toggle.repaginate-title' : 'preview-toggle.paginate-title',
+    );
   };
 
   const togglePages = (): void => {
@@ -1274,7 +1379,6 @@ async function bootstrap(): Promise<void> {
     if (previewPaginated && paginatedSuspended) repaginate();
     else setPreviewPaginated(!previewPaginated);
   };
-  paginateToggleBtn.addEventListener('click', togglePages);
   updatePreviewToggleUI();
 
   // Click inside the preview jumps the editor's cursor to that source line
@@ -3110,41 +3214,117 @@ async function bootstrap(): Promise<void> {
     })();
   };
 
-  // Self-contained share link: gzip the current doc (images inlined as
-  // data URLs) + URL-safe base64 it into the `?import=…` query string.
-  // The recipient opens the URL in markpage and the doc is auto-imported
-  // as a fresh local copy. Hard-capped at MAX_SHARE_PAYLOAD chars so the
-  // URL still works in mail clients / chat apps.
-  const buildShareUrlForCurrent = async (): Promise<string | null> => {
+  // Where the recipient's browser can fetch the current document itself: a
+  // file of a public GitHub repo, or the public URL it was opened from. A
+  // private repo (or one GitHub can't vouch for) is no such place.
+  const publicSourceOf = async (
+    doc: DocEntry,
+  ): Promise<{ url: string; via: 'github' | 'url' } | 'private' | null> => {
+    const gh = githubLinkOf(doc);
+    if (gh) {
+      const open = await repoIsPublic(gh.owner, gh.repo, await loadToken());
+      if (open !== true) return 'private';
+      return { url: githubFilePage(gh.owner, gh.repo, gh.branch, gh.path), via: 'github' };
+    }
+    const ul = urlLinkOf(doc);
+    if (ul && !isLoopbackUrl(new URL(ul.url))) return { url: ul.url, via: 'url' };
+    return null;
+  };
+
+  // The share link of the current doc, and what the sender should know about
+  // it. A published document is shared by its address — the link follows its
+  // updates; otherwise the link carries a copy (gzip, images inlined, URL-safe
+  // base64 in `?import=`), hard-capped at MAX_SHARE_PAYLOAD chars so it still
+  // works in mail clients / chat apps. Either way it opens in Lire, in pages
+  // or not as the sender has it.
+  interface ShareLink {
+    url: string;
+    notes: string[];
+    // Save first: the edits are not where the link points yet.
+    saveFirst: boolean;
+  }
+  const buildShareUrlForCurrent = async (): Promise<ShareLink | null> => {
     const source = editor.getValue();
+    const { encodeShareContent, buildShareUrl, buildSourceShareUrl, MAX_SHARE_PAYLOAD } =
+      await import('./share-url');
+    const reading = { pages: previewPaginated };
+    const notes: string[] = [];
+    let saveFirst = false;
+    // A style of one's own is not in the recipient's library.
+    const styleName = parseFrontmatter(source).meta['document-style'];
+    const style = typeof styleName === 'string' ? appliedStyle(styleName) : null;
+    if (style && loadUserStyles().some((u) => u.key === style.key)) {
+      notes.push(t('share.personal-style', { name: style.name }));
+    }
+
+    const published = await publicSourceOf(currentDoc);
+    if (published !== null && published !== 'private') {
+      if (published.via === 'github' && isModified(currentDoc)) {
+        notes.unshift(t('share.unsent'));
+        saveFirst = true;
+      } else if (
+        published.via === 'url' &&
+        (isModified(currentDoc) || currentDoc.contentSha !== urlLinkOf(currentDoc)?.fetchedSha)
+      ) {
+        notes.unshift(t('share.url-local-edits'));
+      }
+      return {
+        url: buildSourceShareUrl(published.url, reading),
+        notes: [t('share.link-copied-source'), ...notes],
+        saveFirst,
+      };
+    }
+
     const refified = refifyImageUrls(source);
     const expanded = await expandRefsToDataUrls(refified);
-    const { encodeShareContent, buildShareUrl, MAX_SHARE_PAYLOAD } =
-      await import('./share-url');
     const payload = await encodeShareContent(expanded);
     if (payload.length > MAX_SHARE_PAYLOAD) {
       globalThis.alert(
-        t('share.too-large', {
+        t(published === 'private' ? 'share.private-too-large' : 'share.too-large', {
           size: String(payload.length),
           max: String(MAX_SHARE_PAYLOAD),
         }),
       );
       return null;
     }
-    return buildShareUrl(payload);
+    if (published === 'private') notes.unshift(t('share.private-copy'));
+    return {
+      url: buildShareUrl(payload, reading),
+      notes: [t('share.link-copied'), ...notes],
+      saveFirst: false,
+    };
   };
 
   const triggerShareLink = (): void => {
     void (async () => {
       try {
-        const url = await buildShareUrlForCurrent();
-        if (!url) return;
+        const link = await buildShareUrlForCurrent();
+        if (!link) return;
         try {
-          await navigator.clipboard.writeText(url);
-          globalThis.alert(t('share.link-copied'));
+          await navigator.clipboard.writeText(link.url);
         } catch {
-          globalThis.alert(t('share.link-shown', { url }));
+          globalThis.prompt(t('share.link-shown-prompt'), link.url);
+          return;
         }
+        // Just copied: a short notice. Something to know: it stays, and an
+        // unsent edit offers to save (which pushes to GitHub).
+        const text = link.notes.join(' ');
+        const warns = link.notes.length > 1;
+        showNotice(text, {
+          id: 'mp-share',
+          sticky: warns,
+          action: link.saveFirst
+            ? {
+                label: t('share.save-now'),
+                run: () => {
+                  hideNotice('mp-share');
+                  void saveCurrentDoc();
+                },
+              }
+            : warns
+              ? { label: 'OK', run: () => hideNotice('mp-share') }
+              : undefined,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('Share link failed', err);
@@ -3156,10 +3336,10 @@ async function bootstrap(): Promise<void> {
   const triggerShareEmail = (): void => {
     void (async () => {
       try {
-        const url = await buildShareUrlForCurrent();
-        if (!url) return;
+        const link = await buildShareUrlForCurrent();
+        if (!link) return;
         const subject = encodeURIComponent(currentDoc.name);
-        const body = encodeURIComponent(t('share.email-body', { url }));
+        const body = encodeURIComponent(t('share.email-body', { url: link.url }));
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -3168,6 +3348,7 @@ async function bootstrap(): Promise<void> {
       }
     })();
   };
+  shareBtn.addEventListener('click', triggerShareLink);
 
   // SPEC §21 — Markdown → LaTeX conversion via marked.lexer + our
   // own token walker (export-latex.ts). Single `.tex` when the doc
@@ -3592,6 +3773,7 @@ async function bootstrap(): Promise<void> {
   // A phone opens a document to read it; a wide screen resumes its last view.
   if (narrowMq.matches || previewVisiblePref) void enterPreview();
   else updatePreviewToggleUI();
+  viewFromLink = false;
 
   // Two-way sync polling (Phase 4). The File System Access API has no
   // file-watching, so we poll the linked file's mtime when the tab is visible —

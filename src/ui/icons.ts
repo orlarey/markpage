@@ -21,7 +21,10 @@ export type IconName =
   | 'link'
   | 'pencil'
   | 'columns'
-  | 'book-open';
+  | 'book-open'
+  | 'page-flow'
+  | 'page-stack'
+  | 'share';
 
 const ICONS: Record<IconName, string> = {
   library:
@@ -49,6 +52,15 @@ const ICONS: Record<IconName, string> = {
     '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><g transform="translate(7.5 6.5) scale(0.7)"><path class="mp-icon-knock" d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path class="mp-icon-knock" d="m15 5 4 4"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></g>',
   'book-open':
     '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  // The continuous flow: a page with no bottom edge, its sides dotted on —
+  // the text runs on.
+  'page-flow':
+    '<path d="M6 20V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M6 23v-.01"/><path d="M18 23v-.01"/>',
+  share:
+    '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+  // The pages: a sheet on top of another — the document cut into pages.
+  'page-stack':
+    '<path d="M8 6V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2"/><rect x="4" y="6" width="12" height="16" rx="2"/><path d="M7 11h6"/><path d="M7 15h6"/>',
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

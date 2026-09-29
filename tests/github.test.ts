@@ -22,6 +22,8 @@ import {
   bytesToBase64,
   bytesToUtf8,
   gitBlobSha,
+  githubFilePage,
+  repoIsPublic,
   utf8ToBytes,
 } from '../src/github';
 import {
@@ -272,5 +274,35 @@ describe('importFromGithub (R2)', () => {
     expect(res?.skipped).toEqual(['missing/absent.png']);
     // the http(s) ref is out of P; the relative one is mapped for rendering
     expect(localStorage.getItem('markpage:resources:mapping')).toContain('images/logo.png');
+  });
+});
+
+describe('share links: repoIsPublic, githubFilePage', () => {
+  const answer = (status: number, body: unknown = {}): void => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(body), { status }));
+  };
+  it('public, private, hidden (404), unknown', async () => {
+    answer(200, { private: false });
+    expect(await repoIsPublic('me', 'docs', null)).toBe(true);
+    answer(200, { private: true });
+    expect(await repoIsPublic('me', 'docs', 'tok')).toBe(false);
+    answer(404);
+    expect(await repoIsPublic('me', 'docs', null)).toBe(false);
+    answer(403);
+    expect(await repoIsPublic('me', 'docs', null)).toBeNull();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
+    expect(await repoIsPublic('me', 'docs', null)).toBeNull();
+  });
+  it('the token is sent only when there is one', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    await repoIsPublic('me', 'docs', null);
+    await repoIsPublic('me', 'docs', 'tok');
+    const auth = spy.mock.calls.map((c) => (c[1]?.headers as Record<string, string>)['Authorization']);
+    expect(auth).toEqual([undefined, 'Bearer tok']);
+  });
+  it('the github.com page of a file, branch and path segments kept', () => {
+    expect(githubFilePage('me', 'docs', 'feat/x', 'lettres/mon devis.md')).toBe(
+      'https://github.com/me/docs/blob/feat/x/lettres/mon%20devis.md',
+    );
   });
 });

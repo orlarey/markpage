@@ -145,8 +145,11 @@ test('switching Pages on and off keeps the editor where it is, and the preview f
   expect(line).not.toBe('');
 
   // Pages on (paginated render), then off (back to the continuous sheet).
-  for (const shown of ['.pagedjs_page', '.mp-continuous-sheet']) {
-    await page.getByRole('button', { name: 'Pages', exact: true }).click();
+  for (const [btn, shown] of [
+    ['Pages', '.pagedjs_page'],
+    ['Continu', '.mp-continuous-sheet'],
+  ] as const) {
+    await page.getByRole('button', { name: btn, exact: true }).click();
     await expect(page.locator(`#preview-pane ${shown}`).first()).toBeVisible({ timeout: 60_000 });
     await expect(page.locator('.mp-pagination-progress')).toHaveCount(0);
     await page.waitForTimeout(1200);

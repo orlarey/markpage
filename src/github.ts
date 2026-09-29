@@ -89,6 +89,33 @@ export async function getUser(token: string): Promise<GhUser> {
   return { login: j.login };
 }
 
+/**
+ * Whether anyone can read the repo — what a share link to one of its files
+ * needs, the recipient's browser having no token. A private repo answers 404
+ * to a stranger (false); null when GitHub could not say (offline, rate limit).
+ */
+export async function repoIsPublic(
+  owner: string,
+  repo: string,
+  token: string | null,
+): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${API}/repos/${owner}/${repo}`, {
+      headers: token ? authHeaders(token) : { Accept: 'application/vnd.github+json' },
+    });
+    if (res.status === 404) return false;
+    if (!res.ok) return null;
+    return !((await res.json()) as { private?: boolean }).private;
+  } catch {
+    return null;
+  }
+}
+
+/** The github.com page of a file — what a share link names (url-origin.ts reads it raw). */
+export function githubFilePage(owner: string, repo: string, branch: string, path: string): string {
+  return `https://github.com/${owner}/${repo}/blob/${encodePath(branch)}/${encodePath(path)}`;
+}
+
 interface ContentsFile {
   /** Blob git SHA. */
   sha: string;

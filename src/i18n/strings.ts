@@ -27,7 +27,9 @@ const FR = {
   'view.split-title': 'Côte à côte : l’éditeur et l’aperçu',
   'view.read-title': 'Lire : l’aperçu seul',
   'preview-toggle.paginate': 'Pages',
-  'preview-toggle.paginate-title': 'Aperçu : flux continu ↔ pages paginées',
+  'preview-toggle.paginate-title': 'Pages : l’aperçu découpé en pages, comme à l’impression',
+  'preview-toggle.continuous': 'Continu',
+  'preview-toggle.continuous-title': 'Continu : l’aperçu d’un seul tenant, sans coupure de page',
   'preview-toggle.repaginate': 'Repaginer',
   'preview-toggle.repaginate-title':
     'Aperçu paginé suspendu pendant l’édition — cliquer pour repaginer',
@@ -88,9 +90,23 @@ const FR = {
   'export-menu.share-email': 'Envoyer par email',
   'open.close': 'Fermer',
   // ---- share link ---------------------------------------------------
+  'share.button-title': 'Copier un lien qui ouvre ce document dans markpage',
   'share.link-copied':
-    'Lien de partage copié dans le presse-papier. Le destinataire ouvre le lien dans son navigateur et le document s’importe dans son éditeur.',
-  'share.link-shown': 'Lien de partage : {url}',
+    'Lien copié. Il contient une copie du document : le destinataire l’ouvre dans son navigateur, sans rien installer.',
+  'share.link-copied-source':
+    'Lien copié. Il ouvre le document publié : le destinataire verra toujours sa dernière version.',
+  'share.unsent':
+    'Tes modifications ne sont pas encore sur GitHub : le lien montre la version publiée.',
+  'share.save-now': 'Enregistrer et envoyer',
+  'share.url-local-edits':
+    'Le lien ouvre l’original : tes modifications locales n’y figurent pas.',
+  'share.private-copy':
+    'Dépôt privé ou inaccessible : le lien contient une copie, qui ne suivra pas tes mises à jour.',
+  'share.private-too-large':
+    'Dépôt privé ou inaccessible, et document trop volumineux pour tenir dans un lien ({size} caractères, max {max}). Rends le dépôt public pour partager par lien.',
+  'share.personal-style':
+    'Le style « {name} » est un style à toi : le destinataire verra le style par défaut.',
+  'share.link-shown-prompt': 'Copie ce lien de partage :',
   'share.failed': 'Échec du partage : {msg}',
   'share.too-large':
     'Document trop volumineux pour un lien URL ({size} caractères, max {max}). Utilise plutôt l’export OneDrive pour les gros documents.',
@@ -283,8 +299,9 @@ const EN: Record<keyof typeof FR, string> = {
   'view.split-title': 'Side by side: the editor and the preview',
   'view.read-title': 'Read: the preview alone',
   'preview-toggle.paginate': 'Pages',
-  'preview-toggle.paginate-title':
-    'Preview: continuous flow ↔ paginated pages',
+  'preview-toggle.paginate-title': 'Pages: the preview cut into pages, as printed',
+  'preview-toggle.continuous': 'Continuous',
+  'preview-toggle.continuous-title': 'Continuous: the preview in one piece, no page breaks',
   'preview-toggle.repaginate': 'Repaginate',
   'preview-toggle.repaginate-title':
     'Paginated preview suspended while editing — click to repaginate',
@@ -342,9 +359,23 @@ const EN: Record<keyof typeof FR, string> = {
   'export-menu.share-email': 'Send by email',
   'open.close': 'Close',
   // ---- share link ---------------------------------------------------
+  'share.button-title': 'Copy a link that opens this document in markpage',
   'share.link-copied':
-    'Share link copied to clipboard. The recipient opens the link in their browser and the document is imported into their editor.',
-  'share.link-shown': 'Share link: {url}',
+    'Link copied. It carries a copy of the document: the recipient opens it in their browser, nothing to install.',
+  'share.link-copied-source':
+    'Link copied. It opens the published document: the recipient always sees its latest version.',
+  'share.unsent':
+    'Your edits are not on GitHub yet: the link shows the published version.',
+  'share.save-now': 'Save and push',
+  'share.url-local-edits':
+    'The link opens the original: your local edits are not in it.',
+  'share.private-copy':
+    'Private or unreachable repository: the link carries a copy, which will not follow your updates.',
+  'share.private-too-large':
+    'Private or unreachable repository, and the document is too large to fit in a link ({size} chars, max {max}). Make the repository public to share it by link.',
+  'share.personal-style':
+    'The style “{name}” is one of your own: the recipient will see the default style.',
+  'share.link-shown-prompt': 'Copy this share link:',
   'share.failed': 'Share failed: {msg}',
   'share.too-large':
     'Document too large for a URL share ({size} chars, max {max}). Use the OneDrive export for big documents.',
