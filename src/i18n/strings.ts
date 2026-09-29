@@ -227,6 +227,7 @@ const FR = {
   'url.kept-local':
     'Votre copie locale de ce document a été modifiée : elle est conservée. Fichier ▸ Recharger pour reprendre la version en ligne.',
   'url.prompt': 'Adresse (URL) du document Markdown à ouvrir :',
+  'reload.external': 'Le fichier a changé ailleurs : il est rechargé, les lignes modifiées sont surlignées.',
   'vscode.conflict':
     'Ce fichier a changé dans VS Code depuis la dernière synchronisation : rien n’est écrasé. Cliquez la pastille ⛓️‍💥 pour choisir la version à garder.',
   'vscode.kept-local':
@@ -477,6 +478,7 @@ const EN: Record<keyof typeof FR, string> = {
   'url.kept-local':
     'Your local copy of this document was edited: it is kept. File ▸ Reload to take the online version.',
   'url.prompt': 'Address (URL) of the Markdown document to open:',
+  'reload.external': 'The file changed elsewhere: it is reloaded, the changed lines are highlighted.',
   'vscode.conflict':
     'This file changed in VS Code since the last sync: nothing is overwritten. Click the ⛓️‍💥 chip to choose which version to keep.',
   'vscode.kept-local':

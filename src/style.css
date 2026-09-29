@@ -399,6 +399,15 @@ body,
   padding-top: 40px;
 }
 
+/* Lines a reload changed (editor.ts replaceWith): a pale flash that fades. */
+.cm-mp-changed {
+  animation: mp-changed-fade 2s ease-out forwards;
+}
+@keyframes mp-changed-fade {
+  from { background-color: rgba(255, 213, 79, 0.45); }
+  to { background-color: rgba(255, 213, 79, 0); }
+}
+
 /* Page fill (STYLE-EDITOR-SPEC §4): --mp-page-bg carries the derived `page`
    colour (white when unset). Painted on BOTH the preview and the print target
    so the exported PDF matches the screen. `print-color-adjust: exact` keeps the

@@ -518,7 +518,10 @@ local copy.
 markpage.org** command opens the file you are working on, unsaved edits
 included, and edits it **in place** (chip `🔗 VS Code ▸ folder/`). **Save**
 writes the file, through VS Code; what you change in VS Code shows up in
-markpage. If the file changed on both sides, nothing is overwritten: the
+markpage — without moving you: same display mode, same place in the
+text (even if lines were added above), and the changed lines are
+briefly highlighted. The same goes for a file on disk changed by
+another program. If the file changed on both sides, nothing is overwritten: the
 ⛓️‍💥 chip lets you choose. It works as long as VS Code is running.
 
 A `markpage.org/?open=<volume>/<path>` link opens a file from a **volume

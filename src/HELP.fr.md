@@ -535,7 +535,11 @@ dernière version en ligne ; **Enregistrer** n'écrit que la copie locale.
 markpage.org** ouvre le fichier sur lequel vous travaillez, avec ses
 modifications non enregistrées, et l'édite **en place** (pastille
 `🔗 VS Code ▸ dossier/`). **Enregistrer** écrit le fichier, via VS Code ;
-ce que vous modifiez dans VS Code apparaît dans markpage. Si le fichier a
+ce que vous modifiez dans VS Code apparaît dans markpage — sans vous
+déplacer : même mode d'affichage, même endroit du texte (même si des
+lignes ont été ajoutées au-dessus), et les lignes modifiées sont
+brièvement surlignées. Il en va de même pour un fichier du disque
+modifié par un autre programme. Si le fichier a
 changé des deux côtés, rien n'est écrasé : la pastille ⛓️‍💥 vous laisse
 choisir. Cela marche tant que VS Code est ouvert.
 

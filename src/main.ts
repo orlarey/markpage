@@ -54,7 +54,6 @@ import {
   applyAnchorToEditor,
   applyAnchorToPreview,
   buildPreviewLineMap,
-  currentPreviewAnchor,
   editorContentYForLine,
   editorCursorAnchor,
   editorLineAtViewportY,
@@ -1046,6 +1045,9 @@ async function bootstrap(): Promise<void> {
   };
   let lastAppliedSettingsFrontmatter = frontmatterSnapshot(initialDoc);
 
+  // Set while a reload writes the text into the editor (applyDiskContent).
+  let applyingExternal = false;
+
   // Whether this tab owns the current document (holds its edit lock). A tab
   // that doesn't is read-only and never writes it — see tab-presence.ts.
   let docEditable = true;
@@ -1061,6 +1063,13 @@ async function bootstrap(): Promise<void> {
       // Edits mark the preview dirty, live-refresh the split (if shown), and
       // auto-persist the working copy.
       dirty = true;
+      // A reload applying its edits is not typing: it must not suspend the
+      // paginated preview, and it renders the preview itself (applyDiskContent).
+      // Its front-matter may still change the style.
+      if (applyingExternal) {
+        scheduleSettingsFromFrontmatter(doc);
+        return;
+      }
       // A tab that doesn't own the document (read-only here, edited in another
       // tab) never writes it — its copy may be older than the owner's.
       if (docEditable) {
@@ -1844,11 +1853,31 @@ async function bootstrap(): Promise<void> {
   // whatever view the user is in — editor, preview, or fullscreen presentation
   // — and restoring their scroll position / slide index best-effort. This is
   // the shared body of auto-pull, manual Reload, and conflict "take the disk".
-  const applyDiskContent = async (content: string): Promise<void> => {
+  //
+  // "In place" means on the same TEXT, not the same line number: only the
+  // edits between the two versions reach the editor (replaceWith), so the
+  // caret and the view move with the text they were on; the preview then
+  // realigns on the editor, and a presentation stays on the slide showing the
+  // same content. `notify` says so to the reader when the reload came unasked.
+  const applyDiskContent = async (
+    content: string,
+    opts: { notify?: string } = {},
+  ): Promise<void> => {
+    // The slide on screen, as the source line it starts with (its page number
+    // would shift with anything added above it).
+    const slideLine = presenting ? firstSourceLine(pagedPages()[presentAnchor]) : null;
+    const slidePos =
+      slideLine !== null ? editor.view.state.doc.line(Math.min(slideLine + 1, editor.view.state.doc.lines)).from : null;
     await saveDraft(currentDoc.uuid, content);
     currentDoc = await commitDoc(currentDoc.uuid);
     state.settings = deriveDocSettings(content);
-    editor.setValue(content);
+    applyingExternal = true;
+    let changes: ReturnType<typeof editor.replaceWith>;
+    try {
+      changes = editor.replaceWith(content);
+    } finally {
+      applyingExternal = false;
+    }
     toolbarCtrl.setModified(false);
     dirty = true;
     if (presenting) {
@@ -1862,19 +1891,41 @@ async function bootstrap(): Promise<void> {
         await updatePreview(content, { forcePaginated: true });
       } finally {
         previewEl.classList.add('presentation');
-        renderPresent(); // presentAnchor preserved (clamped if pages shrank)
+        if (slidePos !== null && changes) {
+          const line = editor.view.state.doc.lineAt(changes.mapPos(slidePos, 1)).number - 1;
+          presentAnchor = pageOfSourceLine(pagedPages(), line, presentAnchor);
+        }
+        renderPresent(); // clamped if pages shrank
         previewEl.style.visibility = '';
       }
     } else if (viewMode === 'preview') {
-      const anchor = currentPreviewAnchor(previewEl);
       previewEl.style.visibility = 'hidden';
       try {
         await updatePreview(content);
-        if (anchor) applyAnchorToPreview(previewEl, anchor);
+        alignPreviewToEditor();
       } finally {
         previewEl.style.visibility = '';
       }
     }
+    if (opts.notify && changes) showNotice(opts.notify);
+  };
+
+  // The first source line a page shows (its smallest `data-line`), or null.
+  const firstSourceLine = (page: HTMLElement | undefined): number | null => {
+    if (!page) return null;
+    const lines = [...page.querySelectorAll<HTMLElement>('[data-line]')]
+      .map((el) => Number(el.dataset['line']))
+      .filter((n) => !Number.isNaN(n));
+    return lines.length > 0 ? Math.min(...lines) : null;
+  };
+  // The page showing `line`: the last page starting at or before it.
+  const pageOfSourceLine = (pages: HTMLElement[], line: number, fallback: number): number => {
+    let found = -1;
+    pages.forEach((page, i) => {
+      const first = firstSourceLine(page);
+      if (first !== null && first <= line) found = i;
+    });
+    return found >= 0 ? found : fallback;
   };
 
   // Push the linked doc's committed content to disk, then refresh the baseline
@@ -1946,7 +1997,7 @@ async function bootstrap(): Promise<void> {
         toolbarCtrl.setConflict(true);
         return;
       }
-      await applyDiskContent(content);
+      await applyDiskContent(content, { notify: t('reload.external') });
       await markSynced(currentDoc, handle);
     } catch (err) {
       console.error('Auto-pull failed', err);
@@ -2021,7 +2072,7 @@ async function bootstrap(): Promise<void> {
         toolbarCtrl.setConflict(true);
         return;
       }
-      await applyDiskContent(text);
+      await applyDiskContent(text, { notify: t('reload.external') });
       currentDoc = (await markUrlFetched(currentDoc.uuid, text)) ?? currentDoc;
     } catch {
       vscodeRetryAt = performance.now() + 30_000;

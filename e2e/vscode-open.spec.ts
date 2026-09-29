@@ -138,3 +138,68 @@ test('VS Code closed: Save keeps the work in markpage and says so', async ({ pag
   await expect(page.locator('#mp-url')).toContainText('VS Code ne répond pas');
   expect(await readFile(file, 'utf8')).toBe('Avant');
 });
+
+test('a reload keeps the mode and the place: same text, same height, changed lines flashed', async ({
+  page,
+}) => {
+  const sections = (prefix: string, word: string, n: number) =>
+    Array.from({ length: n }, (_, i) => `## ${prefix} ${i}\n\n${word} ${i}.\n`).join('\n');
+  const body = sections('Section', 'Texte', 60);
+  // Opened by hand: the editor only draws the lines in view, so the whole
+  // text cannot be checked on screen.
+  const file = join(await mkdtemp(join(tmpdir(), 'mp-vs-')), 'long.md');
+  await writeFile(file, body);
+  const server = new LocalDocServer({ allowedOrigins: () => new Set([APP]), bufferText: () => undefined });
+  await page.goto(markpageUrlFor(APP, await server.share(file)));
+  await expect(page.locator('.cm-content')).toContainText('Section 0');
+  // Pages mode (the fixtures' preference), the caret on a line mid-document.
+  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await expect(page.locator('#preview-pane .pagedjs_page').first()).toBeVisible({ timeout: 60_000 });
+  const scroller = page.locator('.cm-scroller');
+  await scroller.evaluate((el) => {
+    el.scrollTop = el.scrollHeight * 0.6;
+  });
+  await page.waitForTimeout(500);
+  const lineY = (text: string) =>
+    page.evaluate((t) => {
+      const s = document.querySelector('.cm-scroller')!.getBoundingClientRect();
+      const l = [...document.querySelectorAll('.cm-line')].find((e) => (e.textContent ?? '').trim() === t);
+      return l ? l.getBoundingClientRect().top - s.top : null;
+    }, text);
+  const previewY = (text: string) =>
+    page.evaluate((t) => {
+      const pane = document.querySelector('#preview-pane')!.getBoundingClientRect();
+      const p = [...document.querySelectorAll('#preview-pane p')].find((e) => (e.textContent ?? '').trim() === t);
+      return p ? p.getBoundingClientRect().top - pane.top : null;
+    }, text);
+  const target = await page.evaluate(() => {
+    const s = document.querySelector('.cm-scroller')!.getBoundingClientRect();
+    const l = [...document.querySelectorAll('.cm-line')].find((e) => {
+      const r = e.getBoundingClientRect();
+      return r.top > s.top + s.height * 0.4 && /^Texte \d+\.$/.test((e.textContent ?? '').trim());
+    })!;
+    const r = l.getBoundingClientRect();
+    return { text: (l.textContent ?? '').trim(), x: r.left + 20, y: r.top + r.height / 2 };
+  });
+  await page.mouse.click(target.x, target.y);
+  await page.waitForTimeout(300);
+  const before = await lineY(target.text);
+  expect(before).not.toBeNull();
+
+  // Elsewhere, ten sections appear ABOVE: the auto-pull reloads.
+  await writeFile(file, `${sections('Nouvelle', 'Nouveau', 10)}\n${body}`);
+  await expect(page.locator('#mp-notice')).toContainText('rechargé', { timeout: 15_000 });
+  await expect(page.locator('#preview-pane .pagedjs_page').first()).toBeVisible({ timeout: 60_000 });
+  await page.waitForTimeout(1500);
+  // Same text, same height, in the editor and in the pages.
+  expect(Math.abs((await lineY(target.text))! - before!)).toBeLessThan(10);
+  const p = await previewY(target.text);
+  expect(p).not.toBeNull();
+  expect(Math.abs(p! - before!)).toBeLessThan(30);
+
+  // A change on screen is flashed.
+  const next = (await readFile(file, 'utf8')).replace(`${target.text}\n`, `${target.text} Modifié.\n`);
+  await writeFile(file, next);
+  await expect(page.locator('.cm-mp-changed').first()).toBeAttached({ timeout: 15_000 });
+  server.stop();
+});

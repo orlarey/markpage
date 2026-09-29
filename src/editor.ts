@@ -8,8 +8,16 @@
  *******************************************************************************/
 
 import { EditorView, basicSetup } from 'codemirror';
-import { Compartment, EditorState, Prec } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
+import {
+  Compartment,
+  EditorState,
+  Prec,
+  StateEffect,
+  StateField,
+  type ChangeSet,
+  type Range,
+} from '@codemirror/state';
+import { Decoration, keymap, type DecorationSet } from '@codemirror/view';
 import { indentLess, indentMore, insertTab } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
@@ -29,6 +37,7 @@ import {
   type HeadingLevel,
 } from './editor-commands';
 import { ligatures } from './editor-ligatures';
+import { diffText } from './line-diff';
 
 /**
  * Purpose: Adapt a `(view) => void` formatter into a CodeMirror keybinding.
@@ -164,7 +173,28 @@ export interface Editor {
   setValue(content: string): void;
   /** Block (or re-allow) user edits — programmatic setValue still works. */
   setReadOnly(on: boolean): void;
+  /**
+   * Bring the text to `content` by applying only what differs (line diff), so
+   * the caret, the selection and the view stay on the text they were on; the
+   * changed lines flash briefly. Null when nothing changed; else the change
+   * set, to map positions of the old text into the new one.
+   */
+  replaceWith(content: string): ChangeSet | null;
 }
+
+// A reload's changed lines, highlighted for a moment then cleared. Mapped
+// through later edits, so typing during the flash does not misplace it.
+const setFlash = StateEffect.define<DecorationSet>();
+const flashField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    for (const e of tr.effects) if (e.is(setFlash)) return e.value;
+    return deco.map(tr.changes);
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+const flashLine = Decoration.line({ class: 'cm-mp-changed' });
+const FLASH_MS = 2000;
 
 /**
  * App-level actions bound *inside* the editor as well as on `window`. Firefox
@@ -220,12 +250,14 @@ export function createEditor(
   shortcuts?: EditorShortcuts,
 ): Editor {
   const readOnly = new Compartment();
+  let flashGen = 0;
   const view = new EditorView({
     parent,
     state: EditorState.create({
       doc: initialDoc,
       extensions: [
         readOnly.of([]),
+        flashField,
         basicSetup,
         markdown(),
         EditorView.lineWrapping,
@@ -276,6 +308,44 @@ export function createEditor(
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: content },
       });
+    },
+    replaceWith(content: string) {
+      const before = view.state.doc.toString();
+      const edits = diffText(before, content);
+      if (edits.length === 0) return null;
+      // The line at the top of the screen and how far above the scroller's top
+      // it starts: the same text goes back to the same place afterwards.
+      const scroller = view.scrollDOM;
+      const pad = (): number =>
+        view.documentTop - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      const topBlock = view.lineBlockAtHeight(Math.max(0, scroller.scrollTop - pad()));
+      const offset = topBlock.top + pad() - scroller.scrollTop;
+      const tr = view.state.update({ changes: edits });
+      view.dispatch(tr);
+      // assoc 1: text inserted right above the top line pushes it down, and the
+      // view follows the line rather than the insertion.
+      const topPos = tr.changes.mapPos(topBlock.from, 1);
+      view.requestMeasure({
+        read: () => view.lineBlockAt(topPos).top + pad(),
+        write: (top) => {
+          scroller.scrollTop = top - offset;
+        },
+      });
+      // Flash the lines the reload wrote (a pure deletion marks the line it joined).
+      const marks: Range<Decoration>[] = [];
+      const doc = view.state.doc;
+      tr.changes.iterChanges((_fa, _ta, fromB, toB) => {
+        const first = doc.lineAt(fromB).number;
+        const last = doc.lineAt(Math.max(fromB, toB - 1)).number;
+        for (let n = first; n <= last; n += 1) marks.push(flashLine.range(doc.line(n).from));
+      });
+      view.dispatch({ effects: setFlash.of(Decoration.set(marks, true)) });
+      // Clear only this flash: a reload landing within the delay has its own.
+      const gen = ++flashGen;
+      setTimeout(() => {
+        if (gen === flashGen) view.dispatch({ effects: setFlash.of(Decoration.none) });
+      }, FLASH_MS);
+      return tr.changes;
     },
     setReadOnly(on: boolean) {
       view.dispatch({
