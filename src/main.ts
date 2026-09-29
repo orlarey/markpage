@@ -1269,8 +1269,17 @@ async function bootstrap(): Promise<void> {
   const ECHO_MS = 120;
   const scrollSyncActive = (): boolean =>
     viewMode === 'preview' && !presenting;
+  // Rebuilt when the content's height moved since: a web font, an image or a
+  // diagram finishing after the render reflows every line, and a map read
+  // before that points the preview at stale positions.
+  let previewLineMapHeight = -1;
   const getPreviewLineMap = (): LineEntry[] => {
-    if (!previewLineMap || previewLineMap.length === 0) {
+    if (
+      !previewLineMap ||
+      previewLineMap.length === 0 ||
+      previewEl.scrollHeight !== previewLineMapHeight
+    ) {
+      previewLineMapHeight = previewEl.scrollHeight;
       // The source ends at its last non-blank line (trailing blank lines
       // render nothing): that is where the preview's content ends.
       const doc = editor.view.state.doc;
