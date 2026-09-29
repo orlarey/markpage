@@ -95,3 +95,64 @@ for (const paginated of [false, true]) {
     expect(visible).toBe(true);
   });
 }
+
+test('switching Pages on and off keeps the editor where it is, and the preview follows it', async ({
+  page,
+}) => {
+  await openSplit(page, false);
+  const scroller = page.locator('.cm-scroller');
+  // Take the editor to the middle of the document (a line far from the top).
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.waitForTimeout(400);
+  await scroller.evaluate((el) => {
+    el.scrollTop = el.scrollHeight / 2;
+  });
+  await page.waitForTimeout(600); // the follow settles
+  const editorTop = () => scroller.evaluate((el) => el.scrollTop);
+  const before = await editorTop();
+  expect(before).toBeGreaterThan(1000);
+  // The source line at the editor's reference height, and whether the preview shows it.
+  const refLine = () =>
+    page.evaluate(() => {
+      const s = document.querySelector('.cm-scroller')!.getBoundingClientRect();
+      const y = s.top + s.height / 3;
+      // The first non-blank line at or below the reference height.
+      const line = [...document.querySelectorAll('.cm-line')].find((l) => {
+        const r = l.getBoundingClientRect();
+        return r.bottom >= y && (l.textContent ?? '').trim() !== '';
+      });
+      return line?.textContent ?? '';
+    });
+  const previewShows = (text: string) =>
+    page.evaluate((t) => {
+      const pane = document.querySelector('#preview-pane')!.getBoundingClientRect();
+      const range = document.createRange();
+      const walker = document.createTreeWalker(document.querySelector('#preview-pane')!, NodeFilter.SHOW_TEXT);
+      let n: Node | null;
+      while ((n = walker.nextNode())) {
+        const i = n.textContent?.indexOf(t) ?? -1;
+        if (i >= 0) {
+          range.setStart(n, i);
+          range.setEnd(n, i + t.length);
+          const r = range.getBoundingClientRect();
+          if (r.height > 0) return r.top >= pane.top && r.bottom <= pane.bottom;
+        }
+      }
+      return false;
+    }, text);
+  const line = (await refLine()).trim();
+  expect(line).not.toBe('');
+
+  // Pages on (paginated render), then off (back to the continuous sheet).
+  for (const shown of ['.pagedjs_page', '.mp-continuous-sheet']) {
+    await page.getByRole('button', { name: 'Pages', exact: true }).click();
+    await expect(page.locator(`#preview-pane ${shown}`).first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('.mp-pagination-progress')).toHaveCount(0);
+    await page.waitForTimeout(1200);
+    // The editor did not move, and the preview shows the editor's line.
+    expect(Math.abs((await editorTop()) - before)).toBeLessThan(40);
+    expect(await previewShows(line.slice(0, 30))).toBe(true);
+  }
+});
+

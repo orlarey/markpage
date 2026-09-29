@@ -906,6 +906,14 @@ async function bootstrap(): Promise<void> {
   // is what made the two panes converge to a fixed point.
   let lastProgEditorScroll = 0;
   let lastProgPreviewScroll = 0;
+  // A render swaps the preview's content: the pane empties, then refills, and
+  // its scroll jumps with it. Those jumps are not the reader's — while a render
+  // is in flight, the preview never drives the editor (see the preview scroll
+  // handler). A count, since a keystroke can start a render before the last ends.
+  let previewRendering = 0;
+  // Put the preview back where the editor is (assigned with the follow
+  // controller below; no-op until then).
+  let alignPreviewToEditor: () => void = () => {};
 
   const updatePreview = async (
     source: string,
@@ -917,45 +925,55 @@ async function bootstrap(): Promise<void> {
     // Style-editor page fill (STYLE-EDITOR-SPEC §4): a tinted title page can
     // sit over plain body pages.
     applyPageFills(previewEl, r.effectiveSettings);
-    if (activePaginated() || opts.forcePaginated) {
-      // Show a CLEAR "rendering" state: clear the stale pages now (so you never
-      // wonder whether you're looking at the current render) and let the progress
-      // spinner mark the wait — pages reappear only when the new render is ready.
-      // We still render into a HIDDEN buffer inside the pane (so the scoped
-      // pagedCss + fit-zoom apply and two overlapping renders never fight over
-      // the pane) and swap it in on completion. No serialization: a newer edit
-      // clears the pane again and supersedes this render (previewReqId guard).
-      previewEl.classList.remove('continuous');
-      const buffer = document.createElement('div');
-      buffer.style.cssText =
-        'position: absolute; top: 0; left: 0; width: 100%; ' +
-        'visibility: hidden; pointer-events: none;';
-      previewEl.replaceChildren(buffer); // clears old pages → pane goes blank
-      const stopProgress = beginPaginationProgress(previewEl);
-      try {
-        await paginate(r.built, r.effectiveSettings, buffer);
-      } finally {
-        stopProgress();
+    previewRendering += 1;
+    try {
+      if (activePaginated() || opts.forcePaginated) {
+        // Show a CLEAR "rendering" state: clear the stale pages now (so you never
+        // wonder whether you're looking at the current render) and let the progress
+        // spinner mark the wait — pages reappear only when the new render is ready.
+        // We still render into a HIDDEN buffer inside the pane (so the scoped
+        // pagedCss + fit-zoom apply and two overlapping renders never fight over
+        // the pane) and swap it in on completion. No serialization: a newer edit
+        // clears the pane again and supersedes this render (previewReqId guard).
+        previewEl.classList.remove('continuous');
+        const buffer = document.createElement('div');
+        buffer.style.cssText =
+          'position: absolute; top: 0; left: 0; width: 100%; ' +
+          'visibility: hidden; pointer-events: none;';
+        previewEl.replaceChildren(buffer); // clears old pages → pane goes blank
+        const stopProgress = beginPaginationProgress(previewEl);
+        try {
+          await paginate(r.built, r.effectiveSettings, buffer);
+        } finally {
+          stopProgress();
+        }
+        // Superseded: a newer render already cleared the pane and owns it. Do
+        // nothing (this render's buffer was detached by that replaceChildren).
+        if (r.myReq !== previewReqId) return;
+        // Reveal the freshly rendered pages where the editor is — not at the
+        // top: a reader toggling Pages mid-document stays in place.
+        previewEl.replaceChildren(...buffer.childNodes);
+        dirty = false;
+        fitPreviewWidth();
+        invalidatePreviewLineMap();
+        alignPreviewToEditor();
+      } else {
+        // Continuous mode draws per-element styles from the injected stylesheet
+        // (not pagedCss), so refresh it from the per-doc effective settings —
+        // otherwise frontmatter / stack style overrides wouldn't show here.
+        applyPreviewStyles(r.effectiveSettings);
+        renderContinuous(r.built, r.effectiveSettings);
+        dirty = false;
+        fitPreviewWidth();
       }
-      // Superseded: a newer render already cleared the pane and owns it. Do
-      // nothing (this render's buffer was detached by that replaceChildren).
-      if (r.myReq !== previewReqId) return;
-      // Reveal the freshly rendered pages, at the top (fresh content).
-      previewEl.replaceChildren(...buffer.childNodes);
-      previewEl.scrollTop = 0;
-      dirty = false;
-      fitPreviewWidth();
-    } else {
-      // Continuous mode draws per-element styles from the injected stylesheet
-      // (not pagedCss), so refresh it from the per-doc effective settings —
-      // otherwise frontmatter / stack style overrides wouldn't show here.
-      applyPreviewStyles(r.effectiveSettings);
-      renderContinuous(r.built, r.effectiveSettings);
-      dirty = false;
-      fitPreviewWidth();
+      // The DOM changed → the cached scroll-follow line-map is stale.
+      invalidatePreviewLineMap();
+    } finally {
+      // Released after the scroll events the swap queued have been handled.
+      requestAnimationFrame(() => {
+        previewRendering -= 1;
+      });
     }
-    // The DOM changed → the cached scroll-follow line-map is stale.
-    invalidatePreviewLineMap();
   };
 
   // Autosave writes the *working copy* (draft), never the committed content
@@ -1135,7 +1153,9 @@ async function bootstrap(): Promise<void> {
     updatePreviewToggleUI();
     if (viewMode === 'preview' && !presenting) {
       dirty = true;
-      void updatePreview(editor.getValue());
+      // The flow changes shape (pages ↔ one sheet): keep the reader where the
+      // editor is, in either direction.
+      void updatePreview(editor.getValue()).then(() => alignPreviewToEditor());
     }
   };
 
@@ -1362,6 +1382,7 @@ async function bootstrap(): Promise<void> {
         previewScrollTick = false;
         if (!scrollSyncActive()) return;
         if (performance.now() - lastProgPreviewScroll < ECHO_MS) return; // echo
+        if (previewRendering > 0) return; // a render moved it, not the reader
         const refY = previewEl.clientHeight * REF_FRACTION;
         const line = lineAtPreviewY(
           previewEl.scrollTop + refY,
@@ -1413,6 +1434,17 @@ async function bootstrap(): Promise<void> {
 
   // Edit path: keep the caret's line aligned in the preview while typing — only
   // when the editor has focus (never yank the preview if you're reading it).
+  alignPreviewToEditor = (): void => {
+    if (!scrollSyncActive()) return;
+    const refY = editor.view.scrollDOM.clientHeight * REF_FRACTION;
+    const line = editorLineAtViewportY(editor.view, refY);
+    lastProgPreviewScroll = performance.now();
+    previewEl.scrollTop = clampScroll(
+      previewEl,
+      previewYForLine(line, getPreviewLineMap()) - previewEl.clientHeight * REF_FRACTION,
+    );
+  };
+
   followPreviewToCaret = (): void => {
     if (!scrollSyncActive() || !editor.view.hasFocus) return;
     const a = editorCursorAnchor(editor.view);
