@@ -32,10 +32,23 @@ function editorYForLine(view: EditorView, line: number): number | null {
   const lineNum = Math.max(1, Math.min(docLines, Math.floor(line) + 1));
   try {
     const docLine = view.state.doc.line(lineNum);
-    return view.lineBlockAt(docLine.from).top;
+    return view.lineBlockAt(docLine.from).top + contentPad(view);
   } catch {
     return null;
   }
+}
+
+/**
+ * CodeMirror measures lines from the top of the DOCUMENT; the scroller (what
+ * the reader sees, what `scrollTop` moves) starts higher, by its own CSS
+ * padding and the content's (room left for the floating Aperçu / Pages
+ * buttons). Every editor Y here is in scroller terms, so that offset is added
+ * back — measured, not assumed, since it lives in the stylesheet. Without it the
+ * preview lands that many pixels off (~40 px).
+ */
+function contentPad(view: EditorView): number {
+  const scroller = view.scrollDOM;
+  return view.documentTop - scroller.getBoundingClientRect().top + scroller.scrollTop;
 }
 
 /**
@@ -99,7 +112,7 @@ export function editorCursorAnchor(view: EditorView): Anchor | null {
   try {
     const head = view.state.selection.main.head;
     const block = view.lineBlockAt(head);
-    const y = block.top - view.scrollDOM.scrollTop;
+    const y = block.top + contentPad(view) - view.scrollDOM.scrollTop;
     const line = view.state.doc.lineAt(head).number - 1;
     return { line, y };
   } catch {
@@ -253,7 +266,9 @@ export function editorLineAtViewportY(
   viewportY: number,
 ): number {
   try {
-    const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop + viewportY);
+    const block = view.lineBlockAtHeight(
+      view.scrollDOM.scrollTop + viewportY - contentPad(view),
+    );
     return view.state.doc.lineAt(block.from).number - 1;
   } catch {
     return 0;

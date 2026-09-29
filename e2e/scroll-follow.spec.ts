@@ -156,3 +156,44 @@ test('switching Pages on and off keeps the editor where it is, and the preview f
   }
 });
 
+test('with the caret on screen, Pages puts the caret line at the caret height in the preview', async ({
+  page,
+}) => {
+  await openSplit(page, false);
+  const scroller = page.locator('.cm-scroller');
+  await scroller.evaluate((el) => {
+    el.scrollTop = el.scrollHeight / 3;
+  });
+  await page.waitForTimeout(600);
+  // Put the caret on a non-blank line three quarters down the editor — far
+  // from the one-third reference line the fallback would use.
+  const target = await page.evaluate(() => {
+    const s = document.querySelector('.cm-scroller')!.getBoundingClientRect();
+    const y = s.top + s.height * 0.75;
+    const line = [...document.querySelectorAll('.cm-line')].find((l) => {
+      const r = l.getBoundingClientRect();
+      return r.bottom >= y && /^Texte \d+\.$/.test((l.textContent ?? '').trim());
+    })!;
+    const r = line.getBoundingClientRect();
+    return { text: (line.textContent ?? '').trim(), x: r.left + 20, y: r.top + r.height / 2 };
+  });
+  await page.mouse.click(target.x, target.y);
+  const caretY = await page.evaluate((t) => {
+    const s = document.querySelector('.cm-scroller')!.getBoundingClientRect();
+    const line = [...document.querySelectorAll('.cm-line')].find((l) => (l.textContent ?? '').trim() === t)!;
+    return line.getBoundingClientRect().top - s.top;
+  }, target.text);
+
+  await page.getByRole('button', { name: 'Pages', exact: true }).click();
+  await expect(page.locator('#preview-pane .pagedjs_page').first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('.mp-pagination-progress')).toHaveCount(0);
+  await page.waitForTimeout(1200);
+  // The same line, in the preview, at the caret's height (the paragraph's top).
+  const previewY = await page.evaluate((t) => {
+    const pane = document.querySelector('#preview-pane')!.getBoundingClientRect();
+    const p = [...document.querySelectorAll('#preview-pane p')].find((e) => (e.textContent ?? '').trim() === t);
+    return p ? p.getBoundingClientRect().top - pane.top : null;
+  }, target.text);
+  expect(previewY).not.toBeNull();
+  expect(Math.abs(previewY! - caretY)).toBeLessThan(30);
+});

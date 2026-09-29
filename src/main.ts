@@ -1434,15 +1434,23 @@ async function bootstrap(): Promise<void> {
 
   // Edit path: keep the caret's line aligned in the preview while typing — only
   // when the editor has focus (never yank the preview if you're reading it).
+  // The caret, when it is on screen, says where the reader works: its line
+  // lands in the preview at the caret's own height. Otherwise the line one
+  // third down the editor lands one third down the preview (the scroll rule).
   alignPreviewToEditor = (): void => {
     if (!scrollSyncActive()) return;
-    const refY = editor.view.scrollDOM.clientHeight * REF_FRACTION;
-    const line = editorLineAtViewportY(editor.view, refY);
+    const map = getPreviewLineMap();
+    const caret = editorCursorAnchor(editor.view);
+    const height = editor.view.scrollDOM.clientHeight;
+    let target: number;
+    if (caret && caret.y >= 0 && caret.y <= height) {
+      target = previewYForLine(caret.line, map) - caret.y;
+    } else {
+      const line = editorLineAtViewportY(editor.view, height * REF_FRACTION);
+      target = previewYForLine(line, map) - previewEl.clientHeight * REF_FRACTION;
+    }
     lastProgPreviewScroll = performance.now();
-    previewEl.scrollTop = clampScroll(
-      previewEl,
-      previewYForLine(line, getPreviewLineMap()) - previewEl.clientHeight * REF_FRACTION,
-    );
+    previewEl.scrollTop = clampScroll(previewEl, target);
   };
 
   followPreviewToCaret = (): void => {
