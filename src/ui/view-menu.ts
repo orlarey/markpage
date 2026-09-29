@@ -1,8 +1,8 @@
 /********************************* view-menu.ts ********************************
  *
- * Purpose: The `Vue ▾` dropdown — groups the view actions (Aperçu /
- *   Présenter / Repères) that used to sit as separate toolbar buttons.
- *   Aperçu and Guides carry a checkmark reflecting their current state.
+ * Purpose: The `Vue ▾` dropdown — the three views (Écrire / Côte à côte /
+ *   Lire, the current one checked), how the preview renders (Pages), then
+ *   Présenter and Repères.
  * How: Transient dropdown reusing the context-menu styling, same dismiss
  *   pattern as the other menus (outside-click / Escape / resize).
  *
@@ -13,10 +13,16 @@ import { t } from '../i18n/strings';
 
 const MENU_ID = 'view-menu';
 
+export type View = 'edit' | 'split' | 'read';
+
 export interface ViewMenuOptions {
-  viewMode: 'editor' | 'preview';
+  view: View;
+  /** A narrow screen has no side-by-side view. */
+  narrow: boolean;
+  paginated: boolean;
   guides: boolean;
-  onTogglePreview(): void;
+  onSetView(view: View): void;
+  onTogglePages(): void;
   onPresent(): void;
   onToggleGuides(): void;
 }
@@ -75,8 +81,21 @@ export function openViewMenu(anchor: HTMLElement, opts: ViewMenuOptions): void {
     return btn;
   };
 
+  const sep = (): HTMLElement => {
+    const d = document.createElement('div');
+    d.className = 'cm-context-sep';
+    return d;
+  };
+  const view = (v: View, label: Parameters<typeof t>[0]): HTMLButtonElement =>
+    item(t(label), '', () => opts.onSetView(v), opts.view === v);
+
   menu.append(
-    item(t('toolbar.preview'), keyHint('Mod-Enter'), opts.onTogglePreview, opts.viewMode === 'preview'),
+    view('edit', 'view.edit'),
+    ...(opts.narrow ? [] : [view('split', 'view.split')]),
+    view('read', 'view.read'),
+    sep(),
+    item(t('preview-toggle.paginate'), '', opts.onTogglePages, opts.paginated),
+    sep(),
     item(t('toolbar.present'), keyHint('Mod-Shift-Enter'), opts.onPresent),
     item(t('toolbar.guides'), keyHint('Mod-Shift-g'), opts.onToggleGuides, opts.guides),
   );

@@ -251,6 +251,15 @@ body,
 #panes[data-view='editor'] #pane-resizer {
   display: none;
 }
+/* `read` view = the preview alone, full width (Lire). Room at its top for the
+   floating view switch, so it never sits on the text. */
+#panes[data-view='read'] #editor-pane,
+#panes[data-view='read'] #pane-resizer {
+  display: none;
+}
+#panes[data-view='read'] #preview-pane {
+  padding-top: 48px;
+}
 /* Split view: editor | draggable gutter | preview. The editor column width is
    driven by `--mp-split` (a fraction unit, default 1fr = 50/50); the gutter is
    a fixed 6px; the preview takes the rest and can shrink (minmax 0). */
@@ -391,6 +400,78 @@ body,
 }
 .mp-preview-toggle[hidden] {
   display: none;
+}
+/* The three-view switch (Écrire / Côte à côte / Lire): icons joined in one
+   segmented control. */
+.mp-view-switch {
+  display: inline-flex;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+}
+.mp-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  box-shadow: none;
+  border-radius: 0;
+}
+.mp-view-btn + .mp-view-btn {
+  margin-left: -1px;
+}
+.mp-view-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.mp-view-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+.mp-view-btn svg {
+  width: 16px;
+  height: 16px;
+}
+/* The knockout behind the pencil of the Côte à côte icon: the button's own
+   background, whatever its state, so it reads as a gap. */
+.mp-view-btn .mp-icon-knock {
+  stroke: #ffffff;
+  stroke-width: 6;
+}
+.mp-view-btn:hover .mp-icon-knock {
+  stroke: #f4f4f6;
+}
+.mp-view-btn.active .mp-icon-knock {
+  stroke: #2f6fdb;
+}
+/* A narrow screen has no room beside: no side-by-side view. */
+@media (max-width: 600px) {
+  .mp-view-split {
+    display: none;
+  }
+  .mp-view-btn.mp-view-read {
+    margin-left: -1px;
+  }
+}
+
+/* Reading on a phone: the continuous sheet keeps the page's margins in mm
+   (35 mm a side for Note A4) while shrinking to the screen, which left a
+   column a few words wide. There, the text reflows across the screen with
+   ordinary margins, and heading numbers come back into the line instead of
+   hanging in a margin that no longer exists. Pages stay the printed page. */
+@media (max-width: 600px) {
+  #preview-pane.continuous {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  #preview-pane.continuous .mp-continuous-sheet {
+    width: 100% !important;
+    padding: 20px 18px 28px !important;
+    box-shadow: none;
+  }
+  #preview-pane.continuous .mp-continuous-sheet .heading-num {
+    position: static !important;
+    transform: none !important;
+    margin: 0 0.4em 0 0 !important;
+    flex: none !important;
+  }
 }
 /* Clear room at the editor's top so the floating toggles (top-left) don't
    cover the first line. The padding scrolls with the content, so further down

@@ -116,7 +116,7 @@ test('every element of the Insérer menu renders without an error', async ({ pag
   );
   expect(source).not.toMatch(/[⟦⟧]/);
 
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   const pane = page.locator('#preview-pane');
   await expect(pane.locator('.pagedjs_page').first()).toBeVisible({
     timeout: 60_000,

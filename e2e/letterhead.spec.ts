@@ -37,7 +37,7 @@ async function openLetter(page: Page, paginated: boolean, body = LETTER): Promis
     r.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, body }),
   );
   await page.goto(`/?src=${encodeURIComponent(url)}`);
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   await expect(page.locator('#preview-pane .letterhead-recipient')).toBeVisible();
 }
 

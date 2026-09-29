@@ -16,7 +16,7 @@ async function openContinuous(page: Page, body: string, paginated = false): Prom
     r.fulfill({ headers: { 'Access-Control-Allow-Origin': '*' }, body })
   );
   await page.goto(`/?src=${encodeURIComponent(url)}`);
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   const sheet = paginated ? '.pagedjs_page' : '.mp-continuous-sheet';
   await expect(page.locator(`#preview-pane ${sheet}`).first()).toBeVisible();
 }

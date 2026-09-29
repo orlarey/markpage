@@ -89,6 +89,7 @@ import { requestPersistentStorage } from './opfs';
 import { mountToolbar, type ToolbarControl } from './ui/toolbar';
 import { attachStyleContextMenu, openStyleMenu } from './ui/style-menu';
 import { openInsertMenu } from './ui/insert-menu';
+import { makeIcon } from './ui/icons';
 import {
   allStyles,
   deleteUserStyle,
@@ -566,6 +567,17 @@ async function bootstrap(): Promise<void> {
   // suspended by an in-progress edit.
   const activePaginated = (): boolean => previewPaginated && !paginatedSuspended;
   const previewVisiblePref = localStorage.getItem(PREF_VISIBLE) === '1';
+  // Three views: Écrire (editor alone), Côte à côte (editor + preview), Lire
+  // (preview alone). `viewMode` says whether the preview shows; the layout
+  // says whether the editor shows beside it. A narrow screen has no side by
+  // side, and opens a document to read; its choices are not remembered (the
+  // wide screen's are).
+  const PREF_LAYOUT = 'markpage:preview-layout';
+  const narrowMq = globalThis.matchMedia('(max-width: 600px)');
+  let previewLayout: 'split' | 'read' =
+    narrowMq.matches || localStorage.getItem(PREF_LAYOUT) === 'read' ? 'read' : 'split';
+  const currentView = (): 'edit' | 'split' | 'read' =>
+    viewMode === 'editor' ? 'edit' : previewLayout;
   // True when the on-screen preview is out of date with the current
   // editor state or settings. Set on every doc/settings change, cleared
   // after a successful paginate.
@@ -913,11 +925,23 @@ async function bootstrap(): Promise<void> {
   // Put the preview back where the editor is (assigned with the follow
   // controller below; no-op until then).
   let alignPreviewToEditor: () => void = () => {};
+  // Reading (no editor on screen): the source line one third down the preview,
+  // and putting a line back there — how Lire keeps its place across a render.
+  let previewRefLine: () => number | null = () => null;
+  let placePreviewAtLine: (line: number) => void = () => {};
+  // Switch between the three views, keeping the place (assigned below).
+  let setView: (view: 'edit' | 'split' | 'read') => Promise<void> = async () => {};
 
   const updatePreview = async (
     source: string,
-    opts: { forcePaginated?: boolean } = {},
+    opts: { forcePaginated?: boolean; keepLine?: number } = {},
   ): Promise<void> => {
+    // In Lire the editor is off screen, so nothing else says where the reader
+    // is: hold the passage on screen across the render.
+    const keepLine =
+      viewMode === 'preview' && previewLayout === 'read' && !presenting
+        ? (opts.keepLine ?? previewRefLine())
+        : null;
     const r = await buildPreviewDom(source);
     if (!r) return;
     lastEffectiveSettings = r.effectiveSettings;
@@ -967,6 +991,7 @@ async function bootstrap(): Promise<void> {
       }
       // The DOM changed → the cached scroll-follow line-map is stale.
       invalidatePreviewLineMap();
+      if (keepLine !== null) placePreviewAtLine(keepLine);
     } finally {
       // Released after the scroll events the swap queued have been handled.
       requestAnimationFrame(() => {
@@ -1109,9 +1134,12 @@ async function bootstrap(): Promise<void> {
 
   const setViewMode = (mode: 'editor' | 'preview'): void => {
     viewMode = mode;
-    panesEl.dataset['view'] = mode;
-    toolbarCtrl.setViewMode(mode);
-    localStorage.setItem(PREF_VISIBLE, mode === 'preview' ? '1' : '0');
+    panesEl.dataset['view'] = mode === 'editor' ? 'editor' : previewLayout === 'read' ? 'read' : 'preview';
+    toolbarCtrl.setViewMode(currentView());
+    if (!narrowMq.matches) {
+      localStorage.setItem(PREF_VISIBLE, mode === 'preview' ? '1' : '0');
+      localStorage.setItem(PREF_LAYOUT, previewLayout);
+    }
     updatePreviewToggleUI();
   };
 
@@ -1147,9 +1175,9 @@ async function bootstrap(): Promise<void> {
     editor.view.focus();
   };
 
+  // ⌘↵: between Écrire and the last view that shows the preview.
   const toggleView = (): void => {
-    if (viewMode === 'editor') void enterPreview();
-    else enterEditor(null);
+    void setView(viewMode === 'editor' ? previewLayout : 'edit');
   };
 
   // Switch the visible preview between continuous flow and paged A4, persist
@@ -1188,20 +1216,45 @@ async function bootstrap(): Promise<void> {
   // preview can be reopened.
   const previewToolbar = document.createElement('div');
   previewToolbar.className = 'mp-preview-toolbar';
-  const showToggleBtn = document.createElement('button');
-  showToggleBtn.className = 'mp-preview-toggle';
-  showToggleBtn.textContent = t('preview-toggle.show');
-  showToggleBtn.title = t('preview-toggle.show-title');
+  // The view switch: three icons, the current one lit (the side-by-side one
+  // hidden on a narrow screen, by CSS).
+  const viewSwitch = document.createElement('div');
+  viewSwitch.className = 'mp-view-switch';
+  viewSwitch.setAttribute('role', 'group');
+  const viewBtns = (
+    [
+      ['edit', 'pencil', 'view.edit', 'view.edit-title'],
+      ['split', 'columns', 'view.split', 'view.split-title'],
+      ['read', 'book-open', 'view.read', 'view.read-title'],
+    ] as const
+  ).map(([v, icon, label, title]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `mp-preview-toggle mp-view-btn mp-view-${v}`;
+    b.dataset['view'] = v;
+    b.title = t(title);
+    b.setAttribute('aria-label', t(label));
+    b.append(makeIcon(icon));
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', () => void setView(v));
+    viewSwitch.append(b);
+    return b;
+  });
   const paginateToggleBtn = document.createElement('button');
   paginateToggleBtn.className = 'mp-preview-toggle';
   paginateToggleBtn.textContent = t('preview-toggle.paginate');
   paginateToggleBtn.title = t('preview-toggle.paginate-title');
-  previewToolbar.append(showToggleBtn, paginateToggleBtn);
+  previewToolbar.append(viewSwitch, paginateToggleBtn);
   panesEl.append(previewToolbar);
 
   updatePreviewToggleUI = (): void => {
     const on = viewMode === 'preview';
-    showToggleBtn.classList.toggle('active', on);
+    const view = currentView();
+    for (const b of viewBtns) {
+      const active = b.dataset['view'] === view;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', String(active));
+    }
     paginateToggleBtn.hidden = !on;
     // Three states: continuous (inactive), paginated (active), and
     // paginated-but-suspended-by-an-edit → the button becomes "Repaginer".
@@ -1216,12 +1269,12 @@ async function bootstrap(): Promise<void> {
       : t('preview-toggle.paginate-title');
   };
 
-  showToggleBtn.addEventListener('click', () => toggleView());
-  paginateToggleBtn.addEventListener('click', () => {
+  const togglePages = (): void => {
     // Suspended → re-engage the paginated view; otherwise flip the preference.
     if (previewPaginated && paginatedSuspended) repaginate();
     else setPreviewPaginated(!previewPaginated);
-  });
+  };
+  paginateToggleBtn.addEventListener('click', togglePages);
   updatePreviewToggleUI();
 
   // Click inside the preview jumps the editor's cursor to that source line
@@ -1244,6 +1297,8 @@ async function bootstrap(): Promise<void> {
       window.open(link.href, '_blank', 'noopener');
       return;
     }
+    // Reading: a tap is reading, not a request to edit (the editor is hidden).
+    if (previewLayout === 'read') return;
     const anchor = previewClickAnchor(e, previewEl);
     if (anchor) {
       // Preview-initiated: mark the editor scroll this triggers as programmatic
@@ -1268,7 +1323,7 @@ async function bootstrap(): Promise<void> {
   const REF_FRACTION = 1 / 3;
   const ECHO_MS = 120;
   const scrollSyncActive = (): boolean =>
-    viewMode === 'preview' && !presenting;
+    viewMode === 'preview' && previewLayout === 'split' && !presenting;
   // Rebuilt when the content's height moved since: a web font, an image or a
   // diagram finishing after the render reflows every line, and a map read
   // before that points the preview at stale positions.
@@ -1470,6 +1525,63 @@ async function bootstrap(): Promise<void> {
     lastProgPreviewScroll = performance.now();
     previewEl.scrollTop = clampScroll(previewEl, target);
   };
+
+  previewRefLine = (): number | null => {
+    const map = getPreviewLineMap();
+    if (map.length === 0) return null;
+    return lineAtPreviewY(previewEl.scrollTop + previewEl.clientHeight * REF_FRACTION, map);
+  };
+  placePreviewAtLine = (line: number): void => {
+    lastProgPreviewScroll = performance.now();
+    previewEl.scrollTop = clampScroll(
+      previewEl,
+      previewYForLine(line, getPreviewLineMap()) - previewEl.clientHeight * REF_FRACTION,
+    );
+  };
+  // The editor's viewport onto `line`, one third down (as the scroll rule).
+  const placeEditorAtLine = (line: number): void => {
+    const y = editorContentYForLine(editor.view, line);
+    if (y === null) return;
+    lastProgEditorScroll = performance.now();
+    const s = editor.view.scrollDOM;
+    s.scrollTop = clampScroll(s, y - s.clientHeight * REF_FRACTION);
+  };
+
+  // Écrire / Côte à côte / Lire. Every switch keeps the place: from the editor
+  // (caret or reference line) into the preview, from the passage read back
+  // into the editor, and across the width change between Côte à côte and Lire.
+  setView = async (target): Promise<void> => {
+    if (presenting) return;
+    const view = narrowMq.matches && target === 'split' ? 'read' : target;
+    const from = currentView();
+    if (view === from) return;
+    if (view === 'edit') {
+      const line = from === 'read' ? previewRefLine() : null;
+      enterEditor(null);
+      if (line !== null) placeEditorAtLine(line);
+      return;
+    }
+    if (from === 'edit') {
+      previewLayout = view;
+      await enterPreview();
+      return;
+    }
+    // Côte à côte ↔ Lire: the preview stays; its width changes.
+    const line = previewRefLine();
+    previewLayout = view;
+    setViewMode('preview');
+    fitPreviewWidth();
+    invalidatePreviewLineMap();
+    if (line !== null) {
+      placePreviewAtLine(line);
+      if (view === 'split') placeEditorAtLine(line);
+    }
+  };
+  // Becoming narrow (a rotated phone, a shrunk window) leaves no room beside.
+  narrowMq.addEventListener('change', () => {
+    if (narrowMq.matches && currentView() === 'split') void setView('read');
+    updatePreviewToggleUI();
+  });
 
   followPreviewToCaret = (): void => {
     if (!scrollSyncActive() || !editor.view.hasFocus) return;
@@ -1875,6 +1987,11 @@ async function bootstrap(): Promise<void> {
     // The slide on screen, as the source line it starts with (its page number
     // would shift with anything added above it).
     const slideLine = presenting ? firstSourceLine(pagedPages()[presentAnchor]) : null;
+    // Reading: the passage on screen, as a source position to carry through.
+    const readLine =
+      !presenting && viewMode === 'preview' && previewLayout === 'read' ? previewRefLine() : null;
+    const readPos =
+      readLine !== null ? editor.view.state.doc.line(Math.min(readLine + 1, editor.view.state.doc.lines)).from : null;
     const slidePos =
       slideLine !== null ? editor.view.state.doc.line(Math.min(slideLine + 1, editor.view.state.doc.lines)).from : null;
     await saveDraft(currentDoc.uuid, content);
@@ -1910,7 +2027,11 @@ async function bootstrap(): Promise<void> {
     } else if (viewMode === 'preview') {
       previewEl.style.visibility = 'hidden';
       try {
-        await updatePreview(content);
+        const keepLine =
+          readPos !== null && changes
+            ? editor.view.state.doc.lineAt(changes.mapPos(readPos, 1)).number - 1
+            : undefined;
+        await updatePreview(content, { keepLine });
         alignPreviewToEditor();
       } finally {
         previewEl.style.visibility = '';
@@ -3184,7 +3305,7 @@ async function bootstrap(): Promise<void> {
   const renderToolbar = (): void => {
     toolbarCtrl = mountToolbar(toolbarEl, {
       initialDocName: currentDoc.name,
-      initialViewMode: viewMode,
+      initialViewMode: currentView(),
       onFileMenu(anchor) {
         openFileMenu(anchor, {
           modified: isModified(currentDoc),
@@ -3304,7 +3425,10 @@ async function bootstrap(): Promise<void> {
         });
       },
       onHelp: triggerHelp,
-      onTogglePreview: toggleView,
+      onSetView: (view) => void setView(view),
+      onTogglePages: () => togglePages(),
+      isNarrow: () => narrowMq.matches,
+      isPaginated: () => previewPaginated,
       onPresent: () => {
         void enterPresentation();
       },
@@ -3465,7 +3589,8 @@ async function bootstrap(): Promise<void> {
   void checkSync();
 
   // Restore the live preview if it was shown last session (toolbar is ready).
-  if (previewVisiblePref) void enterPreview();
+  // A phone opens a document to read it; a wide screen resumes its last view.
+  if (narrowMq.matches || previewVisiblePref) void enterPreview();
   else updatePreviewToggleUI();
 
   // Two-way sync polling (Phase 4). The File System Access API has no

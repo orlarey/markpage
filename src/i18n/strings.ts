@@ -20,10 +20,12 @@ import { getLanguage } from './locale';
 
 const FR = {
   // ---- toolbar ------------------------------------------------------
-  'toolbar.preview': 'Aperçu',
-  'preview-toggle.show': 'Aperçu',
-  'preview-toggle.show-title':
-    'Afficher / masquer l’aperçu en direct (Ctrl+Entrée / Cmd+Entrée)',
+  'view.edit': 'Écrire',
+  'view.split': 'Côte à côte',
+  'view.read': 'Lire',
+  'view.edit-title': 'Écrire : l’éditeur seul',
+  'view.split-title': 'Côte à côte : l’éditeur et l’aperçu',
+  'view.read-title': 'Lire : l’aperçu seul',
   'preview-toggle.paginate': 'Pages',
   'preview-toggle.paginate-title': 'Aperçu : flux continu ↔ pages paginées',
   'preview-toggle.repaginate': 'Repaginer',
@@ -274,10 +276,12 @@ const FR = {
 // FR, string>` so a missing or surplus key fails the build.
 const EN: Record<keyof typeof FR, string> = {
   // ---- toolbar ------------------------------------------------------
-  'toolbar.preview': 'Preview',
-  'preview-toggle.show': 'Preview',
-  'preview-toggle.show-title':
-    'Show / hide the live preview (Ctrl+Enter / Cmd+Enter)',
+  'view.edit': 'Write',
+  'view.split': 'Side by side',
+  'view.read': 'Read',
+  'view.edit-title': 'Write: the editor alone',
+  'view.split-title': 'Side by side: the editor and the preview',
+  'view.read-title': 'Read: the preview alone',
   'preview-toggle.paginate': 'Pages',
   'preview-toggle.paginate-title':
     'Preview: continuous flow ↔ paginated pages',

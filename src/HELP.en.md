@@ -23,7 +23,7 @@ text with **a few simple marks** that indicate formatting. No menus to
 learn, no required shortcuts.
 
 To give you an idea, this tutorial itself is written in Markdown. On
-the right you see the typeset version (clicking **Preview**), and
+the right you see the typeset version (the **Side by side** view), and
 here on the left you see the "real" source. You can look at the
 left side any time to see "how it's done".
 
@@ -165,24 +165,35 @@ At the top of the screen, a handful of buttons:
 - **Style ▾** — the document's look: pick a style from the library
   (Note, Article, Rapport, Livre, Lettre, Présentation), import or
   export one (see \ref{sec:settings}).
-- **View ▾** — *Preview* (toggle editor / paginated render), *Present*
-  (full screen), *Guides* (layout overlay).
+- **View ▾** — the three views (*Write*, *Side by side*, *Read*),
+  *Pages* (paginated render), *Present* (full screen), *Guides* (layout
+  overlay).
 - **?** (yellow) — opens this tutorial.
 
 ### Seeing the preview
 
-You write in **editor** mode (plain text). To see what your document
-will look like in the PDF, switch to **preview** mode:
+At the top left, three icons choose what you see:
 
-- shortcut `Cmd/Ctrl + Enter`
-- or click the **Preview** button
+| Icon | View | What it shows |
+|---|---|---|
+| pencil | **Write** | the editor alone (the plain text) |
+| two columns | **Side by side** | the editor and the preview, scrolling together |
+| open book | **Read** | the preview alone, full width |
 
-You see your document as it will be printed.
+The **Pages** button next to them chooses how the preview renders: a
+continuous flow, fast while writing, or the real **pages** of the PDF.
+`Cmd/Ctrl + Enter` switches between Write and your last view with a
+preview.
 
-To go back to the editor, **click anywhere in the preview**: the
-cursor lands right on the line you clicked. Handy: if you spot a
-typo, click on it and you land straight on the word in the editor
-to fix it. Or press `Cmd/Ctrl + Enter` again.
+Switching views **keeps your place**: going from the editor to the
+preview, you find the line where your cursor was, and coming back to
+Write, the passage you were reading. In **Side by side**, clicking in
+the preview puts the cursor on the line you clicked: spot a typo,
+click on it, and you land straight on the word. In **Read**, touching
+the text only reads.
+
+On a **phone** there is no room for side by side: Write and Read
+remain, and a document opens in Read.
 
 ### Exporting to PDF \label{sec:pdf-export}
 

@@ -30,7 +30,7 @@ test('opens a document from its URL, as a copy that remembers its origin', async
   await expect(page.locator('#toolbar')).toContainText('example.test ▸ notes/');
   expect(new URL(page.url()).searchParams.get('src')).toBe(DOC_URL);
   // Relative images resolve against the document's URL.
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   await expect(page.locator('#preview-pane img').first()).toHaveAttribute(
     'src',
     'https://example.test/notes/img/logo.png',

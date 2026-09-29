@@ -17,7 +17,7 @@ async function toggleGuidesViaMenu(page: import('@playwright/test').Page) {
 test('the Vue ▸ Guides item toggles the .debug-layout class on #preview-pane', async ({ page }) => {
   await page.goto('/');
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
-  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Côte à côte' }).click();
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
 
   const previewPane = page.locator('#preview-pane');
@@ -37,7 +37,7 @@ test('the Vue ▸ Guides item toggles the .debug-layout class on #preview-pane',
 test('Cmd/Ctrl+Shift+G fires the same guides toggle', async ({ page }) => {
   await page.goto('/');
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
-  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Côte à côte' }).click();
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
 
   const previewPane = page.locator('#preview-pane');
@@ -48,7 +48,7 @@ test('Cmd/Ctrl+Shift+G fires the same guides toggle', async ({ page }) => {
 test('the SVG diagonals overlay is injected on every .pagedjs_pagebox', async ({ page }) => {
   await page.goto('/');
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
-  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Côte à côte' }).click();
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached' });
   // Wait until injectGuidesSvg has run (it's called after
   // previewer.preview() resolves). Asserting equality once both

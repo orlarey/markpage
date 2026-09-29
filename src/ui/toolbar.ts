@@ -14,7 +14,9 @@ import { t } from '../i18n/strings';
 import { makeLogo } from './logo';
 import { openViewMenu } from './view-menu';
 
-export type ViewMode = 'editor' | 'preview';
+import type { View } from './view-menu';
+
+export type ViewMode = View;
 
 /**
  * Purpose: All callbacks consumed by the toolbar's controls, plus initial state.
@@ -33,7 +35,11 @@ export interface ToolbarHandlers {
   // Open the Insérer menu (everything that can be added to a document).
   onInsert(anchor: HTMLElement): void;
   onHelp(): void;
-  onTogglePreview(): void;
+  // The three views (Écrire / Côte à côte / Lire) and the Pages rendering.
+  onSetView(view: View): void;
+  onTogglePages(): void;
+  isNarrow(): boolean;
+  isPaginated(): boolean;
   // One-shot fullscreen presentation (exit via Esc / fullscreenchange).
   onPresent(): void;
   onToggleGuides(): void;
@@ -114,9 +120,12 @@ export function mountToolbar(
   const viewBtn = trigger(t('toolbar.view'), t('toolbar.view-title'));
   const openView = (anchor: HTMLElement): void =>
     openViewMenu(anchor, {
-      viewMode: currentViewMode,
+      view: currentViewMode,
+      narrow: handlers.isNarrow(),
+      paginated: handlers.isPaginated(),
       guides: currentGuides,
-      onTogglePreview: handlers.onTogglePreview,
+      onSetView: handlers.onSetView,
+      onTogglePages: handlers.onTogglePages,
       onPresent: handlers.onPresent,
       onToggleGuides: handlers.onToggleGuides,
     });

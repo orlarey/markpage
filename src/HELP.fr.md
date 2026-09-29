@@ -25,7 +25,7 @@ la mise en forme. Pas de menus à apprendre, pas de raccourcis
 obligatoires.
 
 Pour vous donner une idée, ce tutoriel lui-même est écrit en Markdown.
-À droite vous voyez la version mise en page (en cliquant sur **Aperçu**),
+À droite vous voyez la version mise en page (vue **Côte à côte**),
 et ici à gauche vous voyez la "vraie" source. Vous pouvez à tout
 moment regarder à gauche pour voir « comment c'est fait ».
 
@@ -174,24 +174,35 @@ En haut de l'écran, quelques boutons :
 - **Style ▾** — l'apparence du document : choisissez un style dans la
   bibliothèque (Note, Article, Rapport, Livre, Lettre, Présentation),
   importez-en ou exportez-en (voir \ref{sec:settings}).
-- **Vue ▾** — *Aperçu* (bascule éditeur / rendu paginé), *Présenter*
-  (plein écran), *Guides* (overlay de mise en page).
+- **Vue ▾** — les trois vues (*Écrire*, *Côte à côte*, *Lire*),
+  *Pages* (rendu paginé), *Présenter* (plein écran), *Guides* (overlay
+  de mise en page).
 - **?** (jaune) — ouvre ce tutoriel.
 
 ### Voir l'aperçu
 
-Vous écrivez en mode **éditeur** (texte brut). Pour voir à quoi votre
-document ressemblera dans le PDF, basculez en mode **aperçu** :
+En haut à gauche, trois icônes choisissent ce que vous voyez :
 
-- raccourci `Cmd/Ctrl + Enter`
-- ou clic sur le bouton **Aperçu**
+| Icône | Vue | Ce qu'elle montre |
+|---|---|---|
+| crayon | **Écrire** | l'éditeur seul (le texte brut) |
+| deux colonnes | **Côte à côte** | l'éditeur et l'aperçu, qui défilent ensemble |
+| livre ouvert | **Lire** | l'aperçu seul, sur toute la largeur |
 
-Vous voyez votre document tel qu'il sera imprimé.
+Le bouton **Pages** à côté choisit le rendu de l'aperçu : un flux
+continu, rapide pendant l'écriture, ou les vraies **pages** du PDF.
+`Cmd/Ctrl + Enter` bascule entre Écrire et votre dernière vue avec
+aperçu.
 
-Pour revenir à l'éditeur, **cliquez n'importe où dans l'aperçu** : le
-curseur revient pile sur la ligne cliquée. Pratique : si vous voyez
-une faute, cliquez dessus, vous arrivez direct au mot dans l'éditeur
-pour la corriger. Ou rappuyez sur `Cmd/Ctrl + Enter`.
+Changer de vue **garde votre place** : en passant de l'éditeur à
+l'aperçu, vous retrouvez la ligne où était votre curseur, et en
+revenant à Écrire, le passage que vous lisiez. En **Côte à côte**,
+cliquer dans l'aperçu place le curseur sur la ligne cliquée : si vous
+voyez une faute, cliquez dessus, vous arrivez direct au mot. En
+**Lire**, toucher le texte ne fait que lire.
+
+Sur un **téléphone**, il n'y a pas la place d'un côte à côte : restent
+Écrire et Lire, et un document s'ouvre en Lire.
 
 ### Exporter en PDF \label{sec:pdf-export}
 

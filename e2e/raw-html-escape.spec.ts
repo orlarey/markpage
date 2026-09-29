@@ -59,7 +59,7 @@ test('raw <script> survives the paginated preview as inert text', async ({ page 
   await page.keyboard.press('ControlOrMeta+v');
   await page.waitForTimeout(400);
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
-  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Côte à côte' }).click();
   await page.locator('.pagedjs_page').first().waitFor();
   await page.waitForTimeout(1000);
 

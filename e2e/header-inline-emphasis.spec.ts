@@ -25,7 +25,7 @@ async function pasteDoc(page: Page, doc: string): Promise<void> {
 
 async function waitForRender(page: Page): Promise<void> {
   await page.locator('button.menu-trigger', { hasText: 'Vue' }).click();
-  await page.locator('.cm-context-item', { hasText: 'Aperçu' }).click();
+  await page.locator('.cm-context-item', { hasText: 'Côte à côte' }).click();
   await page.locator('.pagedjs_page').first().waitFor({ state: 'attached', timeout: 30_000 });
   // Wait for the paginator to fill the slot. (The former wait looked for a
   // `.mp-running` clone inside `.pagedjs_margin-content` — a paged.js

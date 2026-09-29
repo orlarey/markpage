@@ -52,7 +52,7 @@ test('a local file served by the extension opens in markpage', async ({ context 
   await expect(page.locator('.cm-content')).toContainText('Rapport local');
   await expect(page.locator('.doc-title-input')).toHaveValue('rapport.md');
   await expect(page.locator('#toolbar')).toContainText('Mon projet/');
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   const img = page.locator('#preview-pane img').first();
   await expect(img).toHaveAttribute('src', /^http:\/\/127\.0\.0\.1:\d+\/.+\/img\/s\.svg$/);
   await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(10);
@@ -153,7 +153,7 @@ test('a reload keeps the mode and the place: same text, same height, changed lin
   await page.goto(markpageUrlFor(APP, await server.share(file)));
   await expect(page.locator('.cm-content')).toContainText('Section 0');
   // Pages mode (the fixtures' preference), the caret on a line mid-document.
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   await expect(page.locator('#preview-pane .pagedjs_page').first()).toBeVisible({ timeout: 60_000 });
   const scroller = page.locator('.cm-scroller');
   await scroller.evaluate((el) => {

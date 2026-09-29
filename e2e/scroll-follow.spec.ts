@@ -27,7 +27,7 @@ async function openSplit(page: Page, paginated: boolean): Promise<void> {
     })
   );
   await page.goto(`/?src=${encodeURIComponent(DOC)}`);
-  await page.getByRole('button', { name: 'Aperçu' }).first().click();
+  await page.getByRole('button', { name: 'Côte à côte' }).first().click();
   // Visible = revealed (a pagination in progress lays out in a hidden buffer).
   await expect(page.locator('#preview-pane').getByText('FIN-DU-DOCUMENT')).toBeVisible();
   await page.waitForTimeout(300);
