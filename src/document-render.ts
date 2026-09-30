@@ -26,6 +26,8 @@ import {
   renderMathBlocks,
   renderMathInlines,
   renderMermaidBlocks,
+  sanitizeRendered,
+  setSafeHtml,
   type Frontmatter,
 } from '@orlarey/markpage-render';
 import { applyPreviewMetadata, renderPreview } from './preview';
@@ -71,6 +73,8 @@ export async function buildDocumentDom(
     renderMathInlines(built, settings.mathFontSet, preamble),
     layoutMosaicBlocks(built, pageContentGeomPx(settings)),
   ]);
+  // What MathJax / Mermaid added goes through the same net.
+  sanitizeRendered(built);
   return { built, meta };
 }
 
@@ -166,7 +170,7 @@ function addSheetRunning(sheet: HTMLElement, settings: PdfSettings): void {
     cells.forEach((html, i) => {
       const cell = document.createElement('div');
       cell.style.textAlign = ['left', 'center', 'right'][i] ?? 'left';
-      cell.innerHTML = html;
+      setSafeHtml(cell, html);
       band.append(cell);
     });
     sheet.append(band);

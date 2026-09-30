@@ -14,6 +14,8 @@
  *
  *******************************************************************************/
 
+import { setSafeHtml } from './sanitize';
+
 interface BackgroundSpec {
   at: [number, number] | null;
   size: number | null;
@@ -55,7 +57,7 @@ function buildLayer(items: Sentinel[]): HTMLElement {
     const item = document.createElement('div');
     item.className = 'mp-bg-item';
     styleItem(item, s.spec);
-    item.innerHTML = s.body;
+    setSafeHtml(item, s.body);
     layer.appendChild(item);
   }
   return layer;

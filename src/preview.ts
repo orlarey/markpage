@@ -14,7 +14,7 @@ import {
   type PdfSettings,
   type Style,
 } from './settings';
-import { parseFrontmatter, type Frontmatter } from '@orlarey/markpage-render';
+import { parseFrontmatter, setSafeHtml, type Frontmatter } from '@orlarey/markpage-render';
 import { numberForRender } from './numbering';
 import { wrapHeadingNumbers } from './preview-paginated';
 import { blockBoxCss, capsCss, filetCss, headingNumberCss, inlineCss } from './style-emit';
@@ -77,7 +77,8 @@ export function renderPreview(
   const prepared = numbering
     ? numberForRender(body, numbering.on, numbering.depth)
     : body;
-  target.innerHTML = marked.parse(prepared, { async: false });
+  // Parsed inert and cleaned before it lands: a document never runs code.
+  setSafeHtml(target, marked.parse(prepared, { async: false }));
   if (meta.title) {
     const h1 = document.createElement('h1');
     h1.classList.add('doc-title');

@@ -15,16 +15,42 @@ const CONTRACT_VERSION = '0.1.0';
 const DEFAULT_WS_URL = 'ws://127.0.0.1:7878/ws';
 const SAVED_URL_KEY = 'markpage-mcp-url';
 
+/**
+ * The bridge runs on this machine (the Go `markpage-mcp`): only a loopback
+ * WebSocket may drive the tab. A link naming any other server — which would
+ * then read, change or delete the reader's documents — is ignored.
+ */
+export function isLocalBridgeUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'ws:' || url.protocol === 'wss:') &&
+      ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function initMcp(ctx: McpContext): void {
   const params = new URLSearchParams(window.location.search);
-  const urlParam = params.get('mcp');
+  const rawParam = params.get('mcp');
+  const urlParam = rawParam !== null && isLocalBridgeUrl(rawParam) ? rawParam : null;
+  if (rawParam !== null && urlParam === null) {
+    console.warn(`[markpage] ignored ?mcp= ${rawParam}: the bridge must be on this machine`);
+  }
   const token = params.get('token') ?? undefined;
-  const savedUrl = safeGet(SAVED_URL_KEY);
+  const stored = safeGet(SAVED_URL_KEY);
+  const savedUrl = stored !== null && isLocalBridgeUrl(stored) ? stored : null;
   const initialUrl = urlParam ?? savedUrl ?? DEFAULT_WS_URL;
 
   const pill = createMcpPill({
     initialUrl,
     onConnect: (url) => {
+      if (!isLocalBridgeUrl(url)) {
+        pill.logActivity(`refused ${url}: the bridge must be on this machine`);
+        return;
+      }
       safeSet(SAVED_URL_KEY, url);
       doConnect(url);
     },

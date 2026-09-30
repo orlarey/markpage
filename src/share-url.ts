@@ -33,11 +33,29 @@ export async function encodeShareContent(source: string): Promise<string> {
  */
 export async function decodeShareContent(encoded: string): Promise<string> {
   const bytes = base64UrlDecode(encoded);
-  const stream = new Blob([bytes as BlobPart])
+  const reader = new Blob([bytes as BlobPart])
     .stream()
-    .pipeThrough(new DecompressionStream('gzip'));
-  return new Response(stream).text();
+    .pipeThrough(new DecompressionStream('gzip'))
+    .getReader();
+  // A link is a few KB of gzip; stop well before a "zip bomb" (a tiny payload
+  // inflating to gigabytes) could freeze the tab.
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > MAX_DECODED_BYTES) {
+      await reader.cancel();
+      throw new Error('shared document too large');
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(await new Blob(chunks as BlobPart[]).arrayBuffer());
 }
+
+/** Past this, a shared payload is refused (a real one inflates to ≤ ~100 KB). */
+export const MAX_DECODED_BYTES = 4 * 1024 * 1024;
 
 /**
  * How a shared link first shows the document: in Lire (someone sent a link

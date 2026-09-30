@@ -72,7 +72,7 @@ export function createCaptionContext(
       counters[kind] += 1;
       const prefix = `${labels[kind]} ${counters[kind]}`;
       const idAttr =
-        labelKey != null ? ` id="${anchorId(kind, labelKey)}"` : '';
+        labelKey != null ? ` id="${escapeHtml(anchorId(kind, labelKey))}"` : '';
       const capHtml = `<figcaption class="caption"${idAttr}>${escapeHtml(prefix)}: ${escapeHtml(caption)}</figcaption>`;
       return `<figure class="captioned captioned-${kind}">${blockHtml}\n${capHtml}</figure>\n`;
     },

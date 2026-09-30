@@ -1398,7 +1398,10 @@ async function bootstrap(): Promise<void> {
       const href = link.getAttribute('href') ?? '';
       if (href.startsWith('#')) return; // browser handles anchor scroll
       e.preventDefault();
-      window.open(link.href, '_blank', 'noopener');
+      // Only real destinations: a document's link never runs code here.
+      if (['http:', 'https:', 'mailto:'].includes(new URL(link.href).protocol)) {
+        window.open(link.href, '_blank', 'noopener');
+      }
       return;
     }
     // Reading: a tap is reading, not a request to edit (the editor is hidden).

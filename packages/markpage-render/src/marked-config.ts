@@ -620,7 +620,7 @@ marked.use({
       const labelKey =
         (/\\label\{([^}\n]+)\}/.exec(t.raw ?? '') ?? [, ''])[1] ?? '';
       const idAttr =
-        labelKey !== '' ? ` id="${anchorId('section', labelKey)}"` : '';
+        labelKey !== '' ? ` id="${escapeHtml(anchorId('section', labelKey))}"` : '';
       return `<h${t.depth}${idAttr}>${text}</h${t.depth}>\n`;
     },
   },
@@ -1181,7 +1181,7 @@ marked.use({
           const keyEsc = escapeHtml(t.key);
           return `<span class="xref-broken" title="référence inconnue: ${keyEsc}">[?]</span>`;
         }
-        const href = `#${anchorId(entry.kind, t.key)}`;
+        const href = escapeHtml(`#${anchorId(entry.kind, t.key)}`);
         return `<a class="xref" href="${href}">${escapeHtml(entry.text)}</a>`;
       },
     },
@@ -1274,7 +1274,7 @@ function renderMathPlaceholder(source: string): string {
     mathSrc = stripLabels(mathSrc);
     if (entry !== null) {
       mathSrc = `${mathSrc} \\tag{${entry.text}}`;
-      idAttr = ` id="${anchorId('equation', labelKey)}"`;
+      idAttr = ` id="${escapeHtml(anchorId('equation', labelKey))}"`;
     }
   }
   const escaped = escapeHtml(mathSrc);
