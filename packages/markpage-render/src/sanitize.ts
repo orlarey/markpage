@@ -57,9 +57,11 @@ function urlAllowed(tag: string, name: string, value: string): boolean {
   const scheme = schemeOf(value);
   if (scheme === 'javascript' || scheme === 'vbscript') return false;
   if (scheme !== 'data') return true;
-  // Inlined pictures (exports, pasted images) are data: images — nothing else.
-  const isPicture = (tag === 'img' || tag === 'image' || tag === 'source') && name !== 'srcset';
-  return isPicture && /^\s*data:image\//i.test(value);
+  // A picture's source never runs, whatever its type: exports inline images
+  // as data: URLs, typed or not (a blob with no MIME type — one read from
+  // GitHub, say — reads as data:application/octet-stream). Anywhere else (a
+  // link, a form), a data: URL could open a page: dropped.
+  return (tag === 'img' || tag === 'image' || tag === 'source') && name !== 'srcset';
 }
 
 /** Strip every active part out of `root`, in place. */

@@ -33,6 +33,9 @@ describe('a document never runs code (sanitize.ts)', () => {
       '<img src="blob:https://markpage.org/1"><img src="data:image/png;base64,AAAA">' +
       '<style>p{color:red}</style><span class="math-inline" data-math="x"></span>';
     expect(clean(keep)).toBe(keep);
+    // An inlined picture whatever its type (an untyped blob reads as octet-stream)…
+    const untyped = '<img src="data:application/octet-stream;base64,AAAA"><svg><image href="data:;base64,AAAA"></image></svg>';
+    expect(clean(untyped)).toBe(untyped);
     // …but a data: URL only as a picture.
     expect(clean('<a href="data:image/png;base64,AAAA">x</a>')).toBe('<a>x</a>');
   });

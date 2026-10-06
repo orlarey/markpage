@@ -62,3 +62,38 @@ test('a link naming a remote MCP server is ignored', async ({ page }) => {
   expect(sockets.filter((u) => u.includes('evil.example'))).toEqual([]);
   expect(await page.evaluate(() => localStorage.getItem('markpage-mcp-url'))).toBeNull();
 });
+
+test('the net keeps a signature image in the PDF, even an untyped one', async ({ page, context }) => {
+  // An image read without a MIME type (from GitHub, say) inlines as
+  // data:application/octet-stream — a picture all the same.
+  const PNG =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.addInitScript(() => {
+    (window as unknown as { print: () => void }).print = () => {
+      (window as unknown as { __printed?: boolean }).__printed = true;
+    };
+  });
+  await page.goto('/');
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press('Delete');
+  for (const type of ['image/png', 'application/octet-stream']) {
+    await page.evaluate(
+      (t) => navigator.clipboard.writeText(t),
+      `# Lettre\n\n\`\`\`signature\n![](data:${type};base64,${PNG})\nYann\n\`\`\`\n`,
+    );
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('ControlOrMeta+v');
+    await page.keyboard.press('ControlOrMeta+p');
+    await page.waitForFunction(() => (window as unknown as { __printed?: boolean }).__printed === true);
+    const src = await page.evaluate(
+      () => document.querySelector('#markpage-print-target .letterhead-signature img')?.getAttribute('src') ?? null,
+    );
+    expect(src).toMatch(new RegExp(`^data:${type.replace('/', '\\/')};base64,`));
+    await page.evaluate(() => {
+      (window as unknown as { __printed?: boolean }).__printed = false;
+      globalThis.dispatchEvent(new Event('afterprint'));
+    });
+  }
+});
