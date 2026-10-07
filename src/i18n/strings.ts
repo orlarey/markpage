@@ -108,6 +108,7 @@ const FR = {
     'Le style « {name} » est un style à toi : le destinataire verra le style par défaut.',
   'share.link-shown-prompt': 'Copie ce lien de partage :',
   'share.failed': 'Échec du partage : {msg}',
+  'open.failed': 'Impossible d’ouvrir ce fichier : {msg}',
   'share.too-large':
     'Document trop volumineux pour un lien URL ({size} caractères, max {max}). Utilise plutôt l’export OneDrive pour les gros documents.',
   'share.email-body': 'Voici le document : {url}',
@@ -377,6 +378,7 @@ const EN: Record<keyof typeof FR, string> = {
     'The style “{name}” is one of your own: the recipient will see the default style.',
   'share.link-shown-prompt': 'Copy this share link:',
   'share.failed': 'Share failed: {msg}',
+  'open.failed': 'Could not open this file: {msg}',
   'share.too-large':
     'Document too large for a URL share ({size} chars, max {max}). Use the OneDrive export for big documents.',
   'share.email-body': 'Here is the document: {url}',

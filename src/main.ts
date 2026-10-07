@@ -2672,7 +2672,10 @@ async function bootstrap(): Promise<void> {
         : undefined;
     const entry = await importToLibrary(await fh.getFile(), folderResolver);
     if (!entry) return null;
-    if (!(await ensureRwPermission(fh))) return entry; // imported, just not linked
+    // Linked in place without asking for write access now: after the file
+    // picker no click is left to ask with — Chrome refuses the prompt, and the
+    // document's new tab stayed blank. The first Save asks (pushToDisk), on
+    // the user's own gesture.
     await saveHandle(entry.uuid, fh);
     const linked =
       (await setDocLink(entry.uuid, {
@@ -2722,7 +2725,8 @@ async function bootstrap(): Promise<void> {
         else target = await oneDriveEntry(entry.path);
       }
     } catch (err) {
-      handleGithubError(err);
+      if (err instanceof GithubError || err instanceof GithubBranchAbsentError) handleGithubError(err);
+      else openFailed(err);
     }
     return target;
   };
@@ -3141,6 +3145,14 @@ async function bootstrap(): Promise<void> {
     }
   };
 
+  // An open that failed: said here — the tab prepared for it closes (showDocIn
+  // with null) rather than stay blank.
+  const openFailed = (err: unknown): null => {
+    console.error('Open failed', err);
+    showNotice(t('open.failed', { msg: err instanceof Error ? err.message : String(err) }));
+    return null;
+  };
+
   // Import dialog: transient <input type=file>, hands the chosen file to
   // handleImport. The cross-browser fallback for "Ouvrir un fichier…" when the
   // File System Access pickers are absent (Safari/Firefox): always a copy,
@@ -3156,7 +3168,9 @@ async function bootstrap(): Promise<void> {
       input.remove();
       if (file) {
         const win = prepareDocTab();
-        void importToLibrary(file).then((e) => showDocIn(e, win));
+        void importToLibrary(file)
+          .catch((err: unknown) => openFailed(err))
+          .then((e) => showDocIn(e, win));
       }
     });
     input.click();
@@ -3175,10 +3189,15 @@ async function bootstrap(): Promise<void> {
     const fh = await pickImportableFileHandle();
     if (!fh) return;
     const win = prepareDocTab();
-    const target = /\.(md|markdown)$/i.test(fh.name)
-      ? await diskFileEntry(fh) // in place, no mount needed (V4)
-      : await importToLibrary(await fh.getFile()); // foreign → copy (V4)
-    await showDocIn(target, win);
+    let target: DocEntry | null;
+    try {
+      target = /\.(md|markdown)$/i.test(fh.name)
+        ? await diskFileEntry(fh) // in place, no mount needed (V4)
+        : await importToLibrary(await fh.getFile()); // foreign → copy (V4)
+    } catch (err) {
+      target = openFailed(err);
+    }
+    await showDocIn(target, win); // null: the prepared tab closes
   };
 
   // *Ouvrir une URL…*: the document opens in a tab of its own, through the
