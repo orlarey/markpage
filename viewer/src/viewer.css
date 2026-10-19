@@ -1,0 +1,11 @@
+/* viewer.css — every stylesheet the render needs, bundled (fonts inlined as
+   data: URLs) into the text the viewer injects at run time. Same set as the
+   VS Code webview (vscode/src/webview/preview.ts), minus the @fontsource faces:
+   Roboto, Roboto Condensed and Roboto Mono come from Google Fonts here (viewer.ts),
+   the one font host an Artifact's CSP admits. */
+@import 'highlight.js/styles/atom-one-light.css';
+@import '@orlarey/blocks/styles.css';
+@import '@orlarey/markpage-render/constructs.css';
+@import '../../src/style.css';
+@import '../../src/assets/fonts/et-book/et-book.css';
+@import './chrome.css';

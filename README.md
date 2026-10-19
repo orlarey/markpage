@@ -113,6 +113,26 @@ A Markdown extended for technical and scientific writing:
 - A built-in **Help** tutorial that opens in a side window without
   disturbing your document
 
+## Use markpage in Claude Code (plugin)
+
+The **markpage plugin for [Claude Code](https://code.claude.com)** lets Claude
+write markpage Markdown and show it rendered by markpage: published as a
+claude.ai **Artifact** (Claude Code on the web or in the desktop app), or opened
+in your browser from a terminal. It pairs with skills that produce markpage
+Markdown, such as *rewrite-rules* (an algorithm as inference rules).
+
+```
+/plugin install markpage --marketplace orlarey/markpage
+```
+
+(or `/plugin marketplace add orlarey/markpage`, then
+`/plugin install markpage@markpage`). Two skills: `/markpage:write` writes a
+document after reading the authoring guide; `/markpage:view file.md` shows one
+rendered. Pages are rendered in the reader's browser by
+[`@orlarey/markpage-viewer`](viewer/), the app's renderer packaged as one
+module loaded from jsDelivr. Details: [`claude-code/README.md`](claude-code/README.md)
+and [`CLAUDE-CODE-PLUGIN-SPEC.md`](docs/CLAUDE-CODE-PLUGIN-SPEC.md).
+
 ## Drive markpage with an AI (MCP)
 
 markpage ships an optional **MCP bridge** (`markpage-mcp`) so an AI client
@@ -155,6 +175,10 @@ render core, so a document looks the same wherever it is rendered:
 - three **npm packages** (`packages/*`) — the reusable rendering stack;
 - a **VS Code extension** (`vscode/`) — a live preview that reuses that core;
 - a **Go MCP bridge** (`mcp/`) — lets an AI client drive the web app in-browser;
+- a **standalone viewer** (`viewer/`) — the render core as one module any web
+  page can load, published as `@orlarey/markpage-viewer`;
+- a **Claude Code plugin** (`claude-code/`) — skills that write markpage Markdown
+  and publish it rendered, through the viewer;
 - **specs, skill, templates** (`docs/`, `skill/`, `templates/`).
 
 The keystone is **`@orlarey/markpage-render`**: the Markdown → HTML pipeline,
@@ -175,8 +199,12 @@ flowchart TB
   ext["VS Code extension — vscode/<br/>live preview (webview, esbuild)"]
   mcp["markpage-mcp — mcp/ (Go)<br/>MCP ↔ WebSocket bridge"]
   ai["AI client<br/>(Claude Code / Desktop)"]
+  viewer["markpage viewer — viewer/<br/>one module, any web page (jsDelivr)"]
+  plugin["Claude Code plugin — claude-code/<br/>skills write + view"]
   core --> app
   core --> ext
+  core --> viewer
+  plugin -->|"pages load"| viewer
   ai -->|"stdio (MCP)"| mcp
   mcp -->|"ws 127.0.0.1:7878"| app
 ```
@@ -192,7 +220,10 @@ markpage/
 │   └── markpage-render/ @orlarey/markpage-render — the full render pipeline
 ├── vscode/           VS Code extension — live markpage preview (esbuild)
 ├── mcp/              markpage-mcp — Go MCP bridge (stdio MCP ↔ WebSocket)
-├── skill/            "markpage-specs" authoring skill (SKILL.md)
+├── viewer/           @orlarey/markpage-viewer — the renderer as one browser module
+├── claude-code/      Claude Code plugin (skills write + view, page script)
+├── .claude-plugin/   Claude Code marketplace manifest (marketplace.json)
+├── skill/            "markpage-specs" authoring skill (SKILL.md) — superseded by the plugin
 ├── docs/             Specs & design docs (SPEC, MCP-SPEC, FRONTMATTER-SPEC, …)
 ├── templates/        Ready-to-use documents (+ style profiles)
 ├── tests/            Vitest regression corpus
@@ -233,6 +264,7 @@ npm run build:packages   # tsc each package → its dist/
 npm run build            # build:packages, then tsc --noEmit, then vite build (app)
 node vscode/esbuild.mjs  # bundle the VS Code extension
 make -C mcp build        # build the Go MCP bridge → mcp/markpage-mcp
+make viewer              # build the standalone viewer → viewer/dist (+ render test)
 ```
 
 ## Documentation
@@ -255,6 +287,8 @@ Specs and design docs live in [`docs/`](docs/) (with an index). Quick links:
   pipelines, i18n, LaTeX export, regression test harness).
 - [`MCP-SPEC.md`](docs/MCP-SPEC.md) — the MCP bridge: action↔tool audit, protocol,
   contract. Build / install / release: [`mcp/README.md`](mcp/README.md).
+- [`CLAUDE-CODE-PLUGIN-SPEC.md`](docs/CLAUDE-CODE-PLUGIN-SPEC.md) — the Claude Code
+  plugin and the standalone viewer: Artifact constraints, page contract, tests.
 - [`FORMAL-METHOD-SPEC.md`](docs/FORMAL-METHOD-SPEC.md) — how specifications are written in
   this project (methodology, not a feature spec).
 - [`FILESYSTEM-BLUEPRINT.md`](docs/FILESYSTEM-BLUEPRINT.md) — a reusable blueprint (model,

@@ -12,7 +12,8 @@ STUB       := $(abspath skill/SKILL.md)
 .DEFAULT_GOAL := help
 
 .PHONY: help dev build packages preview typecheck test test-watch test-snap \
-        e2e e2e-headed e2e-report check clean publish vscode install uninstall
+        e2e e2e-headed e2e-report check clean publish vscode install uninstall \
+        claude-plugin viewer viewer-publish
 
 # VS Code extension release: which part of the version to bump (patch|minor|major).
 BUMP := patch
@@ -81,7 +82,18 @@ vscode: ## Release the VS Code extension: bump (BUMP=patch|minor|major), commit,
 	 echo "Pushed tag vscode-v$$v -> GitHub Actions will build & publish to the Marketplace."; \
 	 echo "Watch: gh run watch --workflow=vscode-release.yml"
 
+## ---- Claude Code plugin + viewer (claude-code/, viewer/) --------------
+claude-plugin: ## Sync AI-AUTHORING.md + SYNTAX.md into the Claude Code plugin
+	node claude-code/sync-docs.mjs
+
+viewer: ## Build the markpage viewer (viewer/dist) and run its render test
+	cd viewer && npm ci && npm test
+
+viewer-publish: ## Publish @orlarey/markpage-viewer to npm (builds + tests first; needs `npm login`)
+	cd viewer && npm publish
+
 ## ---- Claude skill (markpage-specs) ------------------------------------
+## The Claude Code plugin (claude-code/) supersedes this standalone skill.
 install: ## Install/refresh the markpage-specs Claude skill (copies AI-AUTHORING.md)
 	@mkdir -p "$(SKILL_DIR)"
 	@rm -f "$(SKILL_DIR)/SKILL.md" "$(SKILL_DIR)/AI-AUTHORING.md"

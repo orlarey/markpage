@@ -1,0 +1,16 @@
+{
+  "name": "markpage",
+  "owner": {
+    "name": "Yann Orlarey"
+  },
+  "description": "markpage for Claude Code: write markpage Markdown and see it rendered.",
+  "plugins": [
+    {
+      "name": "markpage",
+      "source": "./claude-code",
+      "description": "Write markpage Markdown (math, inference rules, abstract syntax, diagrams, callouts, named styles) and see it rendered by markpage, as a claude.ai Artifact or in your browser.",
+      "category": "documentation",
+      "tags": ["markdown", "markpage", "math", "inference-rules", "specification", "artifact"]
+    }
+  ]
+}

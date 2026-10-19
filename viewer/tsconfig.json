@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // Resolve @orlarey/* to their TypeScript sources, as the app does — the
+    // bundle is built from source too (esbuild `development` condition).
+    "customConditions": ["development"],
+    "resolveJsonModule": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": []
+  },
+  // The viewer imports the app's render pipeline (../src); its ambient types
+  // (Vite `?inline` / `?url` / asset imports, untyped deps) come along.
+  "include": ["src", "../src/vite-env.d.ts"]
+}

@@ -12,6 +12,7 @@ overview, the [README](../README.md).
 | [SPEC.md](SPEC.md) | App architecture: storage model, render pipelines, i18n, LaTeX export, test harness | Reference, kept current |
 | [MCP-SPEC.md](MCP-SPEC.md) | The MCP bridge: action↔tool audit, WebSocket protocol, `tools.json` contract | Livré (v0.29.0) |
 | [VSCODE-PREVIEW-SPEC.md](VSCODE-PREVIEW-SPEC.md) | A VS Code extension that previews markpage Markdown by reusing the render pipeline (shared `@orlarey/markpage-render` package + webview) | Design (non livré) |
+| [CLAUDE-CODE-PLUGIN-SPEC.md](CLAUDE-CODE-PLUGIN-SPEC.md) | The Claude Code plugin (skills `write` + `view`) and the `@orlarey/markpage-viewer` bundle it publishes pages with: Artifact CSP constraints, page contract, tests | Livré (plugin 0.1.0) |
 
 ## Feature design specs
 

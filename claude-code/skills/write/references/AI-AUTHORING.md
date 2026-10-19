@@ -1,0 +1,1654 @@
+# Writing Markdown for markpage
+
+A reference for AI agents producing Markdown documents that will be
+rendered by [markpage](https://markpage.org). markpage takes
+Markdown source and produces print-ready paginated PDFs entirely
+client-side. All standard Markdown works; this document covers the
+extensions that make markpage useful for technical specifications,
+academic writing, and structured documentation.
+
+Optimise the source for **the constructs below** when they fit —
+they render cleanly into the PDF and survive copy-paste anywhere
+(everything is plain text Unicode in the source).
+
+---
+
+## Document skeleton: front matter, title, headings
+
+Every document opens with a YAML front matter. It carries the
+document's identity and names its style; the body starts after it.
+
+```markdown
+---
+title: Quicksort revisited
+subtitle: A gentle analysis
+author: Alice Dupont
+organization: Université de Lyon
+date: 21 mai 2026
+document-style: article-a4
+language: fr
+---
+
+# Introduction
+
+## Motivation
+```
+
+- **The document title is `title:`, never a `#` heading.** markpage
+  renders it as the title block, with the subtitle, author,
+  organization and date under it. A `#` heading is always a
+  **top-level section** (a chapter in Rapport and Livre): a
+  `# My title` under the front matter adds a numbered section
+  "1 My title" below the real title.
+- **Headings: `#` sections, `##` subsections, `###` below.** Don't
+  skip levels. In the Présentation style, each `##` starts a slide.
+- **Don't number headings by hand.** Numbering belongs to the style:
+  typed numbers (`# 1. Introduction`) are stripped at render, and the
+  style numbers the headings (or doesn't).
+- **The look comes from `document-style:`**, one of the built-in
+  styles below. Without it (or with an unknown name) the document
+  uses `note-a4`. Page size, margins, cover, recto-verso, chapter
+  breaks, note placement, heading numbering, fonts, colours and the
+  running header / footer are all properties of the style — nothing
+  in the document sets them. A document adjusts only three things
+  locally: a header / footer band (the `header` / `footer` fences),
+  the typography of a passage (`::: style`), and page backdrops
+  (`::: background`).
+- **`date:` is printed as written** — in the title block, and in any
+  header / footer that shows the date. Write it the way the document
+  should show it (`21 mai 2026`, `May 21, 2026`).
+
+| `document-style`                  | For                     | Layout                                         | Numbering     | Running header / footer            |
+| :-------------------------------- | :---------------------- | :--------------------------------------------- | :------------ | :--------------------------------- |
+| `note-a4`, `note-letter`          | notes, short docs       | single-sided                                   | 1, 1.1        | folio centred at the foot          |
+| `article-a4`, `article-letter`    | articles                | single-sided                                   | 1, 1.1, 1.1.1 | title at the top, folio at foot    |
+| `rapport-a4`, `rapport-letter`    | reports                 | cover page, recto-verso, each `#` on a recto   | 1, 1.1        | title (recto) or chapter (verso) + folio at the top; date / author at the foot |
+| `livre-a4`, `livre-letter`        | books                   | cover page, recto-verso, each `#` on a recto   | 1, 1.1        | chapter (recto) or title (verso) + folio at the top |
+| `lettre-a4`, `lettre-letter`      | letters                 | single-sided                                   | none          | none                               |
+| `presentation-16x9`               | slides                  | 16:9, each `##` a new slide                    | none          | none                               |
+
+Front-matter keys markpage reads — any other key is ignored:
+
+| Key                | Meaning                                                              |
+| :----------------- | :------------------------------------------------------------------- |
+| `title`            | the document title (title block)                                     |
+| `subtitle`         | shown under the title                                                |
+| `author`           | title block, and the style's running `author`                         |
+| `organization`     | title block                                                          |
+| `date`             | title block, and every running date (`{date}`, the style's `date`)   |
+| `document-style`   | the named style (table above)                                        |
+| `language`         | `fr` or `en`: hyphenation and date format                            |
+| `mathjax-preamble` | TeX macros for every formula (see *YAML frontmatter*)                |
+
+Styles a user imports into the markpage app can be named too, but
+they live in that browser only; a shared document should name a
+built-in style.
+
+---
+
+## Picking the right block
+
+Quick map from intent to construct. Detailed syntax for each is
+further down.
+
+| Need                                  | Construct                          |
+| :------------------------------------ | :--------------------------------- |
+| Prose, lists, links, basic emphasis   | standard Markdown                  |
+| Equation, formula                     | `$ … $`, `$$ … $$`, or ` ```math ` |
+| Typing / reduction / inference rule   | ` ```inference `                   |
+| Commutative diagram                   | ` ```category `                    |
+| Formal grammar (railroad)             | ` ```ebnf `                        |
+| Algebraic data type / abstract syntax | ` ```adt `                         |
+| Flowchart, sequence, state machine    | ` ```mermaid `                     |
+| Signal-flow circuit (Faust-style)     | ` ```bda `                         |
+| Data plot (line, bar)                 | ` ```chart `                       |
+| Image wall / photo gallery            | ` ```mosaic `                      |
+| Dense table (>3 cols or >5 rows)      | ` ```csv ` / ` ```tsv `            |
+| Compact 2-3 column table              | pipe table                         |
+| Note, warning, theorem, definition, … | `::: class` callout                |
+| Side-by-side content (2+ columns)     | `::: columns` (split by `---`)     |
+| Local typography (colour, size, font) | `::: style`                        |
+| Page backdrop / cover / slide template | `::: background`                   |
+| Table of contents + document plan     | `::: toc+`                         |
+| Term + gloss pairs                    | Pandoc definition list             |
+| Bibliographic citation                | `[@key]`                           |
+| Footnote / parenthetical aside        | `[^id]`                            |
+| Source code with highlighting         | fenced code + language hint        |
+| Unified diff                          | ` ```diff `                        |
+| Filesystem layout or AST              | ` ```tree ` (`svg` for AST)        |
+| Numbered pseudocode                   | ` ```algorithm `                   |
+| Source + rendered side-by-side        | ` ```demo `                        |
+| Letterhead (invoices, courriers, …)   | sender / recipient / signature     |
+| Running page header / footer          | ` ```header ` / ` ```footer `      |
+
+When two blocks fit (e.g. a tiny `csv` vs. a pipe table), prefer
+the simpler one. When in doubt between `adt` and `ebnf`, ask:
+*am I defining the shape of values* (→ `adt`) *or the strings a
+parser accepts* (→ `ebnf`)?
+
+---
+
+## Prefer Unicode over LaTeX where possible
+
+Markpage's source is meant to be human-editable. Whenever a symbol
+has an obvious Unicode counterpart, **write the Unicode** rather
+than the LaTeX command. Both render identically, but Unicode keeps
+the source readable, greppable, and copy-pasteable.
+
+| Prefer | Over | Prefer | Over |
+| :----- | :--- | :----- | :--- |
+| `α β γ ρ` | `\alpha \beta \gamma \rho` | `→ ←` | `\to \leftarrow` |
+| `Γ Δ Σ` | `\Gamma \Delta \Sigma` | `↦ ⇒ ⇔` | `\mapsto \Rightarrow \Leftrightarrow` |
+| `∀ ∃` | `\forall \exists` | `⊢ ⊨` | `\vdash \models` |
+| `∈ ∉` | `\in \notin` | `⟦ ⟧` (semantic brackets) | `\llbracket \rrbracket`, `\sem{…}` |
+| `⊆ ⊕ ⊗` | `\subseteq \oplus \otimes` | `≤ ≥ ≠` | `\le \ge \neq` |
+| `ℕ ℝ ℤ ℚ ℂ` | `\mathbb{N}` etc. | `x₁ y₂ aₙ` | `x_1 y_2 a_n` |
+| `∞ ∂ ∇` | `\infty \partial \nabla` | `√ ∑ ∏ ∫` | `\sqrt \sum \prod \int` standalone |
+
+**Semantic brackets in particular** — denotational semantics, type-system
+papers, and language-theory texts often use `⟦…⟧` (Oxford brackets, U+27E6 /
+U+27E7) for the meaning function. Write them directly: `$⟦t⟧_ρ$`. The AI
+must NOT invent a `\sem{…}` macro (it's not part of stock MathJax) nor write
+`\llbracket t \rrbracket_\rho` (longer and still less readable). When the
+editor is open interactively, typing `[[` and `]]` triggers the ligature and
+produces `⟦` / `⟧` for you.
+
+This rule applies **inside `$ … $` / `$$ … $$` and inside every
+rich fence** (`inference`, `category`, `adt`, `math`). MathJax
+accepts these glyphs natively in math mode. Inside `category`,
+identifiers are Unicode-aware, so `p₁ : P → A` is the idiomatic
+form, not `p_1 : P -> A`.
+
+**Exceptions** — keep LaTeX when:
+
+- The construct has no clean Unicode form: `\frac{a}{b}`,
+  `\sqrt{x+1}`, `\begin{cases}`, `\begin{matrix}`, accents
+  (`\hat{x}`, `\bar{y}`), big operators with limits.
+- You need a font command (`\mathcal{F}`, `\mathbf{v}`,
+  `\mathsf{op}`) that Unicode can't express on a regular letter.
+- Inside **Mermaid fences**, arrows MUST stay ASCII (`-->`,
+  `->>`, `-.->`); Mermaid's parser does not accept `→` / `⇒`.
+
+When the editor is open interactively, ligatures (`\alpha` → α,
+`<=` → ≤, `|N` → ℕ) handle the conversion for you. When
+generating Markdown programmatically, type the Unicode directly.
+
+---
+
+## Standard Markdown
+
+GFM-flavoured Markdown is supported as-is:
+
+- Headings `#` through `######` (only the first 4 levels have
+  distinct styling; `#####` / `######` share level 4's size).
+- Emphasis: `*italic*`, `**bold**`, `~~strikethrough~~`,
+  `` `inline code` ``.
+- Lists: `-` / `*` unordered, `1.` ordered (renumbered automatically
+  in render).
+- Blockquotes: `> …`.
+- Task lists: `- [ ]` / `- [x]` (real checkbox glyphs in the PDF).
+- Links: `[text](url)`, autolinks `<url>`.
+- Images: `![alt](path-or-url)` — scaled to fit the column. Relative
+  paths (`images/foo.png`) and HTTP URLs both work; on import, markpage
+  prompts the human user once for any relative-path file it doesn't
+  already know, then caches the binding so future imports of the same
+  document skip the prompt.
+- Fenced code blocks: triple backticks with an optional language
+  hint for syntax-highlighting (`js`, `python`, `rust`, …).
+
+**One paragraph per line — do NOT hard-wrap prose.** Two reasons. A
+wrapped line that happens to start with `>`, `-`, `*`, `#`, or `N.` turns
+into an unintended blockquote, list, or heading. And wrapping breaks the
+constructs parsed line-by-line, whose item must sit on a SINGLE line:
+`::: toc+` entries, footnote bodies, definition-list terms/definitions,
+and running-apparatus `{free text}`. (Inside ordinary body text a soft
+break in the middle of `**bold**` or `*italic*` is harmless — CommonMark
+joins it across the break — but keeping one line per paragraph sidesteps
+every one of these traps.) Separate paragraphs with a blank line; for a
+deliberate line break inside a paragraph use a trailing backslash `\`.
+
+---
+
+## Math (MathJax / LaTeX)
+
+Inline math between `$ … $`. Display math either between `$$ … $$`
+on its own paragraph, or inside a `math` fenced block (preferred —
+no requirement that the `$$` markers sit alone on their line):
+
+````
+Inline: $c = 1 / \sqrt{\mu_0 \varepsilon_0}$.
+
+```math
+\begin{align*}
+  \nabla \cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0} \\
+  \nabla \times \mathbf{B} &= \mu_0 \mathbf{J}
+    + \mu_0 \varepsilon_0 \frac{\partial \mathbf{E}}{\partial t}
+\end{align*}
+```
+````
+
+Full LaTeX math syntax — `\frac`, `\sqrt`, `\sum`, `\int`,
+`\begin{matrix}`, `\begin{cases}`, `\mathbb{N}`, `\mathcal{O}`, etc.
+You may also write Unicode characters directly (α, ℕ, ⊢, ∀) in math
+mode; MathJax accepts them.
+
+**No user preamble.** markpage does not load a per-document TeX
+preamble — only what stock MathJax (`AllPackages`) defines is
+available. The AI must NOT use custom macros it has seen in
+papers but that aren't in MathJax: `\sem{…}`, `\denote{…}`,
+`\powerset{…}`, `\bigsem`, `\Subst`, etc. all silently render as
+red error blocks. Two options:
+
+- **Preferred** — use the Unicode equivalent from the "Prefer
+  Unicode" table above (`⟦…⟧` for semantic brackets, `𝒫(…)` for
+  powerset, etc.). Compact and readable.
+- **Fallback** — if you really need a one-off custom macro, define
+  it inline at the top of the math block with `\newcommand`, e.g.
+  ` ```math \newcommand{\sem}[1]{\llbracket #1 \rrbracket} … ` ``.
+  Verbose; the Unicode form is almost always cleaner.
+
+---
+
+## Inference rules
+
+For type systems, operational semantics, sequent calculus, etc.,
+use a dedicated `inference` fenced block. Premises separated by
+`;`, a line of three or more dashes, then the conclusion. The label
+in parentheses appears to the right of the bar.
+
+````
+```inference (T-App)
+\Gamma \vdash f : A \to B; \Gamma \vdash x : A
+---
+\Gamma \vdash f\,x : B
+```
+````
+
+LaTeX commands (`\Gamma`, `\vdash`, `\to`) and the corresponding
+Unicode (Γ, ⊢, →) are interchangeable inside the block.
+
+**Typography heuristic** (Gunter / Scott convention, applied
+automatically **inside `inference` blocks only**, before MathJax
+sees the source) — write the source naturally, the renderer does
+the right thing:
+
+- A single capital letter immediately followed by `⟦` or `[[` is a
+  **semantic function** → rendered in calligraphic.  `E⟦e⟧` ⇒ 𝓔⟦e⟧.
+- A letter followed by digits is a **subscripted variable** →
+  `e1`, `T2` ⇒ e₁, T₂.
+- A multi-letter identifier **inside** `⟦…⟧` is a **constructor**
+  of the abstract syntax → rendered in **bold**.  `Op(o, e1, e2)`
+  inside brackets ⇒ **Op**(o, e₁, e₂).
+- A multi-letter identifier **outside** `⟦…⟧` is a **function /
+  auxiliary name** → rendered in sans-serif.  `apply(o, v1, v2)`
+  ⇒ 𝖺𝗉𝗉𝗅𝗒(o, v₁, v₂).
+- Single capital letters (`A`, `B`, `T`, `\Gamma`, …) stay italic
+  — the standard math convention for type / context / term
+  variables.
+
+You can therefore write `E⟦Op(o, e1, e2)⟧ = apply(o, E⟦e1⟧, E⟦e2⟧)`
+verbatim and get the right rendering — no need to wrap names in
+`\mathcal{}` / `\mathbf{}` / `\mathsf{}` by hand. (If you do, the
+heuristic is idempotent: existing wraps are preserved.)
+
+The heuristic does **not** fire inside regular `$ … $` / `$$ … $$`
+math or inside `category` / `math` / `adt` blocks. If you want the
+same effect there, write the wrappers explicitly.
+
+---
+
+## Commutative diagrams (category)
+
+Use the `category` fence to describe a small category by its
+morphisms and equations. The parser builds a typed graph (objects
+inferred from morphism signatures), the type-checker verifies
+compositions and equations, then a native SVG renderer lays the
+diagram out on a grid (Mermaid `dagre` fallback for topologies the
+native renderer can't place).
+
+````
+```category "Pullback"
+f  : A -> C
+g  : B -> C
+p1 : P -> A
+p2 : P -> B
+h  : X -> A
+k  : X -> B
+u  : X -> P by (h, k)
+
+f . p1 = g . p2
+p1 . u = h
+p2 . u = k
+```
+````
+
+Syntax:
+
+- `name : Source -> Target` — declares a morphism. Objects are
+  the identifiers used as source/target; no separate declaration.
+- `f . g` — composition (read right-to-left, like functions).
+- `f = g` — equation (commutativity constraint).
+- `u : X -> P by (h, k)` — declares a morphism whose existence
+  is conventionally guaranteed by a universal property (pullback,
+  product, equaliser, …). Rendered dashed. *Note*: markpage does
+  not prove the universal property — the `by (…)` clause is a
+  typographic / documentation assertion. The arguments `(h, k)`
+  appear as the tuple's components.
+
+A type error (composition with mismatched domain/codomain, or
+equation whose sides have different source/target) is reported in
+a red error block instead of rendering. Full grammar and
+type-checking rules in `docs/CATEGORY-SPEC.md`.
+
+**Identifiers are Unicode-aware** — write subscripts as Unicode
+glyphs (`p₁`, `p₂`, `f̃`, `π₁`) rather than LaTeX (`p_1`, `p_2`).
+The same applies to Greek, blackboard-bold, and primes. The
+typography heuristic of `inference` blocks does **not** run here,
+so what you type is what gets rendered.
+
+---
+
+## EBNF railroad diagrams
+
+Use the `ebnf` fence for grammars. Each production renders as a
+separate railroad / syntax diagram, with the non-terminal name
+right-aligned next to the diagram and an `=` sign in between (every
+`=` lines up vertically — LaTeX align-on-equals convention).
+
+````
+```ebnf
+expression = term, { ("+" | "-"), term };
+term = factor, { ("*" | "/"), factor };
+factor = number | "(", expression, ")";
+number = digit, { digit };
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+```
+````
+
+Dialect: **W3C EBNF** (the one ebnf2railroad understands). Key
+syntax:
+
+- `=` defines a production, terminated by `;`.
+- `,` is concatenation (sequence).
+- `|` is alternation.
+- `{ … }` is zero-or-more repetition.
+- `[ … ]` is optional (zero-or-one).
+- `( … )` groups for precedence.
+- `"…"` or `'…'` for terminal literals.
+- `(* comment *)` for comments.
+
+A parse error in the source is caught and rendered as a visible
+`<pre class="ebnf-error">…</pre>` so a typo doesn't blow up the
+whole document.
+
+---
+
+## Algebraic data types
+
+Use the `adt` fence for BNF-ish algebraic data type definitions —
+the notation common in formal-methods papers and operational
+semantics. Distinct from `ebnf`: same `|` syntax, but expects
+`::=` (not `=`), accepts `Ctor(arg1, arg2)` constructor calls,
+and renders as a typeset table rather than a railroad diagram.
+
+````
+```adt
+Expr ::= Const(c)              (* c ∈ ℝ *)
+       | Vec(v)                 (* v ∈ 𝒱 *)
+       | Op(o, Expr, Expr)      (* o ∈ Ω *)
+       | Split(Expr)
+
+Op   ::= Add | Sub | Mul | Div
+```
+````
+
+Layout: a 4-column grid (LHS / `::=` or `|` / alternative /
+annotation). All `|` line up vertically. Trailing `(* … *)`
+comments on each alternative are pulled off and rendered as
+right-side annotations. A definition whose every alternative is
+a bare name with no args and no annotation collapses to a single
+inline row (`Op` above).
+
+Highlighting: identifiers that appear as a LHS somewhere in the
+block (defined by a rule — `Expr`, `Op` here) get the type
+colour. Pure constructors (`Const`, `Vec`, `Split`, `Add`, `Sub`,
+`Mul`, `Div`) get the constructor colour. Lowercase identifiers
+(variables like `c`, `v`, `o`) stay plain.
+
+Use `adt` for **type definitions**; use `ebnf` for **concrete
+grammars** that benefit from a syntax diagram.
+
+---
+
+## Mermaid diagrams
+
+Flowcharts, sequence, class, state, gantt, ER, mindmap, etc.
+
+````
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Server
+    U->>S: GET /article/42
+    S-->>U: 200 OK + HTML
+```
+````
+
+> **Critical pitfall:** inside Mermaid blocks, always write arrows
+> as **ASCII** — `-->`, `<--`, `->>`, `-.->`. The Mermaid parser
+> does NOT accept Unicode `→` / `←`. Do not generate `-→`, `→`, or
+> `⇒` inside a Mermaid fence.
+
+**Multi-line labels**: use `<br>` to break a node label across
+several lines (works in flowcharts and class diagrams). Both
+unquoted (`A[Line 1<br>Line 2]`) and quoted (`A["Line 1<br>Line 2"]`)
+forms are accepted; `<br/>` and `<br>` are equivalent. markpage
+post-processes the rendered SVG to self-close void tags so the
+browser's strict XML parser doesn't reject the diagram.
+
+```
+A[First line<br>Second line] --> B[Single line]
+```
+
+---
+
+## Faust block-diagram algebra (bda)
+
+Use the `bda` fence for left-to-right signal-flow circuits, in
+the spirit of the Faust audio DSP language. The body is a single
+algebraic expression over five binary operators applied to
+primitive boxes; markpage parses, type-checks (input/output
+arities must match the operator's rule) and renders a circuit
+SVG.
+
+````
+```bda "Accumulator"
+1 : +~_
+```
+
+```bda delays "Accumulator with z⁻¹"
+1 : +~_
+```
+````
+
+Read `1 : +~_` as: feed the constant `1` into a `+` block whose
+second input is fed back from its own output through the identity
+wire `_` (the `~` operator inserts a one-sample delay on the
+feedback path). Result: `y[n] = 1 + y[n−1]`, a counter.
+
+Operators, **highest precedence first** — `~` binds tightest,
+`<:`/`:>` loosest. The **Prio** column is the binding level
+(higher number = binds tighter):
+
+| Op   | Prio | Name       | Meaning                                     |
+| :--- | :--: | :--------- | :------------------------------------------ |
+| `~`  | 4    | recursion  | `A ~ B` — feedback loop, `B` mirrored       |
+| `,`  | 3    | parallel   | side-by-side, arities add                   |
+| `:`  | 2    | sequential | outputs of left feed inputs of right        |
+| `<:` | 1    | split      | one output fans out to many inputs (modulo) |
+| `:>` | 1    | merge      | many outputs sum into fewer inputs (modulo) |
+
+**Precedence trap (parallel vs sequential).** `,` binds *tighter*
+than `:`, so `A : B , C : D` parses as `A : (B , C) : D` — **not**
+two parallel chains. To place sequences side by side you **must**
+parenthesise each one: write `(A : B) , (C : D)`.
+
+Conversely, a bank of parallel chains feeding a shared stage needs
+**no** parens — the precedence already groups it right:
+`A,B,C,D : X,Y,Z,W :> L` parses as `((A,B,C,D) : (X,Y,Z,W)) :> L`.
+So the rule is: parenthesise when you **place sequences in
+parallel**, not when you **fan parallel chains into a stage**.
+
+Primitives: numbers (`0`, `1.5`), identity `_`, cut `!`,
+arithmetic (`+`, `-`, `*`, `/`), comparisons (`<`, `>`, `==`,
+`!=`, `<=`, `>=`), common math functions (`sin`, `cos`, `tan`,
+`exp`, `log`, `sqrt`, `abs`, …), and any quoted label
+`"my filter"` or `X[in,out]`.
+
+A quoted label `"X"` (or a bare identifier) defaults to arity
+**(1,1)** — one input, one output. You only add the `[in,out]`
+suffix when you need a different arity: `"mixer"[4,1]`,
+`"fanout"[1,8]`. Don't sprinkle `[1,1]` everywhere — it's the
+default.
+
+The optional `delays` arg (or alias `faust`) draws a `z⁻¹` box
+on each recursion feedback wire (the implicit one-sample delay
+that makes the recursion well-defined).
+
+A parse or arity error renders as a red error block listing each
+diagnostic with its line number.
+
+---
+
+## Charts from CSV
+
+A `chart` fenced block reads inline CSV and emits an SVG plot.
+First line is headers (column 1 = X axis label, remaining columns
+= data series). Following lines are values.
+
+````
+```chart line "Audio latency"
+buffer (samples), latency (ms)
+64,    1.3
+128,   2.7
+256,   5.3
+512,  10.7
+1024, 21.3
+```
+````
+
+Types: `line` (curves) or `bar` (histogram). Quoted title is
+optional. X axis auto-detects continuous numbers, categorical
+labels, or ISO 8601 dates (`YYYY-MM-DD`). Multiple data series
+become coloured lines or grouped bars with an automatic legend.
+
+### Scale options
+
+After the type and optional title, the info string accepts
+`key=value` options (all optional; omit for auto-scale):
+
+| Option                     | Effect                                         |
+| :------------------------- | :--------------------------------------------- |
+| `y-min=V` / `y-max=V`      | Force the Y bounds (use `.` decimals)          |
+| `x-min=V` / `x-max=V`      | Force the X bounds (number or ISO date)        |
+| `y-ref=V` or `V:"label"`   | Dashed horizontal reference line(s)            |
+| `y-scale=log` (or `log-y`) | Logarithmic Y axis                             |
+
+```chart line "Parallel efficiency" y-min=0 y-max=1 y-ref=0.25:"1/U floor"
+processors, efficiency
+1, 1.0
+2, 0.82
+4, 0.61
+8, 0.40
+```
+
+`y-ref` takes several lines at once:
+`y-ref=0.25:"floor",1.0:"ideal"`. Labels may contain spaces.
+
+**Bar charts anchor at 0 by default** (so bar lengths read as
+proportions — a 2× bar means 2× the value). Pass `y-min=auto` to
+opt a bar chart back into free auto-scaling. `line` charts always
+auto-scale unless you give explicit bounds.
+
+Use `y-scale=log` for data spanning orders of magnitude (latency
+vs buffer size, power-law scaling).
+
+---
+
+## Image walls (mosaic)
+
+The `mosaic` fence assembles several images into a **justified
+gallery** — a gap-free rectangle where each row of *whole* images is
+scaled to fill the text width exactly (Flickr / Google Photos style).
+Plain `![]()` images can't be montaged this way; reach for `mosaic`
+when you have a wall of photos (an event, a site, a trip).
+
+One Markdown image per line in the body:
+
+````
+```mosaic "Manifestation du 1er mai"
+![](assets/a1….jpg)
+![](assets/b2….jpg)
+![](assets/c3….png)
+![](assets/d4….jpg)
+```
+````
+
+Images are **never cropped**: each cell keeps its image's exact
+aspect ratio and row heights vary so every row spans the full width.
+Refs are the usual image refs (a photo already imported into the
+document works as-is). Blank / non-image lines are ignored.
+
+Options after the optional quoted title:
+
+| Option         | Default                  | Effect                                      |
+| :------------- | :----------------------- | :------------------------------------------ |
+| `height=<pt>`  | auto (≈ 1/5 page height) | target row height — smaller ⇒ more per row  |
+| `gap=<pt>`     | `0`                      | gutter between images and between rows      |
+| `last=natural` | last row justified       | leave the last partial row at natural size  |
+
+By default the last row is justified like the others (flat bottom
+edge — a true rectangle). `last=natural` keeps it at natural height,
+useful when the final row holds a lone image that would otherwise be
+blown up. A quoted title makes it a numbered `Figure N`; `\label{}`
+lets you `\ref{}` it. A wall with no valid image renders a red error
+block.
+
+---
+
+## CSV / TSV tables
+
+Dense tables are easier as CSV/TSV than as pipe tables:
+
+````
+```csv
+Note, Concert pitch (Hz), MIDI
+A4,    440.00, 69
+A#4,   466.16, 70
+B4,    493.88, 71
+```
+````
+
+Use `csv` or `tsv` as the info string. Separator is auto-detected
+(tab > `;` > `,`). Decimal commas (`3,14`) are recognised when the
+field separator is `,` and there's no space around the digits.
+
+**Cells are plain text — no inline Markdown is parsed.** Backticks,
+`**bold**`, links, math `$…$`, all render as literal characters.
+If any cell needs inline code (e.g. `` `Cmd+S` ``), a hyperlink, or
+emphasis, **use a pipe table instead**, regardless of how many rows
+or columns it has. The "≥3 cols / ≥5 rows → csv" heuristic only
+applies to plain-text data tables.
+
+---
+
+## Pipe tables (GFM)
+
+Standard pipe-and-dash syntax. Alignment is set by the separator
+row:
+
+```
+| Left | Centre | Right |
+|:-----|:------:|------:|
+| a    | b      | c     |
+```
+
+Tables are centred horizontally on the page in the rendered PDF.
+
+---
+
+## Callouts (Pandoc fenced divs)
+
+Highlight a passage with `:::` blocks. Optional title in brackets
+after the class name.
+
+```
+::: warning
+Careful, this operation is irreversible.
+:::
+
+::: theorem [Pythagoras]
+In a right triangle, the square of the hypotenuse equals the sum
+of the squares of the other two sides.
+:::
+```
+
+Recognised classes:
+
+- **Coloured boxes** (tinted background, coloured frame):
+  `note` (blue), `tip` (green), `warning` (orange),
+  `caution` (red), `important` (purple).
+- **Academic** (plain frame, italic title, LaTeX-like):
+  `theorem`, `lemma`, `proposition`, `corollary`, `definition`,
+  `proof`, `example`, `remark`.
+
+Any other class name (e.g. `::: aside`) renders with a neutral
+frame — fine for ad-hoc conventions. The body of a callout accepts
+the full Markdown vocabulary including math, code, and nested
+constructs.
+
+**Callouts are side-channel remarks, not section content.** Each
+one is a coloured, framed visual interrupt — use them sparingly so
+they stay attention-grabbing. Concretely:
+
+**Use** for:
+
+- A genuine warning the reader must act on (browser setting,
+  irreversible op, common foot-gun).
+- A side rationale ("why this choice") or implementation note that
+  would otherwise interrupt the main flow.
+- A theorem / definition / example in academic prose.
+
+**Do NOT use** for:
+
+- A regular subsection. If it has a heading like `### Limitations`
+  or `### Hors v1`, the content under it is structural — leave it
+  as plain prose. The heading already signals what kind of content
+  follows; wrapping it in `::: caution` is double-marking.
+- Every paragraph that mentions a caveat — only the strongest one
+  or two per document deserve the visual weight.
+
+---
+
+## Side-by-side columns (`::: columns`)
+
+Lay content out in equal-width columns: a `::: columns` block split by
+`---` lines. Each segment becomes one column; two `---` give three
+columns, and so on. Each column is full Markdown (text, lists, images,
+math). Good for a before/after or a text-and-figure split, especially on
+a slide.
+
+```
+::: columns
+**Before**
+
+- slow
+- verbose
+
+---
+
+**After**
+
+- fast
+- concise
+:::
+```
+
+The block stays on a single page (it does not fragment), so keep it short
+enough to fit — automatic on a slide, a constraint to respect in a long
+paged document. At LaTeX export the columns degrade to stacked content.
+
+---
+
+## Local typography (`::: style`)
+
+Override the typography of a span of content with `::: style`, a recursive
+fenced div. Use it where the document's style can't reach — a big
+coloured title on a cover, a centred caption.
+
+```
+::: style color=#0b3d91 size=22pt align=center font="Inter" weight=700
+A blue, 22 pt, centred, bold heading
+:::
+```
+
+Allowed parameters (a fixed, validated allowlist — never raw CSS):
+
+- `color=` — `#rrggbb` or a CSS colour name
+- `size=` — point size (`28pt`, or a bare number = pt)
+- `font=` — family name (quote it if it has spaces: `font="Source Serif 4"`)
+- `weight=` — 100–900
+- `align=` — `left` / `center` / `right` / `justify`
+- `italic`, `underline` — bare flags (no `=`)
+- `line-height=` — multiplier (`1.3`)
+
+The body is full Markdown (headings, lists, math…) and the style applies to the
+whole subtree, overriding element defaults (a heading's size, a paragraph's
+alignment). Nest `::: style` for finer scope — the inner one wins. It's a
+deliberate, controlled exception to markpage's "no inline styles" rule: only the
+named parameters above, never arbitrary CSS or HTML. Full reference:
+`STYLE-SPEC.md`.
+
+---
+
+## Page backdrops (`::: background`)
+
+Place content *behind* the page — covers, posters, recurring slide templates.
+Each `::: background` block is a Markdown minipage on the page's backdrop layer;
+the document content renders on top.
+
+```
+::: background fill=#0b1f3a
+:::
+::: background at=0.5,0.4 size=0.7
+A centred title block
+:::
+```
+
+- `fill=color` — backdrop colour. **Without `size` the block covers the whole
+  page** (a full-bleed fill); **with `size` it's a minipage** of that width
+  (fraction of the page), placed by `at`.
+- `at=x,y` — position in [0,1]² (0,0 = top-left of the sheet, 1,1 = bottom-right)
+  with a **self-aligning anchor**: the page's (x, y) point meets the minipage's
+  same point, so `at=0,0` sits flush in the corner, `0.5,0.5` is centred, `1,1`
+  bottom-right — placing in a corner never overflows.
+- `size=w` — minipage width as a fraction of the page; height is automatic.
+- `first` — apply to **this page only** (a distinct cover). Otherwise the
+  backdrop **cascades** to the following pages (like `header` / `footer`) until a
+  new `::: background` replaces it; an **empty `::: background` clears** the layer.
+- **Source order is z-order** — write the `fill` before the elements that sit on
+  top of it.
+
+For a light title on a dark backdrop, nest a `::: style` inside. The body of a
+`:::` block closes at the next line of the same number of colons, so give the
+**outer fence four colons**:
+
+```
+:::: background first at=0.5,0.4 size=0.8
+::: style color=#ffffff align=center size=34pt
+Annual report
+:::
+::::
+```
+
+Backdrops appear in the paginated preview / PDF (not the continuous editor view).
+Full reference: `BACKGROUND-SPEC.md`.
+
+---
+
+## Table of contents + plan (`::: toc+`)
+
+A `::: toc+` block is the document's **plan and its table of contents in
+one**. Write it *first*: a (possibly nested) list of `**Title** —
+intention` entries, where the list nesting maps to heading depth. You
+author and refine this plan — with the AI — before the body exists, and it
+doubles as a spec you can later check the content against.
+
+```
+::: toc+
+- **Introduction** — state the problem and the goals.
+- **Method** — describe the approach.
+  - **Data** — the sources.
+- **Results** — what we observe.
+:::
+```
+
+At render it collapses to a clean table of contents: titles only (the
+intentions are dropped), with dotted leaders and page numbers. Entries are
+matched to headings **by title** — robust to leading section numbers
+(`## 1. Method` ↔ "Method") and accents. An entry that matches no heading
+is struck through, so the rendered TOC doubles as a consistency check
+between plan and content (write the plan first, then keep them in sync).
+
+Page numbers only differ when sections land on different pages (a long
+document, or the `presentation-16x9` style).
+
+---
+
+## Letterhead (sender / recipient / signature)
+
+For invoices, devis, courriers, propositions commerciales — paired
+address blocks for the émetteur and destinataire of a document, plus
+an optional `signature` block for the sign-off.
+
+````
+```sender
+Yann Orlarey
+12 rue Exemple
+69000 Lyon
+SIRET 123 456 789 00012
+TVA intra. FR12 345678901
+```
+
+```recipient
+ACME SAS
+*À l'attention de Mme Dupont*
+34 avenue du Client
+75002 Paris
+```
+````
+
+Each line of the body is rendered as one address line, joined by
+`<br>`. Inline `**bold**`, `*italic*`, and `[text](url)` work; raw
+HTML is escaped. **No automatic heading** is added — if you want
+*Émetteur* / *Destinataire* (or *Sender* / *Recipient*, *From* /
+*To*, anything), type it as the first line of the body.
+
+### Default layout
+
+- **`sender`** — sits in the left column, in normal flow.
+- **`recipient`** — **absolutely positioned** by default at the
+  standard French DL envelope window coordinates (left edge 110 mm,
+  top edge 40 mm from the A4 edge — auto-adjusted to whatever margins
+  the style uses). Folded in Z, an A4 lands the destinataire
+  inside the window of a standard DL window envelope.
+- The pair is wrapped in a group with `min-height: 70 mm` to reserve
+  vertical space — without it, the prose following the group would
+  flow over the absolutely-positioned recipient.
+
+### Source-order convention
+
+**Put `sender` / `recipient` at the very beginning of your markdown**,
+before any heading or paragraph. The recipient is pinned to fixed
+envelope coordinates (top of page); anything you write *before* the
+letterhead flows above it in source order and, when that "anything" is
+too short to fill the page-top region, overlaps visually with the
+recipient block. The frontmatter `title:` is fine (it renders with the
+metadata block below it, which together take enough vertical space).
+Body headings (`# …`, `## …`) right before the letterhead don't.
+
+If you really need a heading before the letterhead, use
+`` ```recipient flow `` to keep the recipient in normal flow as a
+right column — no fixed positioning, no overlap, but no envelope-window
+alignment either.
+
+### Opt out of window positioning — `flow`
+
+When you don't want the envelope alignment (Anglo-Saxon-style letter,
+internal mockup, A5 page where the DL coordinates don't apply, …),
+add `flow` to the recipient info-string:
+
+````
+```recipient flow
+ACME SAS
+34 avenue du Client
+75002 Paris
+```
+````
+
+The recipient stays in flex flow as the right column, sized like the
+sender, with `margin-left: auto` for the lone-recipient case. The
+flag is silently ignored on `sender` (the émetteur is always in flow).
+
+### Sign-off — `signature`
+
+For the closing block of a letter (image of a hand-written signature,
+name, title), use ` ```signature ` at the end of the doc:
+
+````
+Cordialement,
+
+```signature
+![](signature.png)
+**Yann Orlarey**
+*Consultant DSP audio*
+```
+````
+
+The signature block sits in the right column (`margin-left: auto`)
+with a generous top margin to separate it from the salutation above,
+and `break-inside: avoid` so it doesn't get split across pages. The
+body uses the same inline formatter as `sender` / `recipient` —
+`**bold**`, `*italic*`, `![alt](url)`, `[text](url)`. `window` /
+`flow` flags are silently ignored on `signature` (those are
+recipient-only).
+
+**What stays in plain Markdown** around the letterhead pair:
+
+- Document title — frontmatter `title:`
+- Place and date — a right-aligned `::: style align=right` paragraph
+  (`Paris, le 21 mai 2026`); the `lettre-*` styles print no date of
+  their own
+- Invoice number, reference — bold-prefixed paragraphs or a
+  definition list
+- IBAN / BIC — bold-prefixed lines
+- Legal mentions — `::: caution [Mentions légales]` callout
+- Items table / totals — pipe tables (for now; an `items` block with
+  auto-computed totals is planned)
+
+---
+
+## Running page header and footer (`header` / `footer`)
+
+Two fences that fill the page margin boxes — same three slots per
+band, on a single line, separated by `|`:
+
+````markdown
+```header
+Mon document | | Page {page} / {pages}
+```
+
+```footer
+| © Yann Orlarey | {date}
+```
+````
+
+Slot order: **left | center | right**. Empty slot = empty pipe
+segment (`| Chap |` → only the center is filled, left and right are
+cleared). Literal pipe in slot text: `\|`.
+
+**Substitutions** (resolved at render time):
+
+| Token       | Meaning                                          |
+| :---------- | :----------------------------------------------- |
+| `{page}`    | current page number                              |
+| `{pages}`   | total page count                                 |
+| `{date}`    | the front-matter `date:`, else today's date      |
+| `{title}`   | the latest title crossed: see below              |
+
+The fence emits **no visible content** in the document body — only
+the running content of every page's margin box. Place it anywhere in
+the source; each fence starts a new **run** that lasts until the next
+fence of the same kind overrides it. An empty fence clears the band
+entirely:
+
+````markdown
+```header
+```
+````
+
+**Positional args** for narrower targeting within a run:
+
+- `header first` — applies only to the **first page of the run**.
+  Typical use: a different header on the first page of a chapter.
+- `header blank` — applies only to **blank pages** that the renderer
+  inserts (e.g. to push the next chapter onto a recto). Useful to
+  strip the running header on such pages.
+
+A `header first` does NOT replace the default; it sits on top of it.
+The first page of the run uses `first`; subsequent pages use the
+default. You can combine both in the same source position:
+
+````markdown
+```header
+Chapter 3 | | Page {page}
+```
+
+```header first
+| Chapter 3 |
+```
+````
+
+**About `{title}`**: resolves to the latest title the renderer has
+crossed — the document's `title:` on the first pages, then the text
+of the most recent `#` heading. Sub-headings (`## section`) do not
+update it. So `{title}` is a *running* title that follows the
+chapters; for the document title on every page, write it literally
+in the slot (`Quicksort revisited | | {page}`). Never add a `#`
+heading to get a title into the header: `#` is a section (see
+*Document skeleton*).
+
+**Inline emphasis inside slots**: `**bold**`, `*italic*`,
+`***both***` work as expected; markpage extracts them at fence-parse
+time. **Whole-slot wrapping** (`**{page}**`) sets `font-weight: bold`
+on the @margin box so a single counter / variable is bold. **Mid-slot
+emphasis** (`Welcome to **markpage**`) uses paged.js's
+`position: running()` + `content: element()` mechanism: the slot is
+parsed as inline markdown into an HTML fragment, injected as a
+hidden source, and piped to the matching margin box. The only
+limitation: a slot that mixes **both** a `{var}` substitution **and**
+mid-slot emphasis renders the asterisks literally — wrap the whole
+slot if you need a bold counter, or split the line.
+
+**The style's own header / footer**: every style carries a running
+header and footer (see the table in *Document skeleton* — e.g. the
+folio centred at the foot for `note-a4`). A document with no fence
+gets them as they are. A fence replaces the style's band **band by
+band**: a `header` fence replaces the style's header and leaves its
+footer, and vice versa. An empty fence removes that band.
+
+**Recto / verso headers**: in a recto-verso style (Rapport, Livre),
+the three slots of a fence swap between recto and verso (inner ↔
+outer) automatically — see *Recto-verso and chapter breaks* below.
+There is no fence selector for different recto / verso *content*;
+the style's own header / footer can differ by side.
+
+**Typical use**: a fixed page header showing the document title at top-
+left and a page counter at top-right; a footer with the date or a
+copyright line. Drop one ` ```header ` and one ` ```footer ` near the
+top of your source. Add more fences at chapter boundaries to swap
+the running content per section.
+
+---
+
+## Page layout comes from the style
+
+Page size, margins, the text block and the header / footer bands
+are properties of the named style — the document never sets them
+(see *Document skeleton*). A style is designed in markpage's style
+editor; a document only names it with `document-style:`.
+
+## Recto-verso and chapter breaks
+
+**Recto-verso** (the Rapport and Livre styles): a two-page layout
+with the cover alone on the right, then verso / recto spreads. Inner
+and outer margins swap between recto and verso. In a recto-verso
+style, the three slots of a header / footer fence read **inner |
+center | outer** rather than left | center | right — the same fence
+flips its left and right slots on the verso. Think in inner / outer
+when placing the page counter (typically outer).
+
+**Chapter breaks**: in Rapport and Livre, every `#` heading starts
+on a recto (a blank verso is inserted when needed). In the other
+styles, `#` headings follow the flow.
+
+## Notes placement: foot of page, margin, end of document
+
+The Pandoc footnote syntax (`[^id]` + `[^id]: definition`) is
+unchanged. What the style's *notes* placement changes is **where each
+note actually lands** (every built-in style uses `'foot'`):
+
+- `'foot'` (default) — each note is placed at the **foot of the page
+  where its anchor lives**. markpage emits `float: footnote` on the
+  inline `<span class="sidenote">` carrying the note body; paged.js's
+  footnote handler moves it into the per-page
+  `.pagedjs_footnote_area` and auto-generates the in-body call
+  marker.
+
+- `'side'` — each note slides into the **outer gutter** at the height
+  of its anchor (Tufte CSS approach). The body anchor stays visible
+  as a superscript AND the note body shows the same number as a
+  small superscript prefix. Needs a style whose geometry reserves a
+  margin gutter for notes.
+
+- `'end'` — all notes are gathered at the end of the document in a
+  numbered *Notes* section. The classical Markdown rendering.
+
+Author guidance: the placement is chosen with the style, not in the
+document — write notes the same way whatever the style.
+
+## Margin figures
+
+Pandoc-style attribute on an image: `![alt](url){.margin}` drops
+the image into the **outer gutter** at the height of the paragraph
+that holds it (same anchor as the `notes.position: 'side'`
+sidenotes). Capped to the gutter width so it never overflows.
+
+Like side notes, this needs a style that places its notes in the
+margin (`'side'`); none of the built-in styles does today, and
+elsewhere the `{.margin}` image renders inline.
+
+Use for small figures (diagrams, photo thumbnails, side
+illustrations) that comment on a specific paragraph without
+interrupting the body flow.
+
+## Debug-guides overlay
+
+A user-facing debug overlay toggled by the **Repères** button in the
+toolbar or the keyboard shortcut `Cmd/Ctrl + Shift + G`. When on,
+every page gets three nested outlines (page = grey, live area =
+green, text block = orange) plus the canon diagonals as SVG. Useful
+to visually inspect where headers, footers, sidenotes and margin
+figures land relative to the style's geometry.
+
+The overlay is purely visual; it doesn't ship in the PDF export.
+
+---
+
+## Definition lists (Pandoc-style)
+
+Term on one line, definition on the next prefixed with `:` and an
+indent. Lines indented by **four spaces** (or a tab) fold into the
+current definition. Multiple definitions per term are allowed.
+
+```
+DAG
+:   *Directed Acyclic Graph* — a directed graph with no cycle,
+    used everywhere from build systems to causal inference.
+
+FFT
+:   *Fast Fourier Transform* — the $O(n \log n)$ algorithm by
+    Cooley & Tukey.
+:   Also a verb. "FFT the signal" means "compute its frequency
+    representation".
+```
+
+---
+
+## Footnotes (Pandoc-style)
+
+Reference inline with `[^id]`. Define elsewhere (typically at the
+end) with `[^id]: …`. Numbers are assigned in order of first
+reference; the footnote section is generated automatically with
+back-links.
+
+```
+Quicksort runs in $O(n \log n)$ on average[^avg], but degrades to
+$O(n^2)$ on already-sorted input unless a randomised pivot is
+used[^rand].
+
+[^avg]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal.
+[^rand]: Sedgewick proposed shuffling the array as a guard.
+```
+
+**Keep each definition on one source line.** markpage does not support
+Pandoc's multi-paragraph or indented-continuation footnotes — a hard line
+break ends the definition. The line may be as long as you like (it
+soft-wraps), so write the whole note on a single line even when it is long.
+A reference resolves from anywhere, including inside list items, tables, and
+definition lists.
+
+---
+
+## Citations (Pandoc-lite)
+
+Reference inline with `[@key]`. Define elsewhere with `[@key]: …`.
+Renders as a square-bracketed `[N]` link, numbered in order of
+first appearance, with an auto-generated "References" section at
+the end of the document. Citation keys accept letters, digits, and
+`_:.-` — BibTeX-friendly.
+
+```
+Quicksort runs in $O(n \log n)$ on average[@hoare1962], improved
+by Sedgewick's randomised pivot[@sedgewick1978].
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1), 10-16.
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10), 847-857.
+```
+
+The reference text is whatever Markdown you write — there's no
+automated formatting style (no APA / IEEE / MLA). You control the
+order of fields and the typography. References to undefined keys
+pass through as literal text so a typo doesn't silently produce a
+blank `[N]`.
+
+---
+
+## Code blocks (syntax highlighting)
+
+Fenced code blocks with a recognised language hint are
+syntax-highlighted via highlight.js. The light atom-one-light
+theme is used in the preview and the PDF.
+
+The bundled language set is curated for spec writing:
+`bash`/`sh`, `c`, `cpp`, `css`, `go`, `haskell`, `html`/`xml`,
+`java`, `javascript`/`js`, `json`, `lua`, `markdown`/`md`,
+`ocaml`, `python`/`py`, `rust`/`rs`, `scala`, `scheme`, `shell`,
+`sql`, `typescript`/`ts`, `yaml`/`yml`. Any other language hint
+falls through to a plain monospace block.
+
+A custom **Faust** language is also registered (`faust` or
+`dsp`), since Faust is markpage's author's project and isn't in
+highlight.js core. Covers the keywords (`process`, `with`,
+`letrec`, `case`, `import`, `library`, `environment`, `declare`,
+`route`), types (`int`, `float`), UI primitives (`button`,
+`vslider`, `hslider`, `nentry`, `vbargraph`, `hbargraph`, …),
+audio shorthands (`_`, `!`, `mem`, `prefix`, `select2`,
+`select3`), and module accesses like `os.osc` / `ba.beat`.
+
+````markdown
+```rust
+fn quicksort<T: Ord + Clone>(xs: &[T]) -> Vec<T> {
+    if xs.len() <= 1 { return xs.to_vec(); }
+    let (pivot, rest) = xs.split_first().unwrap();
+    let (lt, gte): (Vec<_>, Vec<_>) =
+        rest.iter().cloned().partition(|x| x < pivot);
+    [quicksort(&lt), vec![pivot.clone()], quicksort(&gte)].concat()
+}
+```
+
+```faust
+declare name "Echo";
+import("stdfaust.lib");
+
+delay = vslider("delay [ms]", 100, 1, 1000, 1) * 0.001;
+fb    = vslider("feedback", 0.5, 0, 0.99, 0.01);
+
+process = + ~ (de.delay(48000, delay * ma.SR) * fb);
+```
+````
+
+---
+
+## Unified diffs
+
+The `diff` fence colours each line of a unified diff: green for
+additions (`+`), red for removals (`-`), neutral for context. The
+`@@` hunk header gets its own tint.
+
+````
+```diff "Patch to review"
+--- a/quicksort.py
++++ b/quicksort.py
+@@ -1,5 +1,6 @@
+ def quicksort(xs):
+     if len(xs) <= 1:
+         return xs
+-    pivot = xs[0]
++    import random
++    pivot = random.choice(xs)
+     rest = [x for x in xs if x != pivot]
+```
+````
+
+A quoted caption is optional. Body is treated as text — no
+language-specific highlighting.
+
+---
+
+## Indented trees
+
+The `tree` fence turns an indented outline (2-space or tab
+indentation) into a Unicode box-drawing tree (default) or a
+top-down SVG diagram (`svg` keyword).
+
+````
+```tree "Project layout"
+markpage
+  src
+    category.ts
+    bda.ts
+    chart.ts
+  tests
+    corpus
+      22-bda.md
+```
+
+```tree svg "AST"
+Expr
+  Op
+    Add
+    Sub
+```
+````
+
+Use the Unicode mode for filesystem / project structure; use
+`svg` mode for syntax trees, parser derivations, etc.
+
+**One node per line — indentation IS the hierarchy.** A wrapped
+description on a more-indented continuation line becomes a spurious
+child node. If your entries need annotations that don't fit on one
+line, keep the block as a plain fenced code block instead: the
+`tree` fence has no continuation syntax. Comments / descriptions
+that fit on the same line are fine (`tree` preserves trailing text
+after the node name).
+
+---
+
+## Algorithmic pseudocode
+
+The `algorithm` fence typesets pseudocode in the style of LaTeX
+`algorithm2e`: auto-numbered caption, numbered lines on the left
+gutter, and case-sensitive keyword bolding.
+
+Bolded keywords (the full list, fixed): `for`, `while`, `do`,
+`if`, `then`, `else`, `elif`, `end`, `repeat`, `until`, `return`,
+`break`, `continue`, `function`, `procedure`, `begin`, `to`,
+`in`, `and`, `or`, `not`, plus the capitalised contract markers
+`Input`, `Output`, `Require`, `Ensure`.
+
+Conventions:
+
+- **Indentation is purely visual** — preserved as leading
+  whitespace, no semantic block parsing. Close every nested block
+  with an explicit `end` (the keyword gets bolded).
+- **No fixed assignment / comment syntax** — pick one and stay
+  consistent (`x ← expr` or `x := expr`; `// …` or `▷ …`). The
+  glyphs render verbatim.
+- **Inline math works** — `$x_i$` or Unicode `xᵢ` inside a line
+  is picked up by MathJax like anywhere else in the document.
+
+````
+```algorithm "Bubble sort"
+Input: array A of length n
+Output: A sorted in place
+for i from 1 to n - 1 do
+  for j from 0 to n - i - 1 do
+    if A[j] > A[j + 1] then
+      swap A[j] and A[j + 1]
+    end
+  end
+end
+return A
+```
+````
+
+The quoted caption produces "Algorithm N: …" beneath the block,
+counter shared with figure / table / listing captions.
+
+---
+
+## Captions and cross-references
+
+Most rich blocks accept a quoted caption immediately after the
+language hint. The caption is auto-numbered per kind:
+
+- **Figure N** — for diagrams (`mermaid`, `category`, `bda`,
+  `chart`, `mosaic`, `tree`, math display `$$ … $$`)
+- **Table N** — for `csv` / `tsv` blocks and pipe tables wrapped
+  in a fenced div
+- **Listing N** — for source-code fences with a caption
+- **Algorithm N** — for `algorithm` blocks
+
+````
+```python "Quicksort"
+def quicksort(xs): …
+```
+
+```category "Pullback" \label{fig:pb}
+…
+```
+````
+
+Append `\label{key}` to give the block a cross-reference target.
+Reference it inline anywhere in the document with `\ref{key}`,
+which expands to the formatted label (`Figure 3`, `Listing 1`,
+…) and links to the target.
+
+`\label{sec:foo}` on a heading lets `\ref{sec:foo}` jump to it
+too. Math equations use `\label{eq:foo}` inside the `$$ … $$`
+body. Labels are case-sensitive identifiers; unknown references
+render as a visible `[?]` so typos surface at proof time.
+
+**Don't over-caption.** A caption is only worth adding when the
+block is a *figure / listing / table* a reader will refer to by
+name (or `\ref`) elsewhere — typical in academic writing or when a
+section contains multiple peer blocks of the same kind. If the
+surrounding heading already names the block (e.g. `### 9.1. Schéma`
+above a single TypeScript interface), an extra `"Schéma"` caption
+just duplicates the heading and pollutes the figure counter. Spec /
+reference docs with explicit § numbering usually need very few
+captions.
+
+---
+
+## Demo (source + rendered side-by-side)
+
+The `demo` fence shows the markdown source and its rendered
+output side-by-side — a teaching device for showcasing a feature
+alongside its visible syntax without writing the source twice.
+
+````
+```demo
+```category "Triangle"
+f : A -> B
+g : B -> C
+h : A -> C = g . f
+```
+```
+````
+
+Default behaviour:
+
+- In **slides mode**: auto-zoom resizes both panes so they fit
+  the slide (see [Slides mode](#slides-mode)).
+- Outside slides mode: a fixed 0.85 zoom keeps the demo block
+  visually distinct from the surrounding "real" content.
+
+A positional argument overrides the zoom: ` ```demo 0.7 ` or
+` ```demo zoom=0.7 ` for a fixed numeric zoom, or
+` ```demo auto ` to keep auto-zoom explicit.
+
+> **Caveat:** avoid opening a `demo` with a prose sentence
+> followed by a rigid block (code, diagram, displayed equation).
+> The layout has to balance a wrappable element against a rigid
+> one and the result is less clean. Put the showcased block
+> first.
+
+---
+
+## Mathematical Unicode in prose
+
+Outside `$…$` and code blocks, you can write Unicode math
+characters directly: α β γ, ∈ ∉ ⊆ ⊕ ⊗, ∀ ∃ ∞, ℕ ℝ ℤ ℚ ℂ, ≤ ≥ ≠, →
+←, ↦ ⇒ ⇔. They render as the Unicode characters they are — no
+math-mode delimiters needed. This is shorter and cleaner than
+wrapping single symbols in `$…$`.
+
+In Markdown source the editor would substitute `\alpha` → α, `\in`
+→ ∈, `<=` → ≤, `|N` → ℕ as you type, but when generating Markdown
+programmatically just write the Unicode directly.
+
+---
+
+## YAML frontmatter
+
+An optional `---` block at the very top of the document, Pandoc
+style: the document's title, subtitle, author, organization, date,
+its style (`document-style:`), its language, and doc-local TeX
+macros. The key table is in *Document skeleton*.
+
+```yaml
+---
+title: My Talk
+subtitle: A gentle introduction
+author: Alice Dupont
+organization: Université de Lyon
+date: 21 mai 2026
+document-style: presentation-16x9
+mathjax-preamble: |
+  \newcommand{\R}{\mathbb{R}}
+  \newcommand{\sem}[1]{\llbracket #1 \rrbracket}
+---
+```
+
+Recognised keys:
+
+- `title` — rendered as `<h1 class="doc-title">`, styled via
+  `styles.title`. `#` headings in the body remain regular h1
+  sections.
+- `subtitle` — rendered under the title as `<div class="doc-subtitle">`,
+  styled via `styles.subtitle`. Sits on the cover between the title and
+  the author/organization/date block.
+- `author`, `organization`, `date` — fill the metadata block
+  shown beneath the title.
+- `document-style` — the named style; `presentation-16x9` makes
+  slides (see [Slides mode](#slides-mode)).
+- `language` — `fr` or `en`: hyphenation and date format.
+- `mathjax-preamble` — TeX source prepended to every math
+  invocation in this document. Define your `\newcommand`s once
+  here and use them in every formula. Cached per (preamble,
+  source) pair.
+
+Page size, margins, fonts, page numbers and the rest of the layout
+are **not** front-matter keys: they come from `document-style:` (see
+*Document skeleton*). Older keys (`page-size`, `margins`,
+`page-numbers`, `font-*`, `slides`, `markpage-profile`) are ignored.
+
+Any other key is preserved in `meta.extra` for inspection but
+isn't wired to a renderer. Subset of YAML: scalar key-value pairs
+only, plus the `|` block-scalar for multi-line values like
+`mathjax-preamble`. No lists, no nested dicts. The complete,
+authoritative reference is [FRONTMATTER-SPEC](docs/FRONTMATTER-SPEC.md).
+
+---
+
+## Slides mode
+
+Name the `presentation-16x9` style (`document-style:
+presentation-16x9`) to produce a Beamer-style presentation PDF. The
+front-matter `title:` makes the title slide; each `##` heading starts
+a new slide.
+
+The slide is 16:9 landscape sized to A4 width (210 × 118.125 mm)
+so a body font tuned for an A4 portrait page fills the slide
+comfortably without retuning. Margins are auto-clamped (top /
+bottom ≤ 10 mm, left / right ≤ 15 mm) and SVG figures are capped
+at 55 % of the slide content height so a title, a short
+paragraph, and a figure can fit together.
+
+Everything else — captions, cross-refs, all the rich fences —
+works identically in slides mode. The `demo` fence in particular
+gains its auto-zoom layout here (see *Demo*).
+
+`markpage-slides.md` at the repo root is an official walkthrough
+of every rich block in slides mode — a useful template / smoke
+test.
+
+---
+
+## Putting it together — a small example
+
+The fragment below combines the recurring idioms — frontmatter
+with TeX macros, a labelled rich block, a cross-reference, a
+callout, inline math, citations — in roughly the shape of a short
+article opening. Use it as a mental template before writing.
+
+````markdown
+---
+title: Quicksort revisited
+author: Alice Dupont
+date: 21 mai 2026
+document-style: article-a4
+mathjax-preamble: |
+  \newcommand{\Oh}{\mathcal{O}}
+---
+
+# Average complexity
+
+::: theorem [Average-case bound]
+Randomised quicksort on $n$ distinct keys performs
+$\Oh(n \log n)$ comparisons in expectation.
+:::
+
+The recurrence \ref{eq:quick} follows from picking the pivot
+uniformly at random.
+
+```math "Quicksort recurrence" \label{eq:quick}
+T(n) = (n - 1) + \frac{2}{n} \sum_{k=0}^{n-1} T(k)
+```
+
+See \ref{fig:partition} for the partition step.
+
+```mermaid "Partition step" \label{fig:partition}
+flowchart LR
+  In[unsorted] --> P{pivot?}
+  P -->|< pivot| L[lows]
+  P -->|>= pivot| H[highs]
+```
+
+Hoare's original analysis[@hoare1962] used a different recurrence;
+Sedgewick later[@sedgewick1978] showed the randomised variant
+matches the average bound.
+
+[@hoare1962]: Hoare, C. A. R. (1962). *Quicksort*. The Computer Journal 5(1).
+[@sedgewick1978]: Sedgewick, R. (1978). *Implementing Quicksort programs*. CACM 21(10).
+````
+
+Things to notice:
+
+- The title is the front matter's `title:`; the body starts with its
+  first section, `#`, unnumbered in the source (the style numbers it).
+- Caption + label on the same info-string line: `"Title" \label{key}`.
+- `\ref{key}` expands to the formatted label (`Equation 1`,
+  `Figure 1`, …) and links to the target.
+- The `\Oh` macro is defined once in `mathjax-preamble` and reused
+  in the body — no need to repeat `\mathcal{O}`.
+- Mermaid arrows are ASCII (`-->`, `|< pivot|`) — never Unicode.
+- Citations are inline `[@key]`; their definitions live at the
+  bottom and a "References" section is generated automatically.
+
+---
+
+## What is NOT supported
+
+- **Raw HTML in the markdown source — silently escaped.** Any
+  `<tag>` typed inline in prose (or pasted in, or imported from a
+  `.html` / `.docx`) is HTML-escaped by the marked renderer and
+  rendered as literal text, not as a live element. This is the
+  project's security policy (SPEC: raw HTML out of scope), and it
+  means `<script>`, `<iframe>`, `<img onerror=...>`, `<style>`,
+  inline event handlers, etc. CANNOT execute. There is no allowlist
+  — even safe-looking tags like `<sub>` / `<sup>` / `<b>` are
+  escaped. Use the dedicated constructs above (`**bold**`,
+  `[link]()`, `![image]()`, `$x_1$` for subscripts in math) instead.
+  Note: a fenced ` ```html ` code block IS allowed (and the proper
+  way to *show* HTML in documentation) — its content goes through
+  the code renderer, gets syntax-highlighted and emitted as text
+  inside `<pre><code class="language-html">`. Only inline / block
+  raw HTML in the prose flow is the attack surface that gets
+  escaped.
+- **Manual page breaks** — pagination is handled by paged.js
+  automatically. The `keep-with-next` style rules try to keep
+  headings attached to the paragraph below. For every `#` to start
+  on a fresh page, name a style that breaks chapters (Rapport,
+  Livre).
+- **Inline styles / classes on Markdown elements** — there is no
+  generic `{.classname}` or `{#id}` annotation syntax. (Exceptions:
+  captions take a quoted string + `\label{key}`; sections take
+  `\label{key}`; `![alt](url){.margin}` is recognised as the only
+  attribute for margin figures.)
+- **Two backtick-containing inline code spans in one paragraph** —
+  when you mention a fence *in running prose*, name it **bare**:
+  write the `ebnf` block, the `insert` key — **not** an inline code
+  span that wraps the literal fence (`` ` ```ebnf ` ``). Such a span
+  is a 1-backtick code span whose content holds a 3-backtick run;
+  valid CommonMark, but the underlying Markdown engine mis-pairs
+  emphasis when **two** of them land in the **same paragraph or
+  list item** — the surrounding `**bold**` then leaks as literal
+  asterisks. The bare name reads better and sidesteps it entirely.
+  (The full ` ```fence ` syntax is fine inside fenced **examples** —
+  there it's literal block text, not an inline code span.)
+
+---
+
+## Style summary for spec writers
+
+- Put the document title in the front matter (`title:`), and name a
+  style (`document-style:`). In the body, `#` for sections, `##` for
+  subsections, `###` below; don't skip levels, don't number them.
+- Wrap definitions in `::: definition [Name]` blocks; theorems /
+  lemmas / propositions get their own class.
+- Use `::: note` / `::: warning` sparingly — they're for genuine
+  side-channel remarks, not running prose.
+- Prefer `csv` blocks for tables with more than ~3 columns or
+  ~5 rows. Pipe tables are fine for compact 2×2 / 3×3 layouts.
+- Mermaid for control flow, sequence diagrams, state machines.
+  `chart` blocks for plotting actual data.
+- Math: inline for single expressions in a sentence (`$O(n \log
+  n)$`), display for anything multi-line or that deserves its own
+  paragraph.
+- Inference blocks for any judgement-style rule (typing, reduction,
+  proof system).
+- Footnotes for citations and parenthetical asides that would
+  otherwise interrupt the flow.

@@ -1,0 +1,35 @@
+{
+  "name": "@orlarey/markpage-viewer",
+  "version": "0.1.0",
+  "description": "Render markpage Markdown in any web page — one <pre class=\"markpage-source\"> and one module script, the markpage app's own renderer (math, inference rules, diagrams, named styles, pages).",
+  "license": "AGPL-3.0-or-later",
+  "author": "Yann Orlarey",
+  "homepage": "https://markpage.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orlarey/markpage.git",
+    "directory": "viewer"
+  },
+  "type": "module",
+  "main": "./dist/viewer.js",
+  "exports": {
+    ".": "./dist/viewer.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node esbuild.mjs && node test/render.mjs",
+    "prepublishOnly": "node esbuild.mjs && node test/render.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

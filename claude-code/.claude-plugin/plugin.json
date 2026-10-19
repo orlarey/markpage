@@ -1,0 +1,12 @@
+{
+  "name": "markpage",
+  "version": "0.1.0",
+  "description": "Write markpage Markdown (math, inference rules, abstract syntax, diagrams, callouts, named styles) and see it rendered by markpage, as a claude.ai Artifact or in your browser.",
+  "author": {
+    "name": "Yann Orlarey"
+  },
+  "homepage": "https://markpage.org",
+  "repository": "https://github.com/orlarey/markpage",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["markdown", "markpage", "math", "inference-rules", "specification", "artifact", "preview"]
+}

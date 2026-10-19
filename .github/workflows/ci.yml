@@ -26,6 +26,37 @@ jobs:
       # Sanity-check the publishable tarballs (dist + types + styles).
       - run: npm pack --dry-run -w @orlarey/blocks -w @orlarey/marked
 
+  claude-plugin:
+    name: Claude Code plugin · viewer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            viewer/package-lock.json
+      - run: npm ci
+      # The plugin carries copies of the authoring docs: they must match.
+      - run: node claude-code/sync-docs.mjs --check
+      - run: npx playwright install --with-deps chromium
+      - run: npm ci
+        working-directory: viewer
+      - run: npm run typecheck
+        working-directory: viewer
+      # Builds the bundle, then renders a page from the plugin's script under an
+      # Artifact-like CSP (continuous, phone, Pages).
+      - run: npm test
+        working-directory: viewer
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: viewer-shots
+          path: viewer/test/__shots__/
+          retention-days: 7
+
   e2e:
     name: end-to-end (Playwright)
     runs-on: ubuntu-latest

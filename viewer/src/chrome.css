@@ -1,0 +1,213 @@
+/* chrome.css — the viewer's own chrome: the desk under the sheet, the floating
+ * bar, the source view and the status line. The sheet and the pages themselves
+ * come from the app's style.css, exactly as the app renders them — white paper
+ * in either theme. The desk and the bar follow the viewer's theme: a claude.ai
+ * Artifact sets `data-theme` on the root for an explicit choice, nothing for
+ * "system" (then only prefers-color-scheme tells). */
+
+:root {
+  --mpv-desk: #e9eaee;
+  --mpv-ink: #1f2328;
+  --mpv-muted: #5c6370;
+  --mpv-btn-bg: #ffffff;
+  --mpv-btn-hover: #f2f3f6;
+  --mpv-btn-border: #c9cad1;
+  --mpv-accent: #2f6fdb;
+  --mpv-accent-ink: #ffffff;
+  --mpv-code-bg: #f6f7f9;
+  --mpv-warn-bg: #fff6df;
+  --mpv-warn-ink: #6b4a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --mpv-desk: #1c1d21;
+    --mpv-ink: #d9dbe0;
+    --mpv-muted: #9aa0ab;
+    --mpv-btn-bg: #2a2c32;
+    --mpv-btn-hover: #34373e;
+    --mpv-btn-border: #464952;
+    --mpv-accent: #5b8ef0;
+    --mpv-accent-ink: #0d1424;
+    --mpv-code-bg: #24262b;
+    --mpv-warn-bg: #3a3017;
+    --mpv-warn-ink: #f0d79a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --mpv-desk: #1c1d21;
+  --mpv-ink: #d9dbe0;
+  --mpv-muted: #9aa0ab;
+  --mpv-btn-bg: #2a2c32;
+  --mpv-btn-hover: #34373e;
+  --mpv-btn-border: #464952;
+  --mpv-accent: #5b8ef0;
+  --mpv-accent-ink: #0d1424;
+  --mpv-code-bg: #24262b;
+  --mpv-warn-bg: #3a3017;
+  --mpv-warn-ink: #f0d79a;
+  color-scheme: dark;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* The app's style.css sizes html/body for its split layout (height: 100%) and
+   paints the root white; the viewer scrolls the whole window on the desk. */
+html:has(body.mp-viewer),
+body.mp-viewer {
+  height: auto;
+  min-height: 100%;
+  background: var(--mpv-desk);
+}
+body.mp-viewer {
+  margin: 0;
+}
+
+body.mp-viewer #preview-pane {
+  overflow: visible;
+  background: transparent;
+  /* Room above the first line for the floating bar. */
+  padding-block: 56px 40px;
+}
+@media (min-width: 601px) {
+  body.mp-viewer #preview-pane {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* The continuous sheet zooms (like the pages) instead of shrinking to the
+   window: a narrower column would re-break every line, unlike the printed page.
+   Below 601px the app's own phone layout reflows the sheet instead. */
+@media (min-width: 601px) {
+  body.mp-viewer #preview-pane.continuous .mp-continuous-sheet {
+    max-width: none;
+  }
+}
+
+/* ---- the floating bar (top-right) --------------------------------------- */
+.mpv-bar {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  font: 12px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.mpv-seg {
+  display: inline-flex;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+}
+.mpv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--mpv-btn-border);
+  border-radius: 6px;
+  background: var(--mpv-btn-bg);
+  color: var(--mpv-ink);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+}
+.mpv-btn:hover {
+  background: var(--mpv-btn-hover);
+}
+.mpv-btn:focus-visible {
+  outline: 2px solid var(--mpv-accent);
+  outline-offset: 2px;
+}
+.mpv-btn[aria-pressed='true'] {
+  background: var(--mpv-accent);
+  border-color: var(--mpv-accent);
+  color: var(--mpv-accent-ink);
+}
+.mpv-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.mpv-seg .mpv-btn {
+  box-shadow: none;
+  border-radius: 0;
+}
+.mpv-seg .mpv-btn + .mpv-btn {
+  margin-left: -1px;
+}
+.mpv-seg .mpv-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.mpv-seg .mpv-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+/* ---- the Markdown source (the page's fallback, and the Source view) ------ */
+body.mp-viewer pre.markpage-source {
+  box-sizing: border-box;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 64px max(16px, env(safe-area-inset-right, 0px)) 40px
+    max(16px, env(safe-area-inset-left, 0px));
+  background: transparent;
+  color: var(--mpv-ink);
+  font: 13px/1.55 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- status line (a render that failed, pages unavailable) -------------- */
+.mpv-status {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  max-width: min(36rem, calc(100% - 24px));
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--mpv-warn-bg);
+  color: var(--mpv-warn-ink);
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+/* ---- print (a page opened in a browser: Print → Save as PDF) ------------- */
+@media print {
+  html:has(body.mp-viewer),
+  body.mp-viewer {
+    background: #fff !important;
+  }
+  .mpv-bar,
+  .mpv-status,
+  body.mp-viewer pre.markpage-source {
+    display: none !important;
+  }
+  body.mp-viewer #preview-pane {
+    padding: 0 !important;
+    min-height: 0 !important;
+    --mp-fit-zoom: 1;
+  }
+  body.mp-viewer #preview-pane .pagedjs_page {
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+  /* A break BEFORE every page but the first: a break after the last one would
+     print a trailing blank sheet. */
+  body.mp-viewer #preview-pane .pagedjs_page ~ .pagedjs_page {
+    break-before: page;
+  }
+  body.mp-viewer #preview-pane .mp-continuous-sheet {
+    box-shadow: none !important;
+    zoom: 1 !important;
+  }
+  body.mp-viewer #preview-pane .mp-spread {
+    display: block !important;
+  }
+}
