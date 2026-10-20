@@ -90,7 +90,7 @@ viewer: ## Build the markpage viewer (viewer/dist) and run its render test
 	cd viewer && npm ci && npm test
 
 viewer-publish: ## Publish @orlarey/markpage-viewer to npm (builds + tests first; needs `npm login`)
-	cd viewer && npm publish
+	cd viewer && npm ci && npm publish
 
 ## ---- Claude skill (markpage-specs) ------------------------------------
 ## The Claude Code plugin (claude-code/) supersedes this standalone skill.
