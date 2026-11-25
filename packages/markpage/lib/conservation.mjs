@@ -35,6 +35,7 @@
  * @property {string[]} duplicated blocks whose fragments repeat text
  * @property {string[]} overflow   text a whole line or more outside the text area
  * @property {string[]} nearOverflow text half a line to a line outside it (warning)
+ * @property {string[]} sparse     pages left mostly empty before more text
  */
 
 // Generated content is excluded on both sides: the continuous view's innerText
@@ -205,6 +206,57 @@ export async function paginatedFacts(page) {
       });
       st.remove();
       hide.remove();
+      // Sparse pages (measured once the check's own hiding is undone): a page
+      // under 40 % full, followed by a page that starts with ordinary content.
+      // It caught a forced break gone stale that left one paragraph on a page
+      // (LE-REGIME-FIGE, page 11). The legitimate short pages are recognised
+      // structurally below (blank versos, chapter openings, full-page figures,
+      // the last page): none of the 79 corpus documents trips it.
+      const sparse = [];
+      // The first text block of a page — never a wrapper.
+      const firstBlock = (pg) =>
+        [...area(pg).querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, td, pre, dt, dd')].find(
+          (e) => (e.textContent ?? '').trim() !== '',
+        );
+      // Does the style open every chapter on a fresh page? Vivliostyle consumes
+      // break-before (a laid-out h1 reads "auto"), so read it off the layout:
+      // every chapter heading but the first opens its page.
+      const chapters = pages.flatMap((pg) => [...area(pg).querySelectorAll('h1:not(.doc-title)')]);
+      const openers = new Set(pages.map(firstBlock));
+      const chapterBreaks = chapters.length >= 3 && chapters.slice(1).every((h) => openers.has(h));
+      pages.forEach((pg, i) => {
+        if (i === pages.length - 1) return;
+        const a = area(pg);
+        const r = a.getBoundingClientRect();
+        // The lowest line of text or the lowest figure — never a container,
+        // whose box (Vivliostyle's column) spans the whole page.
+        let bottom = r.top;
+        const walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT);
+        // (Measured with nothing hidden: formulas count as content here.)
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (!n.textContent?.trim() || n.parentElement?.closest('nav.toc-plus, .mp-sheet-running')) continue;
+          const range = document.createRange();
+          range.selectNodeContents(n);
+          for (const b of range.getClientRects()) if (b.height > 0) bottom = Math.max(bottom, b.bottom);
+        }
+        for (const el of a.querySelectorAll('img, svg, canvas, table')) {
+          if (el.parentElement?.closest('svg')) continue;
+          const b = el.getBoundingClientRect();
+          if (b.height > 0) bottom = Math.max(bottom, b.bottom);
+        }
+        const fill = (bottom - r.top) / r.height;
+        const next = area(pages[i + 1]);
+        // Legitimate: a blank page (a verso left empty so that a chapter opens
+        // on a recto), and a page ending before a heading that opens a fresh
+        // page by itself (a chapter break of the style) — but not before one
+        // markpage forced off a page foot: that break must leave a full page.
+        const opener = firstBlock(pages[i + 1]);
+        const chapter =
+          chapterBreaks && opener?.tagName === 'H1' && !opener.classList.contains('mp-force-page-break');
+        if (fill > 0.01 && fill < 0.4 && !chapter && !next.querySelector('.mp-atomic-page') && (next.textContent ?? '').trim()) {
+          sparse.push(`page ${i + 1} remplie à ${Math.round(fill * 100)} %`);
+        }
+      });
       // Formulas are atomic (never fragmented): count the page copies, one per
       // source formula — a formula on two pages would be a duplicate.
       const math = pages.reduce(
@@ -213,7 +265,7 @@ export async function paginatedFacts(page) {
       );
       // Pages are joined with a mark so a word cut across a page boundary can
       // be told apart from one cut at a real hyphen (see conservation()).
-      return { pages: pages.length, text, notes: noteTexts, math, duplicated, overflow, nearOverflow };
+      return { pages: pages.length, text, notes: noteTexts, math, duplicated, overflow, nearOverflow, sparse };
     },
     [EXCLUDED, NOTES, NOTE_ITEMS, MATH],
   );
@@ -245,5 +297,6 @@ export function conservation(cont, pag) {
     duplicated: pag.duplicated,
     overflow: pag.overflow,
     nearOverflow: pag.nearOverflow,
+    sparse: pag.sparse,
   };
 }

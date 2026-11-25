@@ -35,7 +35,8 @@ const USAGE = `markpage — render a markpage Markdown document
   check         check that pagination loses, adds and duplicates no text:
                 the pages against the continuous view, word by word and block
                 by block, notes and formulas counted, no text a line or more
-                outside the text area. Exit code 1 on any defect.
+                outside the text area, no page left mostly empty before more
+                text. Exit code 1 on any defect.
   -o, --out     output file (default: <note>.html next to the input)
   --continuous  the continuous view instead of pages
   --chrome      the Chromium / Chrome executable to render with
@@ -209,6 +210,7 @@ const FINDINGS = [
   ['notes', 'notes différentes'],
   ['math', 'formules en trop ou en moins'],
   ['overflow', "texte hors de la zone d'au moins une ligne"],
+  ['sparse', 'page presque vide avant la suite'],
   ['errors', 'erreur de rendu'],
 ];
 

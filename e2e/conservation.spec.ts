@@ -124,17 +124,22 @@ if (corpus) {
   }
 }
 
-for (const c of cases) {
-  test(`conservation: ${c.name}`, async ({ browser }) => {
+// Chrome measures glyphs differently at a device pixel ratio of 1 and on a
+// HiDPI screen, and the page breaks move (LE-REGIME-FIGE: 23 pages at 1, 25 at
+// 2): every case runs at both.
+const SCALES = [1, 2];
+
+for (const c of cases) for (const scale of SCALES) {
+  test(`conservation: ${c.name} @${scale}x`, async ({ browser }) => {
     test.setTimeout(240_000);
     const markdown = c.markdown();
-    const ctx1 = await browser.newContext({ locale: 'fr-FR' });
+    const ctx1 = await browser.newContext({ locale: 'fr-FR', deviceScaleFactor: scale });
     const p1 = await ctx1.newPage();
     await render(p1, markdown, false);
     const cont = await continuousText(p1);
     await ctx1.close();
 
-    const ctx2 = await browser.newContext({ locale: 'fr-FR' });
+    const ctx2 = await browser.newContext({ locale: 'fr-FR', deviceScaleFactor: scale });
     const p2 = await ctx2.newPage();
     await render(p2, markdown, true);
     const pag = await paginatedFacts(p2);
@@ -150,6 +155,7 @@ for (const c of cases) {
       added: [],
       notes: [],
       math: [],
+      sparse: [],
       duplicated: [],
       overflow: [],
     });
