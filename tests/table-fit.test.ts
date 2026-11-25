@@ -3,6 +3,7 @@ import {
   DEFAULT_MIN_TABLE_SCALE,
   comfortableTableWidth,
   isNumericCell,
+  tableBleedPerSideMm,
   tableFitScale,
 } from '@orlarey/markpage-render';
 
@@ -79,5 +80,29 @@ describe('isNumericCell', () => {
     for (const t of ['vocal', '—', 'cible nulle, double précision', 'compiler/global.cpp, -st et -nost']) {
       expect(isNumericCell(t), t).toBe(false);
     }
+  });
+});
+
+describe('tableBleedPerSideMm', () => {
+  it('reaches the running band when it is wider than the text (Note A4)', () => {
+    expect(tableBleedPerSideMm({ inner: 35, outer: 35 }, { inner: 17.5, outer: 17.5 })).toBeCloseTo(17.5, 5);
+  });
+
+  it('takes half the margin when the band is as wide as the text (Article A4)', () => {
+    const b = tableBleedPerSideMm(
+      { inner: 39.64147263024685, outer: 39.59930419921875 },
+      { inner: 40.24548231497319, outer: 39.90138488408377 },
+    );
+    expect(b).toBeCloseTo(39.59930419921875 / 2, 5);
+  });
+
+  it('is symmetric: the narrow inner margin of a book limits both sides', () => {
+    const b = tableBleedPerSideMm({ inner: 23.33, outer: 46.67 }, { inner: 11.67, outer: 23.33 });
+    expect(b).toBeCloseTo(23.33 - 15, 5);
+  });
+
+  it('always leaves the minimum margin, and never goes negative', () => {
+    expect(tableBleedPerSideMm({ inner: 20, outer: 20 }, { inner: 5, outer: 5 })).toBeCloseTo(5, 5);
+    expect(tableBleedPerSideMm({ inner: 12, outer: 12 }, { inner: 12, outer: 12 })).toBe(0);
   });
 });

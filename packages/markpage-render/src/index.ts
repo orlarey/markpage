@@ -109,6 +109,7 @@ export {
   comfortableTableWidth,
   fitWideTables,
   isNumericCell,
+  tableBleedPerSideMm,
   tableFitScale,
   type TableFitOptions,
   type TableFitResult,

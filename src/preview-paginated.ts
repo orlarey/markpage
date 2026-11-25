@@ -29,6 +29,7 @@ import {
   fitAtomicBlocks,
   markKeepTogether,
   fitWideTables,
+  tableBleedPerSideMm,
   runningApparatusCss,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
@@ -774,11 +775,18 @@ async function fitOversizedAtomicBlocks(
     // Short callouts are kept whole (paginationCss: .mp-keep-together).
     // Measured after the atomic fit, which may have shrunk their content.
     markKeepTogether(source, geometry.textHeight);
-    // Over-dense tables: zoom each down to the text column instead of letting
-    // its prose columns wrap into an unreadable mess (measured at the same
-    // text width, after fonts settled).
+    // Over-dense tables: borrow the margins, then zoom down, instead of
+    // letting their prose columns wrap into an unreadable mess (measured at
+    // the same text width, after fonts settled). No borrowing when the outer
+    // margin holds the sidenotes.
+    const bleedMm =
+      settings.notes.position === 'side'
+        ? 0
+        : tableBleedPerSideMm(settings.pageGeometry.text, settings.pageGeometry.running);
     fitWideTables(source, geometry.textWidth, {
+      bleedPx: bleedMm * PX_PER_MM,
       onWarning: ({ element: _el, scale }) => {
+        if (scale >= 0.999) return;
         console.warn(
           `[markpage] Wide table zoomed to ${Math.round(scale * 100)}% to fit the text column.`,
         );

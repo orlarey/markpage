@@ -19,6 +19,12 @@
  *   fell to the floor (0.6, i.e. ~5.7 pt for a 10 pt body) even when wrapping
  *   would have fit it at full size.
  *
+ *   Before shrinking, a table may borrow the page margins (`bleedPx` per
+ *   side, see tableBleedPerSideMm): it widens just enough for its comfortable
+ *   width, centred on the text column, and is zoomed only if that is still
+ *   not enough. Only a table that would otherwise be shrunk borrows: a table
+ *   that fits by wrapping stays in the column.
+ *
  *   Numeric cells (digits, units, percentages) never wrap, and cells are not
  *   hyphenated: a number cut in two, or "lis-seurs" in a header, reads worse
  *   than a slightly taller table. See paginationCss (.mp-num, td/th hyphens).
@@ -31,10 +37,33 @@ export const DEFAULT_MIN_TABLE_SCALE = 0.8;
 /** Comfortable width of a prose column, in em of the table's own font. */
 export const DEFAULT_TABLE_COMFORT_EM = 12;
 
+/** Margin always left beside a table that borrows the margins, in mm. */
+export const TABLE_BLEED_MIN_MARGIN_MM = 15;
+
+/**
+ * How far (mm, per side) a wide table may extend into the margins. Per side:
+ * the larger of the gap between the text and the running band (the "live
+ * area" the header already spans) and half the margin, always leaving
+ * `minMarginMm`. Symmetric — the smaller of the two sides — because in duplex
+ * the page a table lands on, hence which margin is inner, is unknown when it
+ * is fitted. Pure.
+ */
+export function tableBleedPerSideMm(
+  text: { inner: number; outer: number },
+  running: { inner: number; outer: number },
+  minMarginMm = TABLE_BLEED_MIN_MARGIN_MM,
+): number {
+  const side = (margin: number, band: number): number =>
+    Math.min(Math.max(margin - band, margin / 2), margin - minMarginMm);
+  return Math.max(0, Math.min(side(text.inner, running.inner), side(text.outer, running.outer)));
+}
+
 export interface TableFitResult {
   element: HTMLTableElement;
   /** Applied zoom factor (1 = untouched). */
   scale: number;
+  /** Width borrowed from the margins, per side, in px (0 = none). */
+  bleed: number;
   /** The table's natural (max-content) width in px, at the text width. */
   natural: number;
   /** The table's comfortable width in px (see comfortableTableWidth). */
@@ -44,6 +73,8 @@ export interface TableFitResult {
 export interface TableFitOptions {
   minScale?: number;
   comfortEm?: number;
+  /** Width a table may borrow from each margin before shrinking, in px. */
+  bleedPx?: number;
   onWarning?: (result: TableFitResult) => void;
 }
 
@@ -95,6 +126,8 @@ function resetTable(table: HTMLTableElement): void {
   table.style.removeProperty('width');
   table.style.removeProperty('max-width');
   table.style.removeProperty('zoom');
+  table.style.removeProperty('margin-left');
+  table.style.removeProperty('margin-right');
   delete table.dataset.mpTableScale;
 }
 
@@ -122,7 +155,8 @@ function measure(
 }
 
 /**
- * Zoom-out over-wide tables so they fit `textWidthPx`, down to a floor.
+ * Fit over-wide tables to `textWidthPx`: borrow up to `bleedPx` of each
+ * margin, then zoom out, down to a floor.
  * `root` must be mounted and styled at the final text width when called.
  */
 export function fitWideTables(
@@ -132,6 +166,7 @@ export function fitWideTables(
 ): TableFitResult[] {
   const minScale = options.minScale ?? DEFAULT_MIN_TABLE_SCALE;
   const comfortEm = options.comfortEm ?? DEFAULT_TABLE_COMFORT_EM;
+  const bleedPx = Math.max(0, options.bleedPx ?? 0);
   const results: TableFitResult[] = [];
   if (!(textWidthPx > 0)) return results;
 
@@ -161,21 +196,31 @@ export function fitWideTables(
     const chrome = max.width - max.cols.reduce((s, w) => s + w, 0);
     const comfortable = comfortableTableWidth(max.cols, min.cols, comfortEm * em, chrome);
 
-    const scale = tableFitScale(comfortable, textWidthPx, minScale);
-    if (scale >= 0.999) {
-      // Fits once its prose columns wrap: leave it at full size.
+    if (!(comfortable > textWidthPx + 1)) {
+      // Fits once its prose columns wrap: leave it at full size, in the column.
       resetTable(table);
       continue;
     }
-    // Lay out at the width the zoom brings back to the text column.
-    table.style.width = `${textWidthPx / scale}px`;
+    // Borrow the margins first, just as much as the comfortable width needs.
+    const extra = Math.min(2 * bleedPx, comfortable - textWidthPx);
+    const available = textWidthPx + extra;
+    const scale = tableFitScale(comfortable, available, minScale);
+    // Lay out at the width the zoom brings back to `available`, centred on
+    // the text column. `zoom` scales the table's own margins too, hence the
+    // division by `scale`.
+    table.style.width = `${available / scale}px`;
     table.style.maxWidth = 'none';
-    table.style.zoom = String(scale);
+    if (scale < 0.999) table.style.zoom = String(scale);
+    if (extra >= 1) {
+      table.style.marginLeft = `${-extra / 2 / scale}px`;
+      table.style.marginRight = `${-extra / 2 / scale}px`;
+    }
     table.dataset.mpTableScale = scale.toFixed(4);
 
     const result: TableFitResult = {
       element: table,
       scale,
+      bleed: extra / 2,
       natural: max.width,
       comfortable,
     };
