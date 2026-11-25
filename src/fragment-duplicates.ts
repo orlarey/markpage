@@ -15,7 +15,8 @@
 
 const PAGE = '.pagedjs_page, [data-vivliostyle-page-container]';
 const AREA = '.pagedjs_page_content, [data-vivliostyle-page-area-container]';
-const RUNNING = '.mp-running, .pagedjs_margin, [data-vivliostyle-page-margin-box], .mp-bg';
+const MARGIN_BOX = '.pagedjs_margin, [data-vivliostyle-page-margin-box]';
+const RUNNING = `.mp-running, ${MARGIN_BOX}, .mp-bg`;
 
 /**
  * Remove every copy of a pristine object but the last one. Returns the number
@@ -49,4 +50,28 @@ export function dropStaleAtomCopies(renderTo: ParentNode): number {
     }
   }
   return removed;
+}
+
+/**
+ * Purpose: Silence the running header and footer on a page given over to an
+ *   oversized figure. Such a figure gets a page of its own and may borrow the
+ *   margins (atomic-fit.ts, `.mp-atomic-page`): the folio, or the running
+ *   head, would be printed over it. A full-page figure carries neither, by
+ *   typographic convention; the page still counts in the numbering.
+ * How: After pagination, every page whose text area holds an `.mp-atomic-page`
+ *   gets `.mp-figure-page`, and its margin boxes are hidden (visibility, so
+ *   nothing else moves). Returns the number of pages silenced.
+ */
+export function muteFigurePages(renderTo: ParentNode): number {
+  let muted = 0;
+  for (const page of renderTo.querySelectorAll<HTMLElement>(PAGE)) {
+    const area = page.querySelector(AREA) ?? page;
+    if (!area.querySelector('.mp-atomic-page')) continue;
+    page.classList.add('mp-figure-page');
+    for (const box of page.querySelectorAll<HTMLElement>(MARGIN_BOX)) {
+      box.style.visibility = 'hidden';
+    }
+    muted += 1;
+  }
+  return muted;
 }

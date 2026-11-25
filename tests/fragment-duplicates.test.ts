@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dropStaleAtomCopies } from '../src/fragment-duplicates';
+import { dropStaleAtomCopies, muteFigurePages } from '../src/fragment-duplicates';
 
 function pages(...contents: string[]): HTMLElement {
   const root = document.createElement('div');
@@ -51,5 +51,23 @@ describe('dropStaleAtomCopies', () => {
   it('does not treat two copies on the same page as a page-break duplicate', () => {
     const r = pages('<p><span data-mp-pristine="5">x</span><span data-mp-pristine="5">x</span></p>');
     expect(dropStaleAtomCopies(r)).toBe(0);
+  });
+});
+
+describe('muteFigurePages', () => {
+  it('hides the running header and footer of a page given over to a figure', () => {
+    const r = pages(
+      '<p>Texte.</p>',
+      '<div class="mp-atomic-page"><div class="mp-atomic-page-content"><dl class="ebnf-block"></dl></div></div>',
+      '<p>Suite.</p>',
+    );
+    expect(muteFigurePages(r)).toBe(1);
+    const [p1, p2, p3] = [...r.querySelectorAll<HTMLElement>('.pagedjs_page')];
+    const hidden = (p: HTMLElement) =>
+      [...p.querySelectorAll<HTMLElement>('.pagedjs_margin')].map((b) => b.style.visibility);
+    expect(hidden(p1!)).toEqual(['']);
+    expect(hidden(p2!)).toEqual(['hidden']);
+    expect(p2!.classList.contains('mp-figure-page')).toBe(true);
+    expect(hidden(p3!)).toEqual(['']);
   });
 });

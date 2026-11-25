@@ -33,7 +33,7 @@ import {
   runningApparatusCss,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
-import { dropStaleAtomCopies } from './fragment-duplicates';
+import { dropStaleAtomCopies, muteFigurePages } from './fragment-duplicates';
 import { findOrphanHeadings, forceBreakBeforeOrphans } from './heading-orphans';
 /** Re-paginations allowed to lift headings off page feet (heading-orphans.ts). */
 const MAX_ORPHAN_PASSES = 3;
@@ -187,6 +187,8 @@ export async function paginateWithVivliostyle(
   }
   // A formula laid at a page foot AND again at the top of the next page.
   dropStaleAtomCopies(renderTo);
+  // A page given over to an oversized figure: no folio or running head over it.
+  muteFigurePages(renderTo);
   // `::: background` backdrops: the renderer leaves a zero-height `.mp-bg`
   // sentinel in the flow; once the pages exist, clone each backdrop into every
   // page of its run, behind the content.
