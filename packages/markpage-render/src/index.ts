@@ -15,6 +15,10 @@
 // on the shared marked instance. Must run before any marked.parse().
 import './marked-config';
 
+// CSV / TSV → the equivalent Markdown pipe table (one table rendering for all
+// three input forms; the LaTeX export uses it too).
+export { dataTableToMarkdown } from './marked-config';
+
 // The public render entry + the image-resolution seam.
 export {
   renderMarkpageMarkdown,

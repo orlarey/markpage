@@ -1496,29 +1496,50 @@ function renderInference(src: string, label: string): string {
 }
 
 /**
- * Purpose: Render a CSV/TSV fenced block as an HTML `<table>` (first non-empty
- *   row = header).
- * How: Normalise CRLF, drop blank lines, parse each line with `parseCsvLine`,
- *   then emit `<thead>` + `<tbody>` cells with HTML-escaped content.
+ * Purpose: Turn a CSV/TSV block into the equivalent Markdown pipe table. CSV
+ *   and TSV are only ways of ENTERING a table's data: rendered through the
+ *   pipe-table path, they look exactly like a Markdown table and their cells
+ *   take inline Markdown (`code`, *emphasis*, $math$, links) like one.
+ * How: First non-empty row = header. The header is padded to the widest row,
+ *   so a longer row loses no cell (GFM drops cells beyond the header's
+ *   count); shorter rows get empty cells. A `|` in a cell is escaped, and a
+ *   trailing backslash doubled so it cannot escape the next separator.
  */
-function renderDataTable(src: string, sep: string): string {
-  const lines = src.replaceAll(/\r\n?/g, '\n').split('\n');
-  const rows = lines
+export function dataTableToMarkdown(src: string, sep: string): string {
+  const rows = src
+    .replaceAll(/\r\n?/g, '\n')
+    .split('\n')
     .filter((l) => l.trim() !== '')
     .map((l) => parseCsvLine(l, sep));
   if (rows.length === 0) return '';
-  const head = rows[0] ?? [];
-  const body = rows.slice(1);
-  const headHtml = head
-    .map((cell) => `<th>${escapeHtml(cell)}</th>`)
-    .join('');
-  const bodyHtml = body
-    .map((row) => {
-      const cells = row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('');
-      return `<tr>${cells}</tr>`;
-    })
-    .join('');
-  return `<table class="data-table"><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>\n`;
+  const cols = Math.max(...rows.map((r) => r.length));
+  const cell = (c: string) =>
+    c.trim().replaceAll('|', '\\|').replace(/\\$/, '\\\\') || ' ';
+  const line = (r: string[]) =>
+    `| ${Array.from({ length: cols }, (_, k) => cell(r[k] ?? '')).join(' | ')} |`;
+  return [
+    line(rows[0] ?? []),
+    `|${' --- |'.repeat(cols)}`,
+    ...rows.slice(1).map(line),
+  ].join('\n');
+}
+
+/**
+ * Purpose: Render a CSV/TSV fenced block as an HTML `<table>`, identical to a
+ *   Markdown pipe table (see dataTableToMarkdown).
+ * How: Re-enter `marked.parse` on the converted table with the endnotes guard
+ *   up, like a ```demo block: the outer document's registries stay intact.
+ */
+function renderDataTable(src: string, sep: string): string {
+  const md = dataTableToMarkdown(src, sep);
+  if (md === '') return '';
+  const wasInEndnotes = inEndnotesRender;
+  inEndnotesRender = true;
+  try {
+    return marked.parse(md, { async: false }) as string;
+  } finally {
+    inEndnotesRender = wasInEndnotes;
+  }
 }
 
 /**

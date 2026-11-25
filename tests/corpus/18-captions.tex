@@ -96,8 +96,7 @@ code, \texttt{Algorithme N} for pseudocode.
 A captioned table:
 
 
-\begin{center}
-\begin{tabular}{lll}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
   \toprule
   Équipe & Effectif & Budget \\
   \midrule
@@ -105,8 +104,7 @@ A captioned table:
   Frontend & 8 & 0.7M \\
   Data & 5 & 0.5M \\
   \bottomrule
-\end{tabular}
-\end{center}
+\end{tabularx}
 
 
 A captioned tree diagram:
@@ -154,15 +152,13 @@ Same kinds without a caption fall through to the plain renderer
 (no \texttt{<figure>} wrapper, no number burned):
 
 
-\begin{center}
-\begin{tabular}{ll}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
   \toprule
   A & B \\
   \midrule
   1 & 2 \\
   \bottomrule
-\end{tabular}
-\end{center}
+\end{tabularx}
 
 
 \begin{lstlisting}

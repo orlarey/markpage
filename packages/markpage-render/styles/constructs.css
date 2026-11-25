@@ -61,48 +61,23 @@
 }
 
 /* ---- Tables ---------------------------------------------------------- */
-/* Center every table horizontally on the page — typographic
-   convention for both pipe-tables (marked's default <table>) and
-   the csv/tsv `.data-table`. */
+/* One table rendering, whatever the input: a Markdown pipe table, or a
+   ```csv / ```tsv block, which the renderer converts to the same pipe table
+   (dataTableToMarkdown) — CSV and TSV are ways of entering the data, not a
+   layout. Center every table horizontally on the page (typographic
+   convention). */
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) table {
   margin: 0.8em auto;
 }
 
-/* Pipe-tables stay borderless (deliberate minimal look), but their cells still
-   need a gutter — with no padding, adjacent columns' text runs together and the
+/* Tables stay borderless (deliberate minimal look), but their cells still need
+   a gutter — with no padding, adjacent columns' text runs together and the
    table reads as a wall. Horizontal padding on both sides gives ~1.5em between
-   columns; a touch of vertical padding separates rows. `.data-table` (csv/tsv)
-   has its own padding below, so exclude it. */
+   columns; a touch of vertical padding separates rows. */
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)
-  table:not(.data-table) :is(th, td) {
+  table :is(th, td) {
   padding: 0.2em 0.75em;
   vertical-align: top;
-}
-
-/* Data tables (```csv / ```tsv) get the extra styling: borders,
-   alternating rows, header background. Pipe-tables keep marked's
-   plain rendering — only the centering rule above touches them. */
-:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .data-table {
-  border-collapse: collapse;
-  font-size: 0.95em;
-  border: 1px solid var(--border);
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .data-table th,
-:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .data-table td {
-  padding: 0.35em 0.7em;
-  border: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .data-table thead th {
-  background: var(--bg-alt);
-  font-weight: 500;
-}
-
-:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .data-table tbody tr:nth-child(even) {
-  background: rgba(0, 0, 0, 0.02);
 }
 
 /* ---- Task lists (- [ ] / - [x]) ------------------------------------- */

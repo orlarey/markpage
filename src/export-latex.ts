@@ -17,7 +17,7 @@
 
 import { marked, type Tokens } from 'marked';
 import { formatDate, type PdfSettings } from './settings';
-import { mathBodyToLatex } from '@orlarey/markpage-render';
+import { dataTableToMarkdown, mathBodyToLatex } from '@orlarey/markpage-render';
 import { collectImageRefs } from './image';
 import { getImage } from './image-store';
 import { renderMermaid } from '@orlarey/markpage-render';
@@ -784,65 +784,18 @@ function renderTable(tok: Tokens.Table, ctx: Ctx): string {
 
 // ---- CSV / TSV --------------------------------------------------------
 
-/**
- * Purpose: Mini RFC-4180-ish CSV/TSV line splitter with `""` quoting.
- * How: One-pass scan with `inQuote` state; doesn't handle newlines in fields.
- */
-function parseCsvLine(line: string, sep: string): string[] {
-  const out: string[] = [];
-  let cur = '';
-  let inQuote = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const c = line[i];
-    if (inQuote) {
-      if (c === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i += 1;
-      } else if (c === '"') {
-        inQuote = false;
-      } else {
-        cur += c;
-      }
-    } else if (c === '"' && cur.trim() === '') {
-      inQuote = true;
-    } else if (c === sep) {
-      out.push(cur);
-      cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-}
 
 /**
- * Purpose: Render a CSV/TSV fenced block as a centred `tabular` env.
- * How: Parse every non-empty line, emit header + booktabs rules + body rows.
+ * Purpose: Render a CSV/TSV fenced block exactly like a Markdown pipe table
+ *   (tabularx, wrapping columns, inline Markdown in cells): CSV and TSV are
+ *   only ways of entering a table's data.
+ * How: Convert it to the pipe table (dataTableToMarkdown), lex it, and hand
+ *   the table token to renderTable.
  */
-function renderDataTableLatex(src: string, sep: string): string {
-  const rows = src
-    .replaceAll(/\r\n?/g, '\n')
-    .split('\n')
-    .filter((l) => l.trim() !== '')
-    .map((l) => parseCsvLine(l, sep));
-  if (rows.length === 0) return '';
-  const cols = rows[0].length;
-  const spec = 'l'.repeat(cols);
-  const fmt = (row: string[]): string =>
-    row.map((c) => escapeLatex(c)).join(' & ') + ' \\\\';
-  const lines: string[] = [];
-  lines.push(`\\begin{center}`);
-  lines.push(`\\begin{tabular}{${spec}}`);
-  lines.push(`  \\toprule`);
-  lines.push(`  ${fmt(rows[0])}`);
-  lines.push(`  \\midrule`);
-  for (const r of rows.slice(1)) lines.push(`  ${fmt(r)}`);
-  lines.push(`  \\bottomrule`);
-  lines.push(`\\end{tabular}`);
-  lines.push(`\\end{center}`);
-  lines.push('', '');
-  return lines.join('\n');
+function renderDataTableLatex(src: string, sep: string, ctx: Ctx): string {
+  const md = dataTableToMarkdown(src, sep);
+  const tok = marked.lexer(md).find((t) => t.type === 'table');
+  return tok ? renderTable(tok as Tokens.Table, ctx) : '';
 }
 
 // ---- inference --------------------------------------------------------
@@ -1225,8 +1178,8 @@ function renderCodeBlock(tok: Tokens.Code, ctx: Ctx): string {
   if (lang === 'chart') {
     return renderChartBlock(tok, ctx);
   }
-  if (lang === 'csv') return renderDataTableLatex(tok.text, ',');
-  if (lang === 'tsv') return renderDataTableLatex(tok.text, '\t');
+  if (lang === 'csv') return renderDataTableLatex(tok.text, ',', ctx);
+  if (lang === 'tsv') return renderDataTableLatex(tok.text, '\t', ctx);
   if (lang === 'inference' || (tok.lang ?? '').startsWith('inference ')) {
     return renderInferenceBlock(tok.text, tok.lang ?? 'inference', ctx);
   }

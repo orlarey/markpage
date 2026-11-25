@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import {
+describe, expect, it } from 'vitest';
 
-import { renderMarkpageMarkdown, rewriteImageSrc, paginationCss } from '@orlarey/markpage-render';
+import { dataTableToMarkdown, renderMarkpageMarkdown, rewriteImageSrc, paginationCss } from '@orlarey/markpage-render';
 
 describe('renderMarkpageMarkdown — the package render entry', () => {
   it('applies markpage extensions (admonition callout)', () => {
@@ -208,6 +209,29 @@ describe('footnotes — forward references resolve regardless of nesting', () =>
     const html = renderMarkpageMarkdown('A typo[^missing] here.\n');
     expect(html).toContain('[^missing]');
     expect(html).not.toContain('footnote-ref');
+  });
+});
+
+describe('csv / tsv — the same table as a Markdown pipe table', () => {
+  it('renders a tsv block exactly like the equivalent pipe table', () => {
+    const tsv = renderMarkpageMarkdown('```tsv\nnom\tvaleur\nhoa_octo\t`pow(2, 3)` vaut *huit*\n```\n');
+    const pipe = renderMarkpageMarkdown('| nom | valeur |\n| --- | --- |\n| hoa_octo | `pow(2, 3)` vaut *huit* |\n');
+    // data-source maps the rendered block back to its fence (click-to-source):
+    // the one attribute the two forms legitimately differ by.
+    const table = (h: string) =>
+      h.slice(h.indexOf('<table'), h.indexOf('</table>') + 8).replace(/ data-source="[^"]*"/, '');
+    expect(table(tsv)).toBe(table(pipe));
+    expect(table(tsv)).toContain('<code>pow(2, 3)</code>');
+    expect(table(tsv)).toContain('<em>huit</em>');
+  });
+
+  it('keeps every cell of a row longer than the header, and escapes pipes', () => {
+    const md = dataTableToMarkdown('a,b\n1,2,3\nx|y,z\n', ',');
+    expect(md.split('\n')[0]).toBe('| a | b |   |');
+    expect(md).toContain('| 1 | 2 | 3 |');
+    expect(md).toContain('| x\\|y | z |   |');
+    const html = renderMarkpageMarkdown('```csv\na,b\n1,2,3\n```\n');
+    expect(html).toContain('<td>3</td>');
   });
 });
 

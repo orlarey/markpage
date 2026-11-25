@@ -103,8 +103,7 @@ A pipe table:
 A CSV fenced block (rendered to a \texttt{tabularx} too):
 
 
-\begin{center}
-\begin{tabular}{lll}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X}
   \toprule
   Name & Age & City \\
   \midrule
@@ -112,7 +111,6 @@ A CSV fenced block (rendered to a \texttt{tabularx} too):
   Bob & 25 & Lyon \\
   Carol & 42 & Marseille \\
   \bottomrule
-\end{tabular}
-\end{center}
+\end{tabularx}
 
 \end{document}
