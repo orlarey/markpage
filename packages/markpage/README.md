@@ -10,6 +10,21 @@ images; no script, no server, readable offline.
 markpage html note.md                 # → note.html, in pages
 markpage html note.md --continuous    # the continuous view
 markpage html note.md -o out.html
+markpage check note.md                # pagination loses, adds, duplicates nothing?
+```
+
+`markpage check` renders the document continuous and in pages, at device
+pixel ratios 1 and 2 (`--scale 1,2`), and compares them: the word sequence
+both ways (nothing lost, nothing added or laid twice), each source block laid
+once, notes and formulas counted, no text a line or more outside the text
+area. It prints a report (`--json` for the full one) and exits with 1 on any
+defect — the same check as the e2e suite (`lib/conservation.mjs`, shared).
+
+```text
+markpage check : s04.md
+  densité 1 : 23 page(s) — 2 défaut(s)
+    texte ajouté ou doublé : Le typage  ⟨) . Le typage Le typage La variabilité de Faust⟩
+    bloc posé deux fois : pages 10 et 11 : Le typage
 ```
 
 It drives a headless Chromium: `--chrome <path>`, else `$MARKPAGE_CHROME`,
@@ -29,8 +44,10 @@ viewer's standalone export.
 
 ```sh
 npm run build -w @orlarey/markpage    # the viewer bundle
-npm run smoke -w @orlarey/markpage    # render a small document, check it
+npm run smoke -w @orlarey/markpage    # html + check on a small document
 ```
 
-Next: `markpage check` (the conservation check of e2e/conservation.ts: no text
-lost, added or duplicated by pagination) and `markpage pdf`.
+`MARKPAGE_VIEWER=<dir>` points the CLI at another viewer build (to check an
+older version, say).
+
+Next: `markpage pdf`.

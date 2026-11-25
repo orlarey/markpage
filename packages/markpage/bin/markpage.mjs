@@ -23,25 +23,33 @@ import { dirname, extname, join, resolve, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const VIEWER = resolve(HERE, '../dist/viewer');
+// $MARKPAGE_VIEWER: another viewer build (development, or checking an older one).
+const VIEWER = resolve(process.env.MARKPAGE_VIEWER ?? resolve(HERE, '../dist/viewer'));
 
 const USAGE = `markpage — render a markpage Markdown document
 
-  markpage html <note.md> [-o <out.html>] [--continuous] [--chrome <path>]
+  markpage html  <note.md> [-o <out.html>] [--continuous] [--scale 2]
+  markpage check <note.md> [--scale 1,2] [--json]
 
   html          save the rendered document as one self-contained HTML page
+  check         check that pagination loses, adds and duplicates no text:
+                the pages against the continuous view, word by word and block
+                by block, notes and formulas counted, no text a line or more
+                outside the text area. Exit code 1 on any defect.
   -o, --out     output file (default: <note>.html next to the input)
   --continuous  the continuous view instead of pages
   --chrome      the Chromium / Chrome executable to render with
                 (default: $MARKPAGE_CHROME, then Playwright's, then Chrome)
-  --scale       device pixel ratio to lay out at (default 2, a HiDPI screen:
+  --json        check: print the full reports as JSON
+  --scale       device pixel ratio(s) to lay out at (html: default 2, a HiDPI
+                screen; check: default 1,2 —
                 Chrome measures glyphs differently at 1, and the page breaks
-                move — LE-REGIME-FIGE: 23 pages at 1, 25 at 1.5 and 2)
+                move: LE-REGIME-FIGE has 23 pages at 1, 25 at 1.5 and 2)
   --timeout     seconds to wait for the render (default 180)
 `;
 
 function parseArgs(argv) {
-  const o = { cmd: argv[0], input: undefined, out: undefined, paginated: true, chrome: process.env.MARKPAGE_CHROME, timeout: 180, scale: 2 };
+  const o = { cmd: argv[0], input: undefined, out: undefined, paginated: true, chrome: process.env.MARKPAGE_CHROME, timeout: 180, scale: undefined, json: false };
   for (let i = 1; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '-o' || a === '--out') o.out = argv[(i += 1)];
@@ -49,7 +57,8 @@ function parseArgs(argv) {
     else if (a === '--pages') o.paginated = true;
     else if (a === '--chrome') o.chrome = argv[(i += 1)];
     else if (a === '--timeout') o.timeout = Number(argv[(i += 1)]);
-    else if (a === '--scale') o.scale = Number(argv[(i += 1)]);
+    else if (a === '--scale') o.scale = argv[(i += 1)];
+    else if (a === '--json') o.json = true;
     else if (a === '-h' || a === '--help') o.cmd = 'help';
     else if (!o.input) o.input = a;
     else throw new Error(`unexpected argument: ${a}`);
@@ -76,15 +85,25 @@ async function fileUnder(root, rel) {
   }
 }
 
-/** Serve the viewer at /viewer/ (the page carrying the document) and the
- *  document's folder at /doc/ (its relative images). Loopback only. */
-async function serve(pageHtml, docDir) {
+/** Serve the viewer page for `md` at /viewer/?mode=pages|continuous, the
+ *  viewer's files under /viewer/, and the document's folder at /doc/ (its
+ *  relative images). Loopback only. */
+async function serve(template, md, docDir) {
+  let base = '';
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     let file = null;
-    if (url.pathname === '/viewer/' || url.pathname === '/viewer/index.html') {
+    if (url.pathname === '/viewer/') {
+      const paginated = url.searchParams.get('mode') !== 'continuous';
+      // JSON with "<" escaped: no "</script>" in the document closes the tag.
+      const payload = JSON.stringify({ md, paginated, baseUri: `${base}/doc/` }).replaceAll('<', '\\u003c');
       res.writeHead(200, { 'content-type': TYPES['.html'] });
-      res.end(pageHtml);
+      res.end(
+        template.replace(
+          '<script type="application/json" id="markpage-source">{}</script>',
+          `<script type="application/json" id="markpage-source">${payload}</script>`,
+        ),
+      );
       return;
     }
     if (url.pathname.startsWith('/viewer/')) file = await fileUnder(VIEWER, url.pathname.slice(8));
@@ -98,7 +117,8 @@ async function serve(pageHtml, docDir) {
     res.end(await readFile(file));
   });
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
-  return { server, base: `http://127.0.0.1:${server.address().port}` };
+  base = `http://127.0.0.1:${server.address().port}`;
+  return { server, base };
 }
 
 async function launchChromium(chromePath) {
@@ -122,38 +142,83 @@ async function launchChromium(chromePath) {
   throw new Error(`no Chromium found (--chrome <path> or MARKPAGE_CHROME):\n  ${errors.join('\n  ')}`);
 }
 
-/** Render `md` (from `docDir`) in the viewer and return the standalone page. */
-export async function renderStandalone(md, { docDir, paginated = true, chrome, timeout = 180, scale = 2 } = {}) {
+/**
+ * Run `fn(open)` with the viewer served for `md` and a headless Chromium;
+ * `open({ paginated, scale })` returns a page on which the document is
+ * rendered (the viewer's "rendered" signal received).
+ */
+export async function withViewer(md, { docDir, chrome, timeout = 180 }, fn) {
   const template = await readFile(join(VIEWER, 'viewer.html'), 'utf8').catch(() => {
     throw new Error(`viewer not built (${VIEWER}): run npm run build in packages/markpage`);
   });
-  let srv;
+  const srv = await serve(template, md, docDir);
   let browser;
   try {
-    srv = await serve('', docDir);
-    // JSON, with "<" escaped: no "</script>" in the document can close the tag.
-    const payload = JSON.stringify({ md, paginated, baseUri: `${srv.base}/doc/` }).replaceAll('<', '\\u003c');
-    const page0 = template.replace(
-      '<script type="application/json" id="markpage-source">{}</script>',
-      `<script type="application/json" id="markpage-source">${payload}</script>`,
-    );
-    srv.server.close();
-    srv = await serve(page0, docDir);
     browser = await launchChromium(chrome);
-    const page = await browser.newPage({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: scale });
-    const errors = [];
-    page.on('pageerror', (e) => errors.push(String(e)));
-    await page.goto(`${srv.base}/viewer/`);
-    await page.waitForFunction(() => document.documentElement.dataset.mpRendered, null, { timeout: timeout * 1000 });
-    const state = await page.evaluate(() => document.documentElement.dataset.mpRendered);
-    if (state === 'error') throw new Error(`render failed${errors.length ? `: ${errors[0]}` : ''}`);
-    const pages = await page.locator('.pagedjs_page').count();
-    const html = await page.evaluate(() => window.markpageStandaloneHtml());
-    return { html, pages, errors };
+    const open = async ({ paginated = true, scale = 2 } = {}) => {
+      const ctx = await browser.newContext({ viewport: { width: 1400, height: 1000 }, deviceScaleFactor: scale });
+      const page = await ctx.newPage();
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      await page.goto(`${srv.base}/viewer/?mode=${paginated ? 'pages' : 'continuous'}`);
+      await page.waitForFunction(() => document.documentElement.dataset.mpRendered, null, { timeout: timeout * 1000 });
+      const state = await page.evaluate(() => document.documentElement.dataset.mpRendered);
+      if (state === 'error') throw new Error(`render failed${errors.length ? `: ${errors[0]}` : ''}`);
+      return { page, errors, close: () => ctx.close() };
+    };
+    return await fn(open);
   } finally {
     await browser?.close();
-    srv?.server.close();
+    srv.server.close();
   }
+}
+
+/** Render `md` (from `docDir`) and return the viewer's standalone page. */
+export async function renderStandalone(md, { docDir, paginated = true, chrome, timeout = 180, scale = 2 } = {}) {
+  return withViewer(md, { docDir, chrome, timeout }, async (open) => {
+    const { page, errors, close } = await open({ paginated, scale });
+    const pages = await page.locator('.pagedjs_page').count();
+    const html = await page.evaluate(() => window.markpageStandaloneHtml());
+    await close();
+    return { html, pages, errors };
+  });
+}
+
+/** The conservation reports of `md`, one per device pixel ratio. */
+export async function checkDocument(md, { docDir, chrome, timeout = 180, scales = [1, 2] } = {}) {
+  const { conservation, continuousText, paginatedFacts } = await import('../lib/conservation.mjs');
+  return withViewer(md, { docDir, chrome, timeout }, async (open) => {
+    const reports = [];
+    for (const scale of scales) {
+      const c = await open({ paginated: false, scale });
+      const cont = await continuousText(c.page);
+      await c.close();
+      const p = await open({ paginated: true, scale });
+      const pag = await paginatedFacts(p.page);
+      await p.close();
+      reports.push({ scale, ...conservation(cont, pag), errors: [...c.errors, ...p.errors] });
+    }
+    return reports;
+  });
+}
+
+const FINDINGS = [
+  ['lost', 'texte perdu'],
+  ['added', 'texte ajouté ou doublé'],
+  ['duplicated', 'bloc posé deux fois'],
+  ['notes', 'notes différentes'],
+  ['math', 'formules en trop ou en moins'],
+  ['overflow', "texte hors de la zone d'au moins une ligne"],
+  ['errors', 'erreur de rendu'],
+];
+
+/** A report in words; `ok` when nothing fails (near overflows only warn). */
+function describe(r) {
+  const lines = [];
+  for (const [k, label] of FINDINGS) for (const f of r[k] ?? []) lines.push(`    ${label} : ${f}`);
+  for (const f of r.nearOverflow ?? []) lines.push(`    (avertissement) texte déplacé de moins d'une ligne : ${f}`);
+  const failures = FINDINGS.reduce((n, [k]) => n + (r[k]?.length ?? 0), 0);
+  return { ok: failures === 0, failures, lines };
 }
 
 async function main() {
@@ -162,18 +227,36 @@ async function main() {
     process.stdout.write(USAGE);
     return;
   }
-  if (o.cmd !== 'html') throw new Error(`unknown command: ${o.cmd}\n\n${USAGE}`);
+  if (o.cmd !== 'html' && o.cmd !== 'check') throw new Error(`unknown command: ${o.cmd}\n\n${USAGE}`);
   if (!o.input) throw new Error(`missing input file\n\n${USAGE}`);
   const input = resolve(o.input);
   const md = await readFile(input, 'utf8');
-  const out = resolve(o.out ?? join(dirname(input), `${basename(input, extname(input))}.html`));
   const t0 = Date.now();
+  if (o.cmd === 'check') {
+    const scales = String(o.scale ?? '1,2').split(',').map(Number).filter((x) => x > 0);
+    const reports = await checkDocument(md, { docDir: dirname(input), chrome: o.chrome, timeout: o.timeout, scales });
+    let bad = 0;
+    if (o.json) process.stdout.write(`${JSON.stringify({ file: input, reports }, null, 2)}\n`);
+    else process.stdout.write(`markpage check : ${basename(input)}\n`);
+    for (const r of reports) {
+      const d = describe(r);
+      bad += d.failures;
+      if (o.json) continue;
+      const verdict = d.ok ? 'conservé' : `${d.failures} défaut(s)`;
+      process.stdout.write(`  densité ${r.scale} : ${r.pages} page(s) — ${verdict}\n`);
+      for (const l of d.lines) process.stdout.write(`${l}\n`);
+    }
+    if (!o.json) process.stdout.write(`  (${((Date.now() - t0) / 1000).toFixed(1)} s)\n`);
+    process.exitCode = bad > 0 ? 1 : 0;
+    return;
+  }
+  const out = resolve(o.out ?? join(dirname(input), `${basename(input, extname(input))}.html`));
   const { html, pages } = await renderStandalone(md, {
     docDir: dirname(input),
     paginated: o.paginated,
     chrome: o.chrome,
     timeout: o.timeout,
-    scale: o.scale,
+    scale: Number(o.scale ?? 2),
   });
   await writeFile(out, html);
   const what = o.paginated ? `${pages} page(s)` : 'continuous view';

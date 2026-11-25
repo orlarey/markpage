@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { renderStandalone } from '../bin/markpage.mjs';
+import { checkDocument, renderStandalone } from '../bin/markpage.mjs';
 
 const md = `---
 title: Essai
@@ -41,4 +41,14 @@ assert.ok(/<svg[\s>]/.test(html), 'no SVG: formula / diagram not rendered');
 // Vivliostyle bakes a style attribute onto every element it lays out.
 assert.ok(/<code[^>]*>pow\(2, 3\)<\/code>/.test(html), 'tsv cell not rendered as Markdown');
 assert.ok(html.includes('qui ne ferme rien'), 'text after </script> lost');
-console.log(`smoke: ok — ${pages} page(s), ${(html.length / 1e6).toFixed(2)} MB`);
+console.log(`smoke html: ok — ${pages} page(s), ${(html.length / 1e6).toFixed(2)} MB`);
+
+// check: the same document, at both device pixel ratios, conserved.
+const reports = await checkDocument(md, { docDir: dir, scales: [1, 2] });
+assert.equal(reports.length, 2);
+for (const r of reports) {
+  for (const k of ['lost', 'added', 'duplicated', 'notes', 'math', 'overflow', 'errors']) {
+    assert.deepEqual(r[k], [], `check at scale ${r.scale}: ${k}`);
+  }
+}
+console.log(`smoke check: ok — ${reports.map((r) => `${r.pages} page(s) at ${r.scale}`).join(', ')}`);
