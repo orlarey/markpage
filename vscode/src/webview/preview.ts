@@ -177,6 +177,7 @@ async function render(msg: RenderMessage): Promise<void> {
     }));
   } catch (err) {
     console.error('[markpage] render failed', err);
+    document.documentElement.dataset.mpRendered = 'error';
     return;
   }
   if (token !== renderToken) return; // superseded
@@ -197,6 +198,7 @@ async function render(msg: RenderMessage): Promise<void> {
     } catch (err) {
       console.error('[markpage] pagination failed', err);
       buffer.remove();
+      document.documentElement.dataset.mpRendered = 'error';
       return;
     }
     if (token !== renderToken) {
@@ -210,6 +212,9 @@ async function render(msg: RenderMessage): Promise<void> {
   currentSettings = settings;
   currentPaginated = msg.paginated;
   applyZoom();
+  // Headless hosts (the `markpage` CLI) wait for this before reading the page.
+  document.documentElement.dataset.mpRendered = msg.paginated ? 'pages' : 'continuous';
+  document.dispatchEvent(new CustomEvent('markpage:rendered', { detail: { paginated: msg.paginated } }));
 }
 
 // ---- PDF export -----------------------------------------------------------
@@ -309,6 +314,13 @@ async function buildStandaloneHtml(): Promise<string> {
 ${links.join('\n')}
 <style>${css}\n${printCss}</style></head>
 <body class="mp-webview">${clone.outerHTML}</body></html>`;
+}
+
+// Outside VS Code (the standalone viewer driven by the `markpage` CLI), expose
+// the same self-contained export: the CLI saves it as the output page.
+if (!vscode) {
+  (window as unknown as { markpageStandaloneHtml?: () => Promise<string> }).markpageStandaloneHtml =
+    buildStandaloneHtml;
 }
 
 /** Hand the standalone HTML to the host (→ system browser); harness falls back

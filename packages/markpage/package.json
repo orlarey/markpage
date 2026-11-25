@@ -1,0 +1,41 @@
+{
+  "name": "@orlarey/markpage",
+  "version": "0.1.0",
+  "description": "Render a markpage Markdown document from the command line: the same pages as markpage.org, saved as one self-contained HTML file",
+  "license": "AGPL-3.0-or-later",
+  "author": "Yann Orlarey",
+  "homepage": "https://markpage.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orlarey/markpage.git",
+    "directory": "packages/markpage"
+  },
+  "type": "module",
+  "bin": {
+    "markpage": "bin/markpage.mjs"
+  },
+  "exports": {
+    ".": "./bin/markpage.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "smoke": "node test/smoke.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.60.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

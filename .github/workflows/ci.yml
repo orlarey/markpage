@@ -41,6 +41,10 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      # The markpage CLI (packages/markpage): build its viewer, render a small
+      # document through headless Chromium, check the saved page.
+      - run: npm run build -w @orlarey/markpage
+      - run: npm run smoke -w @orlarey/markpage
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
