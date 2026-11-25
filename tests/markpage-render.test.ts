@@ -1,5 +1,6 @@
-import {
-describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 import { dataTableToMarkdown, renderMarkpageMarkdown, rewriteImageSrc, paginationCss } from '@orlarey/markpage-render';
 
@@ -223,6 +224,14 @@ describe('csv / tsv — the same table as a Markdown pipe table', () => {
     expect(table(tsv)).toBe(table(pipe));
     expect(table(tsv)).toContain('<code>pow(2, 3)</code>');
     expect(table(tsv)).toContain('<em>huit</em>');
+  });
+
+  it('aligns a header with its column, unless the column says otherwise', () => {
+    const css = readFileSync(join(process.cwd(), 'packages/markpage-render/styles/constructs.css'), 'utf8');
+    expect(css).toMatch(/table th:not\(\[align\]\) \{\s*text-align: start;/);
+    for (const a of ['left', 'center', 'right']) {
+      expect(css).toContain(`table :is(th, td)[align="${a}"] {\n  text-align: ${a};`);
+    }
   });
 
   it('keeps every cell of a row longer than the header, and escapes pipes', () => {

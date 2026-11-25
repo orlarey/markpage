@@ -80,6 +80,28 @@
   vertical-align: top;
 }
 
+/* A header sits over its column, aligned like it — not centred (the browser
+   default for <th>). A `:---:` / `---:` / `:---` column carries an align
+   attribute on every cell; an attribute is only a presentational hint, which
+   any CSS rule outranks (a <th align="right"> came out centred), so the
+   alignment is restated as CSS. */
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)
+  table th:not([align]) {
+  text-align: start;
+}
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)
+  table :is(th, td)[align="left"] {
+  text-align: left;
+}
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)
+  table :is(th, td)[align="center"] {
+  text-align: center;
+}
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)
+  table :is(th, td)[align="right"] {
+  text-align: right;
+}
+
 /* ---- Task lists (- [ ] / - [x]) ------------------------------------- */
 /* marked emits a `<input type=checkbox disabled>` inside the <li> for
    GFM-style task items. We use `:has()` to detect those items and
