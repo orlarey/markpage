@@ -361,6 +361,82 @@ export function bytesToUtf8(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
 
+// ---- last-commit dates (GraphQL) -----------------------------------------
+// The git tree a repo is listed from carries no dates. The date a file was
+// last changed is the date of the last commit that touched it — one `history`
+// lookup per file, which REST can only do one request at a time. GraphQL takes
+// many in one request, each under its own alias.
+
+const GRAPHQL = 'https://api.github.com/graphql';
+/** Files asked per GraphQL request: a path-limited history is not free. */
+export const DATES_BATCH = 40;
+/** Requests in flight at once. */
+const DATES_CONCURRENCY = 4;
+
+/** The GraphQL query for the last-commit dates of `paths` (aliases f0, f1…). */
+export function lastCommitDatesQuery(paths: readonly string[]): string {
+  // JSON.stringify yields a valid GraphQL string literal (same escapes).
+  const fields = paths
+    .map((p, i) => `f${i}:history(first:1,path:${JSON.stringify(p)}){nodes{committedDate}}`)
+    .join(' ');
+  return (
+    'query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){' +
+    `ref(qualifiedName:$ref){target{... on Commit{${fields}}}}}}`
+  );
+}
+
+/**
+ * Purpose: When each of `paths` was last changed on the branch (ms since
+ *   epoch), keyed by path. A path with no commit found is left out.
+ * How: Batches of DATES_BATCH files per GraphQL request, a few at a time.
+ */
+export async function getLastCommitDates(
+  token: string,
+  ref: RepoRef,
+  paths: readonly string[],
+): Promise<Map<string, number>> {
+  const dates = new Map<string, number>();
+  const batches: string[][] = [];
+  for (let i = 0; i < paths.length; i += DATES_BATCH) batches.push(paths.slice(i, i + DATES_BATCH));
+  const run = async (batch: string[]): Promise<void> => {
+    const res = await ghFetch(GRAPHQL, {
+      method: 'POST',
+      headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: lastCommitDatesQuery(batch),
+        variables: { owner: ref.owner, name: ref.repo, ref: `refs/heads/${ref.branch}` },
+      }),
+    });
+    if (!res.ok) {
+      throw new GithubError(res.status, `GitHub graphql → ${res.status} ${await errorMessage(res)}`);
+    }
+    const j = (await res.json()) as {
+      data?: {
+        repository?: {
+          ref?: { target?: Record<string, { nodes?: { committedDate?: string }[] } | undefined> };
+        };
+      };
+    };
+    const target = j.data?.repository?.ref?.target;
+    if (!target) return;
+    batch.forEach((p, i) => {
+      const iso = target[`f${i}`]?.nodes?.[0]?.committedDate;
+      const ms = iso ? Date.parse(iso) : Number.NaN;
+      if (Number.isFinite(ms)) dates.set(p, ms);
+    });
+  };
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < batches.length) {
+      const batch = batches[next]!;
+      next += 1;
+      await run(batch);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(DATES_CONCURRENCY, batches.length) }, worker));
+  return dates;
+}
+
 // ---- token persistence (IndexedDB) --------------------------------------
 // One fine-grained PAT, stored locally, reused for every linked document.
 

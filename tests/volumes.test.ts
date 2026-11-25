@@ -164,6 +164,46 @@ describe('RepoVolume', () => {
     expect(await v.state()).toBe('offline');
   });
 
+  it('dates the markdown files of a folder with their last commit, in one request', async () => {
+    const json = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200 });
+    const graphql: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const url = String(input);
+        if (url.includes('/git/ref/heads/')) return json({ object: { sha: 'H' } });
+        if (url.includes('/git/commits/')) return json({ tree: { sha: 'T' } });
+        if (url.includes('/git/trees/')) return json({ tree: TREE, truncated: false });
+        if (url.endsWith('/graphql')) {
+          const body = JSON.parse(String(init?.body)) as { query: string; variables: Record<string, string> };
+          graphql.push(body.query);
+          expect(body.variables).toEqual({ owner: 'me', name: 'docs', ref: 'refs/heads/main' });
+          return json({
+            data: { repository: { ref: { target: { f0: { nodes: [{ committedDate: '2026-11-20T10:00:00Z' }] } } } } },
+          });
+        }
+        throw new Error(`unexpected ${url}`);
+      },
+    );
+    const v = new RepoVolume('tok', { owner: 'me', repo: 'docs', branch: 'main' });
+    // Before: listed at once, undated.
+    expect((await v.list('lettres')).find((e) => e.name === 'devis.md')?.modified).toBeUndefined();
+    expect(await v.loadDates('lettres')).toBe(true);
+    // One request, for the markdown file only (not the folder, not the images).
+    expect(graphql).toHaveLength(1);
+    expect(graphql[0]).toContain('f0:history(first:1,path:"lettres/devis.md")');
+    expect(graphql[0]).not.toContain('f1:');
+    // After: the listing carries the date; nothing more to fetch.
+    expect((await v.list('lettres')).find((e) => e.name === 'devis.md')?.modified).toBe(
+      Date.parse('2026-11-20T10:00:00Z'),
+    );
+    expect(await v.loadDates('lettres')).toBe(false);
+    expect(graphql).toHaveLength(1);
+    // Another volume on the same repo head reuses them (a new Open).
+    const again = new RepoVolume('tok', { owner: 'me', repo: 'docs', branch: 'main' });
+    expect(await again.loadDates('lettres')).toBe(false);
+    expect((await again.list('lettres')).find((e) => e.name === 'devis.md')?.modified).toBeDefined();
+  });
+
   it('says the token is refused on a 401, not that the repo is offline', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ message: 'Bad credentials' }), { status: 401 }),

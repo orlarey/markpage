@@ -18,11 +18,14 @@ vi.mock('../src/image-store', () => ({
 }));
 
 import {
+  DATES_BATCH,
   base64ToBytes,
   bytesToBase64,
   bytesToUtf8,
   gitBlobSha,
+  getLastCommitDates,
   githubFilePage,
+  lastCommitDatesQuery,
   repoIsPublic,
   utf8ToBytes,
 } from '../src/github';
@@ -304,5 +307,43 @@ describe('share links: repoIsPublic, githubFilePage', () => {
     expect(githubFilePage('me', 'docs', 'feat/x', 'lettres/mon devis.md')).toBe(
       'https://github.com/me/docs/blob/feat/x/lettres/mon%20devis.md',
     );
+  });
+});
+
+describe('getLastCommitDates (GraphQL, batched)', () => {
+  const REF = { owner: 'me', repo: 'docs', branch: 'main' };
+
+  it('asks one aliased history per path, escaped as a GraphQL string', () => {
+    const q = lastCommitDatesQuery(['a.md', 'notes/L\'été "x".md']);
+    expect(q).toContain('f0:history(first:1,path:"a.md"){nodes{committedDate}}');
+    expect(q).toContain('f1:history(first:1,path:"notes/L\'été \\"x\\".md")');
+    expect(q).toContain('ref(qualifiedName:$ref)');
+  });
+
+  it('splits a long folder into batches and merges the answers', async () => {
+    const paths = Array.from({ length: DATES_BATCH * 2 + 5 }, (_, i) => `n${i}.md`);
+    const sizes: number[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const { query } = JSON.parse(String(init?.body)) as { query: string };
+      const n = (query.match(/history\(/g) ?? []).length;
+      sizes.push(n);
+      const target: Record<string, unknown> = {};
+      for (let i = 0; i < n; i += 1) {
+        const p = /path:"n(\d+)\.md"/.exec(query.split(`f${i}:`)[1] ?? '')?.[1];
+        // A file with no commit on the branch comes back with no node.
+        target[`f${i}`] = p === '3' ? { nodes: [] } : { nodes: [{ committedDate: `2026-01-01T00:00:${String(Number(p) % 60).padStart(2, '0')}Z` }] };
+      }
+      return new Response(JSON.stringify({ data: { repository: { ref: { target } } } }), { status: 200 });
+    });
+    const dates = await getLastCommitDates('tok', REF, paths);
+    expect(sizes.sort((a, b) => a - b)).toEqual([5, DATES_BATCH, DATES_BATCH]);
+    expect(dates.size).toBe(paths.length - 1);
+    expect(dates.has('n3.md')).toBe(false);
+    expect(dates.get('n7.md')).toBe(Date.parse('2026-01-01T00:00:07Z'));
+  });
+
+  it('fails as a GithubError when GitHub refuses the request', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"message":"Bad credentials"}', { status: 401 }));
+    await expect(getLastCommitDates('tok', REF, ['a.md'])).rejects.toMatchObject({ status: 401 });
   });
 });

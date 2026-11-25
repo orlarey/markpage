@@ -19,6 +19,7 @@ import {
   type RepoRef,
   type TreeEntry,
   getBranchHead,
+  getLastCommitDates,
   getCommitTree,
   getTreeRecursive,
   readTextFile,
@@ -43,8 +44,9 @@ export interface VolumeEntry {
   type: 'file' | 'dir';
   /** True for a markdown file → opens in place; else import (V4). */
   isMarkdown: boolean;
-  /** Last modification (ms since epoch), when the source provides it cheaply
-   *  — the browser's date sort. Absent on a GitHub repo (not in its listing). */
+  /** Last modification (ms since epoch), when the source provides it — the
+   *  browser's date sort. On a GitHub repo it is not in the listing: it comes
+   *  later, through `Volume.loadDates` (the last commit of each file). */
   modified?: number;
   /** A secondary line under the name (the Récents list shows the origin). */
   detail?: string;
@@ -63,6 +65,10 @@ export interface Volume {
   list(path: string): Promise<VolumeEntry[]>;
   /** Read a markdown file's text. */
   readText(path: string): Promise<string>;
+  /** Fetch the dates `list(path)` could not give at once (a repo: one more
+   *  request). Resolves true when listing again would now carry new dates;
+   *  the browser then lists again. Absent where `list` has them already. */
+  loadDates?(path: string): Promise<boolean>;
 }
 
 const MD_RE = /\.(md|markdown)$/i;
@@ -296,11 +302,21 @@ export class DiskVolume implements Volume {
 // ---- Repo volume (GitHub) ----------------------------------------------
 
 /** A mounted GitHub repo `owner/repo@branch` (needs a PAT). */
+/** Files whose date is asked per folder: the markdown ones, up to this many. */
+export const REPO_DATES_MAX = 300;
+
+// Last-commit dates, per repo head and folder: a RepoVolume lives for one
+// opening of the browser, the dates stay true as long as the branch has not
+// moved. `${volume id}#${head sha}#${folder}` → path → ms.
+const repoDates = new Map<string, Map<string, number>>();
+const repoDatesPending = new Map<string, Promise<boolean>>();
+
 export class RepoVolume implements Volume {
   readonly kind = 'repo' as const;
   readonly id: string;
   readonly label: string;
   private treeCache: Promise<TreeEntry[]> | null = null;
+  private head: string | null = null;
 
   constructor(
     private readonly token: string,
@@ -318,6 +334,7 @@ export class RepoVolume implements Volume {
   private async tree(): Promise<TreeEntry[]> {
     this.treeCache ??= (async () => {
       const head = await getBranchHead(this.token, this.ref);
+      this.head = head;
       if (!head) return [];
       return getTreeRecursive(this.token, this.ref, await getCommitTree(this.token, this.ref, head));
     })();
@@ -347,8 +364,41 @@ export class RepoVolume implements Volume {
     }
   }
 
+  private datesKey(path: string): string {
+    return `${this.id}#${this.head ?? ''}#${path}`;
+  }
+
   async list(path: string): Promise<VolumeEntry[]> {
-    return sortEntries(childrenFromTree(await this.tree(), path));
+    const entries = childrenFromTree(await this.tree(), path);
+    // Dates already fetched for this folder (loadDates) come with the listing.
+    const dates = repoDates.get(this.datesKey(path));
+    if (dates) for (const e of entries) e.modified = dates.get(e.path);
+    return sortEntries(entries);
+  }
+
+  /** The last-commit date of the folder's markdown files, in one GraphQL
+   *  round (see getLastCommitDates). A failure only leaves the files undated. */
+  async loadDates(path: string): Promise<boolean> {
+    const files = childrenFromTree(await this.tree(), path)
+      .filter((e) => e.isMarkdown)
+      .slice(0, REPO_DATES_MAX);
+    const key = this.datesKey(path);
+    if (repoDates.has(key) || files.length === 0) return false;
+    let pending = repoDatesPending.get(key);
+    if (!pending) {
+      pending = getLastCommitDates(
+        this.token,
+        this.ref,
+        files.map((e) => e.path),
+      )
+        .then((dates) => {
+          repoDates.set(key, dates);
+          return dates.size > 0;
+        })
+        .finally(() => repoDatesPending.delete(key));
+      repoDatesPending.set(key, pending);
+    }
+    return pending;
   }
 
   async readText(path: string): Promise<string> {

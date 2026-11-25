@@ -563,6 +563,20 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
       });
       listEl.append(empty);
     }
+
+    // Dates that take one more request (a repo: the last commit of each
+    // file): the list is shown at once, by name; when they arrive — and the
+    // user is still in this folder — it is drawn again, with the dates and
+    // the Name / Date toggle. A failure just leaves the files undated.
+    if (vol.loadDates) {
+      const at = path;
+      void vol.loadDates(at).then(
+        (fresh) => {
+          if (fresh && current === vol && path === at && overlay.isConnected) void render();
+        },
+        (err: unknown) => console.warn('volume dates failed', err),
+      );
+    }
   };
 
   const render = async (): Promise<void> => {
