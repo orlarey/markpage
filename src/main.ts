@@ -107,7 +107,6 @@ import { presentLayout, presentStep } from './presentation';
 import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
 import { hideNotice, showNotice } from './ui/notice';
-import { showTokenTransfer, takeTransferredToken } from './github-transfer';
 import {
   UrlFetchError,
   decodeSrcParam,
@@ -343,42 +342,7 @@ async function runGC(): Promise<void> {
  * How: Sequenced calls to storage migrations, then editor + toolbar mount,
  *   then event wiring (autosave, view toggle, doc handlers, hotkeys).
  */
-/**
- * Store a GitHub token handed over by QR code from another device
- * (github-transfer.ts), once checked against GitHub and confirmed by the user
- * — showing the account it belongs to, and the one it would replace.
- */
-async function receiveTransferredToken(token: string): Promise<void> {
-  let login: string;
-  try {
-    login = (await getUser(token)).login;
-  } catch {
-    globalThis.alert(t('settings.github.invalid'));
-    return;
-  }
-  const current = await loadToken();
-  if (current !== token) {
-    let currentLogin = '';
-    if (current) {
-      try {
-        currentLogin = (await getUser(current)).login;
-      } catch {
-        currentLogin = '?';
-      }
-    }
-    const question = current
-      ? t('github.transfer-replace', { current: currentLogin, login })
-      : t('github.transfer-confirm', { login });
-    if (!globalThis.confirm(question)) return;
-    await saveToken(token);
-  }
-  showNotice(t('github.transfer-saved', { login }));
-}
-
 async function bootstrap(): Promise<void> {
-  // A GitHub token handed over by QR code: out of the address and the history
-  // first thing, before anything else reads or records the URL.
-  const transferredToken = takeTransferredToken(window.location, window.history);
   // If this page load is returning from the OneDrive OAuth redirect (or
   // the previous click queued a pending upload), let MSAL parse the hash
   // and tell us whether to resume the in-flight save once bootstrap is
@@ -413,7 +377,6 @@ async function bootstrap(): Promise<void> {
   // construction time. First-launch detection via navigator.language;
   // subsequent runs read the persisted value (locale.ts, setLanguage).
   const uiLocale = initLocale();
-  if (transferredToken) await receiveTransferredToken(transferredToken);
 
   // Documents named by the URL — after the storage migrations (they write the
   // library) and the locale (their messages are translated).
@@ -2955,11 +2918,8 @@ async function bootstrap(): Promise<void> {
   const triggerOpen = async (): Promise<void> => {
     browserMode = 'open';
     const volumes = [recentsVolume(), ...(await listVolumes())];
-    // Offered only where a GitHub token is stored: it is the one handed over.
-    const githubToken = await loadToken();
     openVolumeBrowser({
       volumes,
-      onTransferToken: githubToken ? () => showTokenTransfer(githubToken) : undefined,
       initial: browserStart(volumes),
       onNavigate: rememberBrowserLocation,
       onOpen: (vol, entry) => {
