@@ -35,8 +35,9 @@ import {
 } from '@orlarey/markpage-render';
 import { dropStaleAtomCopies, muteFigurePages } from './fragment-duplicates';
 import { findOrphanHeadings, forceBreakBeforeOrphans } from './heading-orphans';
-/** Re-paginations allowed to lift headings off page feet (heading-orphans.ts). */
-const MAX_ORPHAN_PASSES = 3;
+/** Re-paginations allowed to lift headings off page feet, one per pass
+ *  (heading-orphans.ts). */
+const MAX_ORPHAN_PASSES = 8;
 
 /**
  * Purpose: Heading "filet" (rule) CSS fragment for paged.js / print output.
@@ -179,10 +180,17 @@ export async function paginateWithVivliostyle(
     });
   let pages = await render();
   // A heading left alone at a page foot (Vivliostyle can also leave a stale
-  // duplicate of it there): force a break before it and paginate again. Each
-  // pass can push a later heading to a foot, hence a few passes, bounded.
+  // duplicate of it there): force a break before it and paginate again. ONE
+  // heading per pass, the first: a forced break moves everything after it, so
+  // a break decided for a later heading on the same layout would be stale —
+  // LE-REGIME-FIGE: forcing "2.1" and "4 Le typage" together left page 11
+  // nearly empty, "4 Le typage" no longer being at a page foot. Everything
+  // before the first orphan is final, so each pass settles one more.
   for (let pass = 0; pass < MAX_ORPHAN_PASSES; pass += 1) {
-    if (forceBreakBeforeOrphans(source, findOrphanHeadings(renderTo)) === 0) break;
+    // The first orphan that can be moved (one ending the document, or already
+    // forced, cannot).
+    const moved = findOrphanHeadings(renderTo).some((key) => forceBreakBeforeOrphans(source, [key]) > 0);
+    if (!moved) break;
     pages = await render();
   }
   // A formula laid at a page foot AND again at the top of the next page.
