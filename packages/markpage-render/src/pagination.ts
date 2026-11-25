@@ -101,6 +101,11 @@ export function paginationCss(): string {
        long table spills onto the next page. */
     thead { break-after: avoid; break-inside: avoid; }
     tr { break-inside: avoid; }
+    /* Table cells: no hyphenation (a header cut as "lis-seurs" reads badly),
+       and a numeric cell never wraps — fitWideTables marks it .mp-num before
+       measuring, so the zoom it picks already accounts for it. */
+    td, th { hyphens: manual; -webkit-hyphens: manual; }
+    td.mp-num { white-space: nowrap; }
     /* No single dangling first/last line of a paragraph or list item. */
     p, li { orphans: 3; widows: 3; }
     /* Definition lists: never leave a term alone at a page foot. The first

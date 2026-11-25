@@ -105,7 +105,10 @@ export {
 } from './atomic-fit';
 export {
   DEFAULT_MIN_TABLE_SCALE,
+  DEFAULT_TABLE_COMFORT_EM,
+  comfortableTableWidth,
   fitWideTables,
+  isNumericCell,
   tableFitScale,
   type TableFitOptions,
   type TableFitResult,
