@@ -1663,3 +1663,36 @@ body.demo-frame-body #preview-pane {
   background: #fdefc8;
 }
 
+
+/* GitHub token dialog (ui/token-dialog.ts). */
+.vb-panel.mp-token-dialog {
+  width: min(520px, 92vw);
+  height: auto;
+}
+.mp-token-dialog-body {
+  padding: 0.25rem 1.25rem 0.75rem;
+}
+.mp-token-dialog-body ol {
+  padding-left: 1.3rem;
+}
+.mp-token-dialog-body li {
+  margin: 0.35rem 0;
+}
+.mp-token-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-family: ui-monospace, monospace;
+  border: 1px solid rgba(28, 18, 117, 0.352);
+  border-radius: 6px;
+}
+.mp-token-error {
+  min-height: 1.3em;
+  margin: 0.4rem 0 0;
+  color: var(--danger, #b42318);
+  font-size: 0.9em;
+}
+.mp-token-dialog .vb-footer {
+  justify-content: flex-end;
+}

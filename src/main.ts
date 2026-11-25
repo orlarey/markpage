@@ -107,6 +107,7 @@ import { presentLayout, presentStep } from './presentation';
 import { initPaneSplitter } from './ui/pane-splitter';
 import { openHelp } from './ui/help-window';
 import { hideNotice, showNotice } from './ui/notice';
+import { askGithubToken } from './ui/token-dialog';
 import {
   UrlFetchError,
   decodeSrcParam,
@@ -2445,21 +2446,14 @@ async function bootstrap(): Promise<void> {
     }
   };
 
-  // Return a usable GitHub token. If none is stored, offer to paste one right
-  // here (with the create-token URL) rather than bouncing the user to Settings;
+  // Return a usable GitHub token. If none is stored, ask for one right here, in
+  // a dialog with a clickable link to GitHub's token form (ui/token-dialog.ts);
   // the pasted token is validated and saved. Returns null if the user cancels.
-  const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
   const ensureGithubToken = async (): Promise<string | null> => {
     const existing = await loadToken();
     if (existing) return existing;
-    const pasted = globalThis.prompt(t('github.prompt-token', { url: TOKEN_URL }))?.trim();
+    const pasted = await askGithubToken(getUser);
     if (!pasted) return null;
-    try {
-      await getUser(pasted); // validate before storing
-    } catch {
-      globalThis.alert(t('settings.github.invalid'));
-      return null;
-    }
     await saveToken(pasted);
     return pasted;
   };

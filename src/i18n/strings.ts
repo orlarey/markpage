@@ -213,8 +213,19 @@ const FR = {
   // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
   'settings.github.invalid': 'Jeton invalide ou expiré',
   // GitHub sync — prompts, notices, errors
-  'github.prompt-token':
-    'Aucun jeton GitHub configuré. Collez ici un jeton « fine-grained » (permission Contents : lecture et écriture).\n\nPour en créer un : {url}',
+  'github.token-title': 'Jeton GitHub',
+  'github.token-intro':
+    'markpage a besoin d’un jeton GitHub « fine-grained » pour lire et écrire vos dépôts. Il reste dans ce navigateur et n’est envoyé qu’à GitHub.',
+  'github.token-link': 'Créer un jeton sur GitHub',
+  'github.token-step1':
+    '— le formulaire s’ouvre pré-rempli (nom, permission Contents : lecture et écriture).',
+  'github.token-step2':
+    'Sous « Repository access », choisissez les dépôts à ouvrir, puis « Generate token ».',
+  'github.token-step3': 'Copiez le jeton et collez-le ci-dessous.',
+  'github.token-field': 'Jeton GitHub',
+  'github.token-save': 'Enregistrer',
+  'github.token-cancel': 'Annuler',
+  'github.token-checking': 'Vérification…',
   'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
   'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
   'github.prompt-branch': 'Branche :',
@@ -483,8 +494,19 @@ const EN: Record<keyof typeof FR, string> = {
   // ---- GitHub-sync (docs/GITHUB-SYNC-SPEC.md) ----------------------
   'settings.github.invalid': 'Invalid or expired token',
   // GitHub sync — prompts, notices, errors
-  'github.prompt-token':
-    'No GitHub token configured. Paste a fine-grained token here (Contents: Read and write permission).\n\nTo create one: {url}',
+  'github.token-title': 'GitHub token',
+  'github.token-intro':
+    'markpage needs a fine-grained GitHub token to read and write your repositories. It stays in this browser and is sent to GitHub only.',
+  'github.token-link': 'Create a token on GitHub',
+  'github.token-step1':
+    '— the form opens pre-filled (name, Contents: Read and write permission).',
+  'github.token-step2':
+    'Under “Repository access”, choose the repositories to open, then “Generate token”.',
+  'github.token-step3': 'Copy the token and paste it below.',
+  'github.token-field': 'GitHub token',
+  'github.token-save': 'Save',
+  'github.token-cancel': 'Cancel',
+  'github.token-checking': 'Checking…',
   'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
   'github.prompt-repo': 'GitHub repo (owner/repo):',
   'github.prompt-branch': 'Branch:',

@@ -31,13 +31,15 @@ async function mountRepo(page: Page, stall: { on: boolean }): Promise<void> {
     if (/git\/trees\/t1\?recursive=1$/.test(u)) return json(tree);
     return route.fulfill({ status: 404, body: '{}' });
   });
-  const answers = ['github_pat_11TEST0' + 'x'.repeat(80), 'orlarey/faust-migration', 'main'];
+  const answers = ['orlarey/faust-migration', 'main'];
   page.on('dialog', (d) => void d.accept(d.type() === 'prompt' ? answers.shift() : undefined));
   await page.goto('/');
   await page.locator('.cm-content').waitFor();
   await page.getByRole('button', { name: /Fichier/ }).first().click();
   await page.getByText('Ouvrir…', { exact: true }).click();
   await page.getByText('Monter un dépôt…').click();
+  await page.locator('.mp-token-input').fill('github_pat_11TEST0' + 'x'.repeat(80));
+  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await expect(page.locator('.vb-list')).toContainText('orlarey/faust-migration@main');
   await page.keyboard.press('Escape');
   // Remember a folder inside the repo, as a previous visit would.
