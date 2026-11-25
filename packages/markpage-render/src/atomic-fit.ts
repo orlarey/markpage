@@ -111,6 +111,33 @@ export function markAtomicBlocks(root: HTMLElement): HTMLElement[] {
   return ordered;
 }
 
+/** Callouts no taller than this fraction of the text height are kept whole. */
+export const KEEP_TOGETHER_MAX_RATIO = 0.5;
+
+/**
+ * Mark the callouts short enough to be kept on one page (`.mp-keep-together`,
+ * break-inside: avoid in paginationCss). A taller one stays fragmentable: kept
+ * whole, it would leave up to a page of blank before it. `root` must be
+ * mounted and styled at the final text width, as for fitAtomicBlocks.
+ */
+export function markKeepTogether(
+  root: HTMLElement,
+  textHeight: number,
+  ratio = KEEP_TOGETHER_MAX_RATIO,
+): HTMLElement[] {
+  const kept: HTMLElement[] = [];
+  for (const box of root.querySelectorAll<HTMLElement>('.admonition')) {
+    const height = box.getBoundingClientRect().height;
+    if (height > 0 && height <= textHeight * ratio) {
+      box.classList.add('mp-keep-together');
+      kept.push(box);
+    } else {
+      box.classList.remove('mp-keep-together');
+    }
+  }
+  return kept;
+}
+
 function numericZoom(el: HTMLElement): number {
   const raw = el.ownerDocument.defaultView?.getComputedStyle(el).zoom;
   const parsed = Number.parseFloat(raw ?? '1');

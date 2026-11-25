@@ -74,23 +74,28 @@ export function paginationCss(): string {
     figure.captioned-algorithm .algorithm-body,
     figure.captioned-algorithm .algorithm-body tbody { break-inside: auto; }
     figure.captioned-algorithm figcaption { break-before: avoid; }
-    /* Callouts may span pages. Keeping the whole box atomic makes paged.js
-       occasionally drop its title and first lines near a page boundary. */
+    /* Callouts. A box cut after its title or its first line reads badly, so:
+       - a short callout (definition, theorem, proof…) is kept whole. The host
+         marks it .mp-keep-together after measuring it at the final text width
+         (markKeepTogether in atomic-fit.ts): only boxes up to half the text
+         height qualify, so the blank left at a page foot stays bounded;
+       - a tall callout still spans pages, but its title is glued to the first
+         lines of its body (with p { orphans: 3 }, at least three of them).
+       The paged.js reason for leaving the title/body boundary free (paged.js
+       dropped the title and the first paragraph when break-after:avoid
+       reached the body) died with paged.js: Vivliostyle honours these rules
+       without losing content. */
     .admonition,
     .admonition-body {
       break-inside: auto;
     }
+    .admonition.mp-keep-together { break-inside: avoid; }
     .admonition {
       -webkit-box-decoration-break: clone;
       box-decoration-break: clone;
     }
-    /* Do not put an avoid constraint on the title/body boundary. paged.js
-       propagates break-after:avoid to the body container; when its first
-       paragraph overflows, it can then move that boundary while retaining a
-       text-offset break token. The result is exactly the missing title and
-       paragraph prefix this policy must prevent. Keeping the title itself
-       atomic is safe; the surrounding callout remains freely fragmentable. */
-    .admonition-title { break-inside: avoid; }
+    .admonition-title { break-inside: avoid; break-after: avoid; }
+    .admonition-body > :first-child { break-before: avoid; }
     /* Tables: keep the header with the first row (no orphaned <thead> at a
        page foot) and never split a row; paged.js repeats the header when a
        long table spills onto the next page. */

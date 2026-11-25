@@ -27,6 +27,7 @@ import {
   resetPageRunningCounter,
   paginationCss,
   fitAtomicBlocks,
+  markKeepTogether,
   fitWideTables,
   runningApparatusCss,
   type AtomicPageGeometryPx,
@@ -770,6 +771,9 @@ async function fitOversizedAtomicBlocks(
         );
       },
     });
+    // Short callouts are kept whole (paginationCss: .mp-keep-together).
+    // Measured after the atomic fit, which may have shrunk their content.
+    markKeepTogether(source, geometry.textHeight);
     // Over-dense tables: zoom each down to the text column instead of letting
     // its prose columns wrap into an unreadable mess (measured at the same
     // text width, after fonts settled).

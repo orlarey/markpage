@@ -96,6 +96,7 @@ export {
   atomicFitDecision,
   markAtomicBlocks,
   fitAtomicBlocks,
+  markKeepTogether,
   type AtomicPageGeometryPx,
   type AtomicFitDecision,
   type AtomicFitMode,

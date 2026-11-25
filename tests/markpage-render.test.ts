@@ -207,13 +207,11 @@ describe('paginationCss — the shared fragmentation policy', () => {
     );
   });
 
-  it('allows admonitions to split without an avoid boundary that can drop text', () => {
+  it('keeps short admonitions whole and glues a title to its body', () => {
     expect(css).toMatch(/\.admonition,\s*\.admonition-body \{\s*break-inside: auto;/);
-    expect(css).toContain('.admonition-title { break-inside: avoid; }');
-    expect(css).not.toContain('.admonition-title { break-after: avoid; }');
-    expect(css).not.toContain(
-      '.admonition-title + .admonition-body { break-before: avoid; }',
-    );
+    expect(css).toContain('.admonition.mp-keep-together { break-inside: avoid; }');
+    expect(css).toContain('.admonition-title { break-inside: avoid; break-after: avoid; }');
+    expect(css).toContain('.admonition-body > :first-child { break-before: avoid; }');
     expect(css).toContain('box-decoration-break: clone;');
   });
 
