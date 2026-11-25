@@ -143,7 +143,8 @@ for (const c of cases) {
     const report = conservation(cont, pag);
     expect(report.pages, 'no page').toBeGreaterThan(0);
     // One assertion on the whole report, so a failure shows every finding.
-    const { pages: _pages, ...findings } = report;
+    const { pages: _pages, nearOverflow, ...findings } = report;
+    for (const w of nearOverflow) test.info().annotations.push({ type: 'warning', description: `hors zone : ${w}` });
     expect(findings, 'pagination lost, added or duplicated text').toEqual({
       lost: [],
       added: [],

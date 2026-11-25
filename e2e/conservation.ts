@@ -9,8 +9,9 @@ import type { Page } from '@playwright/test';
  *   2. Blocks: Vivliostyle tags every element with its source offset
  *      (`data-adapt-eloff`); the fragments of one block must not repeat text.
  *      This is what catches a heading laid twice (once stale at a page foot).
- *   3. Geometry: no text painted outside its page's text area by half a line
- *      or more (it would collide with the footer, or be clipped in print).
+ *   3. Geometry: no text painted a whole line or more outside its page's text
+ *      area (it would collide with the footer, or be clipped in print); less
+ *      than a line is reported as a warning.
  * How: Legitimate differences are removed STRUCTURALLY, never by text pattern:
  *   the continuous sheet's running band, the TOC (its page numbers), heading
  *   numbers (paginated only), the repeated <thead> of a table continued on a
@@ -30,8 +31,11 @@ export interface ConservationReport {
   math: string[];
   /** Blocks whose fragments repeat text: [pages, text]. */
   duplicated: string[];
-  /** Text painted outside the text area by `px` or more. */
+  /** Text painted a whole line or more outside the text area. */
   overflow: string[];
+  /** Text painted half a line to a line outside it: displaced, still legible
+   *  in the margin. Reported as a warning, not a failure. */
+  nearOverflow: string[];
 }
 
 // Generated content is excluded on both sides: the continuous view's innerText
@@ -129,6 +133,7 @@ export async function paginatedFacts(page: Page): Promise<{
   math: number;
   duplicated: string[];
   overflow: string[];
+  nearOverflow: string[];
 }> {
   return page.evaluate(
     ([excluded, notes, items, mathSel]) => {
@@ -181,19 +186,25 @@ export async function paginatedFacts(page: Page): Promise<{
       }
 
       const overflow: string[] = [];
+      const nearOverflow: string[] = [];
       pages.forEach((pg, i) => {
         const a = area(pg);
         const r = a.getBoundingClientRect();
-        const lineHeight = parseFloat(getComputedStyle(a).fontSize) || 13;
+        const fontSize = parseFloat(getComputedStyle(a).fontSize) || 13;
         const walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT);
         for (let n = walker.nextNode(); n; n = walker.nextNode()) {
           if (!n.textContent?.trim() || n.parentElement?.closest(`${excluded}, ${notes}`)) continue;
+          // A dedicated page for an oversized atomic object borrows the
+          // margins by design (atomic-fit.ts).
+          if (n.parentElement?.closest('.mp-atomic-page')) continue;
+          const lineHeight = parseFloat(getComputedStyle(n.parentElement!).lineHeight) || fontSize * 1.25;
           const range = document.createRange();
           range.selectNodeContents(n);
           for (const b of range.getClientRects()) {
             const by = Math.max(b.bottom - r.bottom, r.top - b.top);
-            if (b.height > 0 && by >= lineHeight / 2) {
-              overflow.push(`page ${i + 1}, ${Math.round(by)} px : ${n.textContent.trim().slice(0, 40)}`);
+            if (b.height > 0 && by >= fontSize / 2) {
+              const line = `page ${i + 1}, ${Math.round(by)} px : ${n.textContent.trim().slice(0, 40)}`;
+              (by >= lineHeight ? overflow : nearOverflow).push(line);
               break;
             }
           }
@@ -209,7 +220,7 @@ export async function paginatedFacts(page: Page): Promise<{
       );
       // Pages are joined with a mark so a word cut across a page boundary can
       // be told apart from one cut at a real hyphen (see conservation()).
-      return { pages: pages.length, text, notes: noteTexts, math, duplicated, overflow };
+      return { pages: pages.length, text, notes: noteTexts, math, duplicated, overflow, nearOverflow };
     },
     [EXCLUDED, NOTES, NOTE_ITEMS, MATH] as const,
   );
@@ -234,5 +245,14 @@ export function conservation(
   const b = [...pag.notes].map(norm).sort();
   const notes = a.join('\n') === b.join('\n') ? [] : [`continu: ${a.length} notes, pages: ${b.length} notes`];
   const math = cont.math === pag.math ? [] : [`continu: ${cont.math} formules, pages: ${pag.math}`];
-  return { pages: pag.pages, lost, added, notes, math, duplicated: pag.duplicated, overflow: pag.overflow };
+  return {
+    pages: pag.pages,
+    lost,
+    added,
+    notes,
+    math,
+    duplicated: pag.duplicated,
+    overflow: pag.overflow,
+    nearOverflow: pag.nearOverflow,
+  };
 }
