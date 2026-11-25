@@ -274,6 +274,17 @@ fine-grained (PAT)** :
   marche **directement depuis le navigateur** avec le token, **zéro serveur** ;
 - l'utilisateur **colle son token une seule fois par appareil** ; il est stocké
   en local et réutilisé pour **tous** ses documents liés.
+- **d'un appareil à l'autre, par QR code** (`src/github-transfer.ts`) : sur un
+  appareil configuré, *Fichier ▸ Ouvrir ▸ « Transférer le jeton GitHub… »*
+  affiche, 60 s au plus, le QR code de `https://markpage.org/#gh-token=<jeton>` ;
+  l'autre appareil le scanne avec son appareil photo. Le jeton voyage dans le
+  **fragment** de l'adresse, que le navigateur n'envoie jamais à un serveur : il
+  va d'un écran à l'autre et nulle part ailleurs. Au démarrage, markpage le
+  retire aussitôt de l'adresse et de l'historique (`history.replaceState`), le
+  vérifie auprès de GitHub, puis **demande confirmation en nommant le compte**
+  (et celui qu'il remplacerait) : un lien portant le jeton de quelqu'un d'autre
+  ne peut pas basculer l'appareil sur ce compte à l'insu de l'utilisateur. Le
+  jeton n'est jamais affiché en clair.
 
 ::: tip [Réglage quasi-indolore]
 Dans **Réglages → GitHub**, un bouton **« Créer un token → »** ouvre la page

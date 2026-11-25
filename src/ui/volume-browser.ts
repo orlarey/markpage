@@ -49,6 +49,9 @@ export interface VolumeBrowserOptions {
   /** Mount actions, shown in the footer when provided. */
   onMountDisk?(): void;
   onMountRepo?(): void;
+  /** Show the QR code that hands this device's GitHub token to another one
+   *  (github-transfer.ts). Absent when no token is stored. */
+  onTransferToken?(): void;
   onMountOneDrive?(): void;
   /** Re-grant RW permission on a volume's handle; resolves to whether granted. */
   onReauthorize?(volume: Volume): Promise<boolean>;
@@ -176,6 +179,12 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   if (opts.onMountDisk) mountBtn(t('volume.mount-disk'), () => opts.onMountDisk?.());
   if (opts.onMountRepo) mountBtn(t('volume.mount-repo'), () => opts.onMountRepo?.());
   if (opts.onMountOneDrive) mountBtn(t('volume.mount-onedrive'), () => opts.onMountOneDrive?.());
+  if (mode === 'open' && opts.onTransferToken) {
+    mountBtn(t('github.transfer'), () => {
+      close();
+      opts.onTransferToken?.();
+    });
+  }
 
   const close = (): void => {
     overlay.remove();

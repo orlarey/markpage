@@ -1663,3 +1663,31 @@ body.demo-frame-body #preview-pane {
   background: #fdefc8;
 }
 
+
+/* GitHub token transfer (github-transfer.ts): the QR code another device scans. */
+.vb-panel.mp-token-transfer {
+  width: min(420px, 92vw);
+}
+.mp-token-transfer-body {
+  padding: 0.5rem 1.25rem 1.25rem;
+  text-align: center;
+}
+.mp-token-transfer-qr {
+  margin: 0.75rem auto;
+  width: min(300px, 70vw);
+  background: #fff; /* a QR code needs a light quiet zone, whatever the theme */
+  border-radius: 6px;
+}
+.mp-token-transfer-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.mp-token-transfer-warn {
+  color: var(--danger, #b42318);
+  font-size: 0.9em;
+}
+.mp-token-transfer-timer {
+  color: var(--text-muted, #656d76);
+  font-size: 0.85em;
+}

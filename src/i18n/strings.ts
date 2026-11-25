@@ -214,7 +214,21 @@ const FR = {
   'settings.github.invalid': 'Jeton invalide ou expiré',
   // GitHub sync — prompts, notices, errors
   'github.prompt-token':
-    'Aucun jeton GitHub configuré. Collez ici un jeton « fine-grained » (permission Contents : lecture et écriture).\n\nPour en créer un : {url}',
+    'Aucun jeton GitHub configuré. Collez ici un jeton « fine-grained » (permission Contents : lecture et écriture).\n\nPour en créer un : {url}\n\nDéjà configuré sur un autre appareil ? Là-bas : Fichier ▸ Ouvrir ▸ « Transférer le jeton GitHub… », puis scannez le QR code avec cet appareil.',
+  'github.transfer': 'Transférer le jeton GitHub…',
+  'github.transfer-title': 'Transférer le jeton GitHub',
+  'github.transfer-how':
+    "Scannez ce code avec l'appareil photo de votre autre appareil : il ouvre markpage, qui y enregistre ce jeton après votre confirmation.",
+  'github.transfer-warning':
+    'Ce code contient votre jeton : ne le montrez qu’à vos propres appareils, ne le photographiez pas, ne le partagez pas.',
+  'github.transfer-timer': 'Le code disparaît dans {s} s.',
+  'github.transfer-qr-label': 'QR code du jeton GitHub',
+  'github.transfer-none': 'Aucun jeton GitHub n’est enregistré sur cet appareil.',
+  'github.transfer-confirm':
+    'Enregistrer sur cet appareil le jeton GitHub du compte « {login} » ?\n\nN’acceptez que si vous venez de scanner le code de votre propre appareil.',
+  'github.transfer-replace':
+    'Cet appareil a déjà un jeton GitHub (compte « {current} »). Le remplacer par celui du compte « {login} » ?',
+  'github.transfer-saved': 'Jeton GitHub enregistré (compte « {login} »).',
   'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
   'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
   'github.prompt-branch': 'Branche :',
@@ -484,7 +498,21 @@ const EN: Record<keyof typeof FR, string> = {
   'settings.github.invalid': 'Invalid or expired token',
   // GitHub sync — prompts, notices, errors
   'github.prompt-token':
-    'No GitHub token configured. Paste a fine-grained token here (Contents: Read and write permission).\n\nTo create one: {url}',
+    'No GitHub token configured. Paste a fine-grained token here (Contents: Read and write permission).\n\nTo create one: {url}\n\nAlready set up on another device? There: File ▸ Open ▸ “Transfer the GitHub token…”, then scan the QR code with this device.',
+  'github.transfer': 'Transfer the GitHub token…',
+  'github.transfer-title': 'Transfer the GitHub token',
+  'github.transfer-how':
+    'Scan this code with the camera of your other device: it opens markpage, which stores this token there once you confirm.',
+  'github.transfer-warning':
+    'This code holds your token: show it to your own devices only, do not photograph or share it.',
+  'github.transfer-timer': 'The code disappears in {s} s.',
+  'github.transfer-qr-label': 'QR code of the GitHub token',
+  'github.transfer-none': 'No GitHub token is stored on this device.',
+  'github.transfer-confirm':
+    'Store on this device the GitHub token of the account “{login}”?\n\nAccept only if you just scanned the code of your own device.',
+  'github.transfer-replace':
+    'This device already has a GitHub token (account “{current}”). Replace it with the one of the account “{login}”?',
+  'github.transfer-saved': 'GitHub token stored (account “{login}”).',
   'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
   'github.prompt-repo': 'GitHub repo (owner/repo):',
   'github.prompt-branch': 'Branch:',
