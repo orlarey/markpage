@@ -33,6 +33,9 @@ import {
   runningApparatusCss,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
+import { findOrphanHeadings, forceBreakBeforeOrphans } from './heading-orphans';
+/** Re-paginations allowed to lift headings off page feet (heading-orphans.ts). */
+const MAX_ORPHAN_PASSES = 3;
 
 /**
  * Purpose: Heading "filet" (rule) CSS fragment for paged.js / print output.
@@ -164,19 +167,23 @@ export async function paginateWithVivliostyle(
   // declines to hyphenate, and justified text keeps its rivers of white.
   source.lang = settings.language;
   const { renderVivliostylePreview } = await import('./preview-vivliostyle');
-  const pages = await renderVivliostylePreview(
-    source,
-    `${pagedCss(settings)}\n${runningCss}`,
-    renderTo,
-    {
+  const render = () =>
+    renderVivliostylePreview(source, `${pagedCss(settings)}\n${runningCss}`, renderTo, {
       duplex: settings.duplex,
       spread: opts.spread ?? true,
       // A cover is requested iff the style carries a coverBackground (the editor
       // emits it only when "Couverture séparée" is on). Without one, the title
       // block must NOT be isolated onto its own page.
       hasCover: !!settings.coverBackground,
-    },
-  );
+    });
+  let pages = await render();
+  // A heading left alone at a page foot (Vivliostyle can also leave a stale
+  // duplicate of it there): force a break before it and paginate again. Each
+  // pass can push a later heading to a foot, hence a few passes, bounded.
+  for (let pass = 0; pass < MAX_ORPHAN_PASSES; pass += 1) {
+    if (forceBreakBeforeOrphans(source, findOrphanHeadings(renderTo)) === 0) break;
+    pages = await render();
+  }
   // `::: background` backdrops: the renderer leaves a zero-height `.mp-bg`
   // sentinel in the flow; once the pages exist, clone each backdrop into every
   // page of its run, behind the content.
@@ -264,6 +271,7 @@ export function groupAdjacentFiguresForSlides(
 ): void {
   if (settings.pageSize !== 'SLIDES_16_9') return;
   const PX_PER_MM = 96 / 25.4;
+
   const slideContentPx = settings.pageGeometry.text.width * PX_PER_MM;
   const WIDTH_TOLERANCE = 1.1; // tolerate ~10% overflow (small scale-down)
   const COL_GAP_PX = 32; // matches the 2em column-gap in .figure-row CSS

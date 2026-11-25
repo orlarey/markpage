@@ -24,16 +24,15 @@ export function paginationCss(): string {
     /* Code blocks fragment like prose: never leave fewer than three lines on
        either side of a break — below that the whole block moves on. Same
        contract as paragraphs, expressed natively instead of pre-chunking the
-       DOM ourselves (what splitLongPreBlocks did for paged.js).
-       KNOWN GAP: the other half of the intended rule — "the first chunk fills
-       the space left on the current page" — is NOT achieved. Vivliostyle
-       starts a long block on a fresh page even with 47 free lines above it,
-       and nothing in our CSS asks for that: every ancestor computes
-       break-inside/break-before: auto and no atomic page is involved.
-       Removing the break-before rule above does not change it either. */
+       DOM ourselves (what splitLongPreBlocks did for paged.js). The block
+       starts in the space left on the current page because neither the <pre>
+       nor its <code> scrolls (overflow: visible, below): a scrolling box is
+       monolithic for the fragmentation engine. */
     pre { orphans: 3; widows: 3; }
-    /* Added after a first pagination pass when a heading is found alone at
-       the bottom of a page. The host then paginates once more. */
+    /* Added after a pagination pass to a heading left alone at the foot of a
+       page (src/heading-orphans.ts); the host then paginates once more.
+       break-after: avoid alone is not enough: Vivliostyle may lay the heading
+       again at the top of the next page and leave a stale copy at the foot. */
     .mp-force-page-break { break-before: page !important; }
     /* Atomic blocks never split across a page boundary. Captioned algorithms
        are the exception: their table rows are natural fragmentation points. */
@@ -120,8 +119,15 @@ export function paginationCss(): string {
     pre > code {
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      overflow-x: visible;
     }
+    /* A box that scrolls (overflow other than visible) is MONOLITHIC for the
+       fragmentation engine: it cannot start in the space left at a page foot.
+       highlight.js gives the code element overflow-x: auto through
+       pre code.hljs, which out-specifies pre > code, so a long listing jumped
+       to the next page — and with the heading kept before it, Vivliostyle laid
+       that heading again on every page it tried (SHOWCASE: "6.2 Bloc long"
+       alone on two pages, the code from the third). Hence !important. */
+    pre, pre > code, pre code.hljs { overflow: visible !important; }
     .algorithm-code {
       white-space: pre-wrap;
       overflow-wrap: anywhere;

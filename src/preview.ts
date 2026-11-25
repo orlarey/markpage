@@ -320,6 +320,12 @@ export function applyPreviewStyles(settings: PdfSettings): void {
     #preview-pane .caption { ${inlineCss(s.caption)} }
     /* Footnotes / sidenotes — one step below the body on the type scale. */
     #preview-pane .footnotes, #preview-pane .sidenote { ${inlineCss(s.footnote)} }
+    /* The continuous view has no page foot and no margin: every note is read
+       in the end section. The inline .sidenote copy (paginated 'foot' / 'side'
+       modes float it to the page foot or the margin) must not show here, or
+       each note is printed twice — once inside its paragraph, after a doubled
+       call number. */
+    #preview-pane.continuous .sidenote { display: none; }
     /* Inline links — color and underline come from styles['inline-link']. */
     #preview-pane a { ${inlineCss(s['inline-link'])} text-decoration: ${s['inline-link'].underline ? 'underline' : 'none'}; }
     /* Block math, mermaid, admonitions, tables — user-configurable

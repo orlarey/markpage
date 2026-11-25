@@ -168,6 +168,42 @@ describe('footnotes — forward references resolve regardless of nesting', () =>
     expect(html).toContain('class="footnotes"');
   });
 
+  it('numbers notes in source order, a definition-list call included', () => {
+    // A def-list inline-parses during block tokenisation, before the paragraphs
+    // around it: its note used to take number 1 even when called last.
+    const md = [
+      'A paragraph with a note[^a], then another[^b].',
+      '',
+      'Term',
+      ':   A definition calling a third note[^c].',
+      '',
+      'Code `[^c]` and a fence do not count as calls:',
+      '',
+      '```',
+      '[^c] [^b]',
+      '```',
+      '',
+      '[^a]: First.',
+      '[^b]: Second.',
+      '[^c]: Third.',
+      '',
+    ].join('\n');
+    const html = renderMarkpageMarkdown(md);
+    const calls = [...html.matchAll(/<sup class="footnote-ref"><a href="#fn-(\w)"[^>]*>(\d+)<\/a>/g)].map(
+      (m) => `${m[1]}${m[2]}`,
+    );
+    expect(calls).toEqual(['a1', 'b2', 'c3']);
+    const section = html.slice(html.indexOf('class="footnotes"'));
+    expect([...section.matchAll(/<li id="fn-(\w)"/g)].map((m) => m[1])).toEqual(['a', 'b', 'c']);
+  });
+
+  it('emits one notes section when a demo block calls a note', () => {
+    const md = 'Avant[^a].\n\n[^a]: Note A.\n\n````demo\nDans la démo[^t].\n\n[^t]: Note T.\n````\n\nAprès.\n';
+    const html = renderMarkpageMarkdown(md);
+    expect(html.match(/class="footnotes"/g)?.length).toBe(1);
+    expect(html.match(/id="fn-a"/g)?.length).toBe(1);
+  });
+
   it('leaves a reference with no matching definition as literal text', () => {
     const html = renderMarkpageMarkdown('A typo[^missing] here.\n');
     expect(html).toContain('[^missing]');
@@ -227,8 +263,12 @@ describe('paginationCss — the shared fragmentation policy', () => {
 
   it('wraps over-wide code in paginated output', () => {
     expect(css).toMatch(
-      /pre > code \{[^}]*white-space: pre-wrap;[^}]*overflow-wrap: anywhere;[^}]*overflow-x: visible;/,
+      /pre > code \{[^}]*white-space: pre-wrap;[^}]*overflow-wrap: anywhere;/,
     );
+    // A scrolling box is monolithic for the fragmentation engine: a long
+    // listing could not start at a page foot. highlight.js's pre code.hljs
+    // must not win, hence the explicit selector and !important.
+    expect(css).toContain('pre, pre > code, pre code.hljs { overflow: visible !important; }');
     expect(css).toMatch(
       /\.algorithm-code \{[^}]*white-space: pre-wrap;[^}]*overflow-wrap: anywhere;/,
     );

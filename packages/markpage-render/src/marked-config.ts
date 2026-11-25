@@ -151,6 +151,28 @@ function prescanFootnoteDefs(src: string): void {
   while ((m = re.exec(src)) !== null) {
     footnoteDefs.set(m[1] ?? '', (m[2] ?? '').trim());
   }
+  // Number notes in the order their first CALL appears in the source. The
+  // tokenizer cannot: a definition list (and a citation body) inline-parses
+  // during block tokenisation, before the paragraphs around it, so a note
+  // called from a <dd> took number 1 wherever it stood. Code is blanked
+  // first (same length, so positions stay true): a literal `[^x]` there is
+  // not a call.
+  footnoteFirstCall.clear();
+  const prose = src
+    .replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, (c) => ' '.repeat(c.length))
+    .replace(/`[^`\n]*`/g, (c) => ' '.repeat(c.length));
+  const call = /\[\^([^\]\n]+)\](?!:)/g;
+  while ((m = call.exec(prose)) !== null) {
+    const id = m[1] ?? '';
+    if (!footnoteFirstCall.has(id)) footnoteFirstCall.set(id, m.index);
+  }
+}
+/** Position of each note's first call in the source (prescanFootnoteDefs). */
+const footnoteFirstCall = new Map<string, number>();
+/** The notes actually called, in source order: their numbering. */
+function footnoteOrder(): string[] {
+  const at = (id: string) => footnoteFirstCall.get(id) ?? Number.MAX_SAFE_INTEGER;
+  return [...footnoteSeen].sort((a, b) => at(a) - at(b));
 }
 // Pandoc-style citations. Same shape as footnotes (registry + order-of-
 // first-appearance numbering) but a separate end-of-document section
@@ -655,7 +677,7 @@ marked.use({
       try {
         let out = html;
         if (footnoteSeen.length > 0) {
-          const items = footnoteSeen
+          const items = footnoteOrder()
             .map((id) => {
               const content = footnoteDefs.get(id) ?? '';
               // Inline-parse the body so users can use **bold**,
@@ -958,7 +980,7 @@ marked.use({
       },
       renderer(token) {
         const t = token as unknown as FootnoteRefToken;
-        const num = footnoteSeen.indexOf(t.id) + 1;
+        const num = footnoteOrder().indexOf(t.id) + 1;
         const idEsc = escapeHtml(t.id);
         // Only the first reference carries the back-link target id —
         // a footnote referenced N times shouldn't generate N elements
@@ -984,11 +1006,16 @@ marked.use({
         if (!t.isFirst) return sup;
         const body = footnoteDefs.get(t.id) ?? '';
         let inlineBody = '';
+        // RESTORE, never reset: inside a ```demo block the inner parse already
+        // runs with the flag up, and resetting it here let that inner parse's
+        // postprocess append a second notes section — every note twice, with
+        // duplicate ids, in the continuous view and in 'end' mode.
+        const wasInEndnotes = inEndnotesRender;
         inEndnotesRender = true;
         try {
           inlineBody = marked.parseInline(body) as string;
         } finally {
-          inEndnotesRender = false;
+          inEndnotesRender = wasInEndnotes;
         }
         // Prepend the note number as a small <sup class="sidenote-num">
         // — visible in 'side' mode (Tufte sidenote convention: number
