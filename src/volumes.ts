@@ -319,7 +319,14 @@ export class RepoVolume implements Volume {
       if (!head) return [];
       return getTreeRecursive(this.token, this.ref, await getCommitTree(this.token, this.ref, head));
     })();
-    return this.treeCache;
+    const pending = this.treeCache;
+    try {
+      return await pending;
+    } catch (err) {
+      // A failure (offline, timed out) is not cached: the next look retries.
+      if (this.treeCache === pending) this.treeCache = null;
+      throw err;
+    }
   }
 
   /** Drop the cached tree (after a remote change / manual refresh). */

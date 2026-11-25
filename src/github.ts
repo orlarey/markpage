@@ -16,6 +16,16 @@
 
 const API = 'https://api.github.com';
 
+/** Longest wait for one GitHub request (ms). A request left pending forever
+ *  (network stalled, GitHub slow on a large tree) used to keep every caller
+ *  waiting with it — File ▸ Open and Save As came up empty. */
+export const GITHUB_TIMEOUT_MS = 30_000;
+
+/** fetch() bounded by GITHUB_TIMEOUT_MS (a timed-out request rejects). */
+function ghFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(GITHUB_TIMEOUT_MS) });
+}
+
 /** A file/dir location in a repo. `branch` defaults to the repo default. */
 export interface RepoLoc {
   owner: string;
@@ -83,7 +93,7 @@ async function errorMessage(res: Response): Promise<string> {
 
 /** The authenticated user — used for the "connected as @x" status. */
 export async function getUser(token: string): Promise<GhUser> {
-  const res = await fetch(`${API}/user`, { headers: authHeaders(token) });
+  const res = await ghFetch(`${API}/user`, { headers: authHeaders(token) });
   if (!res.ok) throw new GithubError(res.status, `GitHub /user → ${res.status}`);
   const j = (await res.json()) as { login: string };
   return { login: j.login };
@@ -100,7 +110,7 @@ export async function repoIsPublic(
   token: string | null,
 ): Promise<boolean | null> {
   try {
-    const res = await fetch(`${API}/repos/${owner}/${repo}`, {
+    const res = await ghFetch(`${API}/repos/${owner}/${repo}`, {
       headers: token ? authHeaders(token) : { Accept: 'application/vnd.github+json' },
     });
     if (res.status === 404) return false;
@@ -134,7 +144,7 @@ interface ContentsFile {
 async function getContents(token: string, loc: RepoLoc): Promise<ContentsFile | null> {
   const ref = loc.branch ? `?ref=${encodeURIComponent(loc.branch)}` : '';
   const url = `${API}/repos/${loc.owner}/${loc.repo}/contents/${encodePath(loc.path)}${ref}`;
-  const res = await fetch(url, { headers: authHeaders(token) });
+  const res = await ghFetch(url, { headers: authHeaders(token) });
   if (res.status === 404) return null;
   if (!res.ok) {
     throw new GithubError(res.status, `GitHub get ${loc.path} → ${res.status} ${await errorMessage(res)}`);
@@ -159,7 +169,7 @@ export async function getBlob(
   sha: string,
 ): Promise<Uint8Array<ArrayBuffer>> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/blobs/${sha}`;
-  const res = await fetch(url, { headers: authHeaders(token) });
+  const res = await ghFetch(url, { headers: authHeaders(token) });
   if (!res.ok) {
     throw new GithubError(res.status, `GitHub blob ${sha} → ${res.status} ${await errorMessage(res)}`);
   }
@@ -191,7 +201,7 @@ export async function readTextFile(
 /** Resolve a branch ref to its head commit SHA. Null if the branch is absent. */
 export async function getBranchHead(token: string, ref: RepoRef): Promise<string | null> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/ref/heads/${encodePath(ref.branch)}`;
-  const res = await fetch(url, { headers: authHeaders(token) });
+  const res = await ghFetch(url, { headers: authHeaders(token) });
   if (res.status === 404) return null;
   if (!res.ok) {
     throw new GithubError(res.status, `GitHub get ref ${ref.branch} → ${res.status} ${await errorMessage(res)}`);
@@ -203,7 +213,7 @@ export async function getBranchHead(token: string, ref: RepoRef): Promise<string
 /** The tree SHA of a commit (the ref only gives the commit; SPEC §5). */
 export async function getCommitTree(token: string, ref: RepoRef, commitSha: string): Promise<string> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/commits/${commitSha}`;
-  const res = await fetch(url, { headers: authHeaders(token) });
+  const res = await ghFetch(url, { headers: authHeaders(token) });
   if (!res.ok) {
     throw new GithubError(res.status, `GitHub get commit ${commitSha} → ${res.status} ${await errorMessage(res)}`);
   }
@@ -214,7 +224,7 @@ export async function getCommitTree(token: string, ref: RepoRef, commitSha: stri
 /** List a tree recursively — one call to enumerate the whole repo (SPEC §5). */
 export async function getTreeRecursive(token: string, ref: RepoRef, treeSha: string): Promise<TreeEntry[]> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/trees/${treeSha}?recursive=1`;
-  const res = await fetch(url, { headers: authHeaders(token) });
+  const res = await ghFetch(url, { headers: authHeaders(token) });
   if (!res.ok) {
     throw new GithubError(res.status, `GitHub get tree ${treeSha} → ${res.status} ${await errorMessage(res)}`);
   }
@@ -227,7 +237,7 @@ export async function getTreeRecursive(token: string, ref: RepoRef, treeSha: str
 /** Create a blob from raw bytes; returns its git SHA. */
 export async function createBlob(token: string, ref: RepoRef, bytes: Uint8Array): Promise<string> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/blobs`;
-  const res = await fetch(url, {
+  const res = await ghFetch(url, {
     method: 'POST',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
     body: JSON.stringify({ content: bytesToBase64(bytes), encoding: 'base64' }),
@@ -252,7 +262,7 @@ export async function createTree(
   changes: TreeChange[],
 ): Promise<string> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/trees`;
-  const res = await fetch(url, {
+  const res = await ghFetch(url, {
     method: 'POST',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -275,7 +285,7 @@ export async function createCommit(
   parentSha: string,
 ): Promise<string> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/commits`;
-  const res = await fetch(url, {
+  const res = await ghFetch(url, {
     method: 'POST',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
     body: JSON.stringify({ message, tree: treeSha, parents: [parentSha] }),
@@ -297,7 +307,7 @@ export async function updateRef(
   commitSha: string,
 ): Promise<boolean> {
   const url = `${API}/repos/${ref.owner}/${ref.repo}/git/refs/heads/${encodePath(ref.branch)}`;
-  const res = await fetch(url, {
+  const res = await ghFetch(url, {
     method: 'PATCH',
     headers: { ...authHeaders(token), 'Content-Type': 'application/json' },
     body: JSON.stringify({ sha: commitSha, force: false }),

@@ -163,4 +163,23 @@ describe('RepoVolume', () => {
     const v = new RepoVolume('tok', REF);
     expect(await v.state()).toBe('offline');
   });
+
+  it('retries after a failure instead of caching it', async () => {
+    // A timed-out request used to stay cached: the repo then read "offline"
+    // for good, until a reload.
+    const v = new RepoVolume('tok', REF);
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'));
+    expect(await v.state()).toBe('offline');
+    vi.restoreAllMocks();
+    mockRepo();
+    expect(await v.state()).toBe('ready');
+    expect((await v.list('')).map((e) => e.name)).toEqual(['lettres', 'README.md']);
+  });
+
+  it('bounds every GitHub request in time', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'));
+    await new RepoVolume('tok', REF).state();
+    const init = spy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
 });

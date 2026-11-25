@@ -101,6 +101,9 @@ function formatWhen(ms: number): string {
   return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+/** How long Open / Save As waits for the remembered folder's volume (ms). */
+const START_TIMEOUT_MS = 4_000;
+
 /** Open the unified volume browser (single-instance). */
 export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   if (document.getElementById(OVERLAY_ID)) return;
@@ -193,18 +196,29 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   // lapsed, offline) can't list, so the browser then opens on the root, where
   // one click re-authorizes it.
   let initialPending = false;
-  const startAt = async (): Promise<void> => {
+  // The root is drawn FIRST, and the remembered folder entered only if its
+  // volume answers within START_TIMEOUT_MS: a volume that never answers (a
+  // GitHub request stalled — the whole tree of a repo is fetched to know its
+  // state) used to leave Open and Save As empty, without even the breadcrumb.
+  // A late answer is ignored once the user has moved.
+  const startAt = async (): Promise<boolean> => {
     const want = opts.initial;
     const v = want ? opts.volumes.find((vv) => vv.id === want.volumeId) : undefined;
-    if (!want || !v) return;
+    if (!want || !v) return false;
     try {
-      if ((await v.state()) !== 'ready') return;
+      const state = await Promise.race([
+        v.state(),
+        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), START_TIMEOUT_MS)),
+      ]);
+      if (state !== 'ready') return false;
     } catch {
-      return;
+      return false;
     }
+    if (current !== null || !overlay.isConnected) return false; // the user moved, or closed
     current = v;
     path = want.path;
     initialPending = true;
+    return true;
   };
 
   // Save bar (save mode only): file-name input + confirm button (V5).
@@ -549,6 +563,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   else panel.append(header, body, footer);
   overlay.appendChild(panel);
   doc.body.appendChild(overlay);
-  void startAt().then(render);
+  void render();
+  void startAt().then((entered) => (entered ? render() : undefined));
   if (mode === 'save') nameInput.focus();
 }
