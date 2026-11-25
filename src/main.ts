@@ -1936,8 +1936,25 @@ async function bootstrap(): Promise<void> {
   // after async work, a popup blocker would stop it. Blocked anyway → here.
   const reuseThisTab = (): boolean =>
     editor.getValue().trim() === '' && !isModified(currentDoc);
-  const prepareDocTab = (): Window | null =>
-    reuseThisTab() ? null : window.open('', '_blank');
+  const prepareDocTab = (name?: string): Window | null => {
+    if (reuseThisTab()) return null;
+    const win = window.open('', '_blank');
+    // Say what is coming instead of a blank "about:blank" page, while the
+    // document is fetched (a repo: several requests).
+    if (win && name) {
+      try {
+        const label = t('open.opening', { name });
+        win.document.title = label;
+        const p = win.document.createElement('p');
+        p.textContent = label;
+        p.style.cssText = 'font: 15px system-ui, sans-serif; color: #57606a; margin: 2.5rem;';
+        win.document.body.append(p);
+      } catch {
+        /* the placeholder stays blank — cosmetic only */
+      }
+    }
+    return win;
+  };
   const docTabUrl = (uuid: string): string => {
     const url = new URL(window.location.href);
     url.search = '';
@@ -2437,6 +2454,12 @@ async function bootstrap(): Promise<void> {
   // Map a thrown GitHub error to a clear message.
   const handleGithubError = (err: unknown): void => {
     console.error('GitHub sync failed', err);
+    // 401: GitHub refuses the stored token (expired, revoked). Nothing works
+    // until it is replaced, so offer just that instead of "HTTP 401".
+    if (err instanceof GithubError && err.status === 401) {
+      void replaceGithubToken('refused');
+      return;
+    }
     if (err instanceof GithubBranchAbsentError) {
       globalThis.alert(t('github.branch-absent', { branch: err.branch }));
     } else if (err instanceof GithubError) {
@@ -2455,6 +2478,17 @@ async function bootstrap(): Promise<void> {
     const pasted = await askGithubToken(getUser);
     if (!pasted) return null;
     await saveToken(pasted);
+    return pasted;
+  };
+
+  // Set or REPLACE the stored GitHub token (it used to be kept for good: an
+  // expired token could not be changed). `refused`: GitHub rejected the stored
+  // one — the dialog says so, and the operation is to be tried again.
+  const replaceGithubToken = async (reason?: 'refused'): Promise<string | null> => {
+    const pasted = await askGithubToken(getUser, { reason });
+    if (!pasted) return null;
+    await saveToken(pasted);
+    showNotice(t(reason === 'refused' ? 'github.token-saved-retry' : 'github.token-saved'));
     return pasted;
   };
 
@@ -2611,6 +2645,7 @@ async function bootstrap(): Promise<void> {
   const githubEntry = async (
     token: string,
     target: GithubTarget,
+    abandon: () => void = () => undefined,
   ): Promise<DocEntry | null> => {
     const known = (await listDocs()).find((e) => {
       const g = githubLinkOf(e);
@@ -2626,6 +2661,7 @@ async function bootstrap(): Promise<void> {
     if (known) return known;
     const res = await importFromGithub(token, target);
     if (!res) {
+      abandon();
       globalThis.alert(t('github.remote-gone', { path: target.path }));
       return null;
     }
@@ -2690,7 +2726,14 @@ async function bootstrap(): Promise<void> {
     entry: VolumeEntry,
     win: Window | null,
   ): Promise<void> => {
-    await showDocIn(await materializeFromVolume(vol, entry), win);
+    // Anything that needs the user's attention HERE (an error, a question)
+    // first closes the placeholder tab: it sits in front of this one, and a
+    // message shown behind it left a blank "about:blank" tab for all answer
+    // (Chrome does not show an alert raised by a background tab).
+    const abandon = (): void => {
+      if (win && !win.closed) win.close();
+    };
+    await showDocIn(await materializeFromVolume(vol, entry, abandon), win);
   };
 
   // The library entry for a volume entry (reusing the one already linked to the
@@ -2698,16 +2741,21 @@ async function bootstrap(): Promise<void> {
   const materializeFromVolume = async (
     vol: Volume,
     entry: VolumeEntry,
+    // Called before any message or question shown in THIS tab (see openFromVolume).
+    abandon: () => void = () => undefined,
   ): Promise<DocEntry | null> => {
     let target: DocEntry | null = null;
     try {
       if (vol.kind === 'library' || vol.kind === 'recents') {
         target = (await listDocs()).find((d) => d.uuid === entry.path) ?? null; // path = uuid
       } else if (vol instanceof RepoVolume) {
-        if (!entry.isMarkdown) globalThis.alert(t('volume.foreign-repo'));
-        else {
+        if (!entry.isMarkdown) {
+          abandon();
+          globalThis.alert(t('volume.foreign-repo'));
+        } else {
+          if (!(await loadToken())) abandon(); // the token dialog opens in this tab
           const token = await ensureGithubToken();
-          if (token) target = await githubEntry(token, { ...vol.target, path: entry.path });
+          if (token) target = await githubEntry(token, { ...vol.target, path: entry.path }, abandon);
         }
       } else if (vol instanceof DiskVolume) {
         const fh = await vol.fileHandle(entry.path);
@@ -2715,10 +2763,13 @@ async function bootstrap(): Promise<void> {
           ? await diskFileEntry(fh, vol.label, entry.path, vol)
           : await importToLibrary(await fh.getFile());
       } else if (vol instanceof OneDriveVolume) {
-        if (!entry.isMarkdown) globalThis.alert(t('volume.foreign-repo'));
-        else target = await oneDriveEntry(entry.path);
+        if (!entry.isMarkdown) {
+          abandon();
+          globalThis.alert(t('volume.foreign-repo'));
+        } else target = await oneDriveEntry(entry.path);
       }
     } catch (err) {
+      abandon();
       if (err instanceof GithubError || err instanceof GithubBranchAbsentError) handleGithubError(err);
       else openFailed(err);
     }
@@ -2824,7 +2875,7 @@ async function bootstrap(): Promise<void> {
   // Shared browser callbacks: mount, re-authorize, unmount.
   const mountActions = (): Pick<
     VolumeBrowserOptions,
-    'onMountDisk' | 'onMountRepo' | 'onMountOneDrive' | 'onReauthorize' | 'onUnmount'
+    'onMountDisk' | 'onMountRepo' | 'onMountOneDrive' | 'onReplaceToken' | 'onReauthorize' | 'onUnmount'
   > => ({
     onMountDisk: fsAccessAvailable()
       ? () => {
@@ -2836,6 +2887,12 @@ async function bootstrap(): Promise<void> {
     },
     onMountOneDrive: () => {
       void mountOneDrive();
+    },
+    // Set or replace the GitHub token; the volumes are rebuilt with the new one.
+    onReplaceToken: (reason) => {
+      void replaceGithubToken(reason).then((token) => {
+        if (token) reopenBrowser();
+      });
     },
     onReauthorize: reauthorizeVolume,
     onUnmount: (vol) => {
@@ -2931,7 +2988,7 @@ async function bootstrap(): Promise<void> {
             return;
           }
         }
-        void openFromVolume(vol, entry, prepareDocTab());
+        void openFromVolume(vol, entry, prepareDocTab(entry.name));
       },
       // "Ouvrir un fichier…" — a loose file from the device (folds in Import, V4).
       onOpenDeviceFile: () => {

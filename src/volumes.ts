@@ -15,6 +15,7 @@
 import { type DocEntry, listDocs, listTrash, loadDocContent } from './docs';
 import { listOneDrive, readOneDriveText } from './onedrive';
 import {
+  GithubError,
   type RepoRef,
   type TreeEntry,
   getBranchHead,
@@ -29,6 +30,7 @@ export type VolumeKind = 'library' | 'disk' | 'repo' | 'onedrive' | 'recents';
 export type VolumeState =
   | 'ready'
   | 'needs-permission' // Disk: handle present but RW not granted
+  | 'needs-token' // Repo: GitHub refuses the stored token (expired, revoked)
   | 'offline' // Repo: network unreachable
   | 'error';
 
@@ -338,8 +340,10 @@ export class RepoVolume implements Volume {
     try {
       await this.tree();
       return 'ready';
-    } catch {
-      return 'offline';
+    } catch (err) {
+      // 401: the token itself is refused — not a network problem, and nothing
+      // will work until it is replaced. Said as such, not as "offline".
+      return err instanceof GithubError && err.status === 401 ? 'needs-token' : 'offline';
     }
   }
 

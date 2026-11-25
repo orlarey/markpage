@@ -1696,3 +1696,6 @@ body.demo-frame-body #preview-pane {
 .mp-token-dialog .vb-footer {
   justify-content: flex-end;
 }
+.mp-token-refused {
+  color: var(--danger, #b42318);
+}

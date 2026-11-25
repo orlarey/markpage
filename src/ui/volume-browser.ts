@@ -49,6 +49,9 @@ export interface VolumeBrowserOptions {
   /** Mount actions, shown in the footer when provided. */
   onMountDisk?(): void;
   onMountRepo?(): void;
+  /** Set or replace the GitHub token (ui/token-dialog.ts); `refused` when
+   *  asked because GitHub rejects the stored one. */
+  onReplaceToken?(reason?: 'refused'): void;
   onMountOneDrive?(): void;
   /** Re-grant RW permission on a volume's handle; resolves to whether granted. */
   onReauthorize?(volume: Volume): Promise<boolean>;
@@ -179,6 +182,7 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   if (opts.onMountDisk) mountBtn(t('volume.mount-disk'), () => opts.onMountDisk?.());
   if (opts.onMountRepo) mountBtn(t('volume.mount-repo'), () => opts.onMountRepo?.());
   if (opts.onMountOneDrive) mountBtn(t('volume.mount-onedrive'), () => opts.onMountOneDrive?.());
+  if (opts.onReplaceToken) mountBtn(t('github.token-button'), () => opts.onReplaceToken?.());
 
   const close = (): void => {
     overlay.remove();
@@ -250,6 +254,11 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
   // Enter a volume from the root; a permission-lapsed disk volume is
   // re-authorized first (the click is the required user gesture).
   const enterVolume = (v: Volume, st: VolumeState): void => {
+    // GitHub refuses the stored token: nothing to list until it is replaced.
+    if (st === 'needs-token' && opts.onReplaceToken) {
+      opts.onReplaceToken('refused');
+      return;
+    }
     if (st === 'needs-permission' && opts.onReauthorize) {
       void opts.onReauthorize(v).then((ok) => {
         if (ok) {
@@ -382,6 +391,17 @@ export function openVolumeBrowser(opts: VolumeBrowserOptions): void {
         st = s;
         if (s === 'ready') return;
         stEl.textContent = stateLabel(s);
+        if (s === 'needs-token' && opts.onReplaceToken) {
+          const replace = doc.createElement('button');
+          replace.type = 'button';
+          replace.className = 'vb-vol-auth';
+          replace.textContent = t('volume.replace-token');
+          replace.addEventListener('click', (e) => {
+            e.stopPropagation();
+            opts.onReplaceToken?.('refused');
+          });
+          actions.prepend(replace);
+        }
         if (s === 'needs-permission' && opts.onReauthorize) {
           const auth = doc.createElement('button');
           auth.type = 'button';

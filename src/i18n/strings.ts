@@ -226,6 +226,13 @@ const FR = {
   'github.token-save': 'Enregistrer',
   'github.token-cancel': 'Annuler',
   'github.token-checking': 'Vérification…',
+  'github.token-button': 'Jeton GitHub…',
+  'github.token-refused':
+    'GitHub refuse le jeton enregistré : il a expiré ou a été révoqué. Créez-en un nouveau et collez-le ci-dessous ; il remplacera l’ancien.',
+  'github.token-saved': 'Jeton GitHub enregistré.',
+  'github.token-saved-retry': 'Jeton GitHub remplacé. Recommencez l’opération.',
+  'volume.replace-token': 'Remplacer le jeton…',
+  'open.opening': 'Ouverture de « {name} »…',
   'github.bad-repo': 'Dépôt invalide. Format attendu : propriétaire/dépôt.',
   'github.prompt-repo': 'Dépôt GitHub (propriétaire/dépôt) :',
   'github.prompt-branch': 'Branche :',
@@ -290,6 +297,7 @@ const FR = {
   'volume.list-failed': 'Impossible de lister ce dossier.',
   'volume.state.needs-permission': 'permission requise',
   'volume.state.offline': 'hors-ligne',
+  'volume.state.needs-token': 'jeton GitHub refusé',
   'volume.state.error': 'erreur',
   'volume.state.ready': '',
   'volume.foreign-repo':
@@ -507,6 +515,13 @@ const EN: Record<keyof typeof FR, string> = {
   'github.token-save': 'Save',
   'github.token-cancel': 'Cancel',
   'github.token-checking': 'Checking…',
+  'github.token-button': 'GitHub token…',
+  'github.token-refused':
+    'GitHub rejects the stored token: it has expired or was revoked. Create a new one and paste it below; it replaces the old one.',
+  'github.token-saved': 'GitHub token stored.',
+  'github.token-saved-retry': 'GitHub token replaced. Please try again.',
+  'volume.replace-token': 'Replace the token…',
+  'open.opening': 'Opening “{name}”…',
   'github.bad-repo': 'Invalid repo. Expected format: owner/repo.',
   'github.prompt-repo': 'GitHub repo (owner/repo):',
   'github.prompt-branch': 'Branch:',
@@ -570,6 +585,7 @@ const EN: Record<keyof typeof FR, string> = {
   'volume.list-failed': 'Could not list this folder.',
   'volume.state.needs-permission': 'permission needed',
   'volume.state.offline': 'offline',
+  'volume.state.needs-token': 'GitHub token rejected',
   'volume.state.error': 'error',
   'volume.state.ready': '',
   'volume.foreign-repo':

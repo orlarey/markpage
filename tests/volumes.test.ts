@@ -164,6 +164,16 @@ describe('RepoVolume', () => {
     expect(await v.state()).toBe('offline');
   });
 
+  it('says the token is refused on a 401, not that the repo is offline', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Bad credentials' }), { status: 401 }),
+    );
+    expect(await new RepoVolume('expired', REF).state()).toBe('needs-token');
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 500 }));
+    expect(await new RepoVolume('tok', REF).state()).toBe('offline');
+  });
+
   it('retries after a failure instead of caching it', async () => {
     // A timed-out request used to stay cached: the repo then read "offline"
     // for good, until a reload.

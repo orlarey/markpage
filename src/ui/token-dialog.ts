@@ -9,7 +9,9 @@
  *   chosen —, a password field to paste the token into, and inline validation:
  *   `validate` (getUser) runs before the dialog closes, an invalid token says
  *   so and lets the user try again. Resolves with the token, or null when
- *   cancelled. The token is never echoed.
+ *   cancelled. The token is never echoed. With `reason: 'refused'` it first
+ *   says that GitHub rejects the stored token (expired or revoked) — the
+ *   dialog then REPLACES it.
  *
  ****************************************************************************/
 
@@ -26,7 +28,10 @@ const DIALOG_ID = 'mp-token-dialog';
  * Ask for a GitHub token. `validate` rejects an invalid one (its message is
  * not shown: the dialog says "invalid or expired").
  */
-export function askGithubToken(validate: (token: string) => Promise<unknown>): Promise<string | null> {
+export function askGithubToken(
+  validate: (token: string) => Promise<unknown>,
+  opts: { reason?: 'refused' } = {},
+): Promise<string | null> {
   const doc = document;
   if (doc.getElementById(DIALOG_ID)) return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -52,6 +57,14 @@ export function askGithubToken(validate: (token: string) => Promise<unknown>): P
     body.className = 'mp-token-dialog-body';
     const intro = doc.createElement('p');
     intro.textContent = t('github.token-intro');
+    if (opts.reason === 'refused') {
+      // The stored token no longer works: say so first, it is why we ask.
+      const refused = doc.createElement('p');
+      refused.className = 'mp-token-refused';
+      refused.setAttribute('role', 'alert');
+      refused.textContent = t('github.token-refused');
+      body.append(refused);
+    }
     const steps = doc.createElement('ol');
     const step1 = doc.createElement('li');
     const link = doc.createElement('a');
