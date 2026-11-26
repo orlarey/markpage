@@ -27,7 +27,6 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "postinstall": "patch-package",
     "build:styles": "node scripts/build-builtin-styles.mjs"
   },
   "dependencies": {
@@ -48,7 +47,6 @@
     "@mathjax/src": "^4.1.2",
     "@vivliostyle/core": "^2.44.1",
     "codemirror": "^6.0.1",
-    "ebnf2railroad": "^1.14.2",
     "highlight.js": "^11.11.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.8.0",
@@ -62,15 +60,11 @@
     "@types/turndown": "^5.0.5",
     "esbuild": "^0.28.2",
     "happy-dom": "^21.0.4",
-    "patch-package": "^8.0.1",
     "typescript": "^5.6.3",
     "vite": "^8.3.8",
     "vitest": "^4.1.6"
   },
   "overrides": {
-    "@prantlf/railroad-diagrams": {
-      "js-yaml": "^3.15.2"
-    },
     "mermaid": {
       "katex": "^0.18.10"
     }

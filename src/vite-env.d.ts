@@ -4,24 +4,3 @@
 // the version string from package.json.
 declare const __APP_VERSION__: string;
 
-// `ebnf2railroad` ships no types. We only touch a tiny slice of its API
-// (parse + per-production diagram + the TOC helpers needed to build
-// metadata). The AST shape is structural; we treat it as `unknown[]`
-// and narrow where needed in src/ebnf.ts.
-declare module 'ebnf2railroad/src/ebnf-parser' {
-  export function parse(src: string): unknown[];
-}
-declare module 'ebnf2railroad/src/build-diagram' {
-  export function createDiagram(
-    production: unknown,
-    metadata: unknown,
-    ast: unknown[],
-    options: unknown,
-  ): string;
-}
-declare module 'ebnf2railroad/src/toc' {
-  export function createStructuralToc(ast: unknown[]): unknown;
-  export function createDefinitionMetadata(toc: unknown): Record<string, unknown>;
-}
-
-

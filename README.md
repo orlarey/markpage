@@ -197,7 +197,6 @@ markpage/
 ├── templates/        Ready-to-use documents (+ style profiles)
 ├── tests/            Vitest regression corpus
 ├── e2e/              Playwright end-to-end tests
-├── patches/          patch-package patches (paged.js null-deref fixes)
 └── public/           Static assets served as-is
 ```
 
@@ -219,8 +218,7 @@ markpage/
 - **Dev vs publish.** In development the app (Vite) and the extension (esbuild)
   consume the packages' **TypeScript sources** through the `development` export
   condition — no build step between edits. The `dist/` (tsc) output is only
-  needed for an npm publish. `postinstall` runs `patch-package` (the paged.js
-  fixes in [`patches/`](patches/)).
+  needed for an npm publish.
 - **The MCP bridge is a separate Go binary.** It speaks MCP over stdio to the AI
   client and WebSocket to one markpage browser tab; two tools answer from
   embedded docs without a tab. See [`mcp/README.md`](mcp/README.md) and

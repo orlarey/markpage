@@ -7,18 +7,28 @@
  *
  *******************************************************************************/
 
-// Types declared ambiently in src/vite-env.d.ts — the package ships
-// no .d.ts of its own.
-// The parser alone, not the package's main entry: `ebnf2railroad` (main.js)
-// also pulls its HTML / Markdown report builders — and with them `showdown`,
-// an unmaintained Markdown converter with open advisories (ReDoS, XSS) that
-// markpage never calls. Imported this way, none of it is bundled.
-import { parse as parseEbnf } from 'ebnf2railroad/src/ebnf-parser';
-import { createDiagram } from 'ebnf2railroad/src/build-diagram';
+// A vendored copy, not the npm package: markpage uses its parser, diagram
+// builder and TOC helpers only, while the package also carries a command line
+// and report builders, and with them `showdown` (unmaintained, open ReDoS /
+// XSS advisories in every version). See scripts/vendor-ebnf2railroad.mjs,
+// which generates the copy.
 import {
   createDefinitionMetadata,
+  createDiagram,
   createStructuralToc,
-} from 'ebnf2railroad/src/toc';
+  parse,
+} from './vendor/ebnf2railroad';
+
+// The copy is untyped JavaScript: the slice of its API used here.
+const parseEbnf = parse as (src: string) => unknown[];
+const buildDiagram = createDiagram as (
+  production: unknown,
+  metadata: unknown,
+  ast: unknown[],
+  options: unknown,
+) => string;
+const structuralToc = createStructuralToc as (ast: unknown[]) => unknown;
+const definitionMetadata = createDefinitionMetadata as (toc: unknown) => Record<string, unknown>;
 
 interface Production {
   identifier?: string;
@@ -33,8 +43,7 @@ interface Production {
 export function renderEbnfBlock(source: string): string {
   try {
     const ast = parseEbnf(source) as Production[];
-    const structuralToc = createStructuralToc(ast);
-    const metadata = createDefinitionMetadata(structuralToc);
+    const metadata = definitionMetadata(structuralToc(ast));
     const productions = ast.filter(
       (p): p is Production & { identifier: string } =>
         !p.comment && typeof p.identifier === 'string',
@@ -43,7 +52,7 @@ export function renderEbnfBlock(source: string): string {
       return `<pre class="ebnf-error">EBNF parse error: no productions found</pre>`;
     }
     const parts = productions.map((production) => {
-      const svg = createDiagram(production, metadata, ast, {}) as string;
+      const svg = buildDiagram(production, metadata, ast, {});
       // Definition-list semantics — `<dt>` for the non-terminal name,
       // `<dd>` for the diagram. The CSS turns the dl into a 2-column
       // grid so every `=` sign lines up under the previous one.
