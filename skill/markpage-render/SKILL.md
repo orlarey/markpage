@@ -28,7 +28,9 @@ Les défauts **du document**, à corriger dans le Markdown :
 bloc en erreur
 :   Une fence mal écrite (`ebnf`, `inference`, `category`, `adt`, `chart`…).
     Le message donne la ligne et ce qui était attendu. Corriger la syntaxe
-    d'après AI-AUTHORING.md ; ne pas remplacer le bloc par du texte.
+    d'après le guide `AI-AUTHORING.md`, installé dans le dossier de cette
+    skill, à côté de ce fichier (ne pas le chercher ailleurs) ; ne pas
+    remplacer le bloc par du texte.
 
 entrée du sommaire sans section
 :   Une ligne du bloc `::: toc+` dont le titre ne correspond à aucun titre du
