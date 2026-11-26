@@ -12,6 +12,7 @@ markpage html note.md --continuous    # the continuous view
 markpage html note.md -o out.html
 markpage pdf note.md                  # → note.pdf, the same pages, printed
 markpage check note.md                # pagination loses, adds, duplicates nothing?
+markpage guide ebnf                   # the authoring guide's section on a block
 ```
 
 `markpage check` first reads the authoring defects off the render — a fence

@@ -7,7 +7,7 @@ import { mkdtemp, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkDocument, renderPdf, renderStandalone } from '../bin/markpage.mjs';
+import { checkDocument, guide, renderPdf, renderStandalone } from '../bin/markpage.mjs';
 
 const md = `---
 title: Essai
@@ -108,3 +108,13 @@ await symlink(bin, link);
 const help = execFileSync(process.execPath, [link, '--help'], { encoding: 'utf8' });
 assert.ok(help.includes('markpage check'), 'the linked command prints its usage');
 console.log('smoke bin: ok — runs through a symlink');
+
+// guide: the authoring guide travels with the command, section by section.
+const guideText = execFileSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), '../bin/markpage.mjs'), 'guide', 'ebnf'], { encoding: 'utf8' });
+assert.match(guideText, /^## EBNF railroad diagrams/, 'guide ebnf does not print the EBNF section');
+assert.ok(!/^## Mermaid/m.test(guideText), 'guide ebnf prints other sections');
+const sample = ['intro', '## Un', 'a', '```md', '## pas une section', '```', '## Deux (`::: toc+`)', '```adt', 'x', '```'].join('\n');
+assert.equal(guide(sample, []).split('\n').filter((l) => l.startsWith('  ')).length, 2, 'a heading in a fence counted as a section');
+assert.match(guide(sample, ['adt']), /^## Deux/, 'a block name does not find its section');
+assert.throws(() => guide(sample, ['introuvable']), /no section/);
+console.log('smoke guide: ok — sections by title, by block, none in a fence');

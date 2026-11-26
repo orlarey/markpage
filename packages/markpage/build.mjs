@@ -4,7 +4,7 @@
 // as a self-contained page (only the fonts and glyph data actually used are
 // inlined — the full MathJax font sets alone weigh 17 MB). As in the VS Code
 // build, MathJax / Mermaid / Vivliostyle are lazy chunks.
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { build } from 'esbuild';
 
@@ -91,3 +91,7 @@ await writeFile(
 </body></html>
 `,
 );
+
+// The authoring guide travels with the command (`markpage guide`): whoever
+// has the renderer has the reference for the version it renders.
+await copyFile('../../AI-AUTHORING.md', 'dist/AI-AUTHORING.md');

@@ -28,9 +28,9 @@ Les défauts **du document**, à corriger dans le Markdown :
 bloc en erreur
 :   Une fence mal écrite (`ebnf`, `inference`, `category`, `adt`, `chart`…).
     Le message donne la ligne et ce qui était attendu. Corriger la syntaxe
-    d'après le guide `AI-AUTHORING.md`, installé dans le dossier de cette
-    skill, à côté de ce fichier (ne pas le chercher ailleurs) ; ne pas
-    remplacer le bloc par du texte.
+    d'après le guide d'écriture, que la commande fournit section par section
+    (voir « Le guide d'écriture » ci-dessous) ; ne pas remplacer le bloc par
+    du texte.
 
 entrée du sommaire sans section
 :   Une ligne du bloc `::: toc+` dont le titre ne correspond à aucun titre du
@@ -75,6 +75,19 @@ produits, pas des sources.
 
 `markpage pdf note.md -o <sortie>.pdf` imprime ces mêmes pages, au format du
 style, polices incorporées.
+
+## Le guide d'écriture
+
+La commande embarque le guide d'écriture de sa version (`AI-AUTHORING.md`) :
+la syntaxe de chaque bloc, avec un exemple. Ne pas le chercher sur le disque.
+
+```sh
+npx -y @orlarey/markpage guide          # la liste des sections
+npx -y @orlarey/markpage guide ebnf     # la section d'un bloc : ebnf, inference, adt, tsv, toc, mermaid…
+npx -y @orlarey/markpage guide --all    # tout le guide (long : 1 600 lignes)
+```
+
+Demander la section du bloc en cause plutôt que le guide entier.
 
 ## Si la commande ne trouve pas de navigateur
 

@@ -32,6 +32,7 @@ const USAGE = `markpage — render a markpage Markdown document
   markpage html  <note.md> [-o <out.html>] [--continuous] [--scale 2]
   markpage pdf   <note.md> [-o <out.pdf>] [--scale 2]
   markpage check <note.md> [--scale 1,2] [--json]
+  markpage guide [<word>… | --all]
 
   html          save the rendered document as one self-contained HTML page
   pdf           save the paginated document as a PDF: the same pages, printed
@@ -42,6 +43,10 @@ const USAGE = `markpage — render a markpage Markdown document
                 by block, notes and formulas counted, no text a line or more
                 outside the text area, no page left mostly empty before more
                 text. Exit code 1 on any defect.
+  guide         the authoring guide (AI-AUTHORING.md) of this version: alone,
+                the list of its sections; with words, the sections they name
+                (\`markpage guide ebnf\`, \`markpage guide toc\`); --all, the
+                whole guide
   -o, --out     output file (default: <note>.html next to the input)
   --continuous  the continuous view instead of pages
   --chrome      the Chromium / Chrome executable to render with
@@ -288,8 +293,65 @@ function describe(r) {
   return { ok: failures === 0, failures, lines };
 }
 
+/** The guide's sections: its `## ` headings, those inside a code fence apart. */
+export function guideSections(text) {
+  const sections = [];
+  let current = { title: '', lines: [] };
+  let fence = null;
+  for (const line of text.split('\n')) {
+    const mark = line.match(/^\s*(`{3,}|~{3,})/);
+    if (mark) {
+      if (fence === null) fence = mark[1];
+      else if (mark[1][0] === fence[0] && mark[1].length >= fence.length && line.trim() === mark[1]) fence = null;
+    }
+    if (fence === null && !mark && /^## /.test(line)) {
+      sections.push(current);
+      current = { title: line.slice(3).trim(), lines: [] };
+    }
+    current.lines.push(line);
+  }
+  sections.push(current);
+  return sections.map((s) => ({ title: s.title, text: s.lines.join('\n').trimEnd() }));
+}
+
+const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/**
+ * What `markpage guide` prints: the list of sections, the sections that
+ * `words` name, or everything. A word names a section by its title, else by a
+ * block it describes (a \`\`\`word fence, a `::: word` div), else by its text.
+ */
+export function guide(text, words, all = false) {
+  if (all) return text.trimEnd();
+  const sections = guideSections(text).filter((s) => s.title !== '');
+  if (words.length === 0) {
+    return [
+      'Sections of the authoring guide — `markpage guide <word>` prints the ones a word names, `markpage guide --all` everything:',
+      '',
+      ...sections.map((s) => `  ${s.title}`),
+    ].join('\n');
+  }
+  const ws = words.map(fold);
+  const by = (test) => sections.filter((s) => ws.every((w) => test(s, w)));
+  const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let hit = by((s, w) => fold(s.title).includes(w));
+  if (hit.length === 0) hit = by((s, w) => new RegExp('(^|\\n)\\s*(`{3,}|:{3,})\\s*' + esc(w) + '\\b').test(fold(s.text)));
+  if (hit.length === 0) hit = by((s, w) => fold(s.text).includes(w));
+  if (hit.length === 0) {
+    throw new Error(`no section of the guide mentions: ${words.join(' ')}\n\n${guide(text, [])}`);
+  }
+  return hit.map((s) => s.text).join('\n\n');
+}
+
 async function main() {
-  const o = parseArgs(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  if (args[0] === 'guide') {
+    const text = await readFile(resolve(HERE, '../dist/AI-AUTHORING.md'), 'utf8');
+    const rest = args.slice(1);
+    process.stdout.write(`${guide(text, rest.filter((a) => !a.startsWith('--')), rest.includes('--all'))}\n`);
+    return;
+  }
+  const o = parseArgs(args);
   if (!o.cmd || o.cmd === 'help' || o.cmd === '--help') {
     process.stdout.write(USAGE);
     return;

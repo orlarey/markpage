@@ -97,7 +97,7 @@ install: ## Install/refresh the Claude skills: markpage-specs (writing) and mark
 	@echo "  AI-AUTHORING.md copied from $(DOC)"
 	@mkdir -p "$(RENDER_DIR)"
 	@cp "$(RENDER_STUB)" "$(RENDER_DIR)/SKILL.md"
-	@cp "$(DOC)" "$(RENDER_DIR)/AI-AUTHORING.md"
+	@rm -f "$(RENDER_DIR)/AI-AUTHORING.md"
 	@echo "Installed '$(RENDER_NAME)' -> $(RENDER_DIR)"
 	@echo "Restart your Claude Code session to pick up the new skills."
 
