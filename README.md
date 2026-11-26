@@ -192,7 +192,7 @@ markpage/
 │   └── markpage-render/ @orlarey/markpage-render — the full render pipeline
 ├── vscode/           VS Code extension — live markpage preview (esbuild)
 ├── mcp/              markpage-mcp — Go MCP bridge (stdio MCP ↔ WebSocket)
-├── skill/            "markpage-specs" authoring skill (SKILL.md)
+├── skill/            Claude skills: "markpage-specs" (writing), "markpage-render" (check, show, PDF)
 ├── docs/             Specs & design docs (SPEC, MCP-SPEC, FRONTMATTER-SPEC, …)
 ├── templates/        Ready-to-use documents (+ style profiles)
 ├── tests/            Vitest regression corpus

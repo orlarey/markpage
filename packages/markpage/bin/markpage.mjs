@@ -18,6 +18,7 @@
  *******************************************************************************/
 
 import { createServer } from 'node:http';
+import { existsSync, realpathSync } from 'node:fs';
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,10 +30,14 @@ const VIEWER = resolve(process.env.MARKPAGE_VIEWER ?? resolve(HERE, '../dist/vie
 const USAGE = `markpage — render a markpage Markdown document
 
   markpage html  <note.md> [-o <out.html>] [--continuous] [--scale 2]
+  markpage pdf   <note.md> [-o <out.pdf>] [--scale 2]
   markpage check <note.md> [--scale 1,2] [--json]
 
   html          save the rendered document as one self-contained HTML page
-  check         check that pagination loses, adds and duplicates no text:
+  pdf           save the paginated document as a PDF: the same pages, printed
+                by Chromium at the style's page size
+  check         check the document: no block in error, no TOC entry without
+                its section; and that pagination loses, adds and duplicates no text:
                 the pages against the continuous view, word by word and block
                 by block, notes and formulas counted, no text a line or more
                 outside the text area, no page left mostly empty before more
@@ -122,6 +127,16 @@ async function serve(template, md, docDir) {
   return { server, base };
 }
 
+/** Where a Chromium usually is, when Playwright's own is not installed. */
+const KNOWN_BROWSERS = [
+  '/opt/pw-browsers/chromium', // Claude Code cloud sessions
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  '/usr/bin/google-chrome',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+];
+
 async function launchChromium(chromePath) {
   let chromium;
   try {
@@ -129,9 +144,13 @@ async function launchChromium(chromePath) {
   } catch {
     throw new Error('playwright-core is missing: npm install playwright-core');
   }
+  // In order: the one asked for; Playwright's own; the browsers usually
+  // around (a Claude Code cloud session ships one, a desktop has Chrome).
   const attempts = [];
   if (chromePath) attempts.push({ executablePath: chromePath });
-  attempts.push({}, { channel: 'chrome' });
+  attempts.push({});
+  for (const path of KNOWN_BROWSERS) if (existsSync(path)) attempts.push({ executablePath: path });
+  attempts.push({ channel: 'chrome' });
   const errors = [];
   for (const opts of attempts) {
     try {
@@ -185,6 +204,27 @@ export async function renderStandalone(md, { docDir, paginated = true, chrome, t
   });
 }
 
+/**
+ * Render `md` in pages and print them to a PDF (a Buffer). The pages are the
+ * viewer's: its standalone export is loaded in a fresh page and printed with
+ * its own print rules (one sheet per page, the style's page size, no browser
+ * margin, backgrounds kept).
+ */
+export async function renderPdf(md, { docDir, chrome, timeout = 180, scale = 2 } = {}) {
+  return withViewer(md, { docDir, chrome, timeout }, async (open) => {
+    const { page, errors, close } = await open({ paginated: true, scale });
+    const pages = await page.locator('.pagedjs_page').count();
+    const html = await page.evaluate(() => window.markpageStandaloneHtml());
+    // Print from the frozen export, not from the live viewer: no toolbar, no
+    // zoom, fonts and images already inlined.
+    await page.setContent(html, { waitUntil: 'load' });
+    await page.evaluate(() => document.fonts.ready);
+    const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    await close();
+    return { pdf, pages, errors };
+  });
+}
+
 /** The conservation reports of `md`, one per device pixel ratio. */
 export async function checkDocument(md, { docDir, chrome, timeout = 180, scales = [1, 2] } = {}) {
   const { conservation, continuousText, paginatedFacts } = await import('../lib/conservation.mjs');
@@ -193,17 +233,33 @@ export async function checkDocument(md, { docDir, chrome, timeout = 180, scales 
     for (const scale of scales) {
       const c = await open({ paginated: false, scale });
       const cont = await continuousText(c.page);
+      // Authoring defects, read off the render: a fence that failed (every
+      // renderer leaves a `*-error` box rather than throwing) and a TOC entry
+      // matching no heading.
+      const blocks = await c.page.evaluate(() =>
+        [...document.querySelectorAll('#preview-pane [class*="-error"]')]
+          .filter((e) => !e.parentElement?.closest('[class*="-error"]')) // the outer box only
+          .map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)),
+      );
       await c.close();
       const p = await open({ paginated: true, scale });
       const pag = await paginatedFacts(p.page);
+      // The TOC is linked to its headings in the paginated view.
+      const toc = await p.page.evaluate(() =>
+        [...document.querySelectorAll('#preview-pane nav.toc-plus a.toc-missing')].map((e) =>
+          (e.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        ),
+      );
       await p.close();
-      reports.push({ scale, ...conservation(cont, pag), errors: [...c.errors, ...p.errors] });
+      reports.push({ scale, blocks, toc, ...conservation(cont, pag), errors: [...c.errors, ...p.errors] });
     }
     return reports;
   });
 }
 
 const FINDINGS = [
+  ['blocks', 'bloc en erreur'],
+  ['toc', 'entrée du sommaire sans section'],
   ['lost', 'texte perdu'],
   ['added', 'texte ajouté ou doublé'],
   ['duplicated', 'bloc posé deux fois'],
@@ -229,7 +285,7 @@ async function main() {
     process.stdout.write(USAGE);
     return;
   }
-  if (o.cmd !== 'html' && o.cmd !== 'check') throw new Error(`unknown command: ${o.cmd}\n\n${USAGE}`);
+  if (!['html', 'pdf', 'check'].includes(o.cmd)) throw new Error(`unknown command: ${o.cmd}\n\n${USAGE}`);
   if (!o.input) throw new Error(`missing input file\n\n${USAGE}`);
   const input = resolve(o.input);
   const md = await readFile(input, 'utf8');
@@ -252,6 +308,18 @@ async function main() {
     process.exitCode = bad > 0 ? 1 : 0;
     return;
   }
+  if (o.cmd === 'pdf') {
+    const out = resolve(o.out ?? join(dirname(input), `${basename(input, extname(input))}.pdf`));
+    const { pdf, pages } = await renderPdf(md, {
+      docDir: dirname(input),
+      chrome: o.chrome,
+      timeout: o.timeout,
+      scale: Number(o.scale ?? 2),
+    });
+    await writeFile(out, pdf);
+    process.stderr.write(`markpage: ${out} — ${pages} page(s), ${(pdf.length / 1e6).toFixed(2)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s\n`);
+    return;
+  }
   const out = resolve(o.out ?? join(dirname(input), `${basename(input, extname(input))}.html`));
   const { html, pages } = await renderStandalone(md, {
     docDir: dirname(input),
@@ -265,7 +333,10 @@ async function main() {
   process.stderr.write(`markpage: ${out} — ${what}, ${(html.length / 1e6).toFixed(2)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s\n`);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Run as a command (not imported). Through `npx` / node_modules/.bin the
+// script is reached by a symlink: compare the real paths.
+const invoked = process.argv[1] ? realpathSync(resolve(process.argv[1])) : '';
+if (invoked === realpathSync(fileURLToPath(import.meta.url))) {
   main().catch((e) => {
     process.stderr.write(`markpage: ${e.message ?? e}\n`);
     process.exit(1);

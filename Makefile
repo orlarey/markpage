@@ -8,6 +8,11 @@ SKILL_NAME := markpage-specs
 SKILL_DIR  := $(HOME)/.claude/skills/$(SKILL_NAME)
 DOC        := $(abspath AI-AUTHORING.md)
 STUB       := $(abspath skill/SKILL.md)
+# The render skill: check a document, show its pages, export a PDF (the
+# `markpage` command of @orlarey/markpage).
+RENDER_NAME := markpage-render
+RENDER_DIR  := $(HOME)/.claude/skills/$(RENDER_NAME)
+RENDER_STUB := $(abspath skill/markpage-render/SKILL.md)
 
 .DEFAULT_GOAL := help
 
@@ -82,7 +87,7 @@ vscode: ## Release the VS Code extension: bump (BUMP=patch|minor|major), commit,
 	 echo "Watch: gh run watch --workflow=vscode-release.yml"
 
 ## ---- Claude skill (markpage-specs) ------------------------------------
-install: ## Install/refresh the markpage-specs Claude skill (copies AI-AUTHORING.md)
+install: ## Install/refresh the Claude skills: markpage-specs (writing) and markpage-render (check, show, PDF)
 	@mkdir -p "$(SKILL_DIR)"
 	@rm -f "$(SKILL_DIR)/SKILL.md" "$(SKILL_DIR)/AI-AUTHORING.md"
 	@cp "$(STUB)" "$(SKILL_DIR)/SKILL.md"
@@ -90,8 +95,12 @@ install: ## Install/refresh the markpage-specs Claude skill (copies AI-AUTHORING
 	@echo "Installed '$(SKILL_NAME)' -> $(SKILL_DIR)"
 	@echo "  SKILL.md        copied from skill/SKILL.md"
 	@echo "  AI-AUTHORING.md copied from $(DOC)"
-	@echo "Restart your Claude Code session to pick up the new skill."
+	@mkdir -p "$(RENDER_DIR)"
+	@cp "$(RENDER_STUB)" "$(RENDER_DIR)/SKILL.md"
+	@cp "$(DOC)" "$(RENDER_DIR)/AI-AUTHORING.md"
+	@echo "Installed '$(RENDER_NAME)' -> $(RENDER_DIR)"
+	@echo "Restart your Claude Code session to pick up the new skills."
 
-uninstall: ## Remove the markpage-specs Claude skill
-	@rm -rf "$(SKILL_DIR)"
-	@echo "Removed $(SKILL_DIR)"
+uninstall: ## Remove the Claude skills
+	@rm -rf "$(SKILL_DIR)" "$(RENDER_DIR)"
+	@echo "Removed $(SKILL_DIR) and $(RENDER_DIR)"

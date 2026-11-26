@@ -1,0 +1,58 @@
+name: Release @orlarey/markpage (npm)
+
+# Builds the `markpage` command-line package (packages/markpage) and publishes
+# it to npm. Its version (packages/markpage/package.json) is INDEPENDENT of the
+# app's `v*` tags and of the extension's `vscode-v*` tags: it rides its own
+# `npm-v*` tags.
+#
+#   1. bump `version` in packages/markpage/package.json
+#   2. git commit, then: git tag npm-v0.2.0 && git push origin npm-v0.2.0
+#
+# Or run manually from the Actions tab (workflow_dispatch) once the version is
+# bumped on the default branch.
+#
+# Requires a repo secret NPM_TOKEN: an npm access token allowed to publish
+# under the @orlarey scope (an "Automation" token, or a granular one with
+# read-write on @orlarey/markpage).
+
+on:
+  push:
+    tags: ['npm-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: build · smoke · publish
+    # Pinned for Playwright's browser install (see ci.yml).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+
+      - name: Check tag matches version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          PKG=$(node -p "require('./packages/markpage/package.json').version")
+          TAG="${GITHUB_REF_NAME#npm-v}"
+          [ "$PKG" = "$TAG" ] || { echo "tag $TAG != package.json $PKG"; exit 1; }
+
+      # The viewer bundle the package ships (dist/viewer).
+      - run: npm run build -w @orlarey/markpage
+
+      # Pre-publish gate: render a small document through the command (html,
+      # check, pdf, and the command reached through a symlink, as npx does).
+      - run: npx playwright install --with-deps chromium
+      - run: npm run smoke -w @orlarey/markpage
+
+      - name: Publish to npm
+        run: npm publish -w @orlarey/markpage --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
