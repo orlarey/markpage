@@ -53,7 +53,27 @@ for (const r of reports) {
     assert.deepEqual(r[k], [], `check at scale ${r.scale}: ${k}`);
   }
 }
+for (const r of reports) {
+  for (const k of ['blocks', 'toc', 'tocEmpty']) assert.deepEqual(r[k], [], `check at scale ${r.scale}: ${k}`);
+}
 console.log(`smoke check: ok — ${reports.map((r) => `${r.pages} page(s) at ${r.scale}`).join(', ')}`);
+
+// check: the authoring defects are reported — a fence that fails, a contents
+// entry with no heading, and a contents block written without a list.
+const faulty = (toc) =>
+  ['---', 'title: Fautif', 'language: fr', '---', '', '::: toc+', toc, ':::', '', '# Une section', '',
+   '```ebnf', 'a ::= b', '```', ''].join('\n');
+const [bad] = await checkDocument(faulty('- **Une section** — présente.\n- **Une autre** — absente.'), {
+  docDir: dir,
+  scales: [1],
+});
+assert.equal(bad.blocks.length, 1, 'the failed ebnf fence is not reported');
+assert.match(bad.blocks[0], /EBNF parse error/);
+assert.deepEqual(bad.toc, ['Une autre'], 'the contents entry with no heading is not reported');
+assert.deepEqual(bad.tocEmpty, []);
+const [empty] = await checkDocument(faulty('**Une section** — écrite en paragraphe.'), { docDir: dir, scales: [1] });
+assert.equal(empty.tocEmpty.length, 1, 'the contents block with no entry is not reported');
+console.log('smoke check: ok — a failed fence, a dangling and an empty contents block are reported');
 
 // pdf: the same pages, one sheet each.
 const printed = await renderPdf(md, { docDir: dir });

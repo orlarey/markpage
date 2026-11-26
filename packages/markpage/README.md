@@ -16,7 +16,9 @@ markpage check note.md                # pagination loses, adds, duplicates nothi
 
 `markpage check` first reads the authoring defects off the render — a fence
 that failed (bad `ebnf`, `inference`, `category`… syntax, with the parser's
-message) and a `toc+` entry matching no heading. It then renders the document
+message), a `toc+` entry matching no heading, and a `toc+` block with no
+entry at all (written as paragraphs instead of a list, it renders as nothing).
+It then renders the document
 continuous and in pages, at device pixel ratios 1 and 2 (`--scale 1,2`), and
 compares them: the word sequence
 both ways (nothing lost, nothing added or laid twice), each source block laid

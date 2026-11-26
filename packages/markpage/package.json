@@ -1,6 +1,6 @@
 {
   "name": "@orlarey/markpage",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Render a markpage Markdown document from the command line: the same pages as markpage.org, saved as one self-contained HTML file",
   "license": "AGPL-3.0-or-later",
   "author": "Yann Orlarey",

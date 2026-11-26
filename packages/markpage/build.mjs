@@ -4,7 +4,7 @@
 // as a self-contained page (only the fonts and glyph data actually used are
 // inlined — the full MathJax font sets alone weigh 17 MB). As in the VS Code
 // build, MathJax / Mermaid / Vivliostyle are lazy chunks.
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { build } from 'esbuild';
 
@@ -34,6 +34,11 @@ const viteQueries = {
     }));
   },
 };
+
+// Start from nothing: chunks and assets are named by content hash, so the
+// files of earlier builds would pile up beside the new ones — and be published
+// with them (`files: dist`): 891 files instead of 357 after a few builds.
+await rm('dist/viewer', { recursive: true, force: true });
 
 const result = await build({
   entryPoints: ['src/viewer.ts'],

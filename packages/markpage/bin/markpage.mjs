@@ -250,8 +250,16 @@ export async function checkDocument(md, { docDir, chrome, timeout = 180, scales 
           (e.textContent ?? '').replace(/\s+/g, ' ').trim(),
         ),
       );
+      // A `::: toc+` block that holds no list renders as nothing at all, in
+      // silence: written as paragraphs ("**Title** — …") instead of list
+      // items ("- **Title** — …"), the whole contents vanish.
+      const tocEmpty = await p.page.evaluate(() =>
+        [...document.querySelectorAll('#preview-pane nav.toc-plus')]
+          .filter((nav) => !nav.querySelector('a[data-toc-title]'))
+          .map(() => 'le bloc ::: toc+ ne contient aucune entrée (attendu : une liste « - **Titre** — intention »)'),
+      );
       await p.close();
-      reports.push({ scale, blocks, toc, ...conservation(cont, pag), errors: [...c.errors, ...p.errors] });
+      reports.push({ scale, blocks, toc, tocEmpty, ...conservation(cont, pag), errors: [...c.errors, ...p.errors] });
     }
     return reports;
   });
@@ -260,6 +268,7 @@ export async function checkDocument(md, { docDir, chrome, timeout = 180, scales 
 const FINDINGS = [
   ['blocks', 'bloc en erreur'],
   ['toc', 'entrée du sommaire sans section'],
+  ['tocEmpty', 'sommaire vide'],
   ['lost', 'texte perdu'],
   ['added', 'texte ajouté ou doublé'],
   ['duplicated', 'bloc posé deux fois'],

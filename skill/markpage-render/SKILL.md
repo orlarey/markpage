@@ -34,6 +34,12 @@ entrée du sommaire sans section
 :   Une ligne du bloc `::: toc+` dont le titre ne correspond à aucun titre du
     document. Aligner le texte de l'entrée sur celui du titre.
 
+sommaire vide
+:   Le bloc `::: toc+` ne contient aucune entrée : il disparaît du rendu. Il
+    doit contenir une **liste**, une entrée par section
+    (`- **Titre** — de quoi il s'agit.`, les sous-sections en sous-liste), et
+    non des paragraphes.
+
 Les défauts **de la mise en page**, à signaler tels quels à l'utilisateur :
 
 texte perdu, texte ajouté ou doublé, bloc posé deux fois, notes différentes, formules en trop ou en moins, texte hors de la zone, page presque vide avant la suite
