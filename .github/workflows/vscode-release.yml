@@ -31,7 +31,10 @@ permissions:
 jobs:
   publish:
     name: package · publish
-    runs-on: ubuntu-latest
+    # Pinned, as the e2e job of ci.yml: on ubuntu-latest (26.04) Playwright
+    # cannot install its browser dependencies, and the render gate below never
+    # ran. Unpin once Playwright supports it.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
