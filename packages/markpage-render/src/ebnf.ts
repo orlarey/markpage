@@ -37,8 +37,9 @@ interface Production {
 
 /**
  * Purpose: Entry point of the `ebnf` fence renderer.
- * How: Parse to AST, build one diagram per production, wrap in a `<dl>`;
- *   parse errors become a visible `<pre class="ebnf-error">`.
+ * How: Parse to AST, build one diagram per production, each in its own
+ *   `.ebnf-rule`, the whole in a `<dl>`; parse errors become a visible
+ *   `<pre class="ebnf-error">`.
  */
 export function renderEbnfBlock(source: string): string {
   try {
@@ -51,14 +52,26 @@ export function renderEbnfBlock(source: string): string {
     if (productions.length === 0) {
       return `<pre class="ebnf-error">EBNF parse error: no productions found</pre>`;
     }
+    // Every `=` sign lines up under the previous one: the names are
+    // right-aligned in a column as wide as the longest. Each `<dt>` carries
+    // that longest name (data-w), which the stylesheet lays as an invisible
+    // sizer: the column is then exactly as wide, in whatever face the names
+    // end up set — and on every page, where a grid would size it again from
+    // the productions that page happens to hold.
+    const longest = productions
+      .map((p) => p.identifier)
+      .reduce((a, b) => ([...b].length > [...a].length ? b : a));
     const parts = productions.map((production) => {
       const svg = buildDiagram(production, metadata, ast, {});
-      // Definition-list semantics — `<dt>` for the non-terminal name,
-      // `<dd>` for the diagram. The CSS turns the dl into a 2-column
-      // grid so every `=` sign lines up under the previous one.
+      // Definition-list semantics — `<dt>` for the non-terminal name, `<dd>`
+      // for the diagram — one `<div>` per production: a production is one
+      // indivisible block, and the grammar a sequence of them, which
+      // pagination may break BETWEEN two productions.
       return (
-        `<dt>${escapeHtml(production.identifier)}</dt>` +
-        `<dd>${svg}</dd>`
+        `<div class="ebnf-rule">` +
+        `<dt data-w="${escapeHtml(longest)}">${escapeHtml(production.identifier)}</dt>` +
+        `<dd>${svg}</dd>` +
+        `</div>`
       );
     });
     return `<dl class="ebnf-block block-rigid">${parts.join('')}</dl>`;

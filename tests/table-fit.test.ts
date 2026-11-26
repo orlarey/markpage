@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MIN_TABLE_SCALE,
   comfortableTableWidth,
+  isCodeCell,
   isNumericCell,
   tableBleedPerSideMm,
   tableFitScale,
@@ -79,6 +80,30 @@ describe('isNumericCell', () => {
   it('leaves prose and labels alone', () => {
     for (const t of ['vocal', '—', 'cible nulle, double précision', 'compiler/global.cpp, -st et -nost']) {
       expect(isNumericCell(t), t).toBe(false);
+    }
+  });
+});
+
+describe('isCodeCell', () => {
+  const cell = (html: string): Element => {
+    const td = document.createElement('td');
+    td.innerHTML = html;
+    return td;
+  };
+
+  it('recognises a cell that is one short piece of inline code', () => {
+    for (const h of ['<code>(1 + 2) * (3 + 4)</code>', ' <code>--scale</code> ', '<code>hoa_octo</code>']) {
+      expect(isCodeCell(cell(h)), h).toBe(true);
+    }
+  });
+
+  it('leaves long code free to wrap', () => {
+    expect(isCodeCell(cell('<code>npx -y @orlarey/markpage check note.md</code>'))).toBe(false);
+  });
+
+  it('leaves prose alone, with or without code in it', () => {
+    for (const h of ['stable', 'voir <code>-st</code>', '<code>-st</code> et <code>-nost</code>', '<em>x</em>', '<code></code>']) {
+      expect(isCodeCell(cell(h)), h).toBe(false);
     }
   });
 });

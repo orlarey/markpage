@@ -3,6 +3,7 @@ import { Window } from 'happy-dom';
 import {
   atomicFitDecision,
   fitAtomicBlocks,
+  fitEbnfBlocks,
   markAtomicBlocks,
   type AtomicPageGeometryPx,
 } from '@orlarey/markpage-render';
@@ -110,5 +111,78 @@ describe('fitAtomicBlocks', () => {
     expect(page.style.getPropertyValue('--mp-atomic-center-x-recto')).toBe('60px');
     expect(page.style.getPropertyValue('--mp-atomic-center-x-verso')).toBe('40px');
     expect(block.dataset.mpAtomicFit).toBe('page');
+  });
+});
+
+/** A grammar of `heights.length` productions, `width` wide. */
+function grammar(width: number, heights: number[], wrap = (dl: string) => dl): {
+  root: HTMLElement;
+  dl: HTMLElement;
+} {
+  const rules = heights.map(() => '<div class="ebnf-rule"><dt>a</dt><dd></dd></div>').join('');
+  const doc = documentFor(`<main>${wrap(`<dl class="ebnf-block block-rigid">${rules}</dl>`)}</main>`);
+  const root = doc.body.firstElementChild as HTMLElement;
+  const dl = root.querySelector('dl') as HTMLElement;
+  measured(dl, width, heights.reduce((a, b) => a + b, 0));
+  [...dl.querySelectorAll<HTMLElement>('.ebnf-rule')].forEach((r, i) => measured(r, width, heights[i]!));
+  return { root, dl };
+}
+
+describe('fitEbnfBlocks', () => {
+  it('leaves a grammar that fits the column fragmentable, however tall', () => {
+    // 80 wide in a 100 column; 5 productions of 60: three pages of them.
+    const { root, dl } = grammar(80, [60, 60, 60, 60, 60]);
+    const results = fitAtomicBlocks(root, geometry);
+    expect(results).toEqual([]); // no atomic block at all
+    expect(dl.classList.contains('mp-atomic')).toBe(false);
+    expect(dl.style.zoom).toBe('');
+    // The width is fixed, so each page's fragment is centred alike.
+    expect(dl.style.width).toBe('80px');
+    expect(dl.dataset.mpEbnfFit).toBe('flow');
+  });
+
+  it('reduces the whole grammar by one factor when a production is too wide', () => {
+    const { root, dl } = grammar(125, [20, 20, 20]);
+    const [fit] = fitEbnfBlocks(root, geometry);
+    expect(fit?.mode).toBe('flow');
+    expect(fit?.scale).toBeCloseTo(0.8);
+    expect(Number.parseFloat(dl.style.zoom)).toBeCloseTo(0.8);
+    expect(dl.style.width).toBe('125px'); // its own units: 125 × 0.8 = the column
+    expect(markAtomicBlocks(root)).toEqual([]);
+  });
+
+  it('reduces it too when one production is taller than the page', () => {
+    const { root, dl } = grammar(80, [20, 125, 20]);
+    const [fit] = fitEbnfBlocks(root, geometry);
+    expect(fit?.scale).toBeCloseTo(0.8);
+    expect(Number.parseFloat(dl.style.zoom)).toBeCloseTo(0.8);
+  });
+
+  it('keeps a grammar too wide for the column whole: a page of its own', () => {
+    // 300 wide: 0.33 of its size in the column, under the 0.65 threshold.
+    const { root, dl } = grammar(300, [30, 30]);
+    const results = fitAtomicBlocks(root, geometry);
+    expect(dl.classList.contains('mp-ebnf-whole')).toBe(true);
+    expect(results).toHaveLength(1);
+    expect(results[0]?.mode).toBe('page');
+    expect(dl.closest('.mp-atomic-page')).not.toBeNull();
+    expect(dl.style.width).toBe(''); // not ours to fix
+  });
+
+  it('leaves a captioned grammar to its figure', () => {
+    const { root, dl } = grammar(80, [60, 60, 60], (g) => `<figure class="captioned">${g}<figcaption>G</figcaption></figure>`);
+    expect(fitEbnfBlocks(root, geometry)).toEqual([]);
+    const marked = markAtomicBlocks(root);
+    expect(marked).toHaveLength(1);
+    expect(marked[0]?.tagName.toLowerCase()).toBe('figure');
+    expect(dl.classList.contains('mp-atomic')).toBe(false);
+  });
+
+  it('is idempotent', () => {
+    const { root, dl } = grammar(125, [20, 20, 20]);
+    fitEbnfBlocks(root, geometry);
+    const zoom = dl.style.zoom;
+    expect(fitEbnfBlocks(root, geometry)).toEqual([]);
+    expect(dl.style.zoom).toBe(zoom);
   });
 });

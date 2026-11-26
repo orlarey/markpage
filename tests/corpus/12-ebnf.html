@@ -5,7 +5,7 @@ diagram per production.</p>
 expression = term, { (&quot;+&quot; | &quot;-&quot;), term };
 term = factor, { (&quot;*&quot; | &quot;/&quot;), factor };
 factor = number | &quot;(&quot;, expression, &quot;)&quot;;
-```" class="ebnf-block block-rigid"><dt>expression</dt><dd><svg class="railroad-diagram" width="188.5" style="max-height: 122px;" viewBox="0 0 188.5 122">
+```" class="ebnf-block block-rigid"><div class="ebnf-rule"><dt data-w="expression">expression</dt><dd><svg class="railroad-diagram" width="188.5" style="max-height: 122px;" viewBox="0 0 188.5 122">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20"></path>
@@ -50,7 +50,7 @@ factor = number | &quot;(&quot;, expression, &quot;)&quot;;
 <path d="M 148.5 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
 </g>
 </svg>
-</dd><dt>term</dt><dd><svg class="railroad-diagram" width="191" style="max-height: 122px;" viewBox="0 0 191 122">
+</dd></div><div class="ebnf-rule"><dt data-w="expression">term</dt><dd><svg class="railroad-diagram" width="191" style="max-height: 122px;" viewBox="0 0 191 122">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20"></path>
@@ -95,7 +95,7 @@ factor = number | &quot;(&quot;, expression, &quot;)&quot;;
 <path d="M 151 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
 </g>
 </svg>
-</dd><dt>factor</dt><dd><svg class="railroad-diagram" width="322" style="max-height: 92px;" viewBox="0 0 322 92">
+</dd></div><div class="ebnf-rule"><dt data-w="expression">factor</dt><dd><svg class="railroad-diagram" width="322" style="max-height: 92px;" viewBox="0 0 322 92">
 <g transform="translate(.5 .5)">
 <g>
 <path d="M20 21v20m10 -20v20m-10 -10h20"></path>
@@ -145,7 +145,7 @@ factor = number | &quot;(&quot;, expression, &quot;)&quot;;
 <path d="M 282 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
 </g>
 </svg>
-</dd></dl><p>A parse error renders a visible <code>&lt;pre class="ebnf-error"&gt;</code> block
+</dd></div></dl><p>A parse error renders a visible <code>&lt;pre class="ebnf-error"&gt;</code> block
 instead of blowing up the document:</p>
 <pre data-source="```ebnf
 this is :=: not :=: valid EBNF

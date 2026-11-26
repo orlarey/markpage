@@ -45,8 +45,11 @@ export interface AtomicFitOptions {
   onWarning?: (result: AtomicFitResult) => void;
 }
 
+// A grammar is a sequence of productions, fragmentable between two of them:
+// it is atomic only when fitEbnfBlocks() found it too wide for the column
+// (`.mp-ebnf-whole`), or when it carries a caption (the figure is the unit).
 const ATOMIC_SEED_SELECTOR =
-  '.block-rigid, img, .demo-block, .mosaic-row';
+  '.block-rigid:not(.ebnf-block), .ebnf-block.mp-ebnf-whole, figure.captioned .ebnf-block, img, .demo-block, .mosaic-row';
 
 /** Decide which containment zone an already-measured atomic block needs. */
 export function atomicFitDecision(
@@ -111,6 +114,63 @@ export function markAtomicBlocks(root: HTMLElement): HTMLElement[] {
   return ordered;
 }
 
+export interface EbnfFitResult {
+  element: HTMLElement;
+  /** 'flow': breaks between productions; 'whole': left to the atomic fit. */
+  mode: 'flow' | 'whole';
+  scale: number;
+}
+
+/**
+ * Fit the grammars (`dl.ebnf-block`) that pagination may break between two
+ * productions. One scale for the whole grammar — productions reduced each by
+ * its own factor would not read as one grammar: the widest production must fit
+ * the text width and the tallest the text height. Down to `threshold` the
+ * grammar is zoomed and stays fragmentable; below, it is marked
+ * `.mp-ebnf-whole` and left to fitAtomicBlocks(), which gives it a page of its
+ * own and lets it borrow the margins. A captioned grammar is not touched: its
+ * figure is the atomic unit.
+ *
+ * The width of the grammar is then fixed: split across pages, a shrink-to-fit
+ * block would be centred again on each page, around a different width.
+ * `root` must be mounted and styled at `geometry.textWidth`.
+ */
+export function fitEbnfBlocks(
+  root: HTMLElement,
+  geometry: AtomicPageGeometryPx,
+  threshold = ATOMIC_MARGIN_BORROW_THRESHOLD,
+): EbnfFitResult[] {
+  const results: EbnfFitResult[] = [];
+  for (const element of root.querySelectorAll<HTMLElement>('dl.ebnf-block')) {
+    if (element.closest('figure.captioned, .mp-atomic-page')) continue;
+    if (element.dataset.mpEbnfFit) continue; // already fitted (idempotent)
+    const rules = [...element.querySelectorAll<HTMLElement>(':scope > .ebnf-rule')];
+    if (rules.length === 0) continue;
+    const width = Math.max(element.getBoundingClientRect().width, element.scrollWidth);
+    const tallest = Math.max(...rules.map((r) => r.getBoundingClientRect().height));
+    if (!(width > 0) || !(tallest > 0)) continue;
+    const scale = Math.min(1, geometry.textWidth / width, geometry.textHeight / tallest);
+    if (scale < threshold) {
+      element.classList.add('mp-ebnf-whole');
+      element.dataset.mpEbnfFit = 'whole';
+      results.push({ element, mode: 'whole', scale });
+      continue;
+    }
+    // Measured before any zoom of ours: `width` is in the element's own units
+    // times the zoom it already had.
+    const baseZoom = numericZoom(element);
+    if (scale < 1) {
+      element.style.zoom = String(baseZoom * scale);
+      element.classList.add('mp-atomic-fitted');
+      setScaleMetadata(element, scale, 'text');
+    }
+    element.style.width = `${Math.ceil(width / baseZoom)}px`;
+    element.dataset.mpEbnfFit = 'flow';
+    results.push({ element, mode: 'flow', scale });
+  }
+  return results;
+}
+
 /** Callouts no taller than this fraction of the text height are kept whole. */
 export const KEEP_TOGETHER_MAX_RATIO = 0.5;
 
@@ -159,6 +219,8 @@ export function fitAtomicBlocks(
   options: AtomicFitOptions = {},
 ): AtomicFitResult[] {
   const results: AtomicFitResult[] = [];
+  // Grammars first: those that stay fragmentable are no atomic block at all.
+  fitEbnfBlocks(root, geometry, options.threshold);
   const atomics = markAtomicBlocks(root);
   for (const element of atomics) {
     if (element.closest('.mp-atomic-page')) continue;

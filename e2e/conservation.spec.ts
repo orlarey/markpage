@@ -151,6 +151,15 @@ const SHIFTS = [0, 3, 7, 11, 16, 22];
 const cases: { name: string; markdown: () => string }[] = [
   ...REFERENCE.map((f) => ({ name: f, markdown: () => readFileSync(join(process.cwd(), f), 'utf8') })),
   { name: 'ebnf block between two sections', markdown: () => EBNF_NOTE },
+  // The same note with a grammar of twenty productions: it flows over pages.
+  {
+    name: 'ebnf grammar over several pages',
+    markdown: () =>
+      EBNF_NOTE.replace(
+        'factor = digit , { digit } ;',
+        Array.from({ length: 18 }, (_, i) => `r${i} = "a" , ( r${(i + 1) % 18} | "b" ) , { "c" } ;`).join('\n'),
+      ),
+  },
   ...SHIFTS.map((s) => ({ name: `stress, shift ${s}`, markdown: () => stressDocument(s) })),
   ...SHIFTS.slice(0, 3).map((s) => ({
     name: `stress, article-a4, shift ${s}`,

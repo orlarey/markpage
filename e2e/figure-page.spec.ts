@@ -8,11 +8,15 @@ import { expect, test } from './fixtures';
  *   across its EBNF grammar).
  */
 
+// A grammar that fits the column breaks between its productions, however
+// long; one too WIDE for it — a production of forty symbols — is kept whole,
+// on a page of its own.
 function oversizedGrammar(): string {
-  const rules = Array.from(
-    { length: 24 },
-    (_, i) => `regle_${i} = "a" , ( regle_${(i + 1) % 24} | "b" | "c" ) , { "d" } ;`,
-  );
+  const wide = Array.from({ length: 40 }, (_, i) => `"mot${i}"`).join(' , ');
+  const rules = [
+    `phrase = ${wide} ;`,
+    ...Array.from({ length: 6 }, (_, i) => `regle_${i} = "a" , ( regle_${(i + 1) % 6} | "b" | "c" ) , { "d" } ;`),
+  ];
   return [
     '---',
     'title: Page de figure',

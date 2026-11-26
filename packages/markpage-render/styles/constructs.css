@@ -593,26 +593,35 @@ figure.captioned > pre {
    (green fills, gray-sand background, 3 px black strokes) for
    something quieter that fits the rest of the preview.
 
-   Layout: a 2-column grid driven by `<dl>`. Column 1 holds the
-   non-terminal name right-aligned, with `=` appended via ::after
-   so every `=` sign lines up vertically (LaTeX align-on-equals
-   convention). Column 2 holds the SVG, left-aligned. */
+   Layout: one `.ebnf-rule` per production, stacked in the `<dl>`.
+   In a rule, the non-terminal name sits right-aligned in a column as
+   wide as the longest name of the grammar (dt::before), with `=`
+   appended via ::after so every `=` sign lines up vertically (LaTeX
+   align-on-equals convention); the SVG follows, left-aligned.
+
+   Rules are separate blocks, not the rows of one grid, so that
+   pagination can break the grammar BETWEEN two productions (a rule
+   itself never splits — see paginationCss). */
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block {
-  display: grid;
-  grid-template-columns: max-content max-content;
-  align-items: start;
-  column-gap: 0.5em;
-  row-gap: 0.6em;
+  display: block;
   /* `fit-content` makes the dl shrink-wrap around its content; the
      `auto` left/right margins then centre the block on the page
      (same convention as tables). */
   width: fit-content;
   max-width: 100%;
   margin: 0.8em auto;
-  /* Kill any UA default padding on <dl>; otherwise the first grid
-     row "consumes" the padding visually and ends up misaligned
-     relative to the rest. */
+  /* Kill any UA default padding on <dl>. */
   padding: 0;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block .ebnf-rule {
+  display: flex;
+  align-items: flex-start;
+  column-gap: 0.5em;
+}
+
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block .ebnf-rule + .ebnf-rule {
+  margin-top: 0.6em;
 }
 
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block dt,
@@ -627,11 +636,27 @@ figure.captioned > pre {
   color: var(--text, #1f2328);
   text-align: right;
   white-space: nowrap;
+  /* The name column, as wide as the longest name: see ::before below. */
+  flex: none;
   /* The SVG's main horizontal line sits at y ≈ 31 px from the top
      of the diagram (10 px entry "hat" + 21 px half-arc above the
      connector). Shift the name down so its baseline lands on that
      line — LaTeX-style align-on-equals. */
   padding-top: 1.55em;
+}
+
+/* The sizer: the longest name of the grammar (data-w, set by the renderer)
+   and its ` =`, laid invisibly on a line of no height. It gives every <dt>
+   the width of the widest one, whatever face the names are set in — a width
+   computed from a character count held only for one exact face. The padding
+   stands for the margin of the real ` =` below. */
+:where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block dt::before {
+  content: attr(data-w) ' =';
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  padding-left: 0.2em;
 }
 
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block dt::after {
@@ -643,6 +668,10 @@ figure.captioned > pre {
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview) .ebnf-block dd {
   margin: 0;
   text-align: left;
+  /* At its natural width, as in the name column: a diagram wider than the
+     page must overflow — and be measured, then reduced with the whole
+     grammar (fitEbnfBlocks) — not shrink alone inside its rule. */
+  flex: none;
 }
 
 :where(#preview-pane, #markpage-print-target, .help-body, #markpage-preview)

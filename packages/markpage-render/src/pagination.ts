@@ -101,23 +101,31 @@ export function paginationCss(): string {
     thead { break-after: avoid; break-inside: avoid; }
     tr { break-inside: avoid; }
     /* Table cells: no hyphenation (a header cut as "lis-seurs" reads badly),
-       and a numeric cell never wraps — fitWideTables marks it .mp-num before
+       and a numeric cell never wraps, nor a cell that is one short piece of
+       inline code (.mp-code) — fitWideTables marks them before
        measuring, so the zoom it picks already accounts for it. */
     td, th { hyphens: manual; -webkit-hyphens: manual; }
-    td.mp-num { white-space: nowrap; }
+    td.mp-num, td.mp-code { white-space: nowrap; }
     /* No single dangling first/last line of a paragraph or list item. */
     p, li { orphans: 3; widows: 3; }
     /* Definition lists: never leave a term alone at a page foot. The first
        definition remains fragmentable, but at least three of its lines stay
        together at either side of a page break. */
-    /* Not the EBNF block: it is a dl too, but laid as a GRID — each rule name
-       beside its diagram — and atomic as a whole. There, "keep the term with
-       its definition" has no meaning, and it misled Vivliostyle's choice of a
-       page break around the block: the section that held it (heading, lead
-       paragraph, diagrams) was pushed whole to the next page, though it fitted
-       on the current one (a title page left 32 % full). */
+    /* Not the EBNF block: it is a dl too, but one whose name and diagram sit
+       side by side. "Keep the term with its definition" has no meaning there,
+       and it misled Vivliostyle's choice of a page break around the block:
+       the section that held it (heading, lead paragraph, diagrams) was pushed
+       whole to the next page, though it fitted on the current one (a title
+       page left 32 % full). */
     dl:not(.ebnf-block) > dt { break-after: avoid; }
     dl:not(.ebnf-block) > dt + dd { break-before: avoid; }
+    /* A grammar breaks BETWEEN two productions, never inside one, and never
+       leaves a single production alone at the foot or at the top of a page.
+       (A grammar too wide for the column is kept whole instead: .mp-atomic,
+       see fitEbnfBlocks.) */
+    .ebnf-rule { break-inside: avoid; }
+    .ebnf-rule:first-child { break-after: avoid; }
+    .ebnf-rule:last-child { break-before: avoid; }
     dd { orphans: 3; widows: 3; }
     /* Horizontal scrolling cannot expose hidden code in a printed page. Keep
        indentation, wrap at natural opportunities, then break an exceptionally

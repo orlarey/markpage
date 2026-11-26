@@ -25,9 +25,11 @@
  *   not enough. Only a table that would otherwise be shrunk borrows: a table
  *   that fits by wrapping stays in the column.
  *
- *   Numeric cells (digits, units, percentages) never wrap, and cells are not
- *   hyphenated: a number cut in two, or "lis-seurs" in a header, reads worse
- *   than a slightly taller table. See paginationCss (.mp-num, td/th hyphens).
+ *   Numeric cells (digits, units, percentages) never wrap, nor does a cell
+ *   that is one short piece of inline code, and cells are not hyphenated: a
+ *   number or an expression cut in two, or "lis-seurs" in a header, reads
+ *   worse than a slightly taller table. See paginationCss (.mp-num, .mp-code,
+ *   td/th hyphens).
  *
  ****************************************************************************/
 
@@ -121,6 +123,29 @@ export function isNumericCell(text: string): boolean {
   return NUMERIC_CELL.test(t) || (t.length <= 12 && /\d/.test(t));
 }
 
+/**
+ * Longest inline code kept on one line in a cell, in characters: about the
+ * comfortable width of a column (12 em of text is some 24 monospace
+ * characters). Longer code — a command line, a path — may wrap, or a single
+ * cell would force the whole table to shrink.
+ */
+export const MAX_NOWRAP_CODE_CHARS = 24;
+
+/**
+ * A cell holding nothing but one short piece of inline code: an identifier, an
+ * expression, a flag. Cut in two — "(1 + 2) * (3 +" / "4)" — it reads as two
+ * things; the prose columns beside it are the ones meant to wrap.
+ */
+export function isCodeCell(cell: Element): boolean {
+  if (cell.children.length !== 1) return false;
+  const code = cell.children[0]!;
+  if (code.tagName.toLowerCase() !== 'code') return false;
+  const text = (code.textContent ?? '').trim();
+  // The code is the whole cell: no text around it.
+  if ((cell.textContent ?? '').trim() !== text) return false;
+  return text !== '' && [...text].length <= MAX_NOWRAP_CODE_CHARS;
+}
+
 /** Clear any fit this pass applied before (keeps the pass idempotent). */
 function resetTable(table: HTMLTableElement): void {
   table.style.removeProperty('width');
@@ -181,6 +206,7 @@ export function fitWideTables(
     resetTable(table);
     for (const cell of table.querySelectorAll('td')) {
       cell.classList.toggle('mp-num', isNumericCell(cell.textContent ?? ''));
+      cell.classList.toggle('mp-code', isCodeCell(cell));
     }
 
     const max = measure(table, 'max-content');
