@@ -11,17 +11,28 @@ name: Release @orlarey/markpage (npm)
 # Or run manually from the Actions tab (workflow_dispatch) once the version is
 # bumped on the default branch.
 #
-# Requires a repo secret NPM_TOKEN: an npm access token allowed to publish
-# under the @orlarey scope (an "Automation" token, or a granular one with
-# read-write on @orlarey/markpage).
+# No npm token: npm's TRUSTED PUBLISHING (OIDC). GitHub proves to npm that the
+# publish comes from this workflow of this repository; nothing secret is
+# stored. Set up once on npmjs.com, in the package's Settings ▸ Trusted
+# Publisher: GitHub Actions, user `orlarey`, repository `markpage`, workflow
+# `npm-release.yml`, allowed action "npm publish". npm can only attach a
+# trusted publisher to a package that EXISTS: the very first version is
+# published by hand (see packages/markpage/README.md).
+# Needs npm ≥ 11.5.1 and Node ≥ 22.14 (docs.npmjs.com/trusted-publishers).
 
 on:
   push:
     tags: ['npm-v*']
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build, test and pack, but do not publish'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  id-token: write # the OIDC token npm's trusted publishing asks for
 
 jobs:
   publish:
@@ -32,9 +43,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+      # Trusted publishing needs a recent npm, whatever Node ships.
+      - run: npm install -g npm@^11.15.0 && node --version && npm --version
       - run: npm ci
 
       - name: Check tag matches version
@@ -52,7 +64,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run smoke -w @orlarey/markpage
 
-      - name: Publish to npm
-        run: npm publish -w @orlarey/markpage --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm (trusted publishing, no token)
+        run: npm publish -w @orlarey/markpage --access public ${{ inputs.dry_run && '--dry-run' || '' }}

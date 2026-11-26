@@ -28,7 +28,8 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "smoke": "node test/smoke.mjs"
+    "smoke": "node test/smoke.mjs",
+    "prepublishOnly": "node build.mjs"
   },
   "dependencies": {
     "playwright-core": "^1.60.0"

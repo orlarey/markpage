@@ -54,9 +54,26 @@ document's, and show the pages.
 
 ## Publish
 
-`.github/workflows/npm-release.yml`: bump `version` here, then push a
-`npm-v<version>` tag (or run the workflow by hand). Needs the `NPM_TOKEN`
-repository secret.
+No npm token is stored anywhere: releases go through npm's
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) — GitHub
+proves to npm that the publish comes from `.github/workflows/npm-release.yml`.
+
+**Once** (npm can only attach a trusted publisher to an existing package):
+
+1. publish the first version by hand, from the repository root — npm asks for
+   your two-factor code:
+
+   ```sh
+   npm ci
+   npm publish -w @orlarey/markpage     # builds the viewer first (prepublishOnly)
+   ```
+
+2. on npmjs.com, package **Settings ▸ Trusted Publisher** ▸ GitHub Actions:
+   user `orlarey`, repository `markpage`, workflow `npm-release.yml`, allowed
+   action **npm publish**.
+
+**Then**, for every release: bump `version` here, and push a `npm-v<version>`
+tag (or run the workflow by hand from the Actions tab).
 
 ## Develop
 
