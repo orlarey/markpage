@@ -110,8 +110,14 @@ export function paginationCss(): string {
     /* Definition lists: never leave a term alone at a page foot. The first
        definition remains fragmentable, but at least three of its lines stay
        together at either side of a page break. */
-    dt { break-after: avoid; }
-    dt + dd { break-before: avoid; }
+    /* Not the EBNF block: it is a dl too, but laid as a GRID — each rule name
+       beside its diagram — and atomic as a whole. There, "keep the term with
+       its definition" has no meaning, and it misled Vivliostyle's choice of a
+       page break around the block: the section that held it (heading, lead
+       paragraph, diagrams) was pushed whole to the next page, though it fitted
+       on the current one (a title page left 32 % full). */
+    dl:not(.ebnf-block) > dt { break-after: avoid; }
+    dl:not(.ebnf-block) > dt + dd { break-before: avoid; }
     dd { orphans: 3; widows: 3; }
     /* Horizontal scrolling cannot expose hidden code in a printed page. Keep
        indentation, wrap at natural opportunities, then break an exceptionally

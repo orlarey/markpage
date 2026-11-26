@@ -102,11 +102,55 @@ function stressDocument(shift: number, style = ''): string {
   return out.join('\n');
 }
 
+/**
+ * A short note whose first section holds an EBNF block and is followed by a
+ * second section, the whole a little over one page. The section fits on page 1
+ * under the title and the contents; it was pushed whole to page 2, leaving
+ * page 1 a third full (found by rendering a test note with the published
+ * command, 0.1.0).
+ */
+const EBNF_NOTE = `---
+title: Essai
+subtitle: Une grammaire entre deux sections
+author: Yann Orlarey
+organization: EMERAUDE (GRAME/INRIA/INSA)
+date: 26 novembre 2026
+document-style: note-a4
+language: fr
+---
+
+::: toc+
+- **La grammaire** — une petite grammaire d'expressions.
+- **Le tableau des mesures** — un tableau de mesures.
+:::
+
+# La grammaire
+
+Les expressions suivent la grammaire ci-dessous.
+
+\`\`\`ebnf
+expr = term , { "+" , term } ;
+term = factor , { "*" , factor } ;
+factor = digit , { digit } ;
+\`\`\`
+
+# Le tableau des mesures
+
+\`\`\`tsv
+programme\tnœuds\tremarque
+lisseur\t120\tstable, sans surprise
+filtre\t340\tà revoir, le cône est large
+\`\`\`
+
+La formule $y(t+1) = y(t)$ caractérise le régime figé.
+`;
+
 const REFERENCE = ['SHOWCASE.md', 'markpage-slides.md', 'LETTER.md'];
 const SHIFTS = [0, 3, 7, 11, 16, 22];
 
 const cases: { name: string; markdown: () => string }[] = [
   ...REFERENCE.map((f) => ({ name: f, markdown: () => readFileSync(join(process.cwd(), f), 'utf8') })),
+  { name: 'ebnf block between two sections', markdown: () => EBNF_NOTE },
   ...SHIFTS.map((s) => ({ name: `stress, shift ${s}`, markdown: () => stressDocument(s) })),
   ...SHIFTS.slice(0, 3).map((s) => ({
     name: `stress, article-a4, shift ${s}`,
