@@ -14,6 +14,10 @@ title: Essai
 language: fr
 ---
 
+::: toc+
+- **Une section** — tout l'essai.
+:::
+
 # Une section
 
 Une formule $a^2 + b^2 = c^2$, du \`code\` et une table :
@@ -43,7 +47,20 @@ assert.ok(/<svg[\s>]/.test(html), 'no SVG: formula / diagram not rendered');
 // Vivliostyle bakes a style attribute onto every element it lays out.
 assert.ok(/<code[^>]*>pow\(2, 3\)<\/code>/.test(html), 'tsv cell not rendered as Markdown');
 assert.ok(html.includes('qui ne ferme rien'), 'text after </script> lost');
-console.log(`smoke html: ok — ${pages} page(s), ${(html.length / 1e6).toFixed(2)} MB`);
+// The contents link to their section inside the saved page — not to the local
+// server the render ran on, gone by the time the page is read.
+assert.ok(!/href="https?:\/\/(127\.0\.0\.1|localhost)/.test(html), 'a link points at the render server');
+assert.match(html, /<a[^>]*href="#sec-une-section"/, 'the contents entry does not link to its section');
+assert.match(html, /<h1[^>]*id="sec-une-section"/, 'the section has lost its anchor');
+// Readable offline: the faces the document uses are in the page. When the
+// font host cannot be reached while rendering, its stylesheet stays linked —
+// never neither.
+const embedded = (html.match(/@font-face\s*\{[^}]*url\("data:/g) ?? []).length;
+const linked = (html.match(/<link[^>]+fonts\.googleapis\.com/g) ?? []).length;
+assert.ok(embedded > 0 || linked > 0, 'the page carries no font at all');
+if (linked > 0) console.warn(`smoke html: ${linked} font stylesheet(s) left linked (font host unreachable?)`);
+else assert.ok(!/<link\b/i.test(html), 'an external stylesheet is still linked');
+console.log(`smoke html: ok — ${pages} page(s), ${(html.length / 1e6).toFixed(2)} MB, ${embedded} face(s) embedded`);
 
 // check: the same document, at both device pixel ratios, conserved.
 const reports = await checkDocument(md, { docDir: dir, scales: [1, 2] });

@@ -222,8 +222,10 @@ async function render(msg: RenderMessage): Promise<void> {
 // the current render to a self-contained HTML document and hands it to the host,
 // which opens it in the system browser (Cmd/Ctrl-P → Save as PDF). That browser
 // can't reach the webview's resources, so everything they serve — the fonts the
-// document uses, its images — is inlined as data: URLs; Google-hosted fonts are
-// public and stay linked.
+// document uses, its images — is inlined as data: URLs. So are the Google-hosted
+// faces the document actually loaded, when their stylesheet can be fetched (the
+// `markpage` CLI; a webview's policy may refuse it): the page then reads the
+// same offline. Otherwise that stylesheet stays linked.
 
 /** Fetch a resource and return it as a data: URL (null when unreachable). */
 async function toDataUrl(url: string): Promise<string | null> {
@@ -249,10 +251,169 @@ function usedFamilies(s: PdfSettings): Set<string> {
   return new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean));
 }
 
+/** A unicode-range in one spelling: "U+0000-00FF, U+131" → "0-ff,131". */
+function rangeKey(range: string): string {
+  return range
+    .split(',')
+    .map((r) =>
+      r
+        .trim()
+        .replace(/^u\+/i, '')
+        .split('-')
+        .map((h) => (/^[0-9a-f]+$/i.test(h) ? Number.parseInt(h, 16).toString(16) : h.toLowerCase()))
+        .join('-'),
+    )
+    .filter(Boolean)
+    .join(',');
+}
+
+/** What tells one face from another: family, style, weight, unicode range. */
+function faceKey(family: string, style: string, weight: string, range: string): string {
+  const fam = family.replace(/["']/g, '').trim().toLowerCase();
+  const w = weight.trim().toLowerCase().replace(/^normal$/, '400').replace(/^bold$/, '700');
+  return `${fam}|${(style || 'normal').trim().toLowerCase()}|${w || '400'}|${rangeKey(range || 'U+0-10FFFF')}`;
+}
+
+/** The faces the browser actually fetched to draw this document. */
+function loadedFaces(): { keys: Set<string>; families: Set<string> } {
+  const keys = new Set<string>();
+  const families = new Set<string>();
+  for (const f of Array.from(document.fonts)) {
+    if (f.status !== 'loaded') continue;
+    keys.add(faceKey(f.family, f.style, f.weight, f.unicodeRange));
+    families.add(f.family.replace(/["']/g, '').trim().toLowerCase());
+  }
+  return { keys, families };
+}
+
+/**
+ * For every family named in the font stack of some text of `root`, the
+ * characters set in that stack. "Loaded" is not "used": the browser also
+ * fetches a face to find out whether it holds a character, and the viewer's
+ * own controls load theirs. A face is worth embedding when the document sets,
+ * in a stack that names its family, a character of its unicode range.
+ */
+function charsByFamily(root: HTMLElement): Map<string, Set<number>> {
+  const byStack = new Map<string, Set<number>>();
+  const stackOf = new Map<Element, string>();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement;
+    const text = n.textContent ?? '';
+    if (!el || text.trim() === '') continue;
+    let stack = stackOf.get(el);
+    if (stack === undefined) {
+      stack = getComputedStyle(el).fontFamily;
+      stackOf.set(el, stack);
+    }
+    let chars = byStack.get(stack);
+    if (!chars) byStack.set(stack, (chars = new Set()));
+    for (const ch of text) chars.add(ch.codePointAt(0)!);
+  }
+  const out = new Map<string, Set<number>>();
+  for (const [stack, chars] of byStack) {
+    for (const name of stack.split(',')) {
+      const family = name.replace(/["']/g, '').trim().toLowerCase();
+      if (!family) continue;
+      let set = out.get(family);
+      if (!set) out.set(family, (set = new Set()));
+      for (const c of chars) set.add(c);
+    }
+  }
+  return out;
+}
+
+/** Does `range` (a unicode-range, '' = everything) hold one of `chars`? */
+function rangeHolds(range: string, chars: Set<number> | undefined): boolean {
+  if (!chars || chars.size === 0) return false;
+  if (range.trim() === '') return true;
+  const spans = range.split(',').map((r) => {
+    const [a, b] = r.trim().replace(/^u\+/i, '').split('-');
+    const lo = Number.parseInt((a ?? '').replace(/\?/g, '0'), 16);
+    const hi = Number.parseInt((b ?? a ?? '').replace(/\?/g, 'f'), 16);
+    return [lo, hi] as const;
+  });
+  for (const c of chars) if (spans.some(([lo, hi]) => c >= lo && c <= hi)) return true;
+  return false;
+}
+
+/** The key of an @font-face rule, read off its text. */
+function ruleFaceKey(css: string): { key: string; family: string; range: string } {
+  const get = (prop: string): string => css.match(new RegExp(`${prop}\\s*:\\s*([^;}]+)`, 'i'))?.[1]?.trim() ?? '';
+  const family = get('font-family').replace(/["']/g, '').trim().toLowerCase();
+  const range = get('unicode-range');
+  return { key: faceKey(family, get('font-style'), get('font-weight'), range), family, range };
+}
+
+/**
+ * A cross-origin font stylesheet (Google Fonts), as @font-face rules with their
+ * files inlined — only the faces the document loaded: a family comes as a
+ * dozen unicode ranges, of which a French text uses one or two. `null` when
+ * the sheet cannot be fetched or read with confidence: the caller links it.
+ */
+async function inlineRemoteFontSheet(href: string, chars: Map<string, Set<number>>): Promise<string | null> {
+  let text: string;
+  try {
+    const res = await fetch(href);
+    if (!res.ok) return null;
+    text = await res.text();
+  } catch {
+    return null;
+  }
+  const blocks = text.match(/@font-face\s*\{[^}]*\}/g) ?? [];
+  if (blocks.length === 0) return null;
+  const loaded = loadedFaces();
+  // Faces that share a file (a variable font, declared once per weight) are
+  // embedded once, over the range of their weights.
+  const byFile = new Map<string, { css: string; weights: number[] }>();
+  const families = new Set<string>();
+  for (const block of blocks) {
+    const { key, family, range } = ruleFaceKey(block);
+    if (!rangeHolds(range, chars.get(family))) continue; // not a face of this document
+    families.add(family);
+    if (!loaded.keys.has(key)) continue;
+    const url = block.match(/url\(\s*["']?([^"')]+)["']?\s*\)/)?.[1];
+    if (!url) return null;
+    const id = `${url}|${key.split('|')[1]}|${key.split('|')[3]}`;
+    const weights = (key.split('|')[2] ?? '400').split(/\s+/).map(Number).filter(Number.isFinite);
+    const seen = byFile.get(id);
+    if (seen) seen.weights.push(...weights);
+    else byFile.set(id, { css: block, weights });
+  }
+  // A family of this sheet is set in the document and loaded, yet none of its
+  // faces was recognised: the keys do not line up — link the sheet rather
+  // than drop the font.
+  if (byFile.size === 0) return [...families].some((f) => loaded.families.has(f)) ? null : '';
+  let out = '';
+  for (const { css, weights } of byFile.values()) {
+    const url = css.match(/url\(\s*["']?([^"')]+)["']?\s*\)/)![1]!;
+    const data = await toDataUrl(new URL(url, href).href);
+    if (!data) return null;
+    const lo = Math.min(...weights);
+    const hi = Math.max(...weights);
+    out += `${css
+      .replace(/url\(\s*["']?[^"')]+["']?\s*\)/, `url("${data}")`)
+      .replace(/font-weight\s*:\s*[^;}]+/i, `font-weight: ${lo === hi ? lo : `${lo} ${hi}`}`)}\n`;
+  }
+  return out;
+}
+
 /** An @font-face rule with its url()s inlined, or '' when unused / unreachable. */
-async function inlineFontFace(rule: CSSFontFaceRule, base: string, used: Set<string>): Promise<string> {
+async function inlineFontFace(
+  rule: CSSFontFaceRule,
+  base: string,
+  used: Set<string>,
+  loaded: Set<string>,
+  chars: Map<string, Set<number>>,
+): Promise<string> {
   const family = rule.style.getPropertyValue('font-family').replace(/["']/g, '').trim().toLowerCase();
-  if (!used.has(family)) return '';
+  // A family of the style, whole; or any other face the document sets text
+  // in and did load — Roboto Mono, for the names of an EBNF grammar, is in no
+  // style's trio.
+  if (!used.has(family)) {
+    const face = ruleFaceKey(rule.cssText);
+    if (!loaded.has(face.key) || !rangeHolds(face.range, chars.get(family))) return '';
+  }
   let css = rule.cssText;
   for (const m of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) {
     const ref = m[1];
@@ -268,6 +429,8 @@ async function inlineFontFace(rule: CSSFontFaceRule, base: string, used: Set<str
  *  images inlined. */
 async function buildStandaloneHtml(): Promise<string> {
   const used = usedFamilies(currentSettings);
+  const loaded = loadedFaces().keys;
+  const chars = charsByFamily(pane);
   let css = '';
   const links: string[] = [];
   for (const sheet of Array.from(document.styleSheets)) {
@@ -275,18 +438,36 @@ async function buildStandaloneHtml(): Promise<string> {
     try {
       rules = Array.from(sheet.cssRules);
     } catch {
-      // Cross-origin (Google Fonts): unreadable here, but public — link it.
-      if (sheet.href?.startsWith('https:')) links.push(`<link rel="stylesheet" href="${sheet.href}">`);
+      // Cross-origin (Google Fonts): its rules cannot be read here, but the
+      // sheet is public — embed the faces in use, or link it.
+      if (sheet.href?.startsWith('https:')) {
+        const inlined = await inlineRemoteFontSheet(sheet.href, chars);
+        if (inlined === null) links.push(`<link rel="stylesheet" href="${sheet.href}">`);
+        else css += inlined;
+      }
       continue;
     }
     const base = sheet.href ?? document.baseURI;
     for (const rule of rules) {
       css += rule instanceof CSSFontFaceRule
-        ? `${await inlineFontFace(rule, base, used)}\n`
+        ? `${await inlineFontFace(rule, base, used, loaded, chars)}\n`
         : `${rule.cssText}\n`;
     }
   }
   const clone = pane.cloneNode(true) as HTMLElement;
+  // Links inside the document (the contents, cross-references) were resolved
+  // against this page's address — a local server, a webview: gone once the
+  // export is saved. Within the export they are plain fragments.
+  for (const a of clone.querySelectorAll('a[href]')) {
+    try {
+      const u = new URL(a.getAttribute('href') ?? '', document.baseURI);
+      if (u.hash && u.origin === location.origin && u.pathname === location.pathname) {
+        a.setAttribute('href', u.hash);
+      }
+    } catch {
+      /* not a URL: leave it */
+    }
+  }
   for (const img of clone.querySelectorAll('img')) {
     const src = img.getAttribute('src');
     if (!src || src.startsWith('data:')) continue;
