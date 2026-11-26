@@ -8,8 +8,8 @@ declare const __APP_VERSION__: string;
 // (parse + per-production diagram + the TOC helpers needed to build
 // metadata). The AST shape is structural; we treat it as `unknown[]`
 // and narrow where needed in src/ebnf.ts.
-declare module 'ebnf2railroad' {
-  export function parseEbnf(src: string): unknown[];
+declare module 'ebnf2railroad/src/ebnf-parser' {
+  export function parse(src: string): unknown[];
 }
 declare module 'ebnf2railroad/src/build-diagram' {
   export function createDiagram(

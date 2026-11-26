@@ -35,7 +35,7 @@
     "playwright-core": "^1.60.0"
   },
   "devDependencies": {
-    "esbuild": "^0.21.5"
+    "esbuild": "^0.28.2"
   },
   "publishConfig": {
     "access": "public"

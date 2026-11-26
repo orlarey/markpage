@@ -9,7 +9,11 @@
 
 // Types declared ambiently in src/vite-env.d.ts — the package ships
 // no .d.ts of its own.
-import { parseEbnf } from 'ebnf2railroad';
+// The parser alone, not the package's main entry: `ebnf2railroad` (main.js)
+// also pulls its HTML / Markdown report builders — and with them `showdown`,
+// an unmaintained Markdown converter with open advisories (ReDoS, XSS) that
+// markpage never calls. Imported this way, none of it is bundled.
+import { parse as parseEbnf } from 'ebnf2railroad/src/ebnf-parser';
 import { createDiagram } from 'ebnf2railroad/src/build-diagram';
 import {
   createDefinitionMetadata,
